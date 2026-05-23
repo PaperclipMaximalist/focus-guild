@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id                  String    @id @default(cuid())
+  clerkId             String    @unique
+  level               Int       @default(1)
+  totalXP             Int       @default(0)
+  currentStreak       Int       @default(0)
+  multiplier          Float     @default(1.0)
+  googleCalendarToken String?
+  /// Lifetime Spin the Wheel uses — drives Chaos Agent achievement.
+  spinCount           Int       @default(0)
+
+  quests         Quest[]
+  checkIns       DailyCheckIn[]
+  xpEvents       XPEvent[]
+  achievements   UserAchievement[]
+  scheduleBlocks ScheduleBlock[]
+  recurringCompletions RecurringCompletion[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Quest {
+  id               String    @id @default(cuid())
+  userId           String
+  title            String
+  estimatedMinutes Int       @default(30)
+  mentalLoad       Int       @default(5)
+  impact           Int       @default(5)
+  deadline         DateTime?
+  status           QuestStatus @default(ACTIVE)
+  parentQuestId    String?
+  tags             String[]
+
+  // ── Scheduler hints (all optional; defaults applied at adapter layer) ──
+  /// 0..1 — how boring/draining the user finds this; drives adjacency penalty
+  tediousness     Float?
+  /// One of: deep_work | comms | admin | creative — drives context-switch penalty
+  category        String?
+  /// 0..23 — preferred hour of day; gaussian fit with σ=2
+  preferredHour   Int?
+  /// Hard minimum chunk minutes
+  minChunkMin     Int?
+  /// Hard maximum chunk minutes (also obeyed by softMaxBlockMin)
+  maxChunkMin     Int?
+  /// 0..1 — setup cost (long-warmup tasks prefer longer chunks)
+  setupCost       Float?
+  /// Multiplier on the urgency sub-score; 1.0 = default. >1 boosts, <1 dampens.
+  urgencyMult     Float?    @default(1.0)
+  /// True = recurring daily quest; placed as a fixed block; never goes COMPLETE.
+  isRecurring     Boolean   @default(false)
+
+  user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentQuest   Quest?  @relation("SubQuests", fields: [parentQuestId], references: [id])
+  subQuests     Quest[] @relation("SubQuests")
+  xpEvents      XPEvent[]
+  scheduleBlocks ScheduleBlock[]
+  recurringCompletions RecurringCompletion[]
+
+  actualMinutes Int?
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("quests")
+}
+
+model RecurringCompletion {
+  id        String   @id @default(cuid())
+  questId   String
+  userId    String
+  date      DateTime @db.Date
+  xpAwarded Int
+
+  quest Quest @relation(fields: [questId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([questId, date])
+  @@index([userId, date])
+  @@map("recurring_completions")
+}
+
+enum QuestStatus {
+  ACTIVE
+  COMPLETE
+  NOT_TODAY
+  RESCUE
+}
+
+model DailyCheckIn {
+  id               String   @id @default(cuid())
+  userId           String
+  date             DateTime @db.Date
+  energyLevel      Int
+  availableMinutes Int
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@map("daily_check_ins")
+}
+
+model XPEvent {
+  id        String   @id @default(cuid())
+  userId    String
+  questId   String?
+  amount    Int
+  reason    String
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@map("xp_events")
+}
+
+model Achievement {
+  id          String @id @default(cuid())
+  slug        String @unique
+  title       String
+  description String
+  icon        String
+  xpReward    Int
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+model ScheduleBlock {
+  id           String        @id @default(cuid())
+  userId       String
+  questId      String?
+  startTime    DateTime
+  endTime      DateTime
+  durationMins Int
+  reason       String
+  blockType    BlockType
+  isFlexible   Boolean       @default(true)
+  date         DateTime      @db.Date
+  /// User pinned this block; planner must respect on replan. Mirrors in-memory Block.locked.
+  locked       Boolean       @default(false)
+  /// Score-breakdown summary stored at generation time. Mirrors in-memory Block.note.
+  note         String?
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quest Quest? @relation(fields: [questId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@map("schedule_blocks")
+}
+
+enum BlockType {
+  FOCUS
+  BUFFER
+  DEADLINE_ANCHOR
+  CALENDAR
+  WORK
+  BREAK
+  FIXED
+}

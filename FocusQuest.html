@@ -1,0 +1,1345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FocusQuest — ADHD Productivity RPG</title>
+  <style>
+    /* ───────────────────────────── RESET & VARS ───────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d1a;
+      --surface:   #16162a;
+      --surface2:  #1e1e38;
+      --border:    rgba(139,92,246,.18);
+      --primary:   #8b5cf6;
+      --primary-d: #6d28d9;
+      --gold:      #f59e0b;
+      --gold-d:    #d97706;
+      --fire:      #ef4444;
+      --teal:      #14b8a6;
+      --green:     #22c55e;
+      --blue:      #3b82f6;
+      --text:      #e2e8f0;
+      --muted:     #94a3b8;
+      --radius:    14px;
+      --shadow:    0 4px 32px rgba(0,0,0,.45);
+    }
+
+    html { font-size: 16px; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ───────────────────────────── SCROLLBAR ───────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 4px; }
+
+    /* ───────────────────────────── LAYOUT ───────────────────────────── */
+    .app { max-width: 1200px; margin: 0 auto; padding: 0 16px 80px; }
+
+    /* ───────────────────────────── HEADER ───────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #1a0a3e 0%, #0d0d1a 60%, #0a1a2e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 24px 16px;
+      position: sticky; top: 0; z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+    .header-inner { max-width: 1200px; margin: 0 auto; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+
+    .avatar-wrap { position: relative; flex-shrink: 0; }
+    .avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #c084fc);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.6rem;
+      box-shadow: 0 0 0 3px rgba(139,92,246,.35), 0 0 20px rgba(139,92,246,.25);
+      transition: box-shadow .3s;
+    }
+    .level-badge {
+      position: absolute; bottom: -4px; right: -4px;
+      background: var(--gold); color: #000; font-size: .65rem; font-weight: 800;
+      width: 22px; height: 22px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid var(--bg);
+    }
+
+    .hero-info { flex: 1; min-width: 200px; }
+    .hero-name { font-size: 1.05rem; font-weight: 700; line-height: 1.2; }
+    .hero-sub { font-size: .75rem; color: var(--muted); margin-bottom: 6px; }
+
+    .xp-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .xp-bar-track {
+      flex: 1; height: 10px; background: rgba(255,255,255,.08);
+      border-radius: 99px; overflow: hidden;
+    }
+    .xp-bar-fill {
+      height: 100%; background: linear-gradient(90deg, var(--primary), #c084fc);
+      border-radius: 99px; transition: width .6s cubic-bezier(.34,1.56,.64,1);
+      box-shadow: 0 0 8px rgba(139,92,246,.6);
+    }
+    .xp-label { font-size: .7rem; color: var(--gold); font-weight: 700; white-space: nowrap; }
+
+    .header-stats { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .hstat {
+      display: flex; align-items: center; gap: 5px;
+      background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      border-radius: 99px; padding: 5px 12px; font-size: .78rem;
+    }
+    .hstat .icon { font-size: 1rem; }
+    .hstat .val { font-weight: 700; }
+    .hstat .lbl { color: var(--muted); }
+
+    /* ───────────────────────────── QUICK STATS ROW ───────────────────────────── */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 12px; padding: 20px 0 4px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+      transition: transform .2s, border-color .2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); border-color: var(--primary); }
+    .stat-card .s-icon { font-size: 1.4rem; margin-bottom: 4px; }
+    .stat-card .s-val { font-size: 1.5rem; font-weight: 800; line-height: 1; }
+    .stat-card .s-lbl { font-size: .72rem; color: var(--muted); margin-top: 2px; }
+
+    /* ───────────────────────────── MAIN GRID ───────────────────────────── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 20px;
+      margin-top: 20px;
+    }
+    @media (max-width: 800px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ───────────────────────────── SECTION HEADER ───────────────────────────── */
+    .section-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px; gap: 10px; flex-wrap: wrap;
+    }
+    .section-title { font-size: 1rem; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+    .section-actions { display: flex; gap: 8px; align-items: center; }
+
+    /* ───────────────────────────── BUTTONS ───────────────────────────── */
+    .btn {
+      border: none; cursor: pointer; font-family: inherit; font-size: .82rem;
+      font-weight: 600; border-radius: 99px; padding: 8px 16px;
+      transition: all .18s; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-d); transform: translateY(-1px); box-shadow: 0 4px 16px rgba(139,92,246,.4); }
+    .btn-ghost {
+      background: rgba(255,255,255,.06); color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.12); }
+    .btn-ghost.active { background: rgba(139,92,246,.2); border-color: var(--primary); color: var(--primary); }
+    .btn-sm { padding: 5px 11px; font-size: .75rem; }
+    .btn-icon {
+      width: 32px; height: 32px; border-radius: 50%; padding: 0;
+      background: rgba(255,255,255,.06); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: .9rem; transition: all .18s;
+    }
+    .btn-icon:hover { background: rgba(255,255,255,.14); }
+
+    /* ───────────────────────────── TASK CARDS ───────────────────────────── */
+    #taskList { display: flex; flex-direction: column; gap: 10px; }
+
+    .task-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 14px 16px;
+      display: flex; align-items: flex-start; gap: 12px;
+      transition: all .2s; cursor: default; position: relative; overflow: hidden;
+    }
+    .task-card .task-body { flex: 1; min-width: 0; }
+    .task-card .task-right { flex-shrink: 0; }
+    .task-card::before {
+      content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+      border-radius: 4px 0 0 4px;
+    }
+    .task-card.priority-critical::before { background: var(--fire); }
+    .task-card.priority-high::before    { background: var(--gold); }
+    .task-card.priority-medium::before  { background: var(--primary); }
+    .task-card.priority-low::before     { background: var(--teal); }
+
+    .task-card:hover { border-color: rgba(139,92,246,.4); transform: translateX(2px); }
+    .task-card.dragging { opacity: .45; transform: scale(.98); }
+    .task-card.drag-over { border-color: var(--primary); background: rgba(139,92,246,.08); }
+
+    .task-check {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid var(--border); background: transparent;
+      cursor: pointer; flex-shrink: 0; display: flex; align-items: center;
+      justify-content: center; transition: all .2s; margin-top: 1px;
+    }
+    .task-check:hover { border-color: var(--green); background: rgba(34,197,94,.12); }
+    .task-check.checked { background: var(--green); border-color: var(--green); }
+    .task-check.checked::after { content: '✓'; color: #fff; font-size: .75rem; font-weight: 800; }
+
+    .task-body { min-width: 0; }
+    .task-title {
+      font-size: .92rem; font-weight: 600; margin-bottom: 5px;
+      transition: opacity .2s;
+    }
+    .task-title.done { opacity: .4; text-decoration: line-through; }
+
+    .task-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .tag {
+      font-size: .68rem; font-weight: 600; border-radius: 99px;
+      padding: 2px 8px; display: inline-flex; align-items: center; gap: 3px;
+    }
+    .tag-deadline { background: rgba(239,68,68,.15); color: #fca5a5; }
+    .tag-deadline.urgent { background: rgba(239,68,68,.3); color: #ef4444; animation: pulse-red 1.5s infinite; }
+    .tag-time     { background: rgba(59,130,246,.15); color: #93c5fd; }
+    .tag-load     { background: rgba(245,158,11,.15); color: #fcd34d; }
+    .tag-xp       { background: rgba(139,92,246,.15); color: #c4b5fd; }
+
+    @keyframes pulse-red {
+      0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+      50%      { box-shadow: 0 0 0 4px rgba(239,68,68,.2); }
+    }
+
+    .task-right { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+    .priority-score {
+      font-size: .8rem; font-weight: 800;
+      width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid;
+    }
+    .priority-score.critical { border-color: var(--fire); color: var(--fire); background: rgba(239,68,68,.1); }
+    .priority-score.high     { border-color: var(--gold); color: var(--gold); background: rgba(245,158,11,.1); }
+    .priority-score.medium   { border-color: var(--primary); color: var(--primary); background: rgba(139,92,246,.1); }
+    .priority-score.low      { border-color: var(--teal); color: var(--teal); background: rgba(20,184,166,.1); }
+
+    .task-actions { display: flex; gap: 4px; }
+
+    /* completed tasks section */
+    .completed-section { margin-top: 20px; }
+    .completed-toggle {
+      background: none; border: none; color: var(--muted); cursor: pointer;
+      font-size: .8rem; display: flex; align-items: center; gap: 5px;
+      padding: 6px 0; font-family: inherit;
+    }
+    .completed-toggle:hover { color: var(--text); }
+    #completedList { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+    .task-card.completed-card {
+      opacity: .55; cursor: default;
+    }
+    .task-card.completed-card:hover { transform: none; }
+
+    /* empty state */
+    .empty-state {
+      text-align: center; padding: 48px 20px; color: var(--muted);
+    }
+    .empty-state .e-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty-state p { font-size: .9rem; }
+
+    /* ───────────────────────────── SIDEBAR ───────────────────────────── */
+    .sidebar { display: flex; flex-direction: column; gap: 16px; }
+
+    .panel {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px;
+    }
+
+    /* ───────────────────────────── BADGES ───────────────────────────── */
+    .badges-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      margin-top: 10px;
+    }
+    .badge-item {
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+      padding: 10px 4px; border-radius: 10px;
+      border: 1px solid var(--border); text-align: center;
+      transition: all .2s; position: relative;
+    }
+    .badge-item.unlocked { border-color: var(--gold); background: rgba(245,158,11,.06); }
+    .badge-item.unlocked:hover { transform: scale(1.05); box-shadow: 0 0 16px rgba(245,158,11,.2); }
+    .badge-item.locked { opacity: .3; filter: grayscale(1); }
+    .badge-icon { font-size: 1.5rem; line-height: 1; }
+    .badge-name { font-size: .6rem; font-weight: 600; color: var(--muted); line-height: 1.2; }
+    .badge-item.unlocked .badge-name { color: var(--gold); }
+    .badge-new-dot {
+      position: absolute; top: 4px; right: 4px;
+      width: 8px; height: 8px; border-radius: 50%; background: var(--fire);
+    }
+
+    /* ───────────────────────────── WEEKLY CHART ───────────────────────────── */
+    .week-chart { display: flex; align-items: flex-end; gap: 4px; height: 60px; margin-top: 10px; }
+    .week-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .week-bar {
+      width: 100%; background: rgba(139,92,246,.3); border-radius: 4px 4px 0 0;
+      min-height: 4px; transition: height .5s, background .3s;
+    }
+    .week-bar.today { background: var(--primary); box-shadow: 0 0 8px rgba(139,92,246,.5); }
+    .week-day { font-size: .6rem; color: var(--muted); }
+
+    /* ───────────────────────────── MENTAL LOAD BAR ───────────────────────────── */
+    .load-display { display: flex; gap: 4px; margin-top: 6px; }
+    .load-dot {
+      flex: 1; height: 6px; border-radius: 99px;
+      background: rgba(255,255,255,.1); transition: background .3s;
+    }
+    .load-dot.active { background: var(--gold); }
+
+    /* ───────────────────────────── MODAL ───────────────────────────── */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 200; padding: 20px;
+      opacity: 0; pointer-events: none; transition: opacity .2s;
+    }
+    .modal-backdrop.open { opacity: 1; pointer-events: all; }
+    .modal {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 20px; padding: 28px; width: 100%; max-width: 480px;
+      transform: scale(.95) translateY(10px); transition: transform .25s;
+      box-shadow: var(--shadow);
+    }
+    .modal-backdrop.open .modal { transform: scale(1) translateY(0); }
+    .modal-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+
+    .form-group { margin-bottom: 16px; }
+    .form-label { font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: 6px; display: block; }
+    .form-input {
+      width: 100%; background: rgba(255,255,255,.05); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 14px; color: var(--text);
+      font-family: inherit; font-size: .88rem; outline: none;
+      transition: border-color .2s;
+    }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(139,92,246,.15); }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .load-picker { display: flex; gap: 6px; }
+    .load-btn {
+      flex: 1; padding: 10px 4px; border: 1px solid var(--border);
+      background: rgba(255,255,255,.04); border-radius: 8px; cursor: pointer;
+      font-size: .8rem; font-weight: 600; color: var(--muted);
+      transition: all .18s; text-align: center; font-family: inherit;
+    }
+    .load-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .load-btn.active { background: rgba(245,158,11,.15); border-color: var(--gold); color: var(--gold); }
+
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+
+    /* ───────────────────────────── TOASTS ───────────────────────────── */
+    #toastContainer {
+      position: fixed; bottom: 24px; right: 24px; z-index: 500;
+      display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+    }
+    .toast {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 12px; padding: 12px 18px; box-shadow: var(--shadow);
+      display: flex; align-items: center; gap: 10px; font-size: .85rem;
+      min-width: 220px; max-width: 320px; pointer-events: all;
+      animation: slideIn .3s ease; font-weight: 500;
+    }
+    .toast.xp-toast { border-color: rgba(139,92,246,.5); }
+    .toast.badge-toast { border-color: rgba(245,158,11,.5); }
+    .toast.levelup-toast { border-color: rgba(245,158,11,.8); background: #1e1508; }
+    .toast.streak-toast { border-color: rgba(239,68,68,.5); }
+    .toast-icon { font-size: 1.3rem; flex-shrink: 0; }
+    .toast-text strong { display: block; margin-bottom: 1px; }
+    .toast-text span { font-size: .75rem; color: var(--muted); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100px); opacity: 0; }
+      to   { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      to   { transform: translateX(120px); opacity: 0; }
+    }
+
+    /* ───────────────────────────── LEVEL UP SPLASH ───────────────────────────── */
+    #levelUpSplash {
+      position: fixed; inset: 0; z-index: 600;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      background: rgba(0,0,0,.85); opacity: 0; pointer-events: none;
+      transition: opacity .3s;
+    }
+    #levelUpSplash.show { opacity: 1; pointer-events: all; }
+    .splash-inner {
+      text-align: center; animation: popIn .5s cubic-bezier(.34,1.56,.64,1);
+    }
+    .splash-emoji { font-size: 5rem; display: block; margin-bottom: 12px; }
+    .splash-title { font-size: 2.5rem; font-weight: 900; color: var(--gold); text-shadow: 0 0 30px rgba(245,158,11,.6); }
+    .splash-sub { color: var(--muted); margin-top: 8px; font-size: 1.1rem; }
+    .splash-dismiss { margin-top: 28px; }
+
+    @keyframes popIn {
+      from { transform: scale(.4); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    /* ───────────────────────────── CONFETTI ───────────────────────────── */
+    .confetti-piece {
+      position: fixed; z-index: 700; pointer-events: none;
+      width: 8px; height: 8px; border-radius: 2px;
+      animation: confettiFall linear forwards;
+    }
+    @keyframes confettiFall {
+      0%   { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+    }
+
+    /* ───────────────────────────── FAB ───────────────────────────── */
+    #fab {
+      position: fixed; bottom: 28px; right: 28px; z-index: 150;
+      width: 56px; height: 56px; border-radius: 50%; border: none;
+      background: linear-gradient(135deg, var(--primary), #c084fc);
+      color: #fff; font-size: 1.6rem; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(139,92,246,.5);
+      transition: all .2s; display: flex; align-items: center; justify-content: center;
+    }
+    #fab:hover { transform: scale(1.08) rotate(45deg); box-shadow: 0 6px 28px rgba(139,92,246,.7); }
+
+    /* ───────────────────────────── MISC ───────────────────────────── */
+    .divider { height: 1px; background: var(--border); margin: 14px 0; }
+    .text-muted { color: var(--muted); }
+    .text-gold { color: var(--gold); }
+    .text-fire { color: var(--fire); }
+    .text-green { color: var(--green); }
+
+    .sort-toggle { display: flex; gap: 4px; background: rgba(255,255,255,.04); border-radius: 99px; padding: 3px; border: 1px solid var(--border); }
+    .sort-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: .72rem; font-weight: 600; border-radius: 99px; padding: 4px 10px; font-family: inherit; transition: all .18s; }
+    .sort-btn.active { background: var(--primary); color: #fff; }
+
+    /* Drag handle */
+    .drag-handle { color: var(--border); font-size: .9rem; cursor: grab; padding: 2px 4px; }
+    .drag-handle:hover { color: var(--muted); }
+
+    /* ───────────────────────────── RESPONSIVE ───────────────────────────── */
+    @media (max-width: 600px) {
+      header { padding: 12px 16px; }
+      .header-inner { gap: 10px; }
+      .avatar { width: 44px; height: 44px; font-size: 1.2rem; }
+      .hstat .lbl { display: none; }
+      #fab { bottom: 16px; right: 16px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<header>
+  <div class="header-inner">
+    <div class="avatar-wrap">
+      <div class="avatar" id="avatarEmoji">⚔️</div>
+      <div class="level-badge" id="levelBadge">1</div>
+    </div>
+    <div class="hero-info">
+      <div class="hero-name" id="heroName">Level 1 Adventurer</div>
+      <div class="hero-sub" id="heroSub">Keep going — greatness awaits</div>
+      <div class="xp-bar-wrap">
+        <div class="xp-bar-track">
+          <div class="xp-bar-fill" id="xpBarFill" style="width:0%"></div>
+        </div>
+        <div class="xp-label" id="xpLabel">0 / 150 XP</div>
+      </div>
+    </div>
+    <div class="header-stats">
+      <div class="hstat">
+        <span class="icon">🔥</span>
+        <span class="val" id="streakVal">0</span>
+        <span class="lbl">streak</span>
+      </div>
+      <div class="hstat">
+        <span class="icon">⭐</span>
+        <span class="val" id="totalXpVal">0</span>
+        <span class="lbl">total XP</span>
+      </div>
+      <div class="hstat">
+        <span class="icon">✅</span>
+        <span class="val" id="totalDoneVal">0</span>
+        <span class="lbl">done</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════ MAIN ═══════════════════════════════ -->
+<div class="app">
+
+  <!-- Quick stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card">
+      <div class="s-icon">🎯</div>
+      <div class="s-val" id="statToday">0</div>
+      <div class="s-lbl">Today's Tasks</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon">📅</div>
+      <div class="s-val" id="statWeek">0</div>
+      <div class="s-lbl">This Week</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon">💪</div>
+      <div class="s-val" id="statAvgLoad">–</div>
+      <div class="s-lbl">Avg Mental Load</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon">📈</div>
+      <div class="s-val" id="statRate">–</div>
+      <div class="s-lbl">Completion Rate</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-icon">🏆</div>
+      <div class="s-val" id="statBestStreak">0</div>
+      <div class="s-lbl">Best Streak</div>
+    </div>
+  </div>
+
+  <!-- Main grid -->
+  <div class="main-grid">
+
+    <!-- ── LEFT: TASK LIST ── -->
+    <div>
+      <div class="section-hdr">
+        <div class="section-title">⚡ Active Quests</div>
+        <div class="section-actions">
+          <div class="sort-toggle">
+            <button class="sort-btn active" id="sortAutoBtn" onclick="setSortMode('auto')">🧠 Auto</button>
+            <button class="sort-btn" id="sortManualBtn" onclick="setSortMode('manual')">✋ Manual</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="taskList"></div>
+
+      <!-- Completed section -->
+      <div class="completed-section" id="completedSection" style="display:none">
+        <button class="completed-toggle" onclick="toggleCompleted()">
+          <span id="completedToggleIcon">▶</span>
+          <span id="completedToggleLabel">Show completed (0)</span>
+        </button>
+        <div id="completedList" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT: SIDEBAR ── -->
+    <div class="sidebar">
+
+      <!-- Badges -->
+      <div class="panel">
+        <div class="section-title">🏅 Achievements</div>
+        <div class="badges-grid" id="badgesGrid"></div>
+      </div>
+
+      <!-- Weekly activity -->
+      <div class="panel">
+        <div class="section-title">📊 Weekly Activity</div>
+        <div class="week-chart" id="weekChart"></div>
+      </div>
+
+      <!-- Stats deep dive -->
+      <div class="panel">
+        <div class="section-title">🧬 Stats</div>
+        <div style="margin-top:12px; display:flex; flex-direction:column; gap:10px;" id="deepStats"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ FAB ═══════════════════════════════ -->
+<button id="fab" onclick="openModal()" title="Add Quest">+</button>
+
+<!-- ═══════════════════════════════ MODAL ═══════════════════════════════ -->
+<div class="modal-backdrop" id="modalBackdrop" onclick="handleBackdropClick(event)">
+  <div class="modal">
+    <div class="modal-title">⚔️ <span id="modalTitleText">New Quest</span></div>
+
+    <input type="hidden" id="editTaskId" />
+
+    <div class="form-group">
+      <label class="form-label">Quest title *</label>
+      <input class="form-input" id="taskTitle" placeholder="What do you need to do?" />
+    </div>
+
+    <div class="form-row">
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">⏰ Deadline</label>
+        <input class="form-input" id="taskDeadline" type="datetime-local" />
+      </div>
+      <div class="form-group" style="margin-bottom:0">
+        <label class="form-label">🕐 Est. hours</label>
+        <input class="form-input" id="taskTime" type="number" min="0.1" max="40" step="0.5" placeholder="e.g. 2" />
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:16px">
+      <label class="form-label">🧠 Mental load (how tough is this?)</label>
+      <div class="load-picker" id="loadPicker">
+        <button class="load-btn" onclick="setLoad(1)" data-v="1">1<br><span style="font-size:.65rem">Easy</span></button>
+        <button class="load-btn" onclick="setLoad(2)" data-v="2">2<br><span style="font-size:.65rem">Mild</span></button>
+        <button class="load-btn" onclick="setLoad(3)" data-v="3">3<br><span style="font-size:.65rem">Medium</span></button>
+        <button class="load-btn" onclick="setLoad(4)" data-v="4">4<br><span style="font-size:.65rem">Hard</span></button>
+        <button class="load-btn" onclick="setLoad(5)" data-v="5">5<br><span style="font-size:.65rem">Brutal</span></button>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTask()">⚡ Save Quest</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ LEVEL UP SPLASH ═══════════════════════════════ -->
+<div id="levelUpSplash">
+  <div class="splash-inner">
+    <span class="splash-emoji" id="splashEmoji">🎉</span>
+    <div class="splash-title" id="splashTitle">LEVEL UP!</div>
+    <div class="splash-sub" id="splashSub">You reached Level 2!</div>
+    <button class="btn btn-primary splash-dismiss" onclick="dismissSplash()">Awesome! ⚡</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ TOASTS ═══════════════════════════════ -->
+<div id="toastContainer"></div>
+
+<script>
+// ════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════
+let state = {
+  tasks: [],
+  user: {
+    xp: 0,
+    level: 1,
+    streak: 0,
+    bestStreak: 0,
+    lastActiveDate: null,
+    totalTasksCompleted: 0,
+    badges: {},
+    weeklyActivity: {} // { 'YYYY-MM-DD': count }
+  },
+  sortMode: 'auto',
+  showCompleted: false,
+  newBadges: []
+};
+
+// ════════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════════
+const LEVEL_THRESHOLDS = [0, 150, 350, 650, 1050, 1600, 2300, 3200, 4300, 5600, 7200];
+
+const LEVEL_TITLES = [
+  '', 'Rookie', 'Apprentice', 'Journeyman', 'Veteran', 'Elite',
+  'Master', 'Grand Master', 'Legend', 'Mythic', 'Immortal'
+];
+
+const LEVEL_EMOJIS = ['', '🌱', '⚔️', '🛡️', '🔥', '💎', '👑', '🌟', '⚡', '🌌', '🏆'];
+
+const BADGES = [
+  { id: 'first',       icon: '🌱', name: 'First Quest',    desc: 'Complete your first task' },
+  { id: 'streak3',     icon: '🔥', name: 'On a Roll',      desc: '3-day streak' },
+  { id: 'streak7',     icon: '🌊', name: 'Week Warrior',   desc: '7-day streak' },
+  { id: 'streak14',    icon: '💥', name: 'Unstoppable',    desc: '14-day streak' },
+  { id: 'five_day',    icon: '⚡', name: 'Velocity',       desc: '5 tasks in one day' },
+  { id: 'mind_crush',  icon: '🧠', name: 'Mind Crusher',   desc: '3 brutal tasks in one day' },
+  { id: 'early_bird',  icon: '🐦', name: 'Early Bird',     desc: 'Finish 2+ days before deadline' },
+  { id: 'clutch',      icon: '⏱️', name: 'Clutch',         desc: 'Finish within 1hr of deadline' },
+  { id: 'marathon',    icon: '🏃', name: 'Marathon',       desc: 'Complete an 8+ hour task' },
+  { id: 'level5',      icon: '💎', name: 'Elite',          desc: 'Reach Level 5' },
+  { id: 'century',     icon: '💯', name: 'Century',        desc: 'Complete 100 tasks' },
+  { id: 'week10',      icon: '🏅', name: 'Focus Master',   desc: '10 tasks in one week' }
+];
+
+// ════════════════════════════════════════════
+//  PERSISTENCE
+// ════════════════════════════════════════════
+function save() {
+  try { localStorage.setItem('fq_state', JSON.stringify(state)); } catch(e) {}
+}
+function load() {
+  try {
+    const raw = localStorage.getItem('fq_state');
+    if (raw) {
+      const saved = JSON.parse(raw);
+      // deep merge to handle new fields
+      state.tasks = saved.tasks || [];
+      state.user  = { ...state.user, ...saved.user };
+      state.sortMode = saved.sortMode || 'auto';
+    }
+  } catch(e) {}
+}
+
+// ════════════════════════════════════════════
+//  DATE UTILS
+// ════════════════════════════════════════════
+function today() {
+  const d = new Date();
+  return d.toISOString().slice(0, 10);
+}
+function startOfWeek() {
+  const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  return d.toISOString().slice(0, 10);
+}
+function weekDays() {
+  const days = []; const d = new Date();
+  d.setDate(d.getDate() - d.getDay());
+  for (let i = 0; i < 7; i++) {
+    days.push(d.toISOString().slice(0, 10));
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+function formatDeadline(dt) {
+  if (!dt) return null;
+  const d = new Date(dt), now = new Date();
+  const diff = d - now;
+  if (diff < 0) return { label: 'Overdue!', urgent: true };
+  const h = diff / 3600000;
+  if (h < 1)  return { label: `${Math.round(diff/60000)}m left`, urgent: true };
+  if (h < 6)  return { label: `${Math.round(h)}h left`, urgent: true };
+  if (h < 24) return { label: `Today ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}`, urgent: false };
+  const days = Math.ceil(diff / 86400000);
+  if (days === 1) return { label: 'Tomorrow', urgent: false };
+  if (days <= 7)  return { label: `${days}d left`, urgent: false };
+  return { label: d.toLocaleDateString([], {month:'short', day:'numeric'}), urgent: false };
+}
+
+// ════════════════════════════════════════════
+//  PRIORITY SCORE (0–100)
+// ════════════════════════════════════════════
+function calcPriority(task) {
+  let score = 0;
+
+  // Deadline urgency (0–40)
+  if (task.deadline) {
+    const diff = (new Date(task.deadline) - new Date()) / 3600000; // hours
+    if (diff < 0)    score += 40;
+    else if (diff < 6)   score += 38;
+    else if (diff < 24)  score += 34;
+    else if (diff < 48)  score += 27;
+    else if (diff < 96)  score += 19;
+    else if (diff < 168) score += 12;
+    else if (diff < 336) score += 7;
+    else                 score += 3;
+  } else {
+    score += 4; // no deadline: low urgency
+  }
+
+  // Mental load (0–36): higher load = higher priority (tackle while energised)
+  score += (task.mentalLoad || 3) * 6;
+
+  // Time estimate (0–24): longer tasks need earlier starts
+  const t = task.timeEstimate || 1;
+  if      (t >= 8)  score += 24;
+  else if (t >= 4)  score += 18;
+  else if (t >= 2)  score += 13;
+  else if (t >= 1)  score += 8;
+  else if (t >= 0.5)score += 5;
+  else              score += 3;
+
+  return Math.min(100, Math.round(score));
+}
+
+function priorityClass(score) {
+  if (score >= 75) return 'critical';
+  if (score >= 50) return 'high';
+  if (score >= 28) return 'medium';
+  return 'low';
+}
+
+// ════════════════════════════════════════════
+//  XP CALCULATION
+// ════════════════════════════════════════════
+function calcXp(task) {
+  const base    = 15;
+  const load    = (task.mentalLoad || 3) * 8;             // 8–40
+  const time    = Math.min(Math.round((task.timeEstimate||1) * 3), 30); // up to 30
+  const pBonus  = calcPriority(task) >= 75 ? 20 : 0;
+  const rawXp   = base + load + time + pBonus;
+
+  const str     = state.user.streak;
+  const mult    = 1 + Math.min(str, 10) * 0.05;           // up to 1.5×
+
+  return Math.round(rawXp * mult);
+}
+
+// ════════════════════════════════════════════
+//  LEVEL SYSTEM
+// ════════════════════════════════════════════
+function xpForLevel(lvl) {
+  return LEVEL_THRESHOLDS[Math.min(lvl, LEVEL_THRESHOLDS.length - 1)] || 99999;
+}
+function xpForCurrentLevel(lvl) {
+  return LEVEL_THRESHOLDS[Math.min(lvl - 1, LEVEL_THRESHOLDS.length - 1)] || 0;
+}
+function computeLevel(xp) {
+  for (let i = LEVEL_THRESHOLDS.length - 1; i >= 1; i--) {
+    if (xp >= LEVEL_THRESHOLDS[i]) return i + 1;
+  }
+  return 1;
+}
+
+// ════════════════════════════════════════════
+//  STREAK
+// ════════════════════════════════════════════
+function updateStreak() {
+  const todayStr = today();
+  const last = state.user.lastActiveDate;
+  if (last === todayStr) return; // already counted today
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yStr = yesterday.toISOString().slice(0, 10);
+  if (last === yStr) {
+    state.user.streak++;
+  } else if (last !== todayStr) {
+    state.user.streak = 1;
+  }
+  if (state.user.streak > (state.user.bestStreak || 0)) {
+    state.user.bestStreak = state.user.streak;
+  }
+  state.user.lastActiveDate = todayStr;
+}
+
+// ════════════════════════════════════════════
+//  BADGE CHECKING
+// ════════════════════════════════════════════
+function checkBadges(task) {
+  const u = state.user;
+  const todayDate = today();
+  const todayTasks = state.tasks.filter(tk => tk.completed && tk.completedAt && tk.completedAt.slice(0,10) === todayDate);
+  const weekStart = startOfWeek();
+  const weekTasks = state.tasks.filter(tk => tk.completed && tk.completedAt && tk.completedAt.slice(0,10) >= weekStart);
+
+  const grant = (id) => {
+    if (!u.badges[id]) {
+      u.badges[id] = { unlockedAt: new Date().toISOString() };
+      state.newBadges.push(id);
+    }
+  };
+
+  if (u.totalTasksCompleted >= 1) grant('first');
+  if (u.streak >= 3)  grant('streak3');
+  if (u.streak >= 7)  grant('streak7');
+  if (u.streak >= 14) grant('streak14');
+  if (todayTasks.length >= 5) grant('five_day');
+  if (todayTasks.filter(t => (t.mentalLoad||3) >= 4).length >= 3) grant('mind_crush');
+  if (weekTasks.length >= 10) grant('week10');
+  if (u.totalTasksCompleted >= 100) grant('century');
+  if (u.level >= 5) grant('level5');
+
+  if (task.deadline) {
+    const diff = (new Date(task.deadline) - new Date()) / 3600000;
+    if (diff >= 48) grant('early_bird');
+    if (diff >= 0 && diff <= 1) grant('clutch');
+  }
+  if ((task.timeEstimate || 0) >= 8) grant('marathon');
+}
+
+// ════════════════════════════════════════════
+//  COMPLETING A TASK
+// ════════════════════════════════════════════
+function completeTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task || task.completed) return;
+
+  task.completed  = true;
+  task.completedAt = new Date().toISOString();
+
+  const xpGain = calcXp(task);
+  const prevLevel = state.user.level;
+
+  updateStreak();
+  state.user.xp += xpGain;
+  state.user.totalTasksCompleted++;
+  state.user.level = computeLevel(state.user.xp);
+
+  // Weekly activity
+  const d = today();
+  state.user.weeklyActivity[d] = (state.user.weeklyActivity[d] || 0) + 1;
+
+  checkBadges(task);
+  save();
+
+  // XP toast
+  showToast(`+${xpGain} XP`, `"${task.title.slice(0,30)}"`, '⭐', 'xp-toast');
+
+  // Streak toast
+  if (state.user.streak > 0 && state.user.streak % 1 === 0) {
+    if ([3,5,7,10,14,21,30].includes(state.user.streak)) {
+      showToast(`🔥 ${state.user.streak}-day streak!`, 'Keep the momentum!', '🔥', 'streak-toast');
+    }
+  }
+
+  // Badge toasts
+  state.newBadges.forEach(bid => {
+    const b = BADGES.find(x => x.id === bid);
+    if (b) showToast(`Badge: ${b.name}`, b.desc, b.icon, 'badge-toast');
+  });
+  state.newBadges = [];
+
+  // Level up
+  if (state.user.level > prevLevel) {
+    setTimeout(() => triggerLevelUp(state.user.level), 600);
+  }
+
+  render();
+}
+
+function uncompleteTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task || !task.completed) return;
+  const xpBack = calcXp(task);
+  task.completed  = false;
+  task.completedAt = null;
+  state.user.xp   = Math.max(0, state.user.xp - xpBack);
+  state.user.totalTasksCompleted = Math.max(0, state.user.totalTasksCompleted - 1);
+  state.user.level = computeLevel(state.user.xp);
+  // Deduct from weekly activity
+  const d = today();
+  if (state.user.weeklyActivity[d]) state.user.weeklyActivity[d]--;
+  save();
+  render();
+}
+
+function deleteTask(id) {
+  if (!confirm('Remove this quest?')) return;
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  save();
+  render();
+}
+
+// ════════════════════════════════════════════
+//  SORT
+// ════════════════════════════════════════════
+function setSortMode(mode) {
+  state.sortMode = mode;
+  document.getElementById('sortAutoBtn').classList.toggle('active', mode === 'auto');
+  document.getElementById('sortManualBtn').classList.toggle('active', mode === 'manual');
+  save();
+  renderTaskList();
+}
+
+function sortedActiveTasks() {
+  const active = state.tasks.filter(t => !t.completed);
+  if (state.sortMode === 'auto') {
+    return [...active].sort((a, b) => calcPriority(b) - calcPriority(a));
+  }
+  return [...active].sort((a, b) => (a.manualOrder ?? 9999) - (b.manualOrder ?? 9999));
+}
+
+// ════════════════════════════════════════════
+//  MODAL
+// ════════════════════════════════════════════
+let currentLoad = 3;
+function openModal(taskId) {
+  const modal = document.getElementById('modalBackdrop');
+  const titleEl = document.getElementById('modalTitleText');
+  document.getElementById('editTaskId').value = taskId || '';
+  document.getElementById('taskTitle').value = '';
+  document.getElementById('taskDeadline').value = '';
+  document.getElementById('taskTime').value = '';
+  setLoad(3);
+
+  if (taskId) {
+    const task = state.tasks.find(t => t.id === taskId);
+    if (task) {
+      titleEl.textContent = 'Edit Quest';
+      document.getElementById('taskTitle').value = task.title;
+      document.getElementById('taskDeadline').value = task.deadline ? task.deadline.slice(0,16) : '';
+      document.getElementById('taskTime').value = task.timeEstimate || '';
+      setLoad(task.mentalLoad || 3);
+    }
+  } else {
+    titleEl.textContent = 'New Quest';
+  }
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('taskTitle').focus(), 250);
+}
+
+function closeModal() {
+  document.getElementById('modalBackdrop').classList.remove('open');
+}
+
+function handleBackdropClick(e) {
+  if (e.target === document.getElementById('modalBackdrop')) closeModal();
+}
+
+function setLoad(v) {
+  currentLoad = v;
+  document.querySelectorAll('.load-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.v) === v);
+  });
+}
+
+function saveTask() {
+  const title = document.getElementById('taskTitle').value.trim();
+  if (!title) { document.getElementById('taskTitle').focus(); return; }
+  const deadline = document.getElementById('taskDeadline').value;
+  const time = parseFloat(document.getElementById('taskTime').value) || 1;
+  const editId = document.getElementById('editTaskId').value;
+
+  if (editId) {
+    const task = state.tasks.find(t => t.id === editId);
+    if (task) {
+      task.title = title;
+      task.deadline = deadline ? new Date(deadline).toISOString() : null;
+      task.timeEstimate = time;
+      task.mentalLoad = currentLoad;
+    }
+  } else {
+    const task = {
+      id: Date.now().toString(),
+      title,
+      deadline: deadline ? new Date(deadline).toISOString() : null,
+      timeEstimate: time,
+      mentalLoad: currentLoad,
+      completed: false,
+      completedAt: null,
+      manualOrder: state.tasks.filter(t => !t.completed).length,
+      createdAt: new Date().toISOString()
+    };
+    state.tasks.push(task);
+  }
+
+  save();
+  closeModal();
+  render();
+}
+
+// ════════════════════════════════════════════
+//  DRAG AND DROP (manual mode)
+// ════════════════════════════════════════════
+let dragSrcId = null;
+
+function onDragStart(e, id) {
+  dragSrcId = id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnd(e) { e.currentTarget.classList.remove('dragging'); }
+function onDragOver(e, id) {
+  e.preventDefault();
+  if (state.sortMode !== 'manual') return;
+  document.querySelectorAll('.task-card').forEach(c => c.classList.remove('drag-over'));
+  e.currentTarget.classList.add('drag-over');
+}
+function onDragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function onDrop(e, targetId) {
+  e.preventDefault();
+  document.querySelectorAll('.task-card').forEach(c => c.classList.remove('drag-over'));
+  if (state.sortMode !== 'manual' || !dragSrcId || dragSrcId === targetId) return;
+
+  const active = sortedActiveTasks();
+  const srcIdx = active.findIndex(t => t.id === dragSrcId);
+  const tgtIdx = active.findIndex(t => t.id === targetId);
+  if (srcIdx < 0 || tgtIdx < 0) return;
+  const spliced = active.splice(srcIdx, 1)[0];
+  active.splice(tgtIdx, 0, spliced);
+  active.forEach((t, i) => t.manualOrder = i);
+  dragSrcId = null;
+  save();
+  renderTaskList();
+}
+
+// ════════════════════════════════════════════
+//  TOASTS
+// ════════════════════════════════════════════
+function showToast(title, sub, icon, cls) {
+  const el = document.createElement('div');
+  el.className = `toast ${cls}`;
+  el.innerHTML = `<span class="toast-icon">${icon}</span>
+    <div class="toast-text"><strong>${title}</strong><span>${sub}</span></div>`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => {
+    el.style.animation = 'slideOut .3s ease forwards';
+    setTimeout(() => el.remove(), 300);
+  }, 3000);
+}
+
+// ════════════════════════════════════════════
+//  LEVEL UP SPLASH
+// ════════════════════════════════════════════
+function triggerLevelUp(lvl) {
+  document.getElementById('splashEmoji').textContent = LEVEL_EMOJIS[Math.min(lvl, LEVEL_EMOJIS.length-1)];
+  document.getElementById('splashTitle').textContent = 'LEVEL UP!';
+  document.getElementById('splashSub').textContent = `You reached Level ${lvl} – ${LEVEL_TITLES[Math.min(lvl, LEVEL_TITLES.length-1)]}!`;
+  document.getElementById('levelUpSplash').classList.add('show');
+  spawnConfetti();
+}
+function dismissSplash() {
+  document.getElementById('levelUpSplash').classList.remove('show');
+}
+
+// ════════════════════════════════════════════
+//  CONFETTI
+// ════════════════════════════════════════════
+function spawnConfetti() {
+  const colors = ['#8b5cf6','#f59e0b','#3b82f6','#22c55e','#ef4444','#c084fc'];
+  for (let i = 0; i < 60; i++) {
+    const el = document.createElement('div');
+    el.className = 'confetti-piece';
+    el.style.cssText = `
+      left: ${Math.random()*100}vw;
+      top: -10px;
+      background: ${colors[Math.floor(Math.random()*colors.length)]};
+      width: ${Math.random()*8+4}px;
+      height: ${Math.random()*8+4}px;
+      animation-duration: ${Math.random()*2+2}s;
+      animation-delay: ${Math.random()*.8}s;
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+}
+
+// ════════════════════════════════════════════
+//  KEYBOARD
+// ════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'Enter' && document.getElementById('modalBackdrop').classList.contains('open')) {
+    if (e.target.tagName !== 'BUTTON') saveTask();
+  }
+  if (e.key === 'n' && !document.getElementById('modalBackdrop').classList.contains('open')
+    && document.activeElement.tagName === 'BODY') openModal();
+});
+
+// ════════════════════════════════════════════
+//  TOGGLE COMPLETED
+// ════════════════════════════════════════════
+function toggleCompleted() {
+  state.showCompleted = !state.showCompleted;
+  document.getElementById('completedList').style.display = state.showCompleted ? 'flex' : 'none';
+  document.getElementById('completedToggleIcon').textContent = state.showCompleted ? '▼' : '▶';
+  if (state.showCompleted) renderCompletedList();
+}
+
+// ════════════════════════════════════════════
+//  RENDERING
+// ════════════════════════════════════════════
+function renderTaskList() {
+  const list = document.getElementById('taskList');
+  const tasks = sortedActiveTasks();
+
+  if (tasks.length === 0) {
+    list.innerHTML = `<div class="empty-state">
+      <div class="e-icon">🗺️</div>
+      <p>No active quests.<br>Press <kbd style="background:rgba(255,255,255,.1);padding:2px 6px;border-radius:4px">+</kbd> to add one!</p>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = '';
+  tasks.forEach(task => {
+    const score = calcPriority(task);
+    const pc    = priorityClass(score);
+    const dl    = formatDeadline(task.deadline);
+    const xpEst = calcXp(task);
+    const isManual = state.sortMode === 'manual';
+
+    const card = document.createElement('div');
+    card.className = `task-card priority-${pc}`;
+    card.draggable = isManual;
+    card.id = `task-${task.id}`;
+
+    if (isManual) {
+      card.addEventListener('dragstart', e => onDragStart(e, task.id));
+      card.addEventListener('dragend',   e => onDragEnd(e));
+      card.addEventListener('dragover',  e => onDragOver(e, task.id));
+      card.addEventListener('dragleave', e => onDragLeave(e));
+      card.addEventListener('drop',      e => onDrop(e, task.id));
+    }
+
+    card.innerHTML = `
+      ${isManual ? `<div class="drag-handle" title="Drag to reorder">⠿</div>` : ''}
+      <div class="task-check" onclick="completeTask('${task.id}')" title="Complete"></div>
+      <div class="task-body">
+        <div class="task-title">${escHtml(task.title)}</div>
+        <div class="task-meta">
+          ${dl ? `<span class="tag tag-deadline${dl.urgent?' urgent':''}">📅 ${dl.label}</span>` : ''}
+          ${task.timeEstimate ? `<span class="tag tag-time">⏱ ${task.timeEstimate}h</span>` : ''}
+          <span class="tag tag-load">${'●'.repeat(task.mentalLoad||3)}${'○'.repeat(5-(task.mentalLoad||3))} Load ${task.mentalLoad||3}/5</span>
+          <span class="tag tag-xp">+${xpEst} XP</span>
+        </div>
+      </div>
+      <div class="task-right">
+        <div class="priority-score ${pc}" title="Priority score">${score}</div>
+        <div class="task-actions">
+          <button class="btn-icon" onclick="openModal('${task.id}')" title="Edit">✏️</button>
+          <button class="btn-icon" onclick="deleteTask('${task.id}')" title="Delete" style="font-size:.7rem">🗑</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function renderCompletedList() {
+  const list = document.getElementById('completedList');
+  const done = state.tasks.filter(t => t.completed)
+    .sort((a,b) => new Date(b.completedAt) - new Date(a.completedAt));
+  list.innerHTML = '';
+  done.forEach(task => {
+    const card = document.createElement('div');
+    card.className = 'task-card completed-card priority-low';
+    const when = task.completedAt ? new Date(task.completedAt).toLocaleDateString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+    card.innerHTML = `
+      <div class="task-check checked" onclick="uncompleteTask('${task.id}')" title="Mark incomplete"></div>
+      <div class="task-body">
+        <div class="task-title done">${escHtml(task.title)}</div>
+        <div class="task-meta">
+          <span class="tag" style="background:rgba(34,197,94,.1);color:#86efac">✅ ${when}</span>
+          <span class="tag tag-xp">+${calcXp(task)} XP</span>
+        </div>
+      </div>
+      <div class="task-right">
+        <button class="btn-icon" onclick="deleteTask('${task.id}')" title="Delete" style="font-size:.7rem">🗑</button>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function renderHeader() {
+  const u = state.user;
+  const lvl = u.level;
+  const nextLvl = xpForLevel(lvl);
+  const thisLvl = xpForCurrentLevel(lvl);
+  const pct = thisLvl === nextLvl ? 100 : Math.round(((u.xp - thisLvl) / (nextLvl - thisLvl)) * 100);
+  const emoji = LEVEL_EMOJIS[Math.min(lvl, LEVEL_EMOJIS.length-1)];
+  const title = LEVEL_TITLES[Math.min(lvl, LEVEL_TITLES.length-1)];
+
+  document.getElementById('avatarEmoji').textContent = emoji;
+  document.getElementById('levelBadge').textContent = lvl;
+  document.getElementById('heroName').textContent = `Level ${lvl} ${title}`;
+
+  const streak = u.streak;
+  const subs = [
+    'Every quest completed makes you stronger.',
+    'The journey of a thousand tasks begins with one.',
+    streak >= 3 ? `🔥 ${streak}-day streak! You're on fire!` : 'Start a streak — complete one task today!',
+    'Your brain is a muscle. Exercise it.',
+    lvl >= 5 ? `Elite status achieved. Keep climbing.` : `Next level at ${nextLvl} XP. You've got this!`
+  ];
+  document.getElementById('heroSub').textContent = subs[Math.floor(Date.now()/10000) % subs.length];
+
+  document.getElementById('xpBarFill').style.width = pct + '%';
+  document.getElementById('xpLabel').textContent = `${u.xp - thisLvl} / ${nextLvl - thisLvl} XP`;
+  document.getElementById('streakVal').textContent = u.streak;
+  document.getElementById('totalXpVal').textContent = u.xp;
+  document.getElementById('totalDoneVal').textContent = u.totalTasksCompleted;
+}
+
+function renderStats() {
+  const u  = state.user;
+  const t  = today();
+  const ws = startOfWeek();
+  const all = state.tasks.filter(x => x.completed);
+  const todayDone = all.filter(x => x.completedAt?.slice(0,10) === t).length;
+  const weekDone  = all.filter(x => x.completedAt && x.completedAt.slice(0,10) >= ws).length;
+  const avgLoad   = all.length ? (all.reduce((s,x) => s + (x.mentalLoad||3), 0) / all.length).toFixed(1) : '–';
+  const rate      = state.tasks.length ? Math.round(all.length / state.tasks.length * 100) + '%' : '–';
+
+  document.getElementById('statToday').textContent    = todayDone;
+  document.getElementById('statWeek').textContent     = weekDone;
+  document.getElementById('statAvgLoad').textContent  = avgLoad;
+  document.getElementById('statRate').textContent     = rate;
+  document.getElementById('statBestStreak').textContent = u.bestStreak || 0;
+
+  // Deep stats
+  const ds = document.getElementById('deepStats');
+  const active = state.tasks.filter(x => !x.completed);
+  const totalHours = active.reduce((s,x) => s + (x.timeEstimate||0), 0);
+  ds.innerHTML = `
+    ${statRow('🗓', 'Active quests', active.length)}
+    ${statRow('⏳', 'Hours in pipeline', totalHours.toFixed(1) + 'h')}
+    ${statRow('🎮', 'Total XP earned', u.xp)}
+    ${statRow('🏅', 'Badges unlocked', Object.keys(u.badges).length + ' / ' + BADGES.length)}
+    ${statRow('📅', 'Best streak', (u.bestStreak||0) + ' days')}
+    ${statRow('💥', 'All-time completed', u.totalTasksCompleted)}
+  `;
+}
+
+function statRow(icon, label, val) {
+  return `<div style="display:flex;align-items:center;justify-content:space-between;font-size:.8rem">
+    <span style="color:var(--muted)">${icon} ${label}</span>
+    <span style="font-weight:700">${val}</span>
+  </div>`;
+}
+
+function renderBadges() {
+  const grid = document.getElementById('badgesGrid');
+  grid.innerHTML = BADGES.map(b => {
+    const unlocked = !!state.user.badges[b.id];
+    const isNew = state.newBadges.includes(b.id);
+    return `<div class="badge-item ${unlocked?'unlocked':'locked'}" title="${b.desc}">
+      ${isNew ? '<div class="badge-new-dot"></div>' : ''}
+      <span class="badge-icon">${b.icon}</span>
+      <span class="badge-name">${b.name}</span>
+    </div>`;
+  }).join('');
+}
+
+function renderWeekChart() {
+  const days  = weekDays();
+  const labels = ['S','M','T','W','T','F','S'];
+  const counts = days.map(d => state.user.weeklyActivity[d] || 0);
+  const max   = Math.max(...counts, 1);
+  const chart = document.getElementById('weekChart');
+  chart.innerHTML = days.map((d, i) => {
+    const h = Math.round((counts[i] / max) * 48) + 4;
+    const isToday = d === today();
+    return `<div class="week-bar-wrap">
+      <div class="week-bar${isToday?' today':''}" style="height:${h}px" title="${counts[i]} tasks"></div>
+      <div class="week-day">${labels[i]}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderCompletedSection() {
+  const done = state.tasks.filter(t => t.completed);
+  const sec  = document.getElementById('completedSection');
+  sec.style.display = done.length ? 'block' : 'none';
+  document.getElementById('completedToggleLabel').textContent = `${state.showCompleted ? 'Hide' : 'Show'} completed (${done.length})`;
+  document.getElementById('completedToggleIcon').textContent = state.showCompleted ? '▼' : '▶';
+  if (state.showCompleted) renderCompletedList();
+}
+
+function render() {
+  renderHeader();
+  renderTaskList();
+  renderStats();
+  renderBadges();
+  renderWeekChart();
+  renderCompletedSection();
+}
+
+// ════════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════════
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════
+load();
+// Recalculate level from stored XP (in case formula changed)
+state.user.level = computeLevel(state.user.xp);
+render();
+
+// Auto-refresh deadlines every minute
+setInterval(() => render(), 60000);
+</script>
+</body>
+</html>
