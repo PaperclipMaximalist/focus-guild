@@ -52,6 +52,7 @@ export function KeyboardShortcuts() {
         else if (k === 'r') navigate('/rescue');
         else if (k === 'q') navigate('/quests');
         else if (k === 's') navigate('/stats');
+        else if (k === ',' || k === '.') navigate('/settings');
         return;
       }
 
@@ -137,6 +138,7 @@ export function KeyboardShortcuts() {
                 <Row k="G R" desc="Rescue" />
                 <Row k="G Q" desc="Quests" />
                 <Row k="G S" desc="Stats" />
+                <Row k="G ," desc="Settings" />
               </div>
               <p className="mt-4 text-xs text-center" style={{ color: 'var(--color-muted)' }}>
                 Press <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono text-[0.7rem]">?</kbd> any time to reopen this.

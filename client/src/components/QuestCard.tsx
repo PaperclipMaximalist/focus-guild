@@ -7,6 +7,8 @@ interface Props {
   onComplete: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  /** Optional: tap on the card body opens the detail view. */
+  onOpen?: () => void;
 }
 
 // Map 0–10 priority score → visual tier
@@ -26,7 +28,7 @@ const TIER_COLOR: Record<ReturnType<typeof priorityTier>, string> = {
 
 const LOAD_LABEL = ['', 'Easy', 'Easy', 'Mild', 'Mild', 'Medium', 'Medium', 'Hard', 'Hard', 'Brutal', 'Brutal'];
 
-export function QuestCard({ quest, onComplete, onEdit, onDelete }: Props) {
+export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen }: Props) {
   const score = quest.priorityScore ?? 0;
   const tier = priorityTier(score);
   const color = TIER_COLOR[tier];
@@ -56,7 +58,11 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete }: Props) {
       />
 
       {/* Body */}
-      <div className="min-w-0 flex-1">
+      <div
+        className="min-w-0 flex-1"
+        onClick={onOpen}
+        style={{ cursor: onOpen ? 'pointer' : 'default' }}
+      >
         <div className="text-[0.92rem] font-semibold">{quest.title}</div>
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {deadline && deadline !== 'no deadline' && (
@@ -72,6 +78,11 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete }: Props) {
             {'●'.repeat(Math.round(quest.mentalLoad / 2))}
             {'○'.repeat(5 - Math.round(quest.mentalLoad / 2))} {LOAD_LABEL[quest.mentalLoad]}
           </Tag>
+          {quest.subQuestTotal != null && quest.subQuestTotal > 0 && (
+            <Tag kind="time">
+              ✓ {quest.subQuestDone ?? 0}/{quest.subQuestTotal}
+            </Tag>
+          )}
         </div>
       </div>
 

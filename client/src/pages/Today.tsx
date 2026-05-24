@@ -14,6 +14,7 @@ import { WeekChart } from '../components/WeekChart';
 import { DeepStatsPanel } from '../components/DeepStatsPanel';
 import { FAB } from '../components/FAB';
 import { QuestModal } from '../components/QuestModal';
+import { QuestDetail } from '../components/QuestDetail';
 import { LevelUpSplash } from '../components/LevelUpSplash';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
@@ -44,6 +45,7 @@ export default function Today() {
   const [levelUp, setLevelUp] = useState<number | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
   const [overdueCount, setOverdueCount] = useState(0);
+  const [detailQuest, setDetailQuest] = useState<Quest | null>(null);
 
   useEffect(() => {
     api.quests.rescue().then((r) => setOverdueCount(r.length)).catch(() => {});
@@ -213,6 +215,7 @@ export default function Today() {
                     quest={q}
                     onComplete={() => handleComplete(q.id)}
                     onEdit={() => openEdit(q)}
+                    onOpen={() => setDetailQuest(q)}
                     onDelete={() => {
                       if (confirm('Remove this quest?')) remove(q.id);
                     }}
@@ -248,6 +251,15 @@ export default function Today() {
 
       <FAB onClick={openNew} />
       <QuestModal open={modalOpen} onClose={() => setModalOpen(false)} editing={editing} />
+      <QuestDetail
+        open={!!detailQuest}
+        quest={detailQuest}
+        onClose={() => setDetailQuest(null)}
+        onEdit={() => {
+          if (detailQuest) openEdit(detailQuest);
+          setDetailQuest(null);
+        }}
+      />
       <LevelUpSplash newLevel={levelUp} onDismiss={() => setLevelUp(null)} />
       <SpinWheel
         open={spinOpen}

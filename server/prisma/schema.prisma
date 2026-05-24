@@ -17,6 +17,9 @@ model User {
   googleCalendarToken String?
   /// Lifetime Spin the Wheel uses — drives Chaos Agent achievement.
   spinCount           Int       @default(0)
+  /// User-tunable scheduler overrides (weights, working hours, break policy, etc.).
+  /// Shape: Partial<UserConfig> — see server/src/lib/userConfig.ts.
+  schedulerSettings   Json?
 
   quests         Quest[]
   checkIns       DailyCheckIn[]

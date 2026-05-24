@@ -4,6 +4,7 @@ import { db } from '../db/client.js';
 import { computePriorityScore } from '../lib/priority.js';
 import { computeXP } from '../lib/xp.js';
 import { updateStreak, computeMultiplier } from '../lib/streak.js';
+import { AI_ENABLED, getClient } from '../lib/ai.js';
 import { evalAndUnlockAchievements } from '../lib/evalAndUnlock.js';
 
 export const quests = new Hono();
@@ -93,14 +94,141 @@ quests.get('/', async (c) => {
   const activeQuests = await db.quest.findMany({
     where: { userId: user.id, status: 'ACTIVE', parentQuestId: null, isRecurring: false },
     orderBy: { createdAt: 'asc' },
+    include: {
+      subQuests: {
+        select: { id: true, status: true },
+      },
+    },
   });
 
   const enriched = await Promise.all(
-    activeQuests.map((q) => enrichWithScore(q, availableMinutes, energyLevel)),
+    activeQuests.map(async (q) => {
+      const { subQuests, ...rest } = q;
+      const base = await enrichWithScore(rest, availableMinutes, energyLevel);
+      const subTotal = subQuests.length;
+      const subDone = subQuests.filter((s) => s.status === 'COMPLETE').length;
+      return {
+        ...base,
+        subQuestTotal: subTotal,
+        subQuestDone: subDone,
+      };
+    }),
   );
   enriched.sort((a, b) => b.priorityScore - a.priorityScore);
 
   return c.json({ success: true, data: enriched });
+});
+
+// GET /quests/:id/subquests — list sub-quests of a parent
+quests.get('/:id/subquests', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  // Ensure ownership.
+  const parent = await db.quest.findUnique({ where: { id } });
+  if (!parent || parent.userId !== user.id) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
+  }
+  const subs = await db.quest.findMany({
+    where: { parentQuestId: id },
+    orderBy: { createdAt: 'asc' },
+  });
+  return c.json({ success: true, data: subs });
+});
+
+// POST /quests/:id/decompose — ask Claude to suggest 3–6 sub-quests.
+// Returns suggestions only; the client is responsible for creating the
+// approved sub-quests (lets the user edit titles/durations first).
+quests.post('/:id/decompose', async (c) => {
+  if (!AI_ENABLED) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'AI_NOT_CONFIGURED',
+          message:
+            'ANTHROPIC_API_KEY is not set on the server. Add it to your server env to enable AI quest decomposition.',
+        },
+      },
+      503,
+    );
+  }
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const quest = await db.quest.findUnique({ where: { id } });
+  if (!quest || quest.userId !== user.id) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
+  }
+
+  const prompt = `You are a productivity coach helping break a task into smaller, concrete sub-tasks.
+
+Quest: "${quest.title}"
+Estimated total time: ${quest.estimatedMinutes} minutes
+Mental load (1-10): ${quest.mentalLoad}
+Impact (1-10): ${quest.impact}
+${quest.deadline ? `Deadline: ${quest.deadline.toISOString().slice(0, 10)}` : ''}
+${quest.category ? `Category: ${quest.category}` : ''}
+
+Break this into 3 to 6 sub-tasks. Each sub-task should be:
+  - Concrete and actionable (start with a verb)
+  - Doable in a single sitting (10–60 minutes)
+  - Sum to roughly ${quest.estimatedMinutes} minutes total
+
+Respond ONLY with valid JSON, no prose, of this exact shape:
+{ "subQuests": [ { "title": "string", "estimatedMinutes": number, "rationale": "string" }, ... ] }`;
+
+  try {
+    const client = getClient();
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-5-20250929',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const textBlock = response.content.find((b) => b.type === 'text');
+    if (!textBlock || textBlock.type !== 'text') {
+      return c.json(
+        { success: false, error: { code: 'AI_EMPTY', message: 'AI returned no text' } },
+        502,
+      );
+    }
+    // Be forgiving — strip markdown code fences if Claude wrapped the JSON.
+    const raw = textBlock.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+    let parsed: { subQuests?: Array<{ title?: string; estimatedMinutes?: number; rationale?: string }> };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return c.json(
+        { success: false, error: { code: 'AI_PARSE_ERROR', message: 'AI returned non-JSON', raw } },
+        502,
+      );
+    }
+    const suggestions = (parsed.subQuests ?? [])
+      .filter((s) => typeof s.title === 'string' && s.title.length > 0)
+      .map((s) => ({
+        title: s.title!,
+        estimatedMinutes: Math.max(5, Math.min(180, Number(s.estimatedMinutes) || 30)),
+        rationale: typeof s.rationale === 'string' ? s.rationale : '',
+      }));
+
+    return c.json({ success: true, data: { suggestions } });
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return c.json(
+      { success: false, error: { code: 'AI_ERROR', message: msg } },
+      502,
+    );
+  }
+});
+
+// GET /quests/:id/xp-events — XP history for a quest
+quests.get('/:id/xp-events', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const events = await db.xPEvent.findMany({
+    where: { questId: id, userId: user.id },
+    orderBy: { createdAt: 'desc' },
+    take: 50,
+  });
+  return c.json({ success: true, data: events });
 });
 
 // GET /quests/rescue — active quests past their deadline (overdue triage)

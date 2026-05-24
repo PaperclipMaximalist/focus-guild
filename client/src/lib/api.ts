@@ -64,7 +64,19 @@ export interface Quest {
   setupCost?: number | null;
   urgencyMult?: number | null;
   isRecurring?: boolean;
+  parentQuestId?: string | null;
   doneToday?: boolean; // populated by GET /quests/recurring
+
+  // Sub-quest aggregates populated by GET /quests
+  subQuestTotal?: number;
+  subQuestDone?: number;
+}
+
+export interface XPEventDTO {
+  id: string;
+  amount: number;
+  reason: string;
+  createdAt: string;
 }
 
 export interface QuestSchedulerHints {
@@ -139,6 +151,15 @@ export const api = {
         '/quests/spin-wheel',
         { method: 'POST', body: '{}' },
       ),
+    subquests: (id: string) =>
+      request<Quest[]>(`/quests/${id}/subquests`),
+    xpEvents: (id: string) =>
+      request<XPEventDTO[]>(`/quests/${id}/xp-events`),
+    decompose: (id: string) =>
+      request<{ suggestions: Array<{ title: string; estimatedMinutes: number; rationale: string }> }>(
+        `/quests/${id}/decompose`,
+        { method: 'POST', body: '{}' },
+      ),
     create: (
       input: {
         title: string;
@@ -146,6 +167,8 @@ export const api = {
         mentalLoad?: number;
         impact?: number;
         deadline?: string | null;
+        parentQuestId?: string;
+        tags?: string[];
       } & QuestSchedulerHints,
       clerkId = DEV_CLERK_ID,
     ) =>
@@ -195,7 +218,54 @@ export const api = {
         body: JSON.stringify({ fillers }),
       }),
   },
+  settings: {
+    get: () =>
+      request<{ defaults: SchedulerConfigShape; overrides: Partial<SchedulerConfigShape> }>(
+        '/settings',
+      ),
+    save: (overrides: Partial<SchedulerConfigShape>) =>
+      request<{ overrides: Partial<SchedulerConfigShape> }>('/settings', {
+        method: 'PUT',
+        body: JSON.stringify(overrides),
+      }),
+    reset: () =>
+      request<{ overrides: Record<string, never> }>('/settings', { method: 'DELETE' }),
+  },
 };
+
+// ─── Settings types ───────────────────────────────────────────────────────────
+
+export interface SchedulerWeights {
+  urgency: number;
+  staleness: number;
+  timeFit: number;
+  energyFit: number;
+  chunkFit: number;
+  adjacency: number;
+  switch: number;
+  fragmentation: number;
+  oversize: number;
+}
+
+export interface BreakPolicy {
+  shortBreakAfterMin: number;
+  shortBreakDurationMin: number;
+  longBreakAfterMin: number;
+  longBreakDurationMin: number;
+}
+
+export interface WorkingHours {
+  startHour: number;
+  endHour: number;
+}
+
+export interface SchedulerConfigShape {
+  weights: SchedulerWeights;
+  breakPolicy: BreakPolicy;
+  workingHours: WorkingHours;
+  horizonDays: number;
+  softMaxBlockMin: number;
+}
 
 // ─── Schedule types ───────────────────────────────────────────────────────────
 

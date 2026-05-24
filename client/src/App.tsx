@@ -7,6 +7,7 @@ import Quests from './pages/Quests';
 import Stats from './pages/Stats';
 import GuildFeed from './pages/GuildFeed';
 import Rescue from './pages/Rescue';
+import Settings from './pages/Settings';
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
@@ -52,6 +53,7 @@ export default function App() {
           <Route path="/checkin" element={<CheckIn />} />
           <Route path="/quests" element={<Quests />} />
           <Route path="/stats" element={<Stats />} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
         <ToastContainer />
         <KeyboardShortcuts />

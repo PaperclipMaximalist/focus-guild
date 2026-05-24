@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
@@ -67,6 +68,14 @@ export function Header() {
           <HeaderStat icon="🔥" value={user.currentStreak} label="streak" />
           <HeaderStat icon="⭐" value={user.totalXP.toLocaleString()} label="total XP" />
           <HeaderStat icon="✅" value={completedCount} label="done" />
+          <Link
+            to="/settings"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) bg-white/5 text-base transition hover:bg-white/15"
+            title="Settings"
+            aria-label="Settings"
+          >
+            ⚙️
+          </Link>
         </div>
       </div>
     </header>

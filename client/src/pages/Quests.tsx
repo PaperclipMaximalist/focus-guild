@@ -6,6 +6,7 @@ import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from '../components/Toasts';
 import { QuestCard } from '../components/QuestCard';
 import { QuestModal } from '../components/QuestModal';
+import { QuestDetail } from '../components/QuestDetail';
 import { api, type Quest } from '../lib/api';
 
 type Sort = 'priority' | 'deadline' | 'created' | 'title';
@@ -17,6 +18,7 @@ export default function Quests() {
 
   const [editing, setEditing] = useState<Quest | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [detail, setDetail] = useState<Quest | null>(null);
 
   // Filtering / sorting / selection state
   const [search, setSearch] = useState('');
@@ -278,6 +280,7 @@ export default function Quests() {
                     setEditing(quest);
                     setModalOpen(true);
                   }}
+                  onOpen={() => setDetail(quest)}
                   onDelete={() => {
                     if (confirm('Remove this quest?')) remove(quest.id);
                   }}
@@ -375,6 +378,18 @@ export default function Quests() {
       </AnimatePresence>
 
       <QuestModal open={modalOpen} onClose={() => setModalOpen(false)} editing={editing} />
+      <QuestDetail
+        open={!!detail}
+        quest={detail}
+        onClose={() => setDetail(null)}
+        onEdit={() => {
+          if (detail) {
+            setEditing(detail);
+            setModalOpen(true);
+          }
+          setDetail(null);
+        }}
+      />
     </div>
   );
 }

@@ -17,8 +17,8 @@ client/dist/
 server/dist/
 server/generated/
 
-# Prisma
-server/prisma/migrations/
+# Prisma — migrations ARE committed (they're the on-disk source of truth
+# for schema changes; deploys run `prisma migrate deploy` against them).
 
 # Logs
 *.log

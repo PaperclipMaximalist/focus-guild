@@ -7,17 +7,32 @@ import { users } from './routes/users.js';
 import { quests } from './routes/quests.js';
 import { checkin } from './routes/checkin.js';
 import { schedule } from './routes/schedule.js';
+import { settings } from './routes/settings.js';
 import { requireUser } from './lib/auth.js';
 
 const app = new Hono();
 
 app.use('*', logger());
+
+// Allowed CORS origins. Set CLIENT_URL to a comma-separated list of
+// origins in production (e.g. "https://focus-guild.vercel.app,https://www.example.com").
+// Dev fallback always permits Vite at :5173.
+const clientUrls = (process.env['CLIENT_URL'] ?? 'http://localhost:5173')
+  .split(',')
+  .map((s) => s.trim())
+  .filter(Boolean);
+
 app.use(
   '*',
   cors({
-    origin: process.env['VITE_API_URL'] ?? 'http://localhost:5173',
+    origin: (origin) => {
+      // Allow no-Origin requests (curl, health checks) through.
+      if (!origin) return origin;
+      return clientUrls.includes(origin) ? origin : null;
+    },
     allowHeaders: ['Content-Type', 'Authorization', 'X-Dev-Clerk-Id'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
   }),
 );
 
@@ -30,6 +45,7 @@ app.route('/users', users);
 app.route('/quests', quests);
 app.route('/checkin', checkin);
 app.route('/schedule', schedule);
+app.route('/settings', settings);
 
 // 404 catch-all
 app.notFound((c) =>

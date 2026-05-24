@@ -22,7 +22,6 @@ import {
   replan,
   applyEdit,
   explainBlock,
-  defaultConfig,
   questsToTasks,
   placeDailyFillers,
   type Schedule,
@@ -32,6 +31,7 @@ import {
   type SchedulerResult,
   type QuestSchedulerOverrides,
 } from '../lib/scheduler/index.js';
+import { getUserConfig } from '../lib/userConfig.js';
 import { blockToRow, rowToBlock } from '../lib/scheduler/persistence.js';
 
 export const schedule = new Hono();
@@ -103,10 +103,10 @@ function recurringToFillers(
 function regenerate(
   state: UserScheduleState,
   loaded: Awaited<ReturnType<typeof loadQuestsForUser>> & { user: { id: string } },
+  cfg: ReturnType<typeof getUserConfig>,
 ) {
   if (!loaded) return;
   const now = Date.now();
-  const cfg = defaultConfig();
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
 
   const recurringFillers = recurringToFillers(loaded.recurring);
@@ -230,7 +230,8 @@ schedule.post('/generate', async (c) => {
   const loaded = await loadQuestsForUser(user);
 
   const state = getState(user.id);
-  regenerate(state, { ...loaded, user });
+  const cfg = getUserConfig(user);
+  regenerate(state, { ...loaded, user }, cfg);
 
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
   await persistSchedule(user.id, state.schedule, questIdSet, Date.now());
@@ -276,7 +277,7 @@ schedule.post('/:clerkId/replan', async (c) => {
 
   const state = getState(user.id);
   const now = Date.now();
-  const cfg = defaultConfig();
+  const cfg = getUserConfig(user);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
@@ -315,7 +316,7 @@ schedule.post('/:clerkId/edit', async (c) => {
   // Re-flow around the new edit.
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const cfg = defaultConfig();
+  const cfg = getUserConfig(user);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
