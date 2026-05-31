@@ -19,6 +19,9 @@
   "author": "",
   "license": "ISC",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.96.0",
     "@clerk/backend": "^3.4.9",
