@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
+import { SignedIn, UserButton } from '@clerk/clerk-react';
 import { useUserStore } from '../store/useUserStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
+
+const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
 export function Header() {
   const user = useUserStore((s) => s.user);
@@ -76,6 +79,18 @@ export function Header() {
           >
             ⚙️
           </Link>
+          {CLERK_ENABLED && (
+            <SignedIn>
+              <div className="flex h-8 w-8 items-center justify-center">
+                <UserButton
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: { userButtonAvatarBox: 'h-8 w-8' },
+                  }}
+                />
+              </div>
+            </SignedIn>
+          )}
         </div>
       </div>
     </header>

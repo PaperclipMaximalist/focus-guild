@@ -13,7 +13,7 @@ Total time: ~20 minutes if all accounts are created.
 
 ## 0. Prerequisites
 
-- A GitHub repo containing this code (push the `master` branch).
+- A GitHub repo containing this code (push the `main` branch).
 - Accounts (all free):
   - [Railway](https://railway.app) — connect with GitHub.
   - [Vercel](https://vercel.com) — connect with GitHub.
@@ -119,7 +119,7 @@ Without the key, the button shows a friendly "AI features are off" message inste
 
 ## 6. Updating
 
-Each push to `master` triggers both Railway and Vercel to redeploy. If you change the Prisma schema:
+Each push to `main` triggers both Railway and Vercel to redeploy. If you change the Prisma schema:
 
 ```bash
 cd server && npx prisma migrate dev --name describe_the_change

@@ -55,6 +55,18 @@ users.get('/:clerkId/achievements', async (c) => {
   });
 });
 
+// GET /users/:clerkId/xp-events — full XP history (ascending) for charting
+users.get('/:clerkId/xp-events', async (c) => {
+  const user = c.get('user');
+  const events = await db.xPEvent.findMany({
+    where: { userId: user.id },
+    select: { id: true, amount: true, reason: true, createdAt: true },
+    orderBy: { createdAt: 'asc' },
+    take: 1000,
+  });
+  return c.json({ success: true, data: events });
+});
+
 // GET /users/:clerkId/stats — level, XP, streak summary
 users.get('/:clerkId/stats', async (c) => {
   const authUser = c.get('user');

@@ -45,38 +45,32 @@ if (!clerkConfigured) {
 /**
  * Resolve a clerkId from the request. Returns null if no source produced one.
  *
- * Order: Clerk-verified session > X-Dev-Clerk-Id header > ?clerkId= query
- *      > DEV_FALLBACK_CLERK_ID (only when Clerk is disabled).
+ * - Clerk configured (production): ONLY a verified Clerk Bearer token works.
+ *   Dev header / query param / fallback are all refused so a client can't
+ *   impersonate other users by sending X-Dev-Clerk-Id with someone else's id.
+ * - Clerk not configured (local dev): X-Dev-Clerk-Id header > ?clerkId= query
+ *   > DEV_FALLBACK_CLERK_ID so the dev experience stays zero-config.
  */
 async function resolveClerkId(c: Context): Promise<string | null> {
-  // 1. Clerk session — only if configured.
   if (clerkConfigured) {
     const auth = c.req.header('Authorization');
-    if (auth?.startsWith('Bearer ')) {
-      const token = auth.slice('Bearer '.length);
-      try {
-        const session = await verifyToken(token, { secretKey: CLERK_SECRET_KEY! });
-        const sub = (session as { sub?: string }).sub;
-        if (sub) return sub;
-      } catch {
-        // fall through; route will 401 if nothing else matches
-      }
+    if (!auth?.startsWith('Bearer ')) return null;
+    const token = auth.slice('Bearer '.length);
+    try {
+      const session = await verifyToken(token, { secretKey: CLERK_SECRET_KEY! });
+      const sub = (session as { sub?: string }).sub;
+      return sub ?? null;
+    } catch {
+      return null;
     }
   }
 
-  // 2. Dev header.
+  // Dev mode only — never reached when CLERK_SECRET_KEY is set.
   const headerId = c.req.header('X-Dev-Clerk-Id');
   if (headerId) return headerId;
-
-  // 3. Query param (legacy/back-compat; some GETs still use ?clerkId=).
   const queryId = c.req.query('clerkId');
   if (queryId) return queryId;
-
-  // 4. Dev fallback — only when Clerk is disabled, so the app stays
-  // usable with zero config.
-  if (!clerkConfigured) return DEV_FALLBACK_CLERK_ID;
-
-  return null;
+  return DEV_FALLBACK_CLERK_ID;
 }
 
 /**

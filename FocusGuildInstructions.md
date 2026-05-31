@@ -144,6 +144,15 @@ Never commit .env files. Never log API keys.
 [Update this at the end of every session]
 Phase: 9 — Auth backend + Focus Timer + Spin the Wheel + Rescue Mode
 
+Session add-ons (2026-05-31 — XP-over-time chart):
+  - GET /users/:clerkId/xp-events — returns full XP history (id, amount,
+    reason, createdAt) ascending, capped at 1000, for charting.
+  - client api.ts: api.users.xpEvents().
+  - Stats.tsx: new "⚡ XP over time" section — hand-rolled SVG, last 14
+    days of daily-XP bars + cumulative-total line (dual scale), with
+    period-total and start→now totals header. No new deps.
+  - 112 server tests still pass; client builds clean (~146 kB gzipped).
+
 Phase 9 done (2026-05-18 — auth + new features):
   - AUTH:
     - server/src/lib/auth.ts — middleware that verifies Clerk Bearer

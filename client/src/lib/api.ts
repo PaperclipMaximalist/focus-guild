@@ -1,10 +1,34 @@
 // Thin fetch wrapper for the Focus Guild API.
 // Server responses use { success, data } or { success: false, error }.
 //
-// DEV MODE: until Clerk auth is wired, we use a fixed clerkId so the full
-// stack can be exercised end-to-end. Replace with Clerk's useAuth() later.
+// Auth has two modes, picked at runtime by what's injected from the React tree:
+//   - Real Clerk: `setAuthTokenGetter()` is called by <AuthBridge> with
+//     `useAuth().getToken`; every request sends `Authorization: Bearer <jwt>`.
+//   - Dev fallback: no token getter set; requests send `X-Dev-Clerk-Id`
+//     header with the current dev/Clerk-user id. The server's auth.ts
+//     middleware understands both.
 
 export const DEV_CLERK_ID = 'dev-member-001';
+
+// Live identity for URL-path and body fields like /users/:clerkId, ?clerkId=.
+// Defaults to the dev member; replaced by setCurrentClerkId() after sign-in.
+let _currentClerkId: string = DEV_CLERK_ID;
+let _tokenGetter: (() => Promise<string | null>) | null = null;
+
+/** Set by <AuthBridge> with `useAuth().getToken`. Null in dev mode. */
+export function setAuthTokenGetter(fn: (() => Promise<string | null>) | null): void {
+  _tokenGetter = fn;
+}
+
+/** Set by <AuthBridge> with the signed-in Clerk user id. */
+export function setCurrentClerkId(id: string): void {
+  _currentClerkId = id;
+}
+
+/** Read elsewhere (e.g. default args, useUserStore) so callers stay in sync. */
+export function getCurrentClerkId(): string {
+  return _currentClerkId;
+}
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -13,16 +37,26 @@ interface ApiError    { success: false; error: { code: string; message: string }
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      // Dev auth identifier. When real Clerk is wired, swap this for
-      // `Authorization: Bearer <Clerk session token>` from useAuth().getToken().
-      'X-Dev-Clerk-Id': DEV_CLERK_ID,
-      ...(init?.headers ?? {}),
-    },
-  });
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...((init?.headers ?? {}) as Record<string, string>),
+  };
+
+  if (_tokenGetter) {
+    // Real Clerk: send the JWT. The server's auth.ts extracts the clerkId
+    // from the verified token, so URL-path ids are advisory only.
+    try {
+      const token = await _tokenGetter();
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    } catch {
+      // token fetch failed — server will 401
+    }
+  } else {
+    // Dev fallback (no Clerk publishable key configured).
+    headers['X-Dev-Clerk-Id'] = _currentClerkId;
+  }
+
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   const body = (await res.json()) as ApiResponse<T>;
   if (!body.success) {
     throw new Error(`${body.error.code}: ${body.error.message}`);
@@ -123,23 +157,25 @@ export interface AchievementSummary extends UnlockedAchievement {
 
 export const api = {
   users: {
-    upsert: (clerkId = DEV_CLERK_ID) =>
+    upsert: (clerkId = getCurrentClerkId()) =>
       request<User>('/users', { method: 'POST', body: JSON.stringify({ clerkId }) }),
-    get: (clerkId = DEV_CLERK_ID) =>
+    get: (clerkId = getCurrentClerkId()) =>
       request<User>(`/users/${clerkId}`),
-    stats: (clerkId = DEV_CLERK_ID) =>
+    stats: (clerkId = getCurrentClerkId()) =>
       request<User & { _count: { quests: number } }>(`/users/${clerkId}/stats`),
-    achievements: (clerkId = DEV_CLERK_ID) =>
+    achievements: (clerkId = getCurrentClerkId()) =>
       request<AchievementSummary[]>(`/users/${clerkId}/achievements`),
+    xpEvents: (clerkId = getCurrentClerkId()) =>
+      request<XPEventDTO[]>(`/users/${clerkId}/xp-events`),
   },
   quests: {
-    list: (clerkId = DEV_CLERK_ID) =>
+    list: (clerkId = getCurrentClerkId()) =>
       request<Quest[]>(`/quests?clerkId=${clerkId}`),
-    completed: (clerkId = DEV_CLERK_ID) =>
+    completed: (clerkId = getCurrentClerkId()) =>
       request<Quest[]>(`/quests/completed?clerkId=${clerkId}`),
-    recurring: (clerkId = DEV_CLERK_ID) =>
+    recurring: (clerkId = getCurrentClerkId()) =>
       request<Quest[]>(`/quests/recurring?clerkId=${clerkId}`),
-    rescue: (clerkId = DEV_CLERK_ID) =>
+    rescue: (clerkId = getCurrentClerkId()) =>
       request<Quest[]>(`/quests/rescue?clerkId=${clerkId}`),
     extendDeadline: (id: string, days: number) =>
       request<Quest>(`/quests/${id}/extend-deadline`, {
@@ -170,7 +206,7 @@ export const api = {
         parentQuestId?: string;
         tags?: string[];
       } & QuestSchedulerHints,
-      clerkId = DEV_CLERK_ID,
+      clerkId = getCurrentClerkId(),
     ) =>
       request<Quest>('/quests', { method: 'POST', body: JSON.stringify({ clerkId, ...input }) }),
     update: (
@@ -188,31 +224,31 @@ export const api = {
       request<null>(`/quests/${id}`, { method: 'DELETE' }),
   },
   checkin: {
-    today: (clerkId = DEV_CLERK_ID) =>
+    today: (clerkId = getCurrentClerkId()) =>
       request<CheckIn | null>(`/checkin/today/${clerkId}`),
-    submit: (input: { energyLevel: number; availableMinutes: number }, clerkId = DEV_CLERK_ID) =>
+    submit: (input: { energyLevel: number; availableMinutes: number }, clerkId = getCurrentClerkId()) =>
       request<CheckIn>('/checkin', { method: 'POST', body: JSON.stringify({ clerkId, ...input }) }),
   },
   schedule: {
-    generate: (clerkId = DEV_CLERK_ID) =>
+    generate: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>('/schedule/generate', {
         method: 'POST',
         body: JSON.stringify({ clerkId }),
       }),
-    get: (clerkId = DEV_CLERK_ID) =>
+    get: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}`),
-    replan: (clerkId = DEV_CLERK_ID) =>
+    replan: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}/replan`, { method: 'POST', body: '{}' }),
-    edit: (edit: ScheduleEdit, clerkId = DEV_CLERK_ID) =>
+    edit: (edit: ScheduleEdit, clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}/edit`, {
         method: 'POST',
         body: JSON.stringify({ edit }),
       }),
-    explain: (blockId: string, clerkId = DEV_CLERK_ID) =>
+    explain: (blockId: string, clerkId = getCurrentClerkId()) =>
       request<{ explanation: string }>(`/schedule/${clerkId}/explain?blockId=${blockId}`),
-    getFillers: (clerkId = DEV_CLERK_ID) =>
+    getFillers: (clerkId = getCurrentClerkId()) =>
       request<{ fillers: DailyFiller[] }>(`/schedule/${clerkId}/fillers`),
-    setFillers: (fillers: DailyFiller[], clerkId = DEV_CLERK_ID) =>
+    setFillers: (fillers: DailyFiller[], clerkId = getCurrentClerkId()) =>
       request<{ fillers: DailyFiller[] }>(`/schedule/${clerkId}/fillers`, {
         method: 'POST',
         body: JSON.stringify({ fillers }),
