@@ -30,7 +30,7 @@ const CreateQuestSchema = z.object({
   estimatedMinutes: z.number().int().min(1).optional().default(30),
   mentalLoad: z.number().int().min(1).max(10).optional().default(5),
   impact: z.number().int().min(1).max(10).optional().default(5),
-  deadline: z.string().datetime({ offset: true }).optional(),
+  deadline: z.string().datetime({ offset: true }).nullable().optional(),
   parentQuestId: z.string().optional(),
   tags: z.array(z.string()).optional().default([]),
   ...SchedulerHintsSchema,
