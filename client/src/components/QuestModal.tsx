@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
-import { type Quest } from '../lib/api';
+import { type Quest, type PriorityTier } from '../lib/api';
 import { MiniCalendar } from './MiniCalendar';
 import { InfoTip } from './InfoTip';
+import { PriorityDragger } from './PriorityDragger';
 
 interface Props {
   open: boolean;
@@ -149,6 +150,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
   // Scheduler hints
   const [isRecurring, setIsRecurring] = useState(false);
+  const [priorityTier, setPriorityTier] = useState<PriorityTier>('MED');
   const [category, setCategory] = useState('deep_work');
   const [preferredHour, setPreferredHour] = useState<string>(''); // '' = no preference
   const [tediousness, setTediousness] = useState(0.4);
@@ -171,6 +173,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setLoad5(loadToFive(editing.mentalLoad));
       setImpact(editing.impact);
       setIsRecurring(editing.isRecurring ?? false);
+      setPriorityTier(editing.priorityTier ?? 'MED');
       setCategory(editing.category ?? 'deep_work');
       setPreferredHour(editing.preferredHour != null ? String(editing.preferredHour) : '');
       setTediousness(editing.tediousness ?? 0.4);
@@ -192,6 +195,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setLoad5(3);
       setImpact(5);
       setIsRecurring(false);
+      setPriorityTier('MED');
       setCategory('deep_work');
       setPreferredHour('');
       setTediousness(0.4);
@@ -234,6 +238,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
         impact,
         deadline: deadline ? deadline.toISOString() : null,
         isRecurring,
+        priorityTier,
         category,
         preferredHour: preferredHour === '' ? null : Number(preferredHour),
         tediousness,
@@ -379,6 +384,26 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   Scheduled every day as a short fixed block. Resets at midnight.
                 </p>
               </div>
+            </div>
+
+            {/* Priority tier — 3-stop slider/dragger */}
+            <div className="mb-4">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <Label>🎯 Priority</Label>
+                <InfoTip>
+                  <p className="font-semibold mb-1">Three tiers</p>
+                  <p>
+                    <b>High</b> = must-do today; boosts importance and urgency.
+                  </p>
+                  <p>
+                    <b>Med</b> = default; algorithm decides based on deadline + impact.
+                  </p>
+                  <p>
+                    <b>Low</b> = nice-to-have; dampened and dropped entirely in 🔥 Crush mode.
+                  </p>
+                </InfoTip>
+              </div>
+              <PriorityDragger value={priorityTier} onChange={setPriorityTier} />
             </div>
 
             {/* Deadline picker (hidden for recurring) */}

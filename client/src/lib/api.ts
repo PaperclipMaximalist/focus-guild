@@ -75,6 +75,8 @@ export interface User {
   multiplier: number;
 }
 
+export type PriorityTier = 'HIGH' | 'MED' | 'LOW';
+
 export interface Quest {
   id: string;
   userId: string;
@@ -98,6 +100,7 @@ export interface Quest {
   setupCost?: number | null;
   urgencyMult?: number | null;
   isRecurring?: boolean;
+  priorityTier?: PriorityTier;
   parentQuestId?: string | null;
   doneToday?: boolean; // populated by GET /quests/recurring
 
@@ -122,6 +125,7 @@ export interface QuestSchedulerHints {
   setupCost?: number | null;
   urgencyMult?: number | null;
   isRecurring?: boolean;
+  priorityTier?: PriorityTier;
 }
 
 export interface CheckIn {
@@ -230,10 +234,10 @@ export const api = {
       request<CheckIn>('/checkin', { method: 'POST', body: JSON.stringify({ clerkId, ...input }) }),
   },
   schedule: {
-    generate: (clerkId = getCurrentClerkId()) =>
+    generate: (opts: { mode?: PlanMode } = {}, clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>('/schedule/generate', {
         method: 'POST',
-        body: JSON.stringify({ clerkId }),
+        body: JSON.stringify({ clerkId, mode: opts.mode ?? 'balanced' }),
       }),
     get: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}`),
@@ -322,10 +326,13 @@ export interface FeasibilityIssue {
   suggestions: string[];
 }
 
+export type PlanMode = 'balanced' | 'crush';
+
 export interface ScheduleResponse {
   schedule: ScheduleBlock[];
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   generatedAt: string | null;
+  mode?: PlanMode;
 }
 
 export type ScheduleEdit =

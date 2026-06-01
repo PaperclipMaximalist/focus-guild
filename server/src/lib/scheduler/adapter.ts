@@ -9,6 +9,8 @@
 
 import type { Task, TaskStatus } from './types.js';
 
+export type PriorityTier = 'HIGH' | 'MED' | 'LOW';
+
 /**
  * Subset of Prisma Quest we need. Decoupled from the generated client so
  * tests can use plain objects.
@@ -38,6 +40,8 @@ export interface QuestLike {
   setupCost?: number | null;
   urgencyMult?: number | null;
   isRecurring?: boolean;
+  /** User-set priority tier — HIGH boosts, MED neutral, LOW dampens. */
+  priorityTier?: PriorityTier | null;
 }
 
 /** Per-quest scheduler overrides — stored alongside the Quest (future column or sidecar). */
@@ -102,6 +106,22 @@ export function questToTask(
   const pick = <T,>(o: T | undefined, row: T | null | undefined, def: T): T =>
     o !== undefined ? o : row !== undefined && row !== null ? row : def;
 
+  const tier: PriorityTier = q.priorityTier ?? 'MED';
+  const rawImportance = clamp01(q.impact / 10);
+  const rawUrgencyMult = pick(overrides.urgencyMultiplier, q.urgencyMult, 1.0);
+
+  // Tier folds in on top of the per-quest impact + urgency. HIGH lifts both so
+  // the scheduler reliably picks tier-HIGH tasks first; LOW dampens both so
+  // they slot last and drop out under tight days. MED is a no-op.
+  const tierImportance =
+    tier === 'HIGH' ? Math.max(rawImportance, 0.9)
+    : tier === 'LOW' ? Math.min(rawImportance, 0.35)
+    : rawImportance;
+  const tierUrgencyMult =
+    tier === 'HIGH' ? Math.max(rawUrgencyMult, 1.4)
+    : tier === 'LOW' ? Math.min(rawUrgencyMult, 0.7)
+    : rawUrgencyMult;
+
   return {
     id: q.id,
     name: q.title,
@@ -110,7 +130,7 @@ export function questToTask(
     deadline,
     tediousness: pick(overrides.tediousness, q.tediousness, ADAPTER_DEFAULTS.tediousness),
     cognitiveLoad: clamp01(q.mentalLoad / 10),
-    importance: clamp01(q.impact / 10),
+    importance: tierImportance,
     setupCost: pick(overrides.setupCost, q.setupCost, ADAPTER_DEFAULTS.setupCost),
     minChunkMin: pick(overrides.minChunkMin, q.minChunkMin, ADAPTER_DEFAULTS.minChunkMin),
     maxChunkMin: pick(overrides.maxChunkMin, q.maxChunkMin, ADAPTER_DEFAULTS.maxChunkMin),
@@ -120,7 +140,7 @@ export function questToTask(
     createdAt: q.createdAt.getTime(),
     lastWorkedAt: q.updatedAt.getTime(),
     status: statusToTaskStatus(q.status),
-    urgencyMultiplier: pick(overrides.urgencyMultiplier, q.urgencyMult, 1.0),
+    urgencyMultiplier: tierUrgencyMult,
   };
 }
 

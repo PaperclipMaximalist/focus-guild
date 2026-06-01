@@ -63,6 +63,9 @@ model Quest {
   urgencyMult     Float?    @default(1.0)
   /// True = recurring daily quest; placed as a fixed block; never goes COMPLETE.
   isRecurring     Boolean   @default(false)
+  /// User-set priority tier — HIGH/MED/LOW. HIGH boosts importance and urgency;
+  /// LOW dampens both and is excluded in "crush" planning mode.
+  priorityTier    PriorityTier @default(MED)
 
   user          User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   parentQuest   Quest?  @relation("SubQuests", fields: [parentQuestId], references: [id])
@@ -101,6 +104,12 @@ enum QuestStatus {
   COMPLETE
   NOT_TODAY
   RESCUE
+}
+
+enum PriorityTier {
+  HIGH
+  MED
+  LOW
 }
 
 model DailyCheckIn {

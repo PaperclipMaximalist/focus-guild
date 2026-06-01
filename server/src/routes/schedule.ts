@@ -38,12 +38,15 @@ export const schedule = new Hono();
 
 // ─── In-memory state per user ─────────────────────────────────────────────────
 
+type PlanMode = 'balanced' | 'crush';
+
 interface UserScheduleState {
   schedule: Schedule;
   feasibilityReport: SchedulerResult['feasibilityReport'];
   fillers: DailyFiller[];
   overrides: Record<string, QuestSchedulerOverrides>;
   lastGeneratedAt: number;
+  mode: PlanMode;
 }
 
 const stateByUserId = new Map<string, UserScheduleState>();
@@ -57,6 +60,7 @@ function getState(userId: string): UserScheduleState {
       fillers: [],
       overrides: {},
       lastGeneratedAt: 0,
+      mode: 'balanced',
     };
     stateByUserId.set(userId, s);
   }
@@ -100,14 +104,38 @@ function recurringToFillers(
   }));
 }
 
+/**
+ * Crush-mode config: flatten the energy curve to a constant 0.85 so high-load
+ * tasks slot anywhere, and raise the soft block cap to 3 hours so the planner
+ * stops splitting things into 90-min chunks. Other settings are preserved.
+ */
+function configForMode(
+  base: ReturnType<typeof getUserConfig>,
+  mode: PlanMode,
+): ReturnType<typeof getUserConfig> {
+  if (mode === 'balanced') return base;
+  return {
+    ...base,
+    energyCurve: () => 0.85,
+    softMaxBlockMin: Math.max(base.softMaxBlockMin, 180),
+  };
+}
+
 function regenerate(
   state: UserScheduleState,
   loaded: Awaited<ReturnType<typeof loadQuestsForUser>> & { user: { id: string } },
-  cfg: ReturnType<typeof getUserConfig>,
+  baseCfg: ReturnType<typeof getUserConfig>,
 ) {
   if (!loaded) return;
   const now = Date.now();
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
+  const cfg = configForMode(baseCfg, state.mode);
+
+  // Crush mode: drop LOW-priority tasks entirely so HIGH/MED can fit.
+  // priorityTier defaults to 'MED' for legacy rows.
+  const regularForMode = state.mode === 'crush'
+    ? loaded.regular.filter((q) => (q.priorityTier ?? 'MED') !== 'LOW')
+    : loaded.regular;
+  const tasks = questsToTasks(regularForMode, state.overrides, now);
 
   const recurringFillers = recurringToFillers(loaded.recurring);
   const allFillers = [...recurringFillers, ...state.fillers];
@@ -198,7 +226,16 @@ function err(c: any, code: string, message: string, status: 400 | 404 | 500 = 40
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
-const GenerateSchema = z.object({ clerkId: z.string().min(1) });
+const GenerateSchema = z.object({
+  clerkId: z.string().min(1).optional(),
+  /**
+   * 'balanced' (default) uses the user's energy curve and soft block cap
+   * — schedules realistically around dips. 'crush' flattens the energy
+   * curve, lifts the soft block cap, and drops LOW-priority tasks so
+   * everything important fits the working day.
+   */
+  mode: z.enum(['balanced', 'crush']).optional().default('balanced'),
+});
 const FillersSchema = z.object({
   fillers: z.array(
     z.object({
@@ -223,13 +260,15 @@ const EditSchema = z.object({
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 schedule.post('/generate', async (c) => {
-  // Body is parsed for compatibility but clerkId is ignored — user from middleware.
-  await c.req.json().catch(() => null);
+  const rawBody = await c.req.json().catch(() => ({}));
+  const parsed = GenerateSchema.safeParse(rawBody ?? {});
+  const mode: PlanMode = parsed.success ? parsed.data.mode : 'balanced';
 
   const user = c.get('user');
   const loaded = await loadQuestsForUser(user);
 
   const state = getState(user.id);
+  state.mode = mode;
   const cfg = getUserConfig(user);
   regenerate(state, { ...loaded, user }, cfg);
 
@@ -240,6 +279,7 @@ schedule.post('/generate', async (c) => {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
+    mode: state.mode,
   });
 });
 
@@ -268,6 +308,7 @@ schedule.get('/:clerkId', async (c) => {
     generatedAt: state.lastGeneratedAt
       ? new Date(state.lastGeneratedAt).toISOString()
       : null,
+    mode: state.mode,
   });
 });
 
@@ -277,8 +318,11 @@ schedule.post('/:clerkId/replan', async (c) => {
 
   const state = getState(user.id);
   const now = Date.now();
-  const cfg = getUserConfig(user);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
+  const cfg = configForMode(getUserConfig(user), state.mode);
+  const regularForMode = state.mode === 'crush'
+    ? loaded.regular.filter((q) => (q.priorityTier ?? 'MED') !== 'LOW')
+    : loaded.regular;
+  const tasks = questsToTasks(regularForMode, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
@@ -291,6 +335,7 @@ schedule.post('/:clerkId/replan', async (c) => {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
+    mode: state.mode,
   });
 });
 
@@ -316,8 +361,11 @@ schedule.post('/:clerkId/edit', async (c) => {
   // Re-flow around the new edit.
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const cfg = getUserConfig(user);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
+  const cfg = configForMode(getUserConfig(user), state.mode);
+  const regularForMode = state.mode === 'crush'
+    ? loaded.regular.filter((q) => (q.priorityTier ?? 'MED') !== 'LOW')
+    : loaded.regular;
+  const tasks = questsToTasks(regularForMode, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
@@ -329,6 +377,7 @@ schedule.post('/:clerkId/edit', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
+    mode: state.mode,
   });
 });
 

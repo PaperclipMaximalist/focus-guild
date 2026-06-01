@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useQuestStore } from '../store/useQuestStore';
@@ -8,7 +8,7 @@ import { useAchievementsStore } from '../store/useAchievementsStore';
 import { useToastStore } from '../components/Toasts';
 import { Header } from '../components/Header';
 import { FocusTimer } from '../components/FocusTimer';
-import { api, type ScheduleBlock } from '../lib/api';
+import { api, type ScheduleBlock, type Quest, type PlanMode } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -35,32 +35,60 @@ function blockStatus(b: ScheduleBlock, now: number): 'past' | 'active' | 'upcomi
 
 function typeLabel(b: ScheduleBlock): string {
   if (b.type === 'break') return 'Break';
-  if (b.type === 'buffer') return 'Free slot';
+  if (b.type === 'buffer') return 'Free';
   if (b.type === 'fixed') return 'Fixed';
   return 'Focus';
 }
 
-// Color by type + status
-const TYPE_BG: Record<string, string> = {
-  work:   'var(--color-primary)',
-  break:  'var(--color-teal)',
-  fixed:  'var(--color-gold)',
-  buffer: 'var(--color-surface2)',
+// Bold palette keyed to quest category. Picked for contrast on dark bg.
+const CATEGORY_COLOR: Record<string, string> = {
+  deep_work: '#8b5cf6', // violet
+  comms:     '#14b8a6', // teal
+  admin:     '#f59e0b', // amber
+  creative:  '#ec4899', // pink
 };
 
-// ─── Block component ──────────────────────────────────────────────────────────
+// Non-work block colors.
+const TYPE_COLOR: Record<string, string> = {
+  break:  '#64748b', // slate
+  fixed:  '#f59e0b', // amber
+  buffer: '#374151', // dim
+};
 
-interface BlockCardProps {
+/**
+ * Pick a vivid color for a block. Work blocks → category; intensity bumped
+ * by mentalLoad. Non-work → muted palette so focus stands out.
+ */
+function blockColor(b: ScheduleBlock, quest: Quest | null): string {
+  if (b.type !== 'work') return TYPE_COLOR[b.type] ?? '#475569';
+  const cat = quest?.category ?? 'deep_work';
+  return CATEGORY_COLOR[cat] ?? CATEGORY_COLOR.deep_work!;
+}
+
+/** A 1–10 mental-load label for the difficulty dot. */
+function loadLabel(load: number | undefined): { dots: number; label: string } {
+  const l = load ?? 5;
+  if (l >= 9) return { dots: 5, label: 'Brutal' };
+  if (l >= 7) return { dots: 4, label: 'Hard' };
+  if (l >= 5) return { dots: 3, label: 'Medium' };
+  if (l >= 3) return { dots: 2, label: 'Mild' };
+  return { dots: 1, label: 'Easy' };
+}
+
+// ─── Compact block row ────────────────────────────────────────────────────────
+
+interface BlockRowProps {
   block: ScheduleBlock;
-  questTitle: string | null;
+  quest: Quest | null;
   status: 'past' | 'active' | 'upcoming';
   isActive: boolean;
   now: number;
+  expanded: boolean;
+  onToggle: () => void;
   onStart: () => void;
   onPin: () => void;
   onDelete: () => void;
   onExplain: () => void;
-  // Drag-and-drop
   draggable: boolean;
   isDragOver: boolean;
   isDragging: boolean;
@@ -71,12 +99,14 @@ interface BlockCardProps {
   onDrop: (e: React.DragEvent) => void;
 }
 
-function BlockCard({
+function BlockRow({
   block,
-  questTitle,
+  quest,
   status,
   isActive,
   now,
+  expanded,
+  onToggle,
   onStart,
   onPin,
   onDelete,
@@ -89,7 +119,7 @@ function BlockCard({
   onDragOver,
   onDragLeave,
   onDrop,
-}: BlockCardProps) {
+}: BlockRowProps) {
   const start = new Date(block.start).getTime();
   const end = new Date(block.end).getTime();
   const msRemaining = end - now;
@@ -97,8 +127,10 @@ function BlockCard({
     ? Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100))
     : status === 'past' ? 100 : 0;
 
-  const color = TYPE_BG[block.type] ?? 'var(--color-surface2)';
+  const color = blockColor(block, quest);
   const dim = status === 'past';
+  const title = quest?.title ?? (block.type === 'break' ? 'Rest' : block.type === 'fixed' ? (block.note ?? 'Fixed') : block.type === 'buffer' ? 'Free slot' : '—');
+  const ml = loadLabel(quest?.mentalLoad);
 
   return (
     <div
@@ -110,130 +142,173 @@ function BlockCard({
       onDrop={onDrop}
       style={{ cursor: draggable ? 'grab' : 'default' }}
     >
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: isDragging ? 0.4 : dim ? 0.45 : 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="relative rounded-[14px] overflow-hidden"
-      style={{
-        background: 'var(--color-surface)',
-        border: isDragOver
-          ? `2px dashed ${color}`
-          : isActive
-          ? `1.5px solid ${color}`
-          : '1.5px solid var(--color-border)',
-        boxShadow: isActive ? `0 0 18px ${color}30` : isDragOver ? `0 0 12px ${color}50` : 'none',
-        transform: isDragOver ? 'scale(1.01)' : 'scale(1)',
-        transition: 'transform 0.15s, box-shadow 0.15s',
-      }}
-    >
-      {/* Left accent bar */}
-      <div
-        className="absolute top-0 left-0 bottom-0 w-1 rounded-l-[14px]"
-        style={{ background: color }}
-      />
-
-      {/* Progress bar (active only) */}
-      {isActive && (
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: isDragging ? 0.4 : dim ? 0.5 : 1, y: 0 }}
+        transition={{ duration: 0.2 }}
+        className="relative rounded-[12px] overflow-hidden"
+        style={{
+          background: 'var(--color-surface)',
+          border: isDragOver
+            ? `2px dashed ${color}`
+            : isActive
+            ? `1.5px solid ${color}`
+            : '1px solid var(--color-border)',
+          boxShadow: isActive ? `0 0 14px ${color}40` : isDragOver ? `0 0 10px ${color}50` : 'none',
+        }}
+      >
+        {/* Left accent bar */}
         <div
-          className="absolute bottom-0 left-0 h-0.5 transition-all duration-1000"
-          style={{ width: `${pctDone}%`, background: color }}
+          className="absolute top-0 left-0 bottom-0 w-1"
+          style={{ background: color }}
         />
-      )}
 
-      <div className="pl-5 pr-4 py-3 flex gap-3 items-start">
-        {/* Time column */}
-        <div className="shrink-0 w-16 text-right">
-          <p className="text-xs font-mono" style={{ color: 'var(--color-muted)' }}>
+        {/* Progress bar (active only) */}
+        {isActive && (
+          <div
+            className="absolute bottom-0 left-0 h-0.5 transition-all duration-1000"
+            style={{ width: `${pctDone}%`, background: color }}
+          />
+        )}
+
+        {/* COMPACT ROW — always visible */}
+        <button
+          type="button"
+          onClick={onToggle}
+          className="w-full text-left flex items-center gap-3 pl-4 pr-3 py-2.5"
+        >
+          {/* Time */}
+          <div className="shrink-0 w-12 font-mono text-xs leading-tight" style={{ color: 'var(--color-muted)' }}>
             {formatTime(block.start)}
-          </p>
-          <p className="text-xs font-mono" style={{ color: 'var(--color-muted)' }}>
-            {formatTime(block.end)}
-          </p>
-        </div>
+          </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          {/* Title + chip + load dots */}
+          <div className="flex-1 min-w-0 flex items-center gap-2">
             <span
-              className="text-xs font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full"
-              style={{
-                background: `${color}22`,
-                color,
-              }}
+              className="text-[0.65rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+              style={{ background: `${color}22`, color }}
             >
               {typeLabel(block)}
             </span>
-            {block.locked && (
-              <span className="text-xs" style={{ color: 'var(--color-gold)' }}>
-                pinned
-              </span>
-            )}
-            {isActive && (
-              <span
-                className="text-xs font-mono font-bold"
-                style={{ color }}
-              >
+            <span
+              className="truncate font-semibold text-[0.92rem]"
+              style={{ color: 'var(--color-text)' }}
+            >
+              {title}
+            </span>
+          </div>
+
+          {/* Right side: live countdown OR duration + difficulty dots + chevron */}
+          <div className="flex items-center gap-2 shrink-0">
+            {isActive ? (
+              <span className="font-mono text-xs font-bold" style={{ color }}>
                 {formatCountdown(msRemaining)}
               </span>
+            ) : (
+              <span className="text-xs font-mono" style={{ color: 'var(--color-muted)' }}>
+                {block.durationMin}m
+              </span>
             )}
+            {block.type === 'work' && (
+              <span title={`Mental load: ${ml.label}`} className="flex gap-0.5">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <span
+                    key={i}
+                    className="w-1 h-1 rounded-full"
+                    style={{
+                      background: i <= ml.dots ? color : 'rgba(255,255,255,0.12)',
+                    }}
+                  />
+                ))}
+              </span>
+            )}
+            {block.locked && (
+              <span className="text-xs" style={{ color: 'var(--color-gold)' }}>
+                📌
+              </span>
+            )}
+            <span
+              className="text-xs transition-transform"
+              style={{
+                color: 'var(--color-muted)',
+                transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              }}
+            >
+              ▾
+            </span>
           </div>
+        </button>
 
-          <p
-            className="mt-1 font-semibold truncate"
-            style={{ color: 'var(--color-text)' }}
-          >
-            {questTitle ?? (block.type === 'break' ? 'Rest' : block.type === 'fixed' ? (block.note ?? 'Fixed') : '—')}
-          </p>
-
-          <p className="text-xs mt-0.5" style={{ color: 'var(--color-muted)' }}>
-            {block.durationMin}m
-            {block.note && block.type === 'work' ? ` · ${block.note}` : ''}
-          </p>
-        </div>
-
-        {/* Actions (upcoming work blocks only) */}
-        {status !== 'past' && block.type === 'work' && (
-          <div className="flex items-center gap-2 shrink-0">
-            {!isActive && (
-              <button
-                onClick={onStart}
-                className="text-xs px-2.5 py-1 rounded-full font-semibold transition-colors"
-                style={{
-                  background: `${color}22`,
-                  color,
-                  border: `1px solid ${color}55`,
-                }}
+        {/* EXPANDED — details + actions */}
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              className="overflow-hidden"
+            >
+              <div
+                className="pl-4 pr-3 pb-3 pt-1 border-t flex flex-col gap-2"
+                style={{ borderColor: 'var(--color-border)' }}
               >
-                Start
-              </button>
-            )}
-            <button
-              onClick={onPin}
-              title={block.locked ? 'Unpin' : 'Pin'}
-              className="text-base opacity-60 hover:opacity-100 transition-opacity"
-            >
-              {block.locked ? '📌' : '📍'}
-            </button>
-            <button
-              onClick={onExplain}
-              title="Why this?"
-              className="text-base opacity-60 hover:opacity-100 transition-opacity"
-            >
-              💡
-            </button>
-            <button
-              onClick={onDelete}
-              title="Remove"
-              className="text-base opacity-60 hover:opacity-100 transition-opacity"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-      </div>
-    </motion.div>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: 'var(--color-muted)' }}>
+                  <span>
+                    {formatTime(block.start)} – {formatTime(block.end)} · {block.durationMin}m
+                  </span>
+                  {quest?.category && (
+                    <span className="capitalize">· {quest.category.replace('_', ' ')}</span>
+                  )}
+                  {block.type === 'work' && quest && (
+                    <span>· Load {ml.label}</span>
+                  )}
+                </div>
+                {block.note && block.type === 'work' && (
+                  <p className="text-xs italic" style={{ color: 'var(--color-muted)' }}>
+                    {block.note}
+                  </p>
+                )}
+                {status !== 'past' && block.type === 'work' && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {!isActive && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onStart(); }}
+                        className="text-xs px-3 py-1 rounded-full font-bold transition-transform hover:scale-105"
+                        style={{ background: color, color: '#fff' }}
+                      >
+                        ▶ Start
+                      </button>
+                    )}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onPin(); }}
+                      className="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                      style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                    >
+                      {block.locked ? 'Unpin' : '📌 Pin'}
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onExplain(); }}
+                      className="text-xs px-2.5 py-1 rounded-full border transition-colors"
+                      style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                    >
+                      💡 Why?
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                      className="text-xs px-2.5 py-1 rounded-full border transition-colors ml-auto"
+                      style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#f87171' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }
@@ -268,31 +343,155 @@ function ExplainTooltip({ blockId, onClose }: { blockId: string; onClose: () => 
   );
 }
 
-// ─── Feasibility banner ───────────────────────────────────────────────────────
+// ─── Plan controls panel ──────────────────────────────────────────────────────
 
-function FeasibilityBanner({
-  issues,
+function PlanControls({
+  mode,
+  loading,
+  onChangeMode,
+  onRegenerate,
+  onReplan,
 }: {
-  issues: Array<{ taskId: string; shortfallMin: number; suggestions: string[] }>;
+  mode: PlanMode;
+  loading: boolean;
+  onChangeMode: (m: PlanMode) => void;
+  onRegenerate: () => void;
+  onReplan: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <div
       className="rounded-[14px] p-3 mb-4"
-      style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.35)' }}
+      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
+          Planning mode
+        </span>
+      </div>
+      <div className="flex gap-1.5 mb-3">
+        <ModeButton
+          active={mode === 'balanced'}
+          onClick={() => onChangeMode('balanced')}
+          color="var(--color-teal)"
+          label="🌙 Balanced"
+          sub="Respects energy dips"
+        />
+        <ModeButton
+          active={mode === 'crush'}
+          onClick={() => onChangeMode('crush')}
+          color="var(--color-fire)"
+          label="🔥 Crush"
+          sub="Pack the day, drop low-priority"
+        />
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={onRegenerate}
+          disabled={loading}
+          className="flex-1 text-sm px-3 py-1.5 rounded-full font-semibold transition-opacity"
+          style={{
+            background: 'var(--color-primary)',
+            color: '#fff',
+            opacity: loading ? 0.5 : 1,
+          }}
+        >
+          {loading ? '…' : 'Regenerate'}
+        </button>
+        <button
+          onClick={onReplan}
+          disabled={loading}
+          className="text-sm px-3 py-1.5 rounded-full font-semibold transition-opacity"
+          style={{
+            background: 'var(--color-surface2)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)',
+            opacity: loading ? 0.5 : 1,
+          }}
+        >
+          Replan
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ModeButton({
+  active,
+  onClick,
+  color,
+  label,
+  sub,
+}: {
+  active: boolean;
+  onClick: () => void;
+  color: string;
+  label: string;
+  sub: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex-1 rounded-lg px-3 py-2 text-left transition-all"
+      style={{
+        background: active ? `${color}1f` : 'rgba(255,255,255,0.02)',
+        border: `1.5px solid ${active ? color : 'var(--color-border)'}`,
+      }}
+    >
+      <div className="text-sm font-bold" style={{ color: active ? color : 'var(--color-text)' }}>
+        {label}
+      </div>
+      <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--color-muted)' }}>
+        {sub}
+      </div>
+    </button>
+  );
+}
+
+// ─── Feasibility banner ───────────────────────────────────────────────────────
+
+function FeasibilityBanner({
+  mode,
+  issues,
+  questById,
+}: {
+  mode: PlanMode;
+  issues: Array<{ taskId: string; shortfallMin: number; suggestions: string[] }>;
+  questById: Record<string, Quest | undefined>;
+}) {
+  const [open, setOpen] = useState(false);
+  const totalShortfall = issues.reduce((s, i) => s + i.shortfallMin, 0);
+  const headline = mode === 'crush'
+    ? `🛑 Won't fit in working hours — short by ${totalShortfall}m (${issues.length} quest${issues.length > 1 ? 's' : ''})`
+    : `⚠️ ${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline`;
+
+  return (
+    <div
+      className="rounded-[14px] p-3 mb-4"
+      style={{
+        background: mode === 'crush' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)',
+        border: mode === 'crush' ? '1px solid rgba(239,68,68,0.45)' : '1px solid rgba(245,158,11,0.35)',
+      }}
     >
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 w-full text-left"
       >
-        <span className="text-lg">⚠️</span>
-        <span className="text-sm font-semibold" style={{ color: '#f87171' }}>
-          {issues.length} quest{issues.length > 1 ? 's' : ''} won't finish before deadline
+        <span
+          className="text-sm font-semibold"
+          style={{ color: mode === 'crush' ? '#fca5a5' : '#fbbf24' }}
+        >
+          {headline}
         </span>
         <span className="ml-auto text-xs" style={{ color: 'var(--color-muted)' }}>
           {open ? '▲' : '▼'}
         </span>
       </button>
+      {mode === 'crush' && (
+        <p className="text-[0.7rem] mt-1.5" style={{ color: 'var(--color-muted)' }}>
+          Crush mode dropped LOW priority and removed energy dips. Even so, your working hours can't fit
+          everything. Tag more quests as LOW, extend a deadline, or widen working hours in Settings.
+        </p>
+      )}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -302,12 +501,15 @@ function FeasibilityBanner({
             className="overflow-hidden"
           >
             <div className="mt-2 space-y-1.5">
-              {issues.map((issue) => (
-                <div key={issue.taskId} className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                  <span className="font-mono text-red-300">{issue.taskId.slice(0, 8)}…</span>
-                  {' '}shortfall {issue.shortfallMin}m — {issue.suggestions[0]}
-                </div>
-              ))}
+              {issues.map((issue) => {
+                const q = questById[issue.taskId];
+                return (
+                  <div key={issue.taskId} className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                    <span style={{ color: 'var(--color-text)' }}>{q?.title ?? issue.taskId.slice(0, 8)}</span>
+                    {' '}— short {issue.shortfallMin}m
+                  </div>
+                );
+              })}
             </div>
           </motion.div>
         )}
@@ -319,7 +521,7 @@ function FeasibilityBanner({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function GuildFeed() {
-  const { schedule, feasibilityReport, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
+  const { schedule, feasibilityReport, generatedAt, loading, error, mode, generate, replan, applyEdit, setActiveBlock, setMode } =
     useScheduleStore();
   const { quests, load: loadQuests, complete: completeQuest, completeDaily } = useQuestStore();
   const user = useUserStore((s) => s.user);
@@ -334,6 +536,7 @@ export default function GuildFeed() {
   const [explainBlockId, setExplainBlockId] = useState<string | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const activeRef = useRef<HTMLDivElement | null>(null);
 
   // Tick clock every second for live countdown.
@@ -345,7 +548,6 @@ export default function GuildFeed() {
   // Load quests + fetch or generate schedule on mount.
   useEffect(() => {
     loadQuests();
-    // Try to fetch an existing schedule; if empty, generate one.
     useScheduleStore.getState().fetch().then(() => {
       if (useScheduleStore.getState().schedule.length === 0) {
         useScheduleStore.getState().generate();
@@ -360,20 +562,21 @@ export default function GuildFeed() {
     }
   }, [schedule.length]);
 
-  const questById = Object.fromEntries(quests.map((q) => [q.id, q]));
+  const questById = useMemo(
+    () => Object.fromEntries(quests.map((q) => [q.id, q])) as Record<string, Quest | undefined>,
+    [quests],
+  );
 
   // Only show today + near-future blocks (skip past unless they were active).
   const visibleBlocks = schedule.filter((b) => {
     const end = new Date(b.end).getTime();
     const status = blockStatus(b, now);
-    if (status === 'past') return end > now - 30 * 60_000; // show last 30m of past
+    if (status === 'past') return end > now - 30 * 60_000;
     return true;
   });
 
-  // Find current active block.
   const currentActive = schedule.find((b) => blockStatus(b, now) === 'active' && b.type === 'work');
 
-  // Day progress.
   const todayBlocks = schedule.filter((b) => {
     const d = new Date(b.start);
     const t = new Date(now);
@@ -401,8 +604,6 @@ export default function GuildFeed() {
     [applyEdit],
   );
 
-  // Drag-and-drop: dragging a work block onto another work block swaps them.
-  // The server-side edit reflows the schedule.
   const handleDrop = useCallback(
     (targetId: string) => {
       if (!draggingId || draggingId === targetId) return;
@@ -415,6 +616,15 @@ export default function GuildFeed() {
       setDragOverId(null);
     },
     [draggingId, schedule, applyEdit],
+  );
+
+  const handleChangeMode = useCallback(
+    (m: PlanMode) => {
+      setMode(m);
+      // Regenerate immediately so the user sees the effect of switching mode.
+      generate({ mode: m });
+    },
+    [setMode, generate],
   );
 
   return (
@@ -435,51 +645,28 @@ export default function GuildFeed() {
       </div>
 
       <div className="mx-auto max-w-2xl px-4 pt-4">
-        {/* Toolbar */}
-        <div className="flex items-center gap-3 mb-4">
+        {/* Header row */}
+        <div className="flex items-baseline gap-3 mb-3">
           <h1 className="flex-1 text-xl font-bold" style={{ color: 'var(--color-text)' }}>
             Guild Feed
           </h1>
           <span className="text-sm" style={{ color: 'var(--color-muted)' }}>
-            {pctDone}% done
+            {pctDone}% done · {Math.round(totalWorkMin / 60 * 10) / 10}h focus
           </span>
-          <button
-            onClick={() => generate()}
-            disabled={loading}
-            className="text-sm px-3 py-1.5 rounded-full font-semibold transition-opacity"
-            style={{
-              background: 'var(--color-primary)',
-              color: '#fff',
-              opacity: loading ? 0.5 : 1,
-            }}
-          >
-            {loading ? '…' : 'Regenerate'}
-          </button>
-          <button
-            onClick={() => replan()}
-            disabled={loading}
-            className="text-sm px-3 py-1.5 rounded-full font-semibold transition-opacity"
-            style={{
-              background: 'var(--color-surface2)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)',
-              opacity: loading ? 0.5 : 1,
-            }}
-          >
-            Replan
-          </button>
         </div>
 
-        {/* Feasibility warning */}
-        {!feasibilityReport.ok && (
-          <FeasibilityBanner issues={feasibilityReport.issues} />
-        )}
+        {/* Plan controls (mode toggle + regen / replan) */}
+        <PlanControls
+          mode={mode}
+          loading={loading}
+          onChangeMode={handleChangeMode}
+          onRegenerate={() => generate()}
+          onReplan={() => replan()}
+        />
 
-        {/* Drag hint */}
-        {schedule.some((b) => b.type === 'work' && !b.locked) && (
-          <p className="mb-3 text-xs" style={{ color: 'var(--color-muted)' }}>
-            💡 Drag a focus block onto another to swap them. Pin (📌) to lock in place.
-          </p>
+        {/* Feasibility warning — color escalates in Crush mode */}
+        {!feasibilityReport.ok && (
+          <FeasibilityBanner mode={mode} issues={feasibilityReport.issues} questById={questById} />
         )}
 
         {/* Error state */}
@@ -513,32 +700,34 @@ export default function GuildFeed() {
           </div>
         )}
 
-        {/* Timeline */}
-        <div className="space-y-2">
+        {/* Timeline — compact rows, expand on tap */}
+        <div className="space-y-1.5">
           <AnimatePresence initial={false}>
             {visibleBlocks.map((block) => {
               const status = blockStatus(block, now);
               const isActive = block.id === currentActive?.id;
-              const quest = block.taskId ? questById[block.taskId] : null;
+              const quest = block.taskId ? questById[block.taskId] ?? null : null;
+              const expanded = expandedId === block.id || isActive;
 
               return (
                 <div
                   key={block.id}
                   ref={isActive ? (el) => { activeRef.current = el; } : undefined}
                 >
-                  <BlockCard
+                  <BlockRow
                     block={block}
-                    questTitle={quest?.title ?? null}
+                    quest={quest}
                     status={status}
                     isActive={isActive}
                     now={now}
+                    expanded={expanded}
+                    onToggle={() => setExpandedId(expanded ? null : block.id)}
                     onStart={() => {
                       setActiveBlock(block.id);
-                      const q = block.taskId ? questById[block.taskId] : null;
-                      if (q) {
+                      if (quest) {
                         startTimer({
-                          questId: q.id,
-                          questTitle: q.title,
+                          questId: quest.id,
+                          questTitle: quest.title,
                           durationMin: block.durationMin,
                         });
                         setTimerOpen(true);
@@ -589,6 +778,7 @@ export default function GuildFeed() {
         {generatedAt && (
           <p className="mt-6 text-center text-xs" style={{ color: 'var(--color-muted)' }}>
             Last generated {new Date(generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            {' '}· {mode === 'crush' ? '🔥 Crush' : '🌙 Balanced'} mode
           </p>
         )}
       </div>
@@ -640,7 +830,6 @@ export default function GuildFeed() {
           if (newLevel > prevLevel) {
             pushToast({ icon: '🆙', title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
           }
-          // Reflow the schedule so the completed block drops out cleanly.
           replan();
         }}
       />

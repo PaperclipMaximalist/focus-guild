@@ -20,6 +20,7 @@ const SchedulerHintsSchema = {
   setupCost: z.number().min(0).max(1).nullable().optional(),
   urgencyMult: z.number().min(0).max(5).nullable().optional(),
   isRecurring: z.boolean().optional(),
+  priorityTier: z.enum(['HIGH', 'MED', 'LOW']).optional(),
 };
 
 const CreateQuestSchema = z.object({
