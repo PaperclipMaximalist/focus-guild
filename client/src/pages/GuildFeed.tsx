@@ -11,10 +11,45 @@ import { FocusTimer } from '../components/FocusTimer';
 import { api, type ScheduleBlock, type Quest, type PlanMode } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
 
+// ─── Layout constants ─────────────────────────────────────────────────────────
+
+/** Pixels per minute — drives the proportional block heights. */
+const PX_PER_MIN = 1.6;
+/** Earliest hour rendered (e.g. 7 = 7am) */
+const VIEW_START_HOUR = 7;
+/** Latest hour rendered (e.g. 23 = 11pm) */
+const VIEW_END_HOUR = 23;
+const VIEW_MINUTES = (VIEW_END_HOUR - VIEW_START_HOUR) * 60;
+const TIMELINE_HEIGHT = VIEW_MINUTES * PX_PER_MIN;
+/** Below this height, the block uses the compact single-line layout. */
+const COMPACT_THRESHOLD_PX = 48;
+/** Number of days shown in the day-tab strip. */
+const DAY_TABS = 5;
+
+// Bold category palette.
+const CATEGORY_COLOR: Record<string, string> = {
+  deep_work: '#a78bfa', // violet-400
+  comms:     '#2dd4bf', // teal-400
+  admin:     '#fbbf24', // amber-400
+  creative:  '#f472b6', // pink-400
+};
+
+const TYPE_COLOR: Record<string, string> = {
+  break:  '#64748b', // slate
+  fixed:  '#fbbf24', // amber
+  buffer: '#1f2937', // very muted
+};
+
+function blockColor(b: ScheduleBlock, quest: Quest | null): string {
+  if (b.type !== 'work') return TYPE_COLOR[b.type] ?? '#475569';
+  const cat = quest?.category ?? 'deep_work';
+  return CATEGORY_COLOR[cat] ?? CATEGORY_COLOR.deep_work!;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function formatCountdown(ms: number): string {
@@ -40,55 +75,44 @@ function typeLabel(b: ScheduleBlock): string {
   return 'Focus';
 }
 
-// Bold palette keyed to quest category. Picked for contrast on dark bg.
-const CATEGORY_COLOR: Record<string, string> = {
-  deep_work: '#8b5cf6', // violet
-  comms:     '#14b8a6', // teal
-  admin:     '#f59e0b', // amber
-  creative:  '#ec4899', // pink
-};
-
-// Non-work block colors.
-const TYPE_COLOR: Record<string, string> = {
-  break:  '#64748b', // slate
-  fixed:  '#f59e0b', // amber
-  buffer: '#374151', // dim
-};
-
-/**
- * Pick a vivid color for a block. Work blocks → category; intensity bumped
- * by mentalLoad. Non-work → muted palette so focus stands out.
- */
-function blockColor(b: ScheduleBlock, quest: Quest | null): string {
-  if (b.type !== 'work') return TYPE_COLOR[b.type] ?? '#475569';
-  const cat = quest?.category ?? 'deep_work';
-  return CATEGORY_COLOR[cat] ?? CATEGORY_COLOR.deep_work!;
+function startOfDay(ms: number): number {
+  const d = new Date(ms);
+  d.setHours(0, 0, 0, 0);
+  return d.getTime();
 }
 
-/** A 1–10 mental-load label for the difficulty dot. */
-function loadLabel(load: number | undefined): { dots: number; label: string } {
+function sameDay(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
+/** Minutes from VIEW_START_HOUR on this day's calendar (clamped to view). */
+function minutesFromViewStart(ms: number, dayStart: number): number {
+  const offset = ms - dayStart - VIEW_START_HOUR * 60 * 60_000;
+  return Math.max(0, Math.min(VIEW_MINUTES, offset / 60_000));
+}
+
+function loadDots(load: number | undefined): number {
   const l = load ?? 5;
-  if (l >= 9) return { dots: 5, label: 'Brutal' };
-  if (l >= 7) return { dots: 4, label: 'Hard' };
-  if (l >= 5) return { dots: 3, label: 'Medium' };
-  if (l >= 3) return { dots: 2, label: 'Mild' };
-  return { dots: 1, label: 'Easy' };
+  if (l >= 9) return 5;
+  if (l >= 7) return 4;
+  if (l >= 5) return 3;
+  if (l >= 3) return 2;
+  return 1;
 }
 
-// ─── Compact block row ────────────────────────────────────────────────────────
+// ─── Block tile ───────────────────────────────────────────────────────────────
 
-interface BlockRowProps {
+interface BlockTileProps {
   block: ScheduleBlock;
   quest: Quest | null;
   status: 'past' | 'active' | 'upcoming';
-  isActive: boolean;
+  top: number;
+  height: number;
   now: number;
-  expanded: boolean;
-  onToggle: () => void;
-  onStart: () => void;
-  onPin: () => void;
-  onDelete: () => void;
-  onExplain: () => void;
+  isSelected: boolean;
+  onSelect: () => void;
   draggable: boolean;
   isDragOver: boolean;
   isDragging: boolean;
@@ -99,18 +123,15 @@ interface BlockRowProps {
   onDrop: (e: React.DragEvent) => void;
 }
 
-function BlockRow({
+function BlockTile({
   block,
   quest,
   status,
-  isActive,
+  top,
+  height,
   now,
-  expanded,
-  onToggle,
-  onStart,
-  onPin,
-  onDelete,
-  onExplain,
+  isSelected,
+  onSelect,
   draggable,
   isDragOver,
   isDragging,
@@ -119,18 +140,28 @@ function BlockRow({
   onDragOver,
   onDragLeave,
   onDrop,
-}: BlockRowProps) {
-  const start = new Date(block.start).getTime();
-  const end = new Date(block.end).getTime();
-  const msRemaining = end - now;
+}: BlockTileProps) {
+  const color = blockColor(block, quest);
+  const isCompact = height < COMPACT_THRESHOLD_PX;
+  const title = quest?.title
+    ?? (block.type === 'break' ? 'Break' : block.type === 'fixed' ? (block.note ?? 'Fixed') : block.type === 'buffer' ? 'Free slot' : '—');
+  const startD = new Date(block.start);
+  const endD = new Date(block.end);
+  const dots = quest ? loadDots(quest.mentalLoad) : 0;
+  const pastDim = status === 'past' ? 0.4 : 1;
+  const isActive = status === 'active' && block.type === 'work';
+  const isWork = block.type === 'work';
+  const msRemaining = endD.getTime() - now;
   const pctDone = isActive
-    ? Math.max(0, Math.min(100, ((now - start) / (end - start)) * 100))
+    ? Math.max(0, Math.min(100, ((now - startD.getTime()) / (endD.getTime() - startD.getTime())) * 100))
     : status === 'past' ? 100 : 0;
 
-  const color = blockColor(block, quest);
-  const dim = status === 'past';
-  const title = quest?.title ?? (block.type === 'break' ? 'Rest' : block.type === 'fixed' ? (block.note ?? 'Fixed') : block.type === 'buffer' ? 'Free slot' : '—');
-  const ml = loadLabel(quest?.mentalLoad);
+  // Solid color for work + fixed, dashed pattern for break, neutral fill for buffer.
+  const bg = block.type === 'buffer'
+    ? 'rgba(31, 41, 55, 0.5)'
+    : block.type === 'break'
+      ? 'rgba(100, 116, 139, 0.25)'
+      : `linear-gradient(135deg, ${color}f0 0%, ${color}b8 100%)`;
 
   return (
     <div
@@ -140,210 +171,195 @@ function BlockRow({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      style={{ cursor: draggable ? 'grab' : 'default' }}
+      className="absolute left-0 right-0 px-1"
+      style={{ top, height, cursor: draggable ? 'grab' : 'pointer' }}
     >
-      <motion.div
-        layout
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: isDragging ? 0.4 : dim ? 0.5 : 1, y: 0 }}
-        transition={{ duration: 0.2 }}
-        className="relative rounded-[12px] overflow-hidden"
+      <motion.button
+        type="button"
+        onClick={onSelect}
+        initial={{ opacity: 0, scale: 0.97 }}
+        animate={{ opacity: isDragging ? 0.4 : pastDim, scale: 1 }}
+        whileHover={{ scale: status === 'past' ? 1 : 1.005 }}
+        transition={{ duration: 0.18 }}
+        className="relative w-full h-full rounded-[10px] overflow-hidden text-left"
         style={{
-          background: 'var(--color-surface)',
+          background: bg,
           border: isDragOver
             ? `2px dashed ${color}`
-            : isActive
-            ? `1.5px solid ${color}`
-            : '1px solid var(--color-border)',
-          boxShadow: isActive ? `0 0 14px ${color}40` : isDragOver ? `0 0 10px ${color}50` : 'none',
+            : isActive || isSelected
+              ? `2px solid ${color}`
+              : block.type === 'work'
+                ? `1px solid ${color}66`
+                : '1px solid rgba(255,255,255,0.08)',
+          boxShadow: isActive
+            ? `0 0 20px ${color}66, inset 0 0 12px ${color}33`
+            : isSelected
+              ? `0 0 14px ${color}44`
+              : 'none',
         }}
       >
-        {/* Left accent bar */}
-        <div
-          className="absolute top-0 left-0 bottom-0 w-1"
-          style={{ background: color }}
-        />
-
-        {/* Progress bar (active only) */}
+        {/* Active progress bar overlay */}
         {isActive && (
           <div
-            className="absolute bottom-0 left-0 h-0.5 transition-all duration-1000"
-            style={{ width: `${pctDone}%`, background: color }}
+            className="absolute bottom-0 left-0 h-1 transition-all duration-1000"
+            style={{ width: `${pctDone}%`, background: '#fff', opacity: 0.85 }}
           />
         )}
 
-        {/* COMPACT ROW — always visible */}
-        <button
-          type="button"
-          onClick={onToggle}
-          className="w-full text-left flex items-center gap-3 pl-4 pr-3 py-2.5"
-        >
-          {/* Time */}
-          <div className="shrink-0 w-12 font-mono text-xs leading-tight" style={{ color: 'var(--color-muted)' }}>
-            {formatTime(block.start)}
-          </div>
+        {/* Locked badge */}
+        {block.locked && (
+          <span className="absolute top-1.5 right-1.5 text-xs" style={{ color: '#fff' }}>
+            📌
+          </span>
+        )}
 
-          {/* Title + chip + load dots */}
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-            <span
-              className="text-[0.65rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-              style={{ background: `${color}22`, color }}
-            >
-              {typeLabel(block)}
-            </span>
-            <span
-              className="truncate font-semibold text-[0.92rem]"
-              style={{ color: 'var(--color-text)' }}
-            >
-              {title}
-            </span>
+        {/* Mental-load dots (top-right) */}
+        {isWork && quest && !block.locked && !isCompact && (
+          <div className="absolute top-2 right-2 flex gap-[3px]">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <span
+                key={i}
+                className="w-1.5 h-1.5 rounded-full"
+                style={{
+                  background: i <= dots ? '#fff' : 'rgba(255,255,255,0.25)',
+                }}
+              />
+            ))}
           </div>
+        )}
 
-          {/* Right side: live countdown OR duration + difficulty dots + chevron */}
-          <div className="flex items-center gap-2 shrink-0">
-            {isActive ? (
-              <span className="font-mono text-xs font-bold" style={{ color }}>
-                {formatCountdown(msRemaining)}
+        {/* Content */}
+        <div className={`h-full flex ${isCompact ? 'flex-row items-center' : 'flex-col justify-between'} gap-1 p-2 ${isCompact ? 'px-3' : ''}`}>
+          {isCompact ? (
+            <>
+              <span className="text-[0.7rem] font-bold uppercase tracking-wider opacity-90" style={{ color: '#fff' }}>
+                {typeLabel(block)}
               </span>
-            ) : (
-              <span className="text-xs font-mono" style={{ color: 'var(--color-muted)' }}>
+              <span className="flex-1 min-w-0 truncate text-[0.85rem] font-semibold" style={{ color: '#fff' }}>
+                {title}
+              </span>
+              <span className="text-[0.7rem] font-mono opacity-80" style={{ color: '#fff' }}>
                 {block.durationMin}m
               </span>
-            )}
-            {block.type === 'work' && (
-              <span title={`Mental load: ${ml.label}`} className="flex gap-0.5">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <span
-                    key={i}
-                    className="w-1 h-1 rounded-full"
-                    style={{
-                      background: i <= ml.dots ? color : 'rgba(255,255,255,0.12)',
-                    }}
-                  />
-                ))}
-              </span>
-            )}
-            {block.locked && (
-              <span className="text-xs" style={{ color: 'var(--color-gold)' }}>
-                📌
-              </span>
-            )}
-            <span
-              className="text-xs transition-transform"
-              style={{
-                color: 'var(--color-muted)',
-                transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-              }}
-            >
-              ▾
-            </span>
-          </div>
-        </button>
-
-        {/* EXPANDED — details + actions */}
-        <AnimatePresence initial={false}>
-          {expanded && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.18 }}
-              className="overflow-hidden"
-            >
-              <div
-                className="pl-4 pr-3 pb-3 pt-1 border-t flex flex-col gap-2"
-                style={{ borderColor: 'var(--color-border)' }}
-              >
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs" style={{ color: 'var(--color-muted)' }}>
-                  <span>
-                    {formatTime(block.start)} – {formatTime(block.end)} · {block.durationMin}m
-                  </span>
-                  {quest?.category && (
-                    <span className="capitalize">· {quest.category.replace('_', ' ')}</span>
-                  )}
-                  {block.type === 'work' && quest && (
-                    <span>· Load {ml.label}</span>
-                  )}
+            </>
+          ) : (
+            <>
+              <div>
+                <div className="text-[0.65rem] font-bold uppercase tracking-wider opacity-90 mb-0.5" style={{ color: '#fff' }}>
+                  {typeLabel(block)}
                 </div>
-                {block.note && block.type === 'work' && (
-                  <p className="text-xs italic" style={{ color: 'var(--color-muted)' }}>
-                    {block.note}
-                  </p>
-                )}
-                {status !== 'past' && block.type === 'work' && (
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {!isActive && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onStart(); }}
-                        className="text-xs px-3 py-1 rounded-full font-bold transition-transform hover:scale-105"
-                        style={{ background: color, color: '#fff' }}
-                      >
-                        ▶ Start
-                      </button>
-                    )}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onPin(); }}
-                      className="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                      style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                    >
-                      {block.locked ? 'Unpin' : '📌 Pin'}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onExplain(); }}
-                      className="text-xs px-2.5 py-1 rounded-full border transition-colors"
-                      style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                    >
-                      💡 Why?
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                      className="text-xs px-2.5 py-1 rounded-full border transition-colors ml-auto"
-                      style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#f87171' }}
-                    >
-                      Remove
-                    </button>
+                <div className="font-bold text-[0.95rem] leading-tight line-clamp-2" style={{ color: '#fff' }}>
+                  {title}
+                </div>
+                {isActive && (
+                  <div className="font-mono font-bold text-sm mt-1" style={{ color: '#fff' }}>
+                    {formatCountdown(msRemaining)} left
                   </div>
                 )}
               </div>
-            </motion.div>
+              <div className="flex items-center justify-between text-[0.7rem] opacity-90" style={{ color: '#fff' }}>
+                <span className="font-mono">
+                  {formatTime(startD)} – {formatTime(endD)}
+                </span>
+                <span className="font-mono">{block.durationMin}m</span>
+              </div>
+            </>
           )}
-        </AnimatePresence>
-      </motion.div>
+        </div>
+      </motion.button>
     </div>
   );
 }
 
-// ─── Explain tooltip ──────────────────────────────────────────────────────────
+// ─── Now-line ─────────────────────────────────────────────────────────────────
 
-function ExplainTooltip({ blockId, onClose }: { blockId: string; onClose: () => void }) {
-  const [text, setText] = useState<string | null>(null);
-  useEffect(() => {
-    api.schedule.explain(blockId).then((r) => setText(r.explanation)).catch(() => setText('Could not load explanation.'));
-  }, [blockId]);
-
+function NowLine({ top }: { top: number }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.95 }}
-      className="fixed inset-x-4 bottom-20 z-50 rounded-[14px] p-4 shadow-xl"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+    <div
+      className="absolute left-0 right-0 z-20 pointer-events-none"
+      style={{ top }}
     >
-      <p className="text-sm" style={{ color: 'var(--color-text)' }}>
-        {text ?? 'Loading…'}
-      </p>
-      <button
-        onClick={onClose}
-        className="mt-3 text-xs"
-        style={{ color: 'var(--color-muted)' }}
-      >
-        Dismiss
-      </button>
-    </motion.div>
+      <div className="relative flex items-center">
+        <div className="absolute -left-1 w-3 h-3 rounded-full bg-(--color-fire) shadow-[0_0_8px_var(--color-fire)]" />
+        <div className="w-full h-[2px] bg-(--color-fire) shadow-[0_0_6px_var(--color-fire)]" />
+      </div>
+    </div>
   );
 }
 
-// ─── Plan controls panel ──────────────────────────────────────────────────────
+// ─── Hour gridlines ───────────────────────────────────────────────────────────
+
+function HourGrid() {
+  const hours: number[] = [];
+  for (let h = VIEW_START_HOUR; h <= VIEW_END_HOUR; h += 1) hours.push(h);
+  return (
+    <>
+      {hours.map((h) => {
+        const top = (h - VIEW_START_HOUR) * 60 * PX_PER_MIN;
+        const label = h === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`;
+        return (
+          <div
+            key={h}
+            className="absolute left-0 right-0 pointer-events-none"
+            style={{ top }}
+          >
+            <div className="border-t border-white/[0.06]" />
+            <span
+              className="absolute left-2 -translate-y-1/2 text-[0.62rem] font-mono uppercase tracking-wide"
+              style={{ color: 'var(--color-muted)', top: 0 }}
+            >
+              {label}
+            </span>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ─── Day chip ─────────────────────────────────────────────────────────────────
+
+function DayChip({
+  date,
+  active,
+  workMin,
+  onClick,
+}: {
+  date: Date;
+  active: boolean;
+  workMin: number;
+  onClick: () => void;
+}) {
+  const today = new Date();
+  const isToday = sameDay(date, today);
+  const wkday = date.toLocaleDateString([], { weekday: 'short' });
+  const day = date.getDate();
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all shrink-0"
+      style={{
+        background: active ? 'var(--color-primary)' : 'var(--color-surface)',
+        border: active ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
+        minWidth: 56,
+      }}
+    >
+      <span className="text-[0.65rem] font-bold uppercase tracking-wide" style={{ color: active ? '#fff' : 'var(--color-muted)' }}>
+        {isToday ? 'Today' : wkday}
+      </span>
+      <span className="text-lg font-bold leading-none" style={{ color: active ? '#fff' : 'var(--color-text)' }}>
+        {day}
+      </span>
+      {workMin > 0 && (
+        <span className="text-[0.55rem] font-mono" style={{ color: active ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)' }}>
+          {Math.round(workMin / 60 * 10) / 10}h
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Plan controls ────────────────────────────────────────────────────────────
 
 function PlanControls({
   mode,
@@ -360,28 +376,23 @@ function PlanControls({
 }) {
   return (
     <div
-      className="rounded-[14px] p-3 mb-4"
+      className="rounded-[14px] p-3 mb-3"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
-          Planning mode
-        </span>
-      </div>
-      <div className="flex gap-1.5 mb-3">
+      <div className="flex gap-1.5 mb-2.5">
         <ModeButton
           active={mode === 'balanced'}
           onClick={() => onChangeMode('balanced')}
-          color="var(--color-teal)"
+          color="#2dd4bf"
           label="🌙 Balanced"
           sub="Respects energy dips"
         />
         <ModeButton
           active={mode === 'crush'}
           onClick={() => onChangeMode('crush')}
-          color="var(--color-fire)"
+          color="#f87171"
           label="🔥 Crush"
-          sub="Pack the day, drop low-priority"
+          sub="Pack the day, drop low-pri"
         />
       </div>
       <div className="flex gap-2">
@@ -416,18 +427,8 @@ function PlanControls({
 }
 
 function ModeButton({
-  active,
-  onClick,
-  color,
-  label,
-  sub,
-}: {
-  active: boolean;
-  onClick: () => void;
-  color: string;
-  label: string;
-  sub: string;
-}) {
+  active, onClick, color, label, sub,
+}: { active: boolean; onClick: () => void; color: string; label: string; sub: string }) {
   return (
     <button
       onClick={onClick}
@@ -466,7 +467,7 @@ function FeasibilityBanner({
 
   return (
     <div
-      className="rounded-[14px] p-3 mb-4"
+      className="rounded-[14px] p-3 mb-3"
       style={{
         background: mode === 'crush' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)',
         border: mode === 'crush' ? '1px solid rgba(239,68,68,0.45)' : '1px solid rgba(245,158,11,0.35)',
@@ -476,15 +477,10 @@ function FeasibilityBanner({
         onClick={() => setOpen((v) => !v)}
         className="flex items-center gap-2 w-full text-left"
       >
-        <span
-          className="text-sm font-semibold"
-          style={{ color: mode === 'crush' ? '#fca5a5' : '#fbbf24' }}
-        >
+        <span className="text-sm font-semibold" style={{ color: mode === 'crush' ? '#fca5a5' : '#fbbf24' }}>
           {headline}
         </span>
-        <span className="ml-auto text-xs" style={{ color: 'var(--color-muted)' }}>
-          {open ? '▲' : '▼'}
-        </span>
+        <span className="ml-auto text-xs" style={{ color: 'var(--color-muted)' }}>{open ? '▲' : '▼'}</span>
       </button>
       {mode === 'crush' && (
         <p className="text-[0.7rem] mt-1.5" style={{ color: 'var(--color-muted)' }}>
@@ -518,6 +514,127 @@ function FeasibilityBanner({
   );
 }
 
+// ─── Selected-block drawer (bottom sheet) ─────────────────────────────────────
+
+function SelectedDrawer({
+  block,
+  quest,
+  status,
+  explanation,
+  loadingExplanation,
+  onClose,
+  onStart,
+  onPin,
+  onDelete,
+  onExplain,
+}: {
+  block: ScheduleBlock;
+  quest: Quest | null;
+  status: 'past' | 'active' | 'upcoming';
+  explanation: string | null;
+  loadingExplanation: boolean;
+  onClose: () => void;
+  onStart: () => void;
+  onPin: () => void;
+  onDelete: () => void;
+  onExplain: () => void;
+}) {
+  const color = blockColor(block, quest);
+  const startD = new Date(block.start);
+  const endD = new Date(block.end);
+  return (
+    <motion.div
+      initial={{ y: 320, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      exit={{ y: 320, opacity: 0 }}
+      transition={{ type: 'spring', stiffness: 380, damping: 36 }}
+      className="fixed inset-x-3 bottom-20 z-40 rounded-2xl shadow-2xl"
+      style={{
+        background: 'var(--color-surface2)',
+        border: `1.5px solid ${color}`,
+        boxShadow: `0 0 30px ${color}33`,
+      }}
+    >
+      {/* Accent strip */}
+      <div className="h-1 rounded-t-2xl" style={{ background: color }} />
+
+      <div className="p-4">
+        <div className="flex items-start gap-2 mb-2">
+          <span
+            className="text-[0.62rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+            style={{ background: `${color}22`, color }}
+          >
+            {typeLabel(block)}
+          </span>
+          <div className="flex-1 min-w-0">
+            <h3 className="font-bold text-base leading-tight" style={{ color: 'var(--color-text)' }}>
+              {quest?.title ?? (block.type === 'break' ? 'Break' : block.type === 'fixed' ? (block.note ?? 'Fixed') : 'Free slot')}
+            </h3>
+            <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--color-muted)' }}>
+              {formatTime(startD)} – {formatTime(endD)} · {block.durationMin}m
+              {quest?.category && ` · ${quest.category.replace('_', ' ')}`}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-lg opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }}>
+            ✕
+          </button>
+        </div>
+
+        {block.note && block.type === 'work' && (
+          <p className="text-xs italic mt-2 mb-3" style={{ color: 'var(--color-muted)' }}>
+            {block.note}
+          </p>
+        )}
+
+        {explanation && (
+          <div
+            className="rounded-lg p-2.5 mb-3 text-xs"
+            style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--color-text)' }}
+          >
+            💡 {explanation}
+          </div>
+        )}
+
+        {status !== 'past' && block.type === 'work' && (
+          <div className="flex flex-wrap items-center gap-2">
+            {status === 'upcoming' && (
+              <button
+                onClick={onStart}
+                className="text-sm px-4 py-1.5 rounded-full font-bold transition-transform hover:scale-105"
+                style={{ background: color, color: '#fff' }}
+              >
+                ▶ Start
+              </button>
+            )}
+            <button
+              onClick={onPin}
+              className="text-xs px-3 py-1.5 rounded-full border transition-colors"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+            >
+              {block.locked ? 'Unpin' : '📌 Pin'}
+            </button>
+            <button
+              onClick={onExplain}
+              disabled={loadingExplanation || !!explanation}
+              className="text-xs px-3 py-1.5 rounded-full border transition-colors disabled:opacity-50"
+              style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+            >
+              {loadingExplanation ? '…' : '💡 Why this?'}
+            </button>
+            <button
+              onClick={onDelete}
+              className="text-xs px-3 py-1.5 rounded-full border ml-auto"
+              style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#f87171' }}
+            >
+              Remove
+            </button>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function GuildFeed() {
@@ -533,19 +650,19 @@ export default function GuildFeed() {
   const [timerOpen, setTimerOpen] = useState(false);
 
   const [now, setNow] = useState(Date.now());
-  const [explainBlockId, setExplainBlockId] = useState<string | null>(null);
+  const [selectedDay, setSelectedDay] = useState<number>(startOfDay(Date.now()));
+  const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [loadingExplanation, setLoadingExplanation] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const activeRef = useRef<HTMLDivElement | null>(null);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
 
-  // Tick clock every second for live countdown.
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Load quests + fetch or generate schedule on mount.
   useEffect(() => {
     loadQuests();
     useScheduleStore.getState().fetch().then(() => {
@@ -555,38 +672,58 @@ export default function GuildFeed() {
     });
   }, [loadQuests]);
 
-  // Scroll active block into view.
+  // When timeline renders, scroll the now-line into view if today.
   useEffect(() => {
-    if (activeRef.current) {
-      activeRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [schedule.length]);
+    if (!timelineRef.current) return;
+    const isToday = selectedDay === startOfDay(now);
+    if (!isToday) return;
+    const top = minutesFromViewStart(now, selectedDay) * PX_PER_MIN;
+    timelineRef.current.scrollTo({ top: Math.max(0, top - 200), behavior: 'smooth' });
+  }, [selectedDay, schedule.length]); // re-run on day change + schedule refresh
 
   const questById = useMemo(
     () => Object.fromEntries(quests.map((q) => [q.id, q])) as Record<string, Quest | undefined>,
     [quests],
   );
 
-  // Only show today + near-future blocks (skip past unless they were active).
-  const visibleBlocks = schedule.filter((b) => {
-    const end = new Date(b.end).getTime();
-    const status = blockStatus(b, now);
-    if (status === 'past') return end > now - 30 * 60_000;
-    return true;
-  });
+  // ─ Day tabs: today + next DAY_TABS-1 days ─
+  const dayList = useMemo(() => {
+    const out: Array<{ ts: number; date: Date; workMin: number }> = [];
+    const t0 = startOfDay(now);
+    for (let i = 0; i < DAY_TABS; i += 1) {
+      const ts = t0 + i * 24 * 60 * 60_000;
+      const date = new Date(ts);
+      const workMin = schedule
+        .filter((b) => b.type === 'work' && sameDay(new Date(b.start), date))
+        .reduce((s, b) => s + b.durationMin, 0);
+      out.push({ ts, date, workMin });
+    }
+    return out;
+  }, [schedule, now]);
 
-  const currentActive = schedule.find((b) => blockStatus(b, now) === 'active' && b.type === 'work');
+  // Blocks for selected day
+  const dayBlocks = useMemo(
+    () => schedule
+      .filter((b) => sameDay(new Date(b.start), new Date(selectedDay)))
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
+    [schedule, selectedDay],
+  );
 
-  const todayBlocks = schedule.filter((b) => {
-    const d = new Date(b.start);
-    const t = new Date(now);
-    return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && b.type === 'work';
-  });
+  // Today progress (for headline % done)
+  const todayBlocks = schedule.filter((b) =>
+    sameDay(new Date(b.start), new Date(now)) && b.type === 'work',
+  );
   const totalWorkMin = todayBlocks.reduce((a, b) => a + b.durationMin, 0);
   const doneWorkMin = todayBlocks
     .filter((b) => blockStatus(b, now) === 'past')
     .reduce((a, b) => a + b.durationMin, 0);
   const pctDone = totalWorkMin > 0 ? Math.round((doneWorkMin / totalWorkMin) * 100) : 0;
+
+  const selectedBlock = selectedBlockId
+    ? schedule.find((b) => b.id === selectedBlockId) ?? null
+    : null;
+  const selectedQuest = selectedBlock?.taskId ? questById[selectedBlock.taskId] ?? null : null;
+  const selectedStatus = selectedBlock ? blockStatus(selectedBlock, now) : 'upcoming';
 
   const handlePin = useCallback(
     (block: ScheduleBlock) => {
@@ -600,7 +737,10 @@ export default function GuildFeed() {
   );
 
   const handleDelete = useCallback(
-    (blockId: string) => applyEdit({ kind: 'delete_block', blockId }),
+    (blockId: string) => {
+      applyEdit({ kind: 'delete_block', blockId });
+      setSelectedBlockId(null);
+    },
     [applyEdit],
   );
 
@@ -621,21 +761,35 @@ export default function GuildFeed() {
   const handleChangeMode = useCallback(
     (m: PlanMode) => {
       setMode(m);
-      // Regenerate immediately so the user sees the effect of switching mode.
       generate({ mode: m });
     },
     [setMode, generate],
   );
+
+  const handleExplain = useCallback(async () => {
+    if (!selectedBlock) return;
+    setLoadingExplanation(true);
+    try {
+      const r = await api.schedule.explain(selectedBlock.id);
+      setExplanation(r.explanation);
+    } catch {
+      setExplanation('Could not load explanation.');
+    } finally {
+      setLoadingExplanation(false);
+    }
+  }, [selectedBlock]);
+
+  // Clear explanation when selection changes
+  useEffect(() => {
+    setExplanation(null);
+  }, [selectedBlockId]);
 
   return (
     <div className="min-h-screen pb-24" style={{ background: 'var(--color-bg)' }}>
       <Header />
 
       {/* Progress bar */}
-      <div
-        className="sticky top-[56px] z-30 h-1 w-full"
-        style={{ background: 'var(--color-surface)' }}
-      >
+      <div className="sticky top-[56px] z-30 h-1 w-full" style={{ background: 'var(--color-surface)' }}>
         <motion.div
           className="h-full"
           style={{ background: 'var(--color-primary)' }}
@@ -655,7 +809,6 @@ export default function GuildFeed() {
           </span>
         </div>
 
-        {/* Plan controls (mode toggle + regen / replan) */}
         <PlanControls
           mode={mode}
           loading={loading}
@@ -664,20 +817,31 @@ export default function GuildFeed() {
           onReplan={() => replan()}
         />
 
-        {/* Feasibility warning — color escalates in Crush mode */}
         {!feasibilityReport.ok && (
           <FeasibilityBanner mode={mode} issues={feasibilityReport.issues} questById={questById} />
         )}
 
-        {/* Error state */}
         {error && (
           <div
-            className="rounded-[14px] p-4 mb-4 text-sm"
+            className="rounded-[14px] p-4 mb-3 text-sm"
             style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
           >
             {error}
           </div>
         )}
+
+        {/* Day tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-hide">
+          {dayList.map((d) => (
+            <DayChip
+              key={d.ts}
+              date={d.date}
+              active={d.ts === selectedDay}
+              workMin={d.workMin}
+              onClick={() => setSelectedDay(d.ts)}
+            />
+          ))}
+        </div>
 
         {/* Empty state */}
         {!loading && schedule.length === 0 && (
@@ -700,42 +864,58 @@ export default function GuildFeed() {
           </div>
         )}
 
-        {/* Timeline — compact rows, expand on tap */}
-        <div className="space-y-1.5">
-          <AnimatePresence initial={false}>
-            {visibleBlocks.map((block) => {
-              const status = blockStatus(block, now);
-              const isActive = block.id === currentActive?.id;
-              const quest = block.taskId ? questById[block.taskId] ?? null : null;
-              const expanded = expandedId === block.id || isActive;
+        {/* Empty state for day with no blocks */}
+        {schedule.length > 0 && dayBlocks.length === 0 && (
+          <div
+            className="rounded-[14px] p-6 text-center mb-3"
+            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
+          >
+            <p className="text-2xl mb-1">🌤️</p>
+            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
+              Nothing scheduled this day.
+            </p>
+          </div>
+        )}
 
-              return (
-                <div
-                  key={block.id}
-                  ref={isActive ? (el) => { activeRef.current = el; } : undefined}
-                >
-                  <BlockRow
+        {/* Timeline */}
+        {dayBlocks.length > 0 && (
+          <div
+            ref={timelineRef}
+            className="rounded-[14px] overflow-y-auto"
+            style={{
+              background: 'var(--color-surface)',
+              border: '1px solid var(--color-border)',
+              maxHeight: '70vh',
+            }}
+          >
+            <div
+              className="relative pl-12 pr-2 py-3"
+              style={{ height: TIMELINE_HEIGHT + 24 }}
+            >
+              <HourGrid />
+
+              {selectedDay === startOfDay(now) && (
+                <NowLine top={minutesFromViewStart(now, selectedDay) * PX_PER_MIN} />
+              )}
+
+              {dayBlocks.map((block) => {
+                const start = new Date(block.start).getTime();
+                const top = minutesFromViewStart(start, selectedDay) * PX_PER_MIN;
+                const height = Math.max(28, block.durationMin * PX_PER_MIN - 2);
+                const status = blockStatus(block, now);
+                const quest = block.taskId ? questById[block.taskId] ?? null : null;
+
+                return (
+                  <BlockTile
+                    key={block.id}
                     block={block}
                     quest={quest}
                     status={status}
-                    isActive={isActive}
+                    top={top}
+                    height={height}
                     now={now}
-                    expanded={expanded}
-                    onToggle={() => setExpandedId(expanded ? null : block.id)}
-                    onStart={() => {
-                      setActiveBlock(block.id);
-                      if (quest) {
-                        startTimer({
-                          questId: quest.id,
-                          questTitle: quest.title,
-                          durationMin: block.durationMin,
-                        });
-                        setTimerOpen(true);
-                      }
-                    }}
-                    onPin={() => handlePin(block)}
-                    onDelete={() => handleDelete(block.id)}
-                    onExplain={() => setExplainBlockId(block.id)}
+                    isSelected={selectedBlockId === block.id}
+                    onSelect={() => setSelectedBlockId(selectedBlockId === block.id ? null : block.id)}
                     draggable={block.type === 'work' && status !== 'past'}
                     isDragging={draggingId === block.id}
                     isDragOver={dragOverId === block.id && draggingId !== block.id}
@@ -749,12 +929,7 @@ export default function GuildFeed() {
                       setDragOverId(null);
                     }}
                     onDragOver={(e) => {
-                      if (
-                        draggingId &&
-                        block.type === 'work' &&
-                        status !== 'past' &&
-                        draggingId !== block.id
-                      ) {
+                      if (draggingId && block.type === 'work' && status !== 'past' && draggingId !== block.id) {
                         e.preventDefault();
                         e.dataTransfer.dropEffect = 'move';
                         if (dragOverId !== block.id) setDragOverId(block.id);
@@ -768,27 +943,46 @@ export default function GuildFeed() {
                       handleDrop(block.id);
                     }}
                   />
-                </div>
-              );
-            })}
-          </AnimatePresence>
-        </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
-        {/* Generated-at footer */}
         {generatedAt && (
-          <p className="mt-6 text-center text-xs" style={{ color: 'var(--color-muted)' }}>
+          <p className="mt-4 text-center text-xs" style={{ color: 'var(--color-muted)' }}>
             Last generated {new Date(generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            {' '}· {mode === 'crush' ? '🔥 Crush' : '🌙 Balanced'} mode
+            {' · '}
+            {mode === 'crush' ? '🔥 Crush' : '🌙 Balanced'} mode
           </p>
         )}
       </div>
 
-      {/* Explain tooltip overlay */}
+      {/* Selected-block drawer */}
       <AnimatePresence>
-        {explainBlockId && (
-          <ExplainTooltip
-            blockId={explainBlockId}
-            onClose={() => setExplainBlockId(null)}
+        {selectedBlock && (
+          <SelectedDrawer
+            block={selectedBlock}
+            quest={selectedQuest}
+            status={selectedStatus}
+            explanation={explanation}
+            loadingExplanation={loadingExplanation}
+            onClose={() => setSelectedBlockId(null)}
+            onStart={() => {
+              setActiveBlock(selectedBlock.id);
+              if (selectedQuest) {
+                startTimer({
+                  questId: selectedQuest.id,
+                  questTitle: selectedQuest.title,
+                  durationMin: selectedBlock.durationMin,
+                });
+                setTimerOpen(true);
+                setSelectedBlockId(null);
+              }
+            }}
+            onPin={() => handlePin(selectedBlock)}
+            onDelete={() => handleDelete(selectedBlock.id)}
+            onExplain={handleExplain}
           />
         )}
       </AnimatePresence>
@@ -839,15 +1033,13 @@ export default function GuildFeed() {
         <button
           onClick={() => setTimerOpen(true)}
           className="fixed bottom-20 right-4 z-50 rounded-full px-4 py-2 text-sm font-semibold shadow-lg"
-          style={{
-            background: 'var(--color-primary)',
-            color: '#fff',
-          }}
+          style={{ background: 'var(--color-primary)', color: '#fff' }}
         >
           ⏱ Resume timer
         </button>
       )}
 
+      <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { scrollbar-width: none; }`}</style>
     </div>
   );
 }
