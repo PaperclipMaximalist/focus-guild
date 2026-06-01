@@ -234,10 +234,10 @@ export const api = {
       request<CheckIn>('/checkin', { method: 'POST', body: JSON.stringify({ clerkId, ...input }) }),
   },
   schedule: {
-    generate: (opts: { mode?: PlanMode } = {}, clerkId = getCurrentClerkId()) =>
+    generate: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>('/schedule/generate', {
         method: 'POST',
-        body: JSON.stringify({ clerkId, mode: opts.mode ?? 'balanced' }),
+        body: JSON.stringify({ clerkId }),
       }),
     get: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}`),
@@ -248,6 +248,15 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ edit }),
       }),
+    /** Place one quest into the schedule incrementally. */
+    insert: (questId: string, clerkId = getCurrentClerkId()) =>
+      request<ScheduleResponse>(`/schedule/${clerkId}/insert/${questId}`, {
+        method: 'POST',
+        body: '{}',
+      }),
+    /** Sampled energy-meter trace across today's working hours. */
+    energy: (clerkId = getCurrentClerkId()) =>
+      request<{ trace: EnergyTracePoint[] }>(`/schedule/${clerkId}/energy`),
     explain: (blockId: string, clerkId = getCurrentClerkId()) =>
       request<{ explanation: string }>(`/schedule/${clerkId}/explain?blockId=${blockId}`),
     getFillers: (clerkId = getCurrentClerkId()) =>
@@ -326,13 +335,15 @@ export interface FeasibilityIssue {
   suggestions: string[];
 }
 
-export type PlanMode = 'balanced' | 'crush';
-
 export interface ScheduleResponse {
   schedule: ScheduleBlock[];
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   generatedAt: string | null;
-  mode?: PlanMode;
+}
+
+export interface EnergyTracePoint {
+  time: string;
+  meter: number;
 }
 
 export type ScheduleEdit =

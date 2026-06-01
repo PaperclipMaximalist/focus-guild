@@ -8,7 +8,7 @@ import { useAchievementsStore } from '../store/useAchievementsStore';
 import { useToastStore } from '../components/Toasts';
 import { Header } from '../components/Header';
 import { FocusTimer } from '../components/FocusTimer';
-import { api, type ScheduleBlock, type Quest, type PlanMode } from '../lib/api';
+import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -399,94 +399,121 @@ function BlockTile({
   );
 }
 
-// ─── Plan controls ────────────────────────────────────────────────────────────
+// ─── Energy meter strip ───────────────────────────────────────────────────────
 
-function PlanControls({
-  mode,
-  loading,
-  onChangeMode,
-  onRegenerate,
-  onReplan,
-}: {
-  mode: PlanMode;
-  loading: boolean;
-  onChangeMode: (m: PlanMode) => void;
-  onRegenerate: () => void;
-  onReplan: () => void;
-}) {
+/**
+ * Sparkline of the energy meter through today's working hours. Pure visual
+ * advisory — the planner doesn't auto-insert breaks based on this, but the
+ * user can see where the meter dips and choose to leave gaps.
+ */
+function EnergyMeterStrip({ trace }: { trace: EnergyTracePoint[] }) {
+  if (trace.length < 2) return null;
+  const W = 320;
+  const H = 36;
+  const padY = 4;
+  const minM = 0;
+  const maxM = 100;
+  const xs = trace.map((_, i) => (i / (trace.length - 1)) * W);
+  const ys = trace.map((p) => padY + (H - padY * 2) * (1 - (p.meter - minM) / (maxM - minM)));
+  const points = xs.map((x, i) => `${x.toFixed(1)},${ys[i]!.toFixed(1)}`).join(' ');
+  const areaPoints = `0,${H} ${points} ${W},${H}`;
+
+  // Color the line by current meter health.
+  const lastMeter = trace[trace.length - 1]!.meter;
+  const tint = lastMeter > 60 ? '#22c55e' : lastMeter > 30 ? '#fbbf24' : '#ef4444';
+
   return (
     <div
-      className="rounded-2xl p-3 mb-3"
+      className="rounded-2xl mb-3 p-2.5"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
-      <div className="flex gap-1.5 mb-2.5">
-        <ModeButton
-          active={mode === 'balanced'}
-          onClick={() => onChangeMode('balanced')}
-          color="#22d3ee"
-          label="🌙 Balanced"
-          sub="Respects energy dips"
-        />
-        <ModeButton
-          active={mode === 'crush'}
-          onClick={() => onChangeMode('crush')}
-          color="#f87171"
-          label="🔥 Crush"
-          sub="Pack the day, drop low-pri"
-        />
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
+          ⚡ Energy
+        </span>
+        <span className="text-xs font-mono font-bold" style={{ color: tint }}>
+          {Math.round(lastMeter)}%
+        </span>
       </div>
-      <div className="flex gap-2">
-        <button
-          onClick={onRegenerate}
-          disabled={loading}
-          className="flex-1 text-sm px-3 py-2 rounded-full font-bold transition-all hover:scale-[1.02]"
-          style={{
-            background: 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)',
-            color: '#fff',
-            opacity: loading ? 0.5 : 1,
-            boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
-          }}
-        >
-          {loading ? '…' : '↻ Regenerate'}
-        </button>
-        <button
-          onClick={onReplan}
-          disabled={loading}
-          className="text-sm px-3 py-2 rounded-full font-semibold transition-opacity"
-          style={{
-            background: 'var(--color-surface2)',
-            color: 'var(--color-text)',
-            border: '1px solid var(--color-border)',
-            opacity: loading ? 0.5 : 1,
-          }}
-        >
-          Replan
-        </button>
-      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: H }}>
+        <defs>
+          <linearGradient id="energy-fill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={tint} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={tint} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        <polyline points={areaPoints} fill="url(#energy-fill)" stroke="none" />
+        <polyline points={points} fill="none" stroke={tint} strokeWidth="1.5" strokeLinejoin="round" />
+        {/* 25% threshold line */}
+        <line
+          x1="0" x2={W}
+          y1={padY + (H - padY * 2) * (1 - 25 / maxM)}
+          y2={padY + (H - padY * 2) * (1 - 25 / maxM)}
+          stroke="rgba(239,68,68,0.4)" strokeWidth="0.5" strokeDasharray="2 3"
+        />
+      </svg>
     </div>
   );
 }
 
-function ModeButton({
-  active, onClick, color, label, sub,
-}: { active: boolean; onClick: () => void; color: string; label: string; sub: string }) {
+// ─── Feed action menu ─────────────────────────────────────────────────────────
+
+function FeedActionsMenu({
+  loading,
+  onReflow,
+  onReplan,
+}: {
+  loading: boolean;
+  onReflow: () => void;
+  onReplan: () => void;
+}) {
+  const [open, setOpen] = useState(false);
   return (
-    <button
-      onClick={onClick}
-      className="flex-1 rounded-xl px-3 py-2 text-left transition-all"
-      style={{
-        background: active ? `${color}1f` : 'rgba(255,255,255,0.02)',
-        border: `1.5px solid ${active ? color : 'var(--color-border)'}`,
-        boxShadow: active ? `0 0 14px ${color}33` : 'none',
-      }}
-    >
-      <div className="text-sm font-bold" style={{ color: active ? color : 'var(--color-text)' }}>
-        {label}
-      </div>
-      <div className="text-[0.65rem] mt-0.5" style={{ color: 'var(--color-muted)' }}>
-        {sub}
-      </div>
-    </button>
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        disabled={loading}
+        className="text-xs px-3 py-1.5 rounded-full font-semibold transition-opacity"
+        style={{
+          background: 'var(--color-surface2)',
+          color: 'var(--color-text)',
+          border: '1px solid var(--color-border)',
+          opacity: loading ? 0.5 : 1,
+        }}
+      >
+        ⋯ Menu
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div
+            className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[180px]"
+            style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
+          >
+            <button
+              onClick={() => { onReflow(); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
+              style={{ color: 'var(--color-text)' }}
+            >
+              ↻ Reflow day
+              <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
+                Rebuild from scratch in priority order
+              </div>
+            </button>
+            <button
+              onClick={() => { onReplan(); setOpen(false); }}
+              className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 border-t"
+              style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            >
+              ⟳ Re-fit remaining
+              <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
+                Keep pins + completed; re-flow the rest
+              </div>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
@@ -528,37 +555,28 @@ function DayChip({
 // ─── Feasibility banner ───────────────────────────────────────────────────────
 
 function FeasibilityBanner({
-  mode, issues, questById,
+  issues, questById,
 }: {
-  mode: PlanMode;
   issues: Array<{ taskId: string; shortfallMin: number; suggestions: string[] }>;
   questById: Record<string, Quest | undefined>;
 }) {
   const [open, setOpen] = useState(false);
   const totalShortfall = issues.reduce((s, i) => s + i.shortfallMin, 0);
-  const headline = mode === 'crush'
-    ? `🛑 Won't fit in working hours — short by ${totalShortfall}m (${issues.length} quest${issues.length > 1 ? 's' : ''})`
-    : `⚠️ ${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline`;
+  const headline = `⚠️ ${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline — short ${totalShortfall}m`;
   return (
     <div
       className="rounded-2xl p-3 mb-3"
       style={{
-        background: mode === 'crush' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)',
-        border: mode === 'crush' ? '1px solid rgba(239,68,68,0.45)' : '1px solid rgba(245,158,11,0.35)',
+        background: 'rgba(245,158,11,0.10)',
+        border: '1px solid rgba(245,158,11,0.35)',
       }}
     >
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 w-full text-left">
-        <span className="text-sm font-semibold" style={{ color: mode === 'crush' ? '#fca5a5' : '#fbbf24' }}>
+        <span className="text-sm font-semibold" style={{ color: '#fbbf24' }}>
           {headline}
         </span>
         <span className="ml-auto text-xs" style={{ color: 'var(--color-muted)' }}>{open ? '▲' : '▼'}</span>
       </button>
-      {mode === 'crush' && (
-        <p className="text-[0.7rem] mt-1.5" style={{ color: 'var(--color-muted)' }}>
-          Crush mode dropped LOW priority and removed energy dips. Even so, your working hours can't fit
-          everything. Tag more quests as LOW, extend a deadline, or widen working hours in Settings.
-        </p>
-      )}
       <AnimatePresence>
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
@@ -685,8 +703,9 @@ function SelectedDrawer({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function GuildFeed() {
-  const { schedule, feasibilityReport, generatedAt, loading, error, mode, generate, replan, applyEdit, setActiveBlock, setMode } =
+  const { schedule, feasibilityReport, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
     useScheduleStore();
+  const [energyTrace, setEnergyTrace] = useState<EnergyTracePoint[]>([]);
   const { quests, load: loadQuests, complete: completeQuest, completeDaily } = useQuestStore();
   const user = useUserStore((s) => s.user);
   const applyXPGain = useUserStore((s) => s.applyXPGain);
@@ -795,13 +814,14 @@ export default function GuildFeed() {
     [draggingId, schedule, applyEdit],
   );
 
-  const handleChangeMode = useCallback(
-    (m: PlanMode) => {
-      setMode(m);
-      generate({ mode: m });
-    },
-    [setMode, generate],
-  );
+  // Refresh the energy trace whenever the schedule changes.
+  useEffect(() => {
+    if (schedule.length === 0) {
+      setEnergyTrace([]);
+      return;
+    }
+    api.schedule.energy().then((r) => setEnergyTrace(r.trace)).catch(() => setEnergyTrace([]));
+  }, [schedule.length, generatedAt]);
 
   const handleExplain = useCallback(async () => {
     if (!selectedBlock) return;
@@ -836,25 +856,24 @@ export default function GuildFeed() {
 
       <div className="mx-auto max-w-2xl px-4 pt-4">
         {/* Header row */}
-        <div className="flex items-baseline gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-3">
           <h1 className="flex-1 text-2xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Guild Feed
           </h1>
-          <span className="text-sm" style={{ color: 'var(--color-muted)' }}>
-            {pctDone}% done · {Math.round(totalWorkMin / 60 * 10) / 10}h focus
+          <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
+            {pctDone}% · {Math.round(totalWorkMin / 60 * 10) / 10}h
           </span>
+          <FeedActionsMenu
+            loading={loading}
+            onReflow={() => generate()}
+            onReplan={() => replan()}
+          />
         </div>
 
-        <PlanControls
-          mode={mode}
-          loading={loading}
-          onChangeMode={handleChangeMode}
-          onRegenerate={() => generate()}
-          onReplan={() => replan()}
-        />
+        <EnergyMeterStrip trace={energyTrace} />
 
         {!feasibilityReport.ok && (
-          <FeasibilityBanner mode={mode} issues={feasibilityReport.issues} questById={questById} />
+          <FeasibilityBanner issues={feasibilityReport.issues} questById={questById} />
         )}
 
         {error && (
@@ -982,8 +1001,6 @@ export default function GuildFeed() {
         {generatedAt && (
           <p className="mt-4 text-center text-xs" style={{ color: 'var(--color-muted)' }}>
             Last generated {new Date(generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            {' · '}
-            {mode === 'crush' ? '🔥 Crush' : '🌙 Balanced'} mode
           </p>
         )}
       </div>

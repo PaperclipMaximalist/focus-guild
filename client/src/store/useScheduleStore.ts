@@ -5,7 +5,6 @@ import {
   type ScheduleResponse,
   type ScheduleEdit,
   type FeasibilityIssue,
-  type PlanMode,
 } from '../lib/api';
 
 interface ScheduleState {
@@ -14,14 +13,12 @@ interface ScheduleState {
   generatedAt: string | null;
   loading: boolean;
   error: string | null;
-  /** Last-generated mode, mirrored from the server so the UI stays in sync. */
-  mode: PlanMode;
 
-  generate: (opts?: { mode?: PlanMode }) => Promise<void>;
+  generate: () => Promise<void>;
   fetch: () => Promise<void>;
   replan: () => Promise<void>;
+  insertQuest: (questId: string) => Promise<void>;
   applyEdit: (edit: ScheduleEdit) => Promise<void>;
-  setMode: (mode: PlanMode) => void;
   /** Active block id — user has started a focus session on it. */
   activeBlockId: string | null;
   setActiveBlock: (id: string | null) => void;
@@ -35,26 +32,21 @@ function applyResponse(state: Partial<ScheduleState>, r: ScheduleResponse): Part
     generatedAt: r.generatedAt,
     loading: false,
     error: null,
-    ...(r.mode ? { mode: r.mode } : {}),
   };
 }
 
-export const useScheduleStore = create<ScheduleState>((set, get) => ({
+export const useScheduleStore = create<ScheduleState>((set) => ({
   schedule: [],
   feasibilityReport: { ok: true, issues: [] },
   generatedAt: null,
   loading: false,
   error: null,
-  mode: 'balanced',
   activeBlockId: null,
 
-  setMode: (mode) => set({ mode }),
-
-  generate: async (opts) => {
+  generate: async () => {
     set({ loading: true, error: null });
-    const mode = opts?.mode ?? get().mode;
     try {
-      const r = await api.schedule.generate({ mode });
+      const r = await api.schedule.generate();
       set((s) => applyResponse(s, r));
     } catch (e) {
       set({ loading: false, error: String(e) });
@@ -75,6 +67,16 @@ export const useScheduleStore = create<ScheduleState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const r = await api.schedule.replan();
+      set((s) => applyResponse(s, r));
+    } catch (e) {
+      set({ loading: false, error: String(e) });
+    }
+  },
+
+  insertQuest: async (questId) => {
+    set({ loading: true, error: null });
+    try {
+      const r = await api.schedule.insert(questId);
       set((s) => applyResponse(s, r));
     } catch (e) {
       set({ loading: false, error: String(e) });

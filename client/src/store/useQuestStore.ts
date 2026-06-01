@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { api, type Quest, type CompleteQuestResult, type QuestSchedulerHints } from '../lib/api';
+import { useScheduleStore } from './useScheduleStore';
 
 interface QuestState {
   quests: Quest[];           // active non-recurring quests
@@ -65,6 +66,14 @@ export const useQuestStore = create<QuestState>((set, get) => ({
       await get().loadRecurring();
     } else {
       await get().load();
+      // Live-slot the new quest into the feed if a schedule already exists.
+      try {
+        if (useScheduleStore.getState().schedule.length > 0) {
+          await useScheduleStore.getState().insertQuest(quest.id);
+        }
+      } catch {
+        // Non-fatal — user can hit Reflow manually.
+      }
     }
     return quest;
   },

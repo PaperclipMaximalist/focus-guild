@@ -109,27 +109,44 @@ describe('generateSchedule — chunking', () => {
     }
   });
 
-  it('reports infeasibility when minChunk exceeds every available interval', () => {
-    // Stuff the day with fixed blocks leaving only 20-min slots; a task with
-    // minChunkMin=60 should produce a feasibility shortfall, while a small
-    // task with minChunkMin=15 fits.
+  it('reports infeasibility when total free time before deadline < remaining', () => {
+    // Day fully booked by a single fixed block except for a 30-min slot;
+    // a task needing 90 minutes by end-of-day cannot fully fit and should
+    // land in the feasibility report with the right shortfall.
     const cfg = shortHorizon();
     const now = nowAt9am();
     const fixed = [
-      { id: 'f1', start: now + 25 * MS_PER_MIN, end: now + 60 * MS_PER_MIN, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
-      { id: 'f2', start: now + 80 * MS_PER_MIN, end: now + 115 * MS_PER_MIN, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
-      { id: 'f3', start: now + 135 * MS_PER_MIN, end: now + 9 * MS_PER_HOUR, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
+      { id: 'f1', start: now + 30 * MS_PER_MIN, end: now + 9 * MS_PER_HOUR, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
     ];
-    const big = task('big', { minChunkMin: 60, maxChunkMin: 60, remainingMin: 60 });
-    const small = task('small', { minChunkMin: 15, maxChunkMin: 25, remainingMin: 25 });
-    const { schedule, feasibilityReport } = generateSchedule([big, small], fixed, cfg, now);
-
-    const placedBig = schedule.some((b) => b.taskId === 'big');
-    const placedSmall = schedule.some((b) => b.taskId === 'small');
-    expect(placedSmall).toBe(true);
-    expect(placedBig).toBe(false);
+    const big = task('big', {
+      minChunkMin: 30, maxChunkMin: 90, remainingMin: 90,
+      deadline: now + 9 * MS_PER_HOUR,
+    });
+    const { schedule, feasibilityReport } = generateSchedule([big], fixed, cfg, now);
+    const placedMins = schedule
+      .filter((b) => b.taskId === 'big')
+      .reduce((s, b) => s + (b.end - b.start) / MS_PER_MIN, 0);
+    // Some of it fits (the 30-min slot), but not all 90.
+    expect(placedMins).toBeLessThan(90);
     expect(feasibilityReport.ok).toBe(false);
-    expect(feasibilityReport.issues.some((i) => i.taskId === 'big')).toBe(true);
+    const issue = feasibilityReport.issues.find((i) => i.taskId === 'big');
+    expect(issue).toBeDefined();
+    expect(issue!.shortfallMin).toBeGreaterThan(0);
+  });
+
+  it('places tasks with soft session-size penalty (smaller chunk allowed if needed)', () => {
+    // Under soft-cap semantics, a task whose ideal min session is 60 can
+    // still place in a 30-min slot when no better option exists — it just
+    // costs placement score. Verify the task IS placed.
+    const cfg = shortHorizon();
+    const now = nowAt9am();
+    const fixed = [
+      { id: 'f1', start: now + 30 * MS_PER_MIN, end: now + 9 * MS_PER_HOUR, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
+    ];
+    const t = task('t1', { minChunkMin: 60, maxChunkMin: 60, remainingMin: 30 });
+    const { schedule } = generateSchedule([t], fixed, cfg, now);
+    const placed = schedule.some((b) => b.taskId === 't1');
+    expect(placed).toBe(true);
   });
 });
 
