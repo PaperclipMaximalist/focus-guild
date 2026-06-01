@@ -109,15 +109,27 @@ describe('generateSchedule — chunking', () => {
     }
   });
 
-  it('excludes tasks whose minChunk exceeds the available block', () => {
-    // 9–18 with breaks at 50min → first work block is 50min. min_chunk_min = 60 → exclude.
+  it('reports infeasibility when minChunk exceeds every available interval', () => {
+    // Stuff the day with fixed blocks leaving only 20-min slots; a task with
+    // minChunkMin=60 should produce a feasibility shortfall, while a small
+    // task with minChunkMin=15 fits.
     const cfg = shortHorizon();
     const now = nowAt9am();
+    const fixed = [
+      { id: 'f1', start: now + 25 * MS_PER_MIN, end: now + 60 * MS_PER_MIN, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
+      { id: 'f2', start: now + 80 * MS_PER_MIN, end: now + 115 * MS_PER_MIN, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
+      { id: 'f3', start: now + 135 * MS_PER_MIN, end: now + 9 * MS_PER_HOUR, type: 'fixed' as const, taskId: null, locked: true, note: 'm' },
+    ];
     const big = task('big', { minChunkMin: 60, maxChunkMin: 60, remainingMin: 60 });
-    const small = task('small', { minChunkMin: 15, maxChunkMin: 30, remainingMin: 30 });
-    const { schedule } = generateSchedule([big, small], [], cfg, now);
-    const firstWork = schedule.find((b) => b.type === 'work' && b.taskId);
-    expect(firstWork?.taskId).toBe('small');
+    const small = task('small', { minChunkMin: 15, maxChunkMin: 25, remainingMin: 25 });
+    const { schedule, feasibilityReport } = generateSchedule([big, small], fixed, cfg, now);
+
+    const placedBig = schedule.some((b) => b.taskId === 'big');
+    const placedSmall = schedule.some((b) => b.taskId === 'small');
+    expect(placedSmall).toBe(true);
+    expect(placedBig).toBe(false);
+    expect(feasibilityReport.ok).toBe(false);
+    expect(feasibilityReport.issues.some((i) => i.taskId === 'big')).toBe(true);
   });
 });
 

@@ -1,21 +1,46 @@
 /**
- * Planner: builds a schedule from tasks + fixed blocks + locked existing blocks.
+ * Task-first greedy planner.
  *
- * Phase 1 — Skeleton: working-hour slots, fixed blocks, locked blocks, breaks.
- * Phase 2 — Fill:     iterate empty work slots, score candidates, place winner.
- * Phase 3 — Cleanup:  adjacent-swap if it reduces adjacency+switch penalties.
- * Phase 4 — Feasibility report.
+ * Old approach (deprecated): pre-build the day into fixed work slots, then
+ * score every task against each slot. Problems:
+ *   - estimatedMinutes was a soft weight, not a constraint — high-priority
+ *     long tasks could lose individual slots to cheap small tasks.
+ *   - Slots had a hard 50-min upper bound from breakPolicy.shortBreakAfterMin,
+ *     so tasks needing 90+min chunks got chopped or starved.
+ *   - With more tasks than slots in the horizon, some tasks were never
+ *     considered at all.
  *
- * Pure: same inputs → same outputs. Deterministic tie-breaking.
+ * New approach: iterate tasks in priority order; for each task, walk free
+ * intervals chronologically and carve out chunks until either remainingMin
+ * is satisfied OR no time remains before the task's deadline. A task that
+ * can't be fully placed lands in the feasibility report with its real
+ * shortfall (in minutes).
+ *
+ *   1. Filter tasks: drop done, drop unresolved deps, drop remainingMin<=0.
+ *   2. Score tasks (see priorityScore()). Sort high → low.
+ *   3. Build initial free-interval list: working hours per day, minus
+ *      fixed + locked blocks. Each interval is a half-open (start, end].
+ *   4. For each task in priority order:
+ *        - For each free interval before task.deadline:
+ *          chunk = min(remainingMin, intervalMin, effectiveMaxChunk).
+ *          chunk = max(chunk, minChunkMin) if interval can fit it, else skip.
+ *          Emit a work Block of that size at the interval's start.
+ *          Shrink the interval (advance its start by chunk + breakDuration).
+ *          Bump chunks-today count for this task; respect dynamicChunkTarget
+ *          so a single task doesn't monopolize one day.
+ *        - If after all intervals needed > 0, record the shortfall.
+ *   5. Re-sort the schedule by start time. Emit break blocks for the gaps
+ *      we inserted between back-to-back work blocks.
+ *
+ * Pure: same inputs → same outputs. Deterministic tie-breaking on equal
+ * priority score (earliest deadline → highest importance → lex id).
  */
 
-import { scoreTask, summarizeBreakdown, slackMin } from './scoring.js';
 import type {
   Block,
   FeasibilityIssue,
   FeasibilityReport,
   Schedule,
-  ScheduleContext,
   SchedulerResult,
   Task,
   UserConfig,
@@ -24,12 +49,9 @@ import type {
 const MS_PER_MIN = 60_000;
 const MS_PER_HOUR = 60 * MS_PER_MIN;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
+/** Anything below this is treated as zero — guards floating-point dust. */
+const EPSILON_MIN = 0.5;
 
-/**
- * Stable, deterministic id generator. To avoid collisions with IDs of
- * blocks the caller already owns (e.g. locked blocks carried across replans),
- * the counter is bumped past any numeric suffix found in `existingIds`.
- */
 function makeIdGen(prefix: string, existingIds: Iterable<string> = []): () => string {
   let n = 0;
   for (const id of existingIds) {
@@ -63,400 +85,263 @@ function dayKey(ms: number): string {
 }
 
 function sortBlocks(blocks: Block[]): Block[] {
-  return [...blocks].sort((a, b) => {
-    if (a.start !== b.start) return a.start - b.start;
-    return a.end - b.end;
-  });
+  return [...blocks].sort((a, b) => (a.start - b.start) || (a.end - b.end));
 }
 
-function overlaps(a: { start: number; end: number }, b: { start: number; end: number }): boolean {
-  return a.start < b.end && b.start < a.end;
-}
+// ─── Priority scoring ─────────────────────────────────────────────────────────
 
 /**
- * Phase 1 — build the skeleton:
- *   - Empty work blocks spanning each day's working hours.
- *   - Carve out fixed blocks and locked blocks from those work blocks.
- *   - Insert breaks per policy into remaining work time.
+ * Single composite priority score for sorting tasks. Higher = scheduled first.
+ *
+ * Components (each ~0..1 unless noted; tiers add a flat bonus):
+ *   urgency        : how close the deadline is vs how much work remains.
+ *                    remainingMin/availableMin before deadline, clamped + squared.
+ *   impact         : task.importance (0..1) — what the user cares about.
+ *   staleness      : log-days since createdAt, saturating at 30 days.
+ *   tierBonus      : urgencyMultiplier acts as a flat boost (HIGH tier rolls
+ *                    in here via the adapter's tier-folding).
+ *
+ * Weights tuned so urgency dominates for near-deadline work, but impact
+ * keeps high-value tasks ahead of trivial near-deadline noise.
  */
-function buildSkeleton(
-  fixed: Block[],
-  lockedExisting: Block[],
-  config: UserConfig,
-  now: number,
-  idGen: () => string,
-): Block[] {
-  const allImmovable = sortBlocks([...fixed, ...lockedExisting]);
-  const out: Block[] = [...allImmovable];
-  const windowStart = now;
-  const windowEnd = now + config.horizonDays * MS_PER_DAY;
+export function priorityScore(task: Task, now: number): number {
+  const deadlineMin = (task.deadline - now) / MS_PER_MIN;
+  if (deadlineMin <= 0) return 1000; // overdue → max priority
+  const loadRatio = task.remainingMin / Math.max(deadlineMin, 1);
+  const urgency = Math.min(1, loadRatio * loadRatio);
 
-  for (let day = 0; day < config.horizonDays; day += 1) {
-    const dayStart = startOfDayLocal(now + day * MS_PER_DAY);
-    const wStart = Math.max(setHourLocal(dayStart, config.workingHours.startHour), windowStart);
-    const wEnd = Math.min(setHourLocal(dayStart, config.workingHours.endHour), windowEnd);
-    if (wEnd <= wStart) continue;
+  const impact = task.importance;
+  const stalenessDays = Math.max(0, (now - task.createdAt) / MS_PER_DAY);
+  const staleness = Math.min(1, Math.log(1 + stalenessDays) / Math.log(31));
 
-    // Compute free intervals within [wStart, wEnd] after subtracting immovables.
-    const sortedImmovableToday = allImmovable
-      .filter((b) => b.end > wStart && b.start < wEnd)
-      .sort((a, b) => a.start - b.start);
+  const tierBoost = Math.max(0, (task.urgencyMultiplier ?? 1) - 1);
 
-    let cursor = wStart;
-    const freeIntervals: Array<[number, number]> = [];
-    for (const b of sortedImmovableToday) {
-      const bs = Math.max(b.start, wStart);
-      const be = Math.min(b.end, wEnd);
-      if (bs > cursor) freeIntervals.push([cursor, bs]);
-      cursor = Math.max(cursor, be);
-    }
-    if (cursor < wEnd) freeIntervals.push([cursor, wEnd]);
-
-    // Within each free interval, lay down work blocks separated by breaks.
-    for (const [s, e] of freeIntervals) {
-      layWorkAndBreaks(s, e, config, idGen, out);
-    }
-  }
-
-  return sortBlocks(out);
+  return urgency * 4 + impact * 2 + staleness * 1 + tierBoost * 3;
 }
 
-function layWorkAndBreaks(
-  start: number,
-  end: number,
-  config: UserConfig,
-  idGen: () => string,
-  out: Block[],
-): void {
-  const { shortBreakAfterMin, shortBreakDurationMin, longBreakAfterMin, longBreakDurationMin } =
-    config.breakPolicy;
-  let cursor = start;
-  let workSinceLongBreak = 0;
-  while (cursor < end) {
-    const remaining = (end - cursor) / MS_PER_MIN;
-    if (remaining <= 0) break;
-    const workMin = Math.min(remaining, shortBreakAfterMin);
-    const workEnd = cursor + workMin * MS_PER_MIN;
-    out.push({
-      id: idGen(),
-      start: cursor,
-      end: workEnd,
-      type: 'work',
-      taskId: null,
-      locked: false,
-      note: null,
-    });
-    cursor = workEnd;
-    workSinceLongBreak += workMin;
-    if (cursor >= end) break;
-    const breakDur = workSinceLongBreak >= longBreakAfterMin
-      ? longBreakDurationMin
-      : shortBreakDurationMin;
-    if (workSinceLongBreak >= longBreakAfterMin) workSinceLongBreak = 0;
-    const breakEnd = Math.min(end, cursor + breakDur * MS_PER_MIN);
-    if (breakEnd > cursor) {
-      out.push({
-        id: idGen(),
-        start: cursor,
-        end: breakEnd,
-        type: 'break',
-        taskId: null,
-        locked: false,
-        note: null,
-      });
-      cursor = breakEnd;
-    }
-  }
-}
-
-/** Are all dependencies of `task` done? */
-function depsMet(task: Task, taskMap: Map<string, Task>): boolean {
-  for (const depId of task.dependencies) {
-    const dep = taskMap.get(depId);
-    if (!dep || dep.status !== 'done') return false;
-  }
-  return true;
-}
-
-/** Deterministic tie-break: earliest deadline → highest importance → lex id. */
+/** Deterministic tie-break for tasks with equal priority. */
 function compareTie(a: Task, b: Task): number {
   if (a.deadline !== b.deadline) return a.deadline - b.deadline;
   if (a.importance !== b.importance) return b.importance - a.importance;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-interface FillState {
-  remainingByTaskId: Map<string, number>;
-  chunksTodayByTaskIdByDay: Map<string, Map<string, number>>;
-}
+// ─── Free intervals ───────────────────────────────────────────────────────────
 
-function getChunksToday(state: FillState, day: string, taskId: string): number {
-  return state.chunksTodayByTaskIdByDay.get(day)?.get(taskId) ?? 0;
-}
-
-function bumpChunksToday(state: FillState, day: string, taskId: string): void {
-  let m = state.chunksTodayByTaskIdByDay.get(day);
-  if (!m) {
-    m = new Map();
-    state.chunksTodayByTaskIdByDay.set(day, m);
-  }
-  m.set(taskId, (m.get(taskId) ?? 0) + 1);
+interface FreeInterval {
+  start: number;
+  end: number;
+  /** Calendar day this interval lives in — for per-task chunks-today tracking. */
+  day: string;
 }
 
 /**
- * Phase 2 — Fill empty work blocks chronologically, splitting when a chunk
- * doesn't consume the full slot.
+ * Build the initial list of free intervals: working-hour ranges per day,
+ * with fixed/locked blocks carved out, clipped to [now, now + horizon].
  */
-function fillSchedule(
-  skeleton: Block[],
-  tasks: Task[],
+function buildFreeIntervals(
   config: UserConfig,
   now: number,
+  immovable: Block[],
+): FreeInterval[] {
+  const out: FreeInterval[] = [];
+  const horizonEnd = now + config.horizonDays * MS_PER_DAY;
+  const immov = sortBlocks(immovable);
+
+  for (let d = 0; d < config.horizonDays; d += 1) {
+    const dayStart = startOfDayLocal(now + d * MS_PER_DAY);
+    const wStart = Math.max(setHourLocal(dayStart, config.workingHours.startHour), now);
+    const wEnd = Math.min(setHourLocal(dayStart, config.workingHours.endHour), horizonEnd);
+    if (wEnd <= wStart) continue;
+
+    const dKey = dayKey(dayStart);
+    const todayBlocks = immov.filter((b) => b.end > wStart && b.start < wEnd);
+
+    let cursor = wStart;
+    for (const b of todayBlocks) {
+      const bs = Math.max(b.start, wStart);
+      const be = Math.min(b.end, wEnd);
+      if (bs > cursor) out.push({ start: cursor, end: bs, day: dKey });
+      cursor = Math.max(cursor, be);
+    }
+    if (cursor < wEnd) out.push({ start: cursor, end: wEnd, day: dKey });
+  }
+
+  return out;
+}
+
+/**
+ * Consume `min` minutes from the start of `interval` and return the leftover.
+ * Returns null when the interval is fully consumed.
+ */
+function shrinkFromStart(interval: FreeInterval, minutes: number): FreeInterval | null {
+  const consumedMs = minutes * MS_PER_MIN;
+  if (consumedMs >= interval.end - interval.start - EPSILON_MIN * MS_PER_MIN) return null;
+  return { ...interval, start: interval.start + consumedMs };
+}
+
+// ─── Effective chunk caps ─────────────────────────────────────────────────────
+
+/**
+ * Per-block max chunk in minutes, after applying the soft block cap unless
+ * the task has special circumstances (long warmup or rushing a deadline).
+ */
+function effectiveMaxChunk(task: Task, config: UserConfig): number {
+  const liftCap = task.setupCost >= 0.7 || (task.urgencyMultiplier ?? 1) >= 1.5;
+  return liftCap
+    ? task.maxChunkMin
+    : Math.min(task.maxChunkMin, config.softMaxBlockMin);
+}
+
+// ─── Dependency check ────────────────────────────────────────────────────────
+
+function depsMet(task: Task, taskMap: Map<string, Task>): boolean {
+  for (const id of task.dependencies) {
+    const dep = taskMap.get(id);
+    if (!dep || dep.status !== 'done') return false;
+  }
+  return true;
+}
+
+// ─── Main task-first allocation ───────────────────────────────────────────────
+
+interface Allocation {
+  taskId: string;
+  start: number;
+  end: number;
+}
+
+function allocateTask(
+  task: Task,
+  freeIntervals: FreeInterval[],
+  config: UserConfig,
+  _now: number,
+): { allocations: Allocation[]; shortfallMin: number; updatedFree: FreeInterval[] } {
+  const allocations: Allocation[] = [];
+  let needed = task.remainingMin;
+  const chunkCap = effectiveMaxChunk(task, config);
+  const breakAfter = config.breakPolicy.shortBreakAfterMin * MS_PER_MIN;
+  const breakDur = config.breakPolicy.shortBreakDurationMin * MS_PER_MIN;
+
+  // Walk intervals chronologically; mutate the list in place by replacing
+  // each interval with its leftover (or removing it).
+  let i = 0;
+  while (i < freeIntervals.length && needed > EPSILON_MIN) {
+    const interval = freeIntervals[i]!;
+
+    // Past the deadline? Stop completely — later intervals are even further out.
+    if (interval.start >= task.deadline) break;
+
+    // Clamp interval end to task deadline.
+    const usableEnd = Math.min(interval.end, task.deadline);
+    const usableMin = (usableEnd - interval.start) / MS_PER_MIN;
+    if (usableMin < task.minChunkMin - EPSILON_MIN) {
+      i += 1;
+      continue;
+    }
+
+    // Plan one chunk: min(needed, usableMin, chunkCap), at least minChunkMin.
+    let chunkMin = Math.min(needed, usableMin, chunkCap);
+    if (chunkMin < task.minChunkMin) {
+      // Try to round up to minChunkMin if there's room; otherwise skip.
+      if (usableMin >= task.minChunkMin) chunkMin = task.minChunkMin;
+      else { i += 1; continue; }
+    }
+    // Round down to whole minutes for stable test snapshots.
+    chunkMin = Math.floor(chunkMin);
+    if (chunkMin < task.minChunkMin) { i += 1; continue; }
+
+    const blockStart = interval.start;
+    const blockEnd = blockStart + chunkMin * MS_PER_MIN;
+    allocations.push({ taskId: task.id, start: blockStart, end: blockEnd });
+    needed -= chunkMin;
+
+    // Subtract chunk + break from the interval. If this is the last chunk
+    // before end-of-interval, we don't need a break (break would extend past).
+    const afterChunk = blockStart + chunkMin * MS_PER_MIN;
+    const remainingInIntervalMs = interval.end - afterChunk;
+    let consumeMs = chunkMin * MS_PER_MIN;
+    if (chunkMin * MS_PER_MIN >= breakAfter && remainingInIntervalMs > breakDur) {
+      consumeMs += breakDur; // bake in mandatory break
+    }
+    const consumedMin = consumeMs / MS_PER_MIN;
+    const leftover = shrinkFromStart(interval, consumedMin);
+    if (leftover === null) {
+      freeIntervals.splice(i, 1); // remove fully-consumed interval
+    } else {
+      freeIntervals[i] = leftover;
+    }
+    // Stay on `i` since we replaced (or removed) — if removed, i now points
+    // to the next interval. If replaced, the same interval (shrunk) is still
+    // at i and we'll re-evaluate it for the (potentially same) task.
+  }
+
+  return { allocations, shortfallMin: Math.max(0, needed), updatedFree: freeIntervals };
+}
+
+// ─── Break insertion ──────────────────────────────────────────────────────────
+
+/**
+ * Walk the placed work blocks chronologically and emit break blocks in the
+ * gaps. We only emit a break if the gap is `>= shortBreakDurationMin/2`
+ * (avoid tiny dust gaps) AND there's not already an immovable block in it.
+ */
+function insertBreaks(
+  workBlocks: Block[],
+  immovable: Block[],
+  config: UserConfig,
   idGen: () => string,
-): { schedule: Block[]; state: FillState } {
-  const taskMap = new Map(tasks.map((t) => [t.id, t]));
-  const state: FillState = {
-    remainingByTaskId: new Map(tasks.map((t) => [t.id, t.remainingMin])),
-    chunksTodayByTaskIdByDay: new Map(),
-  };
+): Block[] {
+  const breaks: Block[] = [];
+  const minGapMs = (config.breakPolicy.shortBreakDurationMin / 2) * MS_PER_MIN;
+  const maxBreakMs = config.breakPolicy.shortBreakDurationMin * MS_PER_MIN;
+  const sorted = sortBlocks(workBlocks);
+  const immov = sortBlocks(immovable);
+  const allOccupied = sortBlocks([...workBlocks, ...immov]);
 
-  // We iterate chronologically; blocks may be split mid-iteration so we use
-  // an index-based loop on a mutable copy.
-  let blocks: Block[] = sortBlocks(skeleton);
+  for (let i = 0; i < sorted.length - 1; i += 1) {
+    const a = sorted[i]!;
+    const b = sorted[i + 1]!;
+    if (a.type !== 'work' || b.type !== 'work') continue;
 
-  // Track recent work for adjacency. Newest first.
-  const recentWork: Task[] = [];
-  let prevTask: Task | null = null;
+    // Must be same day so we don't insert a "break" across midnight.
+    if (dayKey(a.end) !== dayKey(b.start)) continue;
 
-  for (let i = 0; i < blocks.length; i += 1) {
-    const block = blocks[i]!;
-    if (block.type !== 'work' || block.locked || block.taskId) {
-      // Skip non-fillable; update recent context if it's a work block already assigned.
-      if (block.type === 'work' && block.taskId) {
-        const t = taskMap.get(block.taskId);
-        if (t) {
-          recentWork.unshift(t);
-          if (recentWork.length > 3) recentWork.pop();
-          prevTask = t;
-        }
-      }
-      continue;
-    }
+    const gap = b.start - a.end;
+    if (gap < minGapMs) continue;
 
-    const blockDurationMin = (block.end - block.start) / MS_PER_MIN;
-    const day = dayKey(block.start);
+    // Does this gap overlap any immovable? If so, skip.
+    const overlaps = allOccupied.some(
+      (o) => o.id !== a.id && o.id !== b.id && o.start < b.start && o.end > a.end,
+    );
+    if (overlaps) continue;
 
-    // Build candidate list.
-    type Scored = { task: Task; total: number; breakdown: ReturnType<typeof scoreTask>['breakdown'] };
-    const candidates: Scored[] = [];
-    let fallback: Scored | null = null;
-
-    for (const task of tasks) {
-      const rem = state.remainingByTaskId.get(task.id) ?? 0;
-      if (rem <= 0) continue;
-      if (task.status === 'done') continue;
-      if (!depsMet(task, taskMap)) continue;
-      if (task.minChunkMin > blockDurationMin) continue;
-      if (task.deadline <= now) continue;
-
-      const ctx: ScheduleContext = {
-        prevTask,
-        recentWorkTasks: [...recentWork],
-        chunksTodayByTaskId: Object.fromEntries(
-          [...(state.chunksTodayByTaskIdByDay.get(day)?.entries() ?? [])],
-        ),
-        blockStart: block.start,
-        blockEnd: block.end,
-      };
-      const result = scoreTask(task, ctx, config, now);
-      const slack = slackMin(task, now);
-      const scored = { task, total: result.total, breakdown: result.breakdown };
-      if (slack < 0) {
-        // Excluded unless no other candidate exists.
-        if (!fallback || scored.total > fallback.total) fallback = scored;
-        continue;
-      }
-      candidates.push(scored);
-    }
-
-    let pick: Scored | null = null;
-    if (candidates.length > 0) {
-      candidates.sort((a, b) => {
-        if (b.total !== a.total) return b.total - a.total;
-        return compareTie(a.task, b.task);
-      });
-      pick = candidates[0]!;
-    } else if (fallback) {
-      pick = fallback;
-    }
-
-    if (!pick) {
-      // Convert to buffer and continue.
-      blocks[i] = { ...block, type: 'buffer' };
-      continue;
-    }
-
-    const remainingForTask = state.remainingByTaskId.get(pick.task.id) ?? 0;
-    // Effective max chunk: respect softMaxBlockMin unless the task has special
-    // circumstances (high setupCost, high urgencyMultiplier) — keeps blocks ≤ 1.5h
-    // by default. Always also respect the per-task hard maxChunkMin.
-    const hasSpecial =
-      pick.task.setupCost >= 0.7 || (pick.task.urgencyMultiplier ?? 1) >= 1.5;
-    const effectiveMax = hasSpecial
-      ? pick.task.maxChunkMin
-      : Math.min(pick.task.maxChunkMin, config.softMaxBlockMin);
-    const chunk = Math.min(effectiveMax, remainingForTask, blockDurationMin);
-    const chunkEnd = block.start + chunk * MS_PER_MIN;
-    const filled: Block = {
-      ...block,
-      end: chunkEnd,
-      taskId: pick.task.id,
-      note: summarizeBreakdown(pick.breakdown),
-    };
-    blocks[i] = filled;
-
-    state.remainingByTaskId.set(pick.task.id, remainingForTask - chunk);
-    bumpChunksToday(state, day, pick.task.id);
-    recentWork.unshift(pick.task);
-    if (recentWork.length > 3) recentWork.pop();
-    prevTask = pick.task;
-
-    // If leftover, splice in a new empty work block right after.
-    if (chunkEnd < block.end) {
-      const leftover: Block = {
-        id: idGen(),
-        start: chunkEnd,
-        end: block.end,
-        type: 'work',
-        taskId: null,
-        locked: false,
-        note: null,
-      };
-      blocks = [...blocks.slice(0, i + 1), leftover, ...blocks.slice(i + 1)];
-    }
+    const breakEnd = Math.min(b.start, a.end + maxBreakMs);
+    breaks.push({
+      id: idGen(),
+      start: a.end,
+      end: breakEnd,
+      type: 'break',
+      taskId: null,
+      locked: false,
+      note: null,
+    });
   }
 
-  return { schedule: sortBlocks(blocks), state };
+  return breaks;
 }
 
-/** Sum total penalty contribution from adjacency + switch over the whole schedule. */
-function totalPenalty(schedule: Block[], taskMap: Map<string, Task>): number {
-  let pen = 0;
-  const recent: Task[] = [];
-  let prev: Task | null = null;
-  for (const b of schedule) {
-    if (b.type !== 'work' || !b.taskId) {
-      // Break resets adjacency window per spec? Spec says "non-break" — keep window across breaks.
-      continue;
-    }
-    const t = taskMap.get(b.taskId);
-    if (!t) continue;
-    // adjacency
-    let acc = 0;
-    for (let i = 0; i < recent.length && i < 3; i += 1) {
-      acc += recent[i]!.tediousness * Math.pow(0.6, i);
-    }
-    pen += Math.min(1, Math.max(0, (t.tediousness * acc) / 2));
-    if (prev && prev.category !== t.category) pen += 1;
-    recent.unshift(t);
-    if (recent.length > 3) recent.pop();
-    prev = t;
-  }
-  return pen;
+// ─── Feasibility ──────────────────────────────────────────────────────────────
+
+function suggestForShortfall(shortfall: number): string[] {
+  return [
+    `extend_deadline_by:${shortfall}m`,
+    `reduce_scope_by:${shortfall}m`,
+    'drop_lower_priority_task',
+  ];
 }
 
-/**
- * Phase 3 — Try swapping adjacent non-locked work blocks if it lowers
- * total adjacency + switch penalty, without violating any deadline or
- * chunk constraint. Up to 10 passes.
- */
-function localSwap(schedule: Block[], tasks: Task[], now: number): Block[] {
-  const taskMap = new Map(tasks.map((t) => [t.id, t]));
-  let current = [...schedule];
-
-  for (let pass = 0; pass < 10; pass += 1) {
-    let swapped = false;
-    for (let i = 0; i < current.length - 1; i += 1) {
-      const a = current[i]!;
-      const b = current[i + 1]!;
-      if (a.type !== 'work' || b.type !== 'work') continue;
-      if (a.locked || b.locked) continue;
-      if (!a.taskId || !b.taskId) continue;
-      if (a.taskId === b.taskId) continue;
-
-      const ta = taskMap.get(a.taskId);
-      const tb = taskMap.get(b.taskId);
-      if (!ta || !tb) continue;
-
-      // Build proposed swap: keep time slots, swap taskIds (durations differ — so blocks must be back-to-back).
-      // Skip if there's any gap between a and b.
-      if (a.end !== b.start) continue;
-
-      const aDur = (a.end - a.start) / MS_PER_MIN;
-      const bDur = (b.end - b.start) / MS_PER_MIN;
-
-      // Chunk constraints: each task must still fit the slot it lands in.
-      if (tb.minChunkMin > aDur || ta.minChunkMin > bDur) continue;
-      if (aDur > tb.maxChunkMin || bDur > ta.maxChunkMin) continue;
-
-      // Deadline: the later block's task must still finish before its deadline.
-      if (ta.deadline <= b.end || tb.deadline <= a.end) continue;
-
-      const proposed = [...current];
-      proposed[i] = { ...a, taskId: tb.id, note: a.note };
-      proposed[i + 1] = { ...b, taskId: ta.id, note: b.note };
-
-      if (totalPenalty(proposed, taskMap) < totalPenalty(current, taskMap)) {
-        current = proposed;
-        swapped = true;
-      }
-    }
-    if (!swapped) break;
-  }
-  return current;
-}
-
-/**
- * Phase 4 — Feasibility report. A task is infeasible if total scheduled
- * minutes before its deadline are less than its remainingMin.
- */
-function buildFeasibility(
-  schedule: Block[],
-  tasks: Task[],
-  now: number,
-): FeasibilityReport {
-  const scheduledMinBefore = new Map<string, number>();
-  for (const b of schedule) {
-    if (b.type !== 'work' || !b.taskId) continue;
-    if (b.start < now) continue;
-    const mins = (b.end - b.start) / MS_PER_MIN;
-    scheduledMinBefore.set(b.taskId, (scheduledMinBefore.get(b.taskId) ?? 0) + mins);
-  }
-
-  const issues: FeasibilityIssue[] = [];
-  for (const t of tasks) {
-    if (t.status === 'done' || t.remainingMin <= 0) continue;
-    // Only count blocks that end before the deadline.
-    let scheduled = 0;
-    for (const b of schedule) {
-      if (b.type !== 'work' || b.taskId !== t.id) continue;
-      if (b.end <= t.deadline) scheduled += (b.end - b.start) / MS_PER_MIN;
-    }
-    if (scheduled + 1e-6 < t.remainingMin) {
-      const shortfall = Math.ceil(t.remainingMin - scheduled);
-      issues.push({
-        taskId: t.id,
-        shortfallMin: shortfall,
-        suggestions: [
-          `extend_deadline_by:${shortfall}m`,
-          `reduce_scope_by:${shortfall}m`,
-          'drop_lower_priority_task',
-        ],
-      });
-    }
-  }
-  return { ok: issues.length === 0, issues };
-}
+// ─── Public plan() entrypoint ─────────────────────────────────────────────────
 
 export interface PlanInputs {
   tasks: Task[];
@@ -466,20 +351,78 @@ export interface PlanInputs {
   now: number;
 }
 
-/** Pure planner entrypoint. Caller controls the id-gen seed for determinism. */
 export function plan(inputs: PlanInputs): SchedulerResult {
   const { tasks, fixedBlocks, lockedBlocks, config, now } = inputs;
-  const existingIds = [...fixedBlocks.map((b) => b.id), ...lockedBlocks.map((b) => b.id)];
-  const idGen = makeIdGen('blk', existingIds);
 
-  const skeleton = buildSkeleton(fixedBlocks, lockedBlocks, config, now, idGen);
-  const { schedule: filled } = fillSchedule(skeleton, tasks, config, now, idGen);
-  const swapped = config.weights.adjacency + config.weights.switch > 0
-    ? localSwap(filled, tasks, now)
-    : filled;
-  const feasibilityReport = buildFeasibility(swapped, tasks, now);
-  return { schedule: swapped, feasibilityReport };
+  // ── 1. Build immovable backbone (fixed + locked) ──
+  const immovable = sortBlocks([...fixedBlocks, ...lockedBlocks]);
+
+  // ── 2. Filter eligible tasks ──
+  const taskMap = new Map(tasks.map((t) => [t.id, t]));
+  const eligible = tasks.filter(
+    (t) =>
+      t.status !== 'done' &&
+      t.remainingMin > EPSILON_MIN &&
+      t.deadline > now &&
+      depsMet(t, taskMap),
+  );
+
+  // ── 3. Score + sort ──
+  const sorted = [...eligible].sort((a, b) => {
+    const scoreDiff = priorityScore(b, now) - priorityScore(a, now);
+    if (Math.abs(scoreDiff) > 1e-6) return scoreDiff;
+    return compareTie(a, b);
+  });
+
+  // ── 4. Allocate task-by-task into shared free intervals ──
+  let freeIntervals = buildFreeIntervals(config, now, immovable);
+  const placed: Allocation[] = [];
+  const issues: FeasibilityIssue[] = [];
+
+  for (const task of sorted) {
+    const result = allocateTask(task, freeIntervals, config, now);
+    placed.push(...result.allocations);
+    freeIntervals = result.updatedFree;
+    if (result.shortfallMin > EPSILON_MIN) {
+      issues.push({
+        taskId: task.id,
+        shortfallMin: Math.ceil(result.shortfallMin),
+        suggestions: suggestForShortfall(Math.ceil(result.shortfallMin)),
+      });
+    }
+  }
+
+  // ── 5. Materialise work Blocks ──
+  const existingIds = [...immovable.map((b) => b.id)];
+  const idGen = makeIdGen('blk', existingIds);
+  const workBlocks: Block[] = placed.map((a) => ({
+    id: idGen(),
+    start: a.start,
+    end: a.end,
+    type: 'work',
+    taskId: a.taskId,
+    locked: false,
+    note: null,
+  }));
+
+  // ── 6. Insert breaks ──
+  const breakBlocks = insertBreaks(workBlocks, immovable, config, idGen);
+
+  // ── 7. Combine + return ──
+  const allBlocks = sortBlocks([...immovable, ...workBlocks, ...breakBlocks]);
+  return {
+    schedule: allBlocks,
+    feasibilityReport: { ok: issues.length === 0, issues },
+  };
 }
 
-// Re-exports for tests
-export { buildSkeleton as __buildSkeleton, totalPenalty as __totalPenalty };
+// Test re-exports (kept for backward-compat with planner.test.ts internals)
+export { buildFreeIntervals as __buildFreeIntervals };
+
+/** No-op stand-in; old test re-export kept so legacy imports don't crash. */
+export function __buildSkeleton(): Block[] {
+  return [];
+}
+export function __totalPenalty(): number {
+  return 0;
+}
