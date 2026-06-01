@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useQuestStore } from '../store/useQuestStore';
@@ -13,37 +13,29 @@ import { levelFromXP } from '../lib/levels';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
-/** Pixels per minute — drives the proportional block heights. */
-const PX_PER_MIN = 1.6;
-/** Earliest hour rendered (e.g. 7 = 7am) */
-const VIEW_START_HOUR = 7;
-/** Latest hour rendered (e.g. 23 = 11pm) */
-const VIEW_END_HOUR = 23;
-const VIEW_MINUTES = (VIEW_END_HOUR - VIEW_START_HOUR) * 60;
-const TIMELINE_HEIGHT = VIEW_MINUTES * PX_PER_MIN;
-/** Below this height, the block uses the compact single-line layout. */
-const COMPACT_THRESHOLD_PX = 48;
-/** Number of days shown in the day-tab strip. */
+/** Pixels per minute for FOCUS blocks. */
+const PX_PER_MIN = 1.5;
+/** Minimum focus-block height so titles + dots always fit. */
+const MIN_BLOCK_PX = 64;
+/** Number of days in the day-chip strip. */
 const DAY_TABS = 5;
 
-// Bold category palette.
-const CATEGORY_COLOR: Record<string, string> = {
-  deep_work: '#a78bfa', // violet-400
-  comms:     '#2dd4bf', // teal-400
-  admin:     '#fbbf24', // amber-400
-  creative:  '#f472b6', // pink-400
-};
+const COMPACT_THRESHOLD_PX = 84;
 
-const TYPE_COLOR: Record<string, string> = {
-  break:  '#64748b', // slate
-  fixed:  '#fbbf24', // amber
-  buffer: '#1f2937', // very muted
+// Bold per-category palette. Returned as start/end gradient stops for vibrancy.
+const CATEGORY_GRADIENT: Record<string, [string, string]> = {
+  deep_work: ['#a855f7', '#7c3aed'], // purple
+  comms:     ['#22d3ee', '#0e7490'], // cyan/teal
+  admin:     ['#fbbf24', '#d97706'], // amber/orange
+  creative:  ['#f472b6', '#db2777'], // pink/rose
 };
+const FALLBACK_GRADIENT: [string, string] = ['#8b5cf6', '#6d28d9'];
 
-function blockColor(b: ScheduleBlock, quest: Quest | null): string {
-  if (b.type !== 'work') return TYPE_COLOR[b.type] ?? '#475569';
+function blockGradient(b: ScheduleBlock, quest: Quest | null): [string, string] {
+  if (b.type !== 'work' && b.type !== 'fixed') return FALLBACK_GRADIENT;
+  if (b.type === 'fixed') return ['#fbbf24', '#d97706'];
   const cat = quest?.category ?? 'deep_work';
-  return CATEGORY_COLOR[cat] ?? CATEGORY_COLOR.deep_work!;
+  return CATEGORY_GRADIENT[cat] ?? FALLBACK_GRADIENT;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -87,12 +79,6 @@ function sameDay(a: Date, b: Date): boolean {
     && a.getDate() === b.getDate();
 }
 
-/** Minutes from VIEW_START_HOUR on this day's calendar (clamped to view). */
-function minutesFromViewStart(ms: number, dayStart: number): number {
-  const offset = ms - dayStart - VIEW_START_HOUR * 60 * 60_000;
-  return Math.max(0, Math.min(VIEW_MINUTES, offset / 60_000));
-}
-
 function loadDots(load: number | undefined): number {
   const l = load ?? 5;
   if (l >= 9) return 5;
@@ -102,17 +88,111 @@ function loadDots(load: number | undefined): number {
   return 1;
 }
 
+function blockHeight(b: ScheduleBlock): number {
+  if (b.type === 'break' || b.type === 'buffer') {
+    // Tiny separator line for short breaks; longer for big ones.
+    return Math.max(10, Math.min(26, b.durationMin * 0.9));
+  }
+  return Math.max(MIN_BLOCK_PX, b.durationMin * PX_PER_MIN);
+}
+
+// ─── Break / buffer separator (thin blue line) ────────────────────────────────
+
+function BreakLine({ block }: { block: ScheduleBlock }) {
+  const isBuffer = block.type === 'buffer';
+  const label = isBuffer ? `${block.durationMin}m free` : `${block.durationMin}m breather`;
+  const color = isBuffer ? '#64748b' : '#38bdf8'; // slate or sky-blue
+
+  const height = blockHeight(block);
+
+  return (
+    <div
+      className="relative w-full flex items-center justify-center"
+      style={{ height }}
+      title={`${block.durationMin}-minute ${isBuffer ? 'free slot' : 'break'}`}
+    >
+      {/* Left dashed line */}
+      <div className="flex-1 h-px relative">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `repeating-linear-gradient(90deg, ${color}88 0 6px, transparent 6px 10px)`,
+          }}
+        />
+        {!isBuffer && (
+          <motion.div
+            className="absolute inset-0"
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 2.8, ease: 'linear' }}
+            style={{
+              background: `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`,
+              filter: 'blur(2px)',
+              opacity: 0.6,
+            }}
+          />
+        )}
+      </div>
+
+      {/* Center label */}
+      <span
+        className="px-2 text-[0.6rem] font-mono uppercase tracking-wide"
+        style={{ color }}
+      >
+        {isBuffer ? '◇' : '☕'} {label}
+      </span>
+
+      {/* Right dashed line */}
+      <div className="flex-1 h-px relative">
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `repeating-linear-gradient(90deg, ${color}88 0 6px, transparent 6px 10px)`,
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ─── Now marker (glowing red pill inserted at current-time slot) ──────────────
+
+function NowMarker({ time }: { time: number }) {
+  return (
+    <motion.div
+      layout
+      className="relative w-full flex items-center justify-center my-1"
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+    >
+      <div className="flex-1 h-[2px] bg-(--color-fire) shadow-[0_0_8px_var(--color-fire)]" />
+      <motion.span
+        className="mx-2 px-3 py-1 rounded-full text-[0.65rem] font-bold uppercase tracking-wider"
+        style={{
+          background: 'var(--color-fire)',
+          color: '#fff',
+          boxShadow: '0 0 14px rgba(239,68,68,0.65)',
+        }}
+        animate={{ boxShadow: ['0 0 10px rgba(239,68,68,0.55)', '0 0 18px rgba(239,68,68,0.85)', '0 0 10px rgba(239,68,68,0.55)'] }}
+        transition={{ repeat: Infinity, duration: 1.6 }}
+      >
+        🕐 Now · {new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+      </motion.span>
+      <div className="flex-1 h-[2px] bg-(--color-fire) shadow-[0_0_8px_var(--color-fire)]" />
+    </motion.div>
+  );
+}
+
 // ─── Block tile ───────────────────────────────────────────────────────────────
 
 interface BlockTileProps {
   block: ScheduleBlock;
   quest: Quest | null;
   status: 'past' | 'active' | 'upcoming';
-  top: number;
-  height: number;
   now: number;
   isSelected: boolean;
   onSelect: () => void;
+  onQuickDelete: () => void;
   draggable: boolean;
   isDragOver: boolean;
   isDragging: boolean;
@@ -127,11 +207,10 @@ function BlockTile({
   block,
   quest,
   status,
-  top,
-  height,
   now,
   isSelected,
   onSelect,
+  onQuickDelete,
   draggable,
   isDragOver,
   isDragging,
@@ -141,27 +220,19 @@ function BlockTile({
   onDragLeave,
   onDrop,
 }: BlockTileProps) {
-  const color = blockColor(block, quest);
+  const [g1, g2] = blockGradient(block, quest);
+  const height = blockHeight(block);
   const isCompact = height < COMPACT_THRESHOLD_PX;
-  const title = quest?.title
-    ?? (block.type === 'break' ? 'Break' : block.type === 'fixed' ? (block.note ?? 'Fixed') : block.type === 'buffer' ? 'Free slot' : '—');
+  const isActive = status === 'active' && (block.type === 'work' || block.type === 'fixed');
+  const isPast = status === 'past';
   const startD = new Date(block.start);
   const endD = new Date(block.end);
-  const dots = quest ? loadDots(quest.mentalLoad) : 0;
-  const pastDim = status === 'past' ? 0.4 : 1;
-  const isActive = status === 'active' && block.type === 'work';
-  const isWork = block.type === 'work';
   const msRemaining = endD.getTime() - now;
   const pctDone = isActive
     ? Math.max(0, Math.min(100, ((now - startD.getTime()) / (endD.getTime() - startD.getTime())) * 100))
-    : status === 'past' ? 100 : 0;
-
-  // Solid color for work + fixed, dashed pattern for break, neutral fill for buffer.
-  const bg = block.type === 'buffer'
-    ? 'rgba(31, 41, 55, 0.5)'
-    : block.type === 'break'
-      ? 'rgba(100, 116, 139, 0.25)'
-      : `linear-gradient(135deg, ${color}f0 0%, ${color}b8 100%)`;
+    : isPast ? 100 : 0;
+  const dots = quest ? loadDots(quest.mentalLoad) : 0;
+  const title = quest?.title ?? (block.type === 'fixed' ? (block.note ?? 'Fixed') : '—');
 
   return (
     <div
@@ -171,191 +242,160 @@ function BlockTile({
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
-      className="absolute left-0 right-0 px-1"
-      style={{ top, height, cursor: draggable ? 'grab' : 'pointer' }}
+      className="relative w-full"
+      style={{ height, cursor: draggable ? 'grab' : 'pointer' }}
     >
       <motion.button
         type="button"
         onClick={onSelect}
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: isDragging ? 0.4 : pastDim, scale: 1 }}
-        whileHover={{ scale: status === 'past' ? 1 : 1.005 }}
-        transition={{ duration: 0.18 }}
-        className="relative w-full h-full rounded-[10px] overflow-hidden text-left"
+        layout
+        initial={{ opacity: 0, y: 8, scale: 0.96 }}
+        animate={{
+          opacity: isDragging ? 0.4 : isPast ? 0.5 : 1,
+          y: 0,
+          scale: 1,
+        }}
+        whileHover={isPast ? undefined : { y: -2, scale: 1.005 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+        className="group relative w-full h-full rounded-2xl overflow-hidden text-left"
         style={{
-          background: bg,
+          background: `linear-gradient(135deg, ${g1} 0%, ${g2} 100%)`,
           border: isDragOver
-            ? `2px dashed ${color}`
+            ? `2px dashed ${g1}`
             : isActive || isSelected
-              ? `2px solid ${color}`
-              : block.type === 'work'
-                ? `1px solid ${color}66`
-                : '1px solid rgba(255,255,255,0.08)',
+              ? `2px solid #fff`
+              : `1px solid ${g1}55`,
           boxShadow: isActive
-            ? `0 0 20px ${color}66, inset 0 0 12px ${color}33`
+            ? `0 0 30px ${g1}88, 0 8px 24px ${g2}55`
             : isSelected
-              ? `0 0 14px ${color}44`
-              : 'none',
+              ? `0 0 18px ${g1}66, 0 6px 18px rgba(0,0,0,0.3)`
+              : `0 4px 14px rgba(0,0,0,0.35)`,
         }}
       >
-        {/* Active progress bar overlay */}
+        {/* Sheen overlay for vibrancy */}
+        <div
+          className="absolute inset-0 pointer-events-none opacity-40"
+          style={{
+            background: 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 40%, rgba(0,0,0,0.18) 100%)',
+          }}
+        />
+
+        {/* Active-block animated shimmer */}
+        {isActive && (
+          <motion.div
+            className="absolute inset-0 pointer-events-none"
+            initial={{ x: '-100%' }}
+            animate={{ x: '100%' }}
+            transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}
+            style={{
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)',
+              filter: 'blur(8px)',
+            }}
+          />
+        )}
+
+        {/* Progress bar (active only) */}
         {isActive && (
           <div
             className="absolute bottom-0 left-0 h-1 transition-all duration-1000"
-            style={{ width: `${pctDone}%`, background: '#fff', opacity: 0.85 }}
+            style={{ width: `${pctDone}%`, background: '#fff', opacity: 0.9, boxShadow: '0 0 10px rgba(255,255,255,0.7)' }}
           />
+        )}
+
+        {/* Hover quick-delete (top-right, only on hover for non-active work blocks) */}
+        {!isPast && !isActive && draggable && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onQuickDelete(); }}
+            className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full flex items-center justify-center text-xs"
+            style={{ background: 'rgba(0,0,0,0.4)', color: '#fff', backdropFilter: 'blur(4px)' }}
+            title="Remove this block"
+          >
+            ✕
+          </button>
         )}
 
         {/* Locked badge */}
         {block.locked && (
-          <span className="absolute top-1.5 right-1.5 text-xs" style={{ color: '#fff' }}>
+          <span className="absolute top-2 right-2 text-xs" style={{ color: '#fff' }}>
             📌
           </span>
         )}
 
-        {/* Mental-load dots (top-right) */}
-        {isWork && quest && !block.locked && !isCompact && (
-          <div className="absolute top-2 right-2 flex gap-[3px]">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <span
-                key={i}
-                className="w-1.5 h-1.5 rounded-full"
-                style={{
-                  background: i <= dots ? '#fff' : 'rgba(255,255,255,0.25)',
-                }}
-              />
-            ))}
-          </div>
-        )}
-
         {/* Content */}
-        <div className={`h-full flex ${isCompact ? 'flex-row items-center' : 'flex-col justify-between'} gap-1 p-2 ${isCompact ? 'px-3' : ''}`}>
-          {isCompact ? (
-            <>
-              <span className="text-[0.7rem] font-bold uppercase tracking-wider opacity-90" style={{ color: '#fff' }}>
-                {typeLabel(block)}
-              </span>
-              <span className="flex-1 min-w-0 truncate text-[0.85rem] font-semibold" style={{ color: '#fff' }}>
-                {title}
-              </span>
-              <span className="text-[0.7rem] font-mono opacity-80" style={{ color: '#fff' }}>
+        <div className="relative h-full flex items-stretch">
+          {/* Start time gutter on the left edge */}
+          <div
+            className="shrink-0 flex flex-col items-center justify-center px-2"
+            style={{ minWidth: 52, borderRight: '1px solid rgba(255,255,255,0.18)' }}
+          >
+            <span className="text-[0.65rem] font-mono font-bold tracking-tight" style={{ color: '#fff' }}>
+              {formatTime(startD)}
+            </span>
+            {!isCompact && (
+              <span className="text-[0.55rem] font-mono opacity-70 mt-0.5" style={{ color: '#fff' }}>
                 {block.durationMin}m
               </span>
-            </>
-          ) : (
-            <>
-              <div>
-                <div className="text-[0.65rem] font-bold uppercase tracking-wider opacity-90 mb-0.5" style={{ color: '#fff' }}>
+            )}
+          </div>
+
+          {/* Main content */}
+          <div className={`flex-1 min-w-0 ${isCompact ? 'flex items-center gap-2 px-3' : 'flex flex-col justify-between p-3'}`}>
+            {isCompact ? (
+              <>
+                <span className="text-[0.62rem] font-bold uppercase tracking-wider opacity-90 shrink-0" style={{ color: '#fff' }}>
                   {typeLabel(block)}
-                </div>
-                <div className="font-bold text-[0.95rem] leading-tight line-clamp-2" style={{ color: '#fff' }}>
-                  {title}
-                </div>
-                {isActive && (
-                  <div className="font-mono font-bold text-sm mt-1" style={{ color: '#fff' }}>
-                    {formatCountdown(msRemaining)} left
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-[0.7rem] opacity-90" style={{ color: '#fff' }}>
-                <span className="font-mono">
-                  {formatTime(startD)} – {formatTime(endD)}
                 </span>
-                <span className="font-mono">{block.durationMin}m</span>
-              </div>
-            </>
-          )}
+                <span className="flex-1 min-w-0 truncate font-semibold text-[0.9rem]" style={{ color: '#fff' }}>
+                  {title}
+                </span>
+                {quest && (
+                  <span className="flex gap-[3px] shrink-0">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <span key={i} className="w-1 h-1 rounded-full" style={{ background: i <= dots ? '#fff' : 'rgba(255,255,255,0.25)' }} />
+                    ))}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90" style={{ color: '#fff' }}>
+                      {typeLabel(block)}
+                    </span>
+                    {quest?.category && (
+                      <span className="text-[0.55rem] opacity-70 uppercase tracking-wider" style={{ color: '#fff' }}>
+                        · {quest.category.replace('_', ' ')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="font-bold text-base leading-tight line-clamp-2" style={{ color: '#fff' }}>
+                    {title}
+                  </div>
+                  {isActive && (
+                    <div className="font-mono font-bold text-sm mt-1.5 inline-block px-2 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.25)', color: '#fff' }}>
+                      ⏱ {formatCountdown(msRemaining)}
+                    </div>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  {quest && (
+                    <span className="flex gap-[3px]">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= dots ? '#fff' : 'rgba(255,255,255,0.25)' }} />
+                      ))}
+                    </span>
+                  )}
+                  <span className="text-[0.65rem] font-mono opacity-75" style={{ color: '#fff' }}>
+                    until {formatTime(endD)}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </motion.button>
     </div>
-  );
-}
-
-// ─── Now-line ─────────────────────────────────────────────────────────────────
-
-function NowLine({ top }: { top: number }) {
-  return (
-    <div
-      className="absolute left-0 right-0 z-20 pointer-events-none"
-      style={{ top }}
-    >
-      <div className="relative flex items-center">
-        <div className="absolute -left-1 w-3 h-3 rounded-full bg-(--color-fire) shadow-[0_0_8px_var(--color-fire)]" />
-        <div className="w-full h-[2px] bg-(--color-fire) shadow-[0_0_6px_var(--color-fire)]" />
-      </div>
-    </div>
-  );
-}
-
-// ─── Hour gridlines ───────────────────────────────────────────────────────────
-
-function HourGrid() {
-  const hours: number[] = [];
-  for (let h = VIEW_START_HOUR; h <= VIEW_END_HOUR; h += 1) hours.push(h);
-  return (
-    <>
-      {hours.map((h) => {
-        const top = (h - VIEW_START_HOUR) * 60 * PX_PER_MIN;
-        const label = h === 0 ? '12am' : h === 12 ? '12pm' : h < 12 ? `${h}am` : `${h - 12}pm`;
-        return (
-          <div
-            key={h}
-            className="absolute left-0 right-0 pointer-events-none"
-            style={{ top }}
-          >
-            <div className="border-t border-white/[0.06]" />
-            <span
-              className="absolute left-2 -translate-y-1/2 text-[0.62rem] font-mono uppercase tracking-wide"
-              style={{ color: 'var(--color-muted)', top: 0 }}
-            >
-              {label}
-            </span>
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-// ─── Day chip ─────────────────────────────────────────────────────────────────
-
-function DayChip({
-  date,
-  active,
-  workMin,
-  onClick,
-}: {
-  date: Date;
-  active: boolean;
-  workMin: number;
-  onClick: () => void;
-}) {
-  const today = new Date();
-  const isToday = sameDay(date, today);
-  const wkday = date.toLocaleDateString([], { weekday: 'short' });
-  const day = date.getDate();
-  return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all shrink-0"
-      style={{
-        background: active ? 'var(--color-primary)' : 'var(--color-surface)',
-        border: active ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-        minWidth: 56,
-      }}
-    >
-      <span className="text-[0.65rem] font-bold uppercase tracking-wide" style={{ color: active ? '#fff' : 'var(--color-muted)' }}>
-        {isToday ? 'Today' : wkday}
-      </span>
-      <span className="text-lg font-bold leading-none" style={{ color: active ? '#fff' : 'var(--color-text)' }}>
-        {day}
-      </span>
-      {workMin > 0 && (
-        <span className="text-[0.55rem] font-mono" style={{ color: active ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)' }}>
-          {Math.round(workMin / 60 * 10) / 10}h
-        </span>
-      )}
-    </button>
   );
 }
 
@@ -376,14 +416,14 @@ function PlanControls({
 }) {
   return (
     <div
-      className="rounded-[14px] p-3 mb-3"
+      className="rounded-2xl p-3 mb-3"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
       <div className="flex gap-1.5 mb-2.5">
         <ModeButton
           active={mode === 'balanced'}
           onClick={() => onChangeMode('balanced')}
-          color="#2dd4bf"
+          color="#22d3ee"
           label="🌙 Balanced"
           sub="Respects energy dips"
         />
@@ -399,19 +439,20 @@ function PlanControls({
         <button
           onClick={onRegenerate}
           disabled={loading}
-          className="flex-1 text-sm px-3 py-1.5 rounded-full font-semibold transition-opacity"
+          className="flex-1 text-sm px-3 py-2 rounded-full font-bold transition-all hover:scale-[1.02]"
           style={{
-            background: 'var(--color-primary)',
+            background: 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)',
             color: '#fff',
             opacity: loading ? 0.5 : 1,
+            boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
           }}
         >
-          {loading ? '…' : 'Regenerate'}
+          {loading ? '…' : '↻ Regenerate'}
         </button>
         <button
           onClick={onReplan}
           disabled={loading}
-          className="text-sm px-3 py-1.5 rounded-full font-semibold transition-opacity"
+          className="text-sm px-3 py-2 rounded-full font-semibold transition-opacity"
           style={{
             background: 'var(--color-surface2)',
             color: 'var(--color-text)',
@@ -432,10 +473,11 @@ function ModeButton({
   return (
     <button
       onClick={onClick}
-      className="flex-1 rounded-lg px-3 py-2 text-left transition-all"
+      className="flex-1 rounded-xl px-3 py-2 text-left transition-all"
       style={{
         background: active ? `${color}1f` : 'rgba(255,255,255,0.02)',
         border: `1.5px solid ${active ? color : 'var(--color-border)'}`,
+        boxShadow: active ? `0 0 14px ${color}33` : 'none',
       }}
     >
       <div className="text-sm font-bold" style={{ color: active ? color : 'var(--color-text)' }}>
@@ -448,12 +490,45 @@ function ModeButton({
   );
 }
 
+// ─── Day chip ─────────────────────────────────────────────────────────────────
+
+function DayChip({
+  date, active, workMin, onClick,
+}: { date: Date; active: boolean; workMin: number; onClick: () => void }) {
+  const today = new Date();
+  const isToday = sameDay(date, today);
+  const wkday = date.toLocaleDateString([], { weekday: 'short' });
+  const day = date.getDate();
+  return (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all shrink-0"
+      style={{
+        background: active ? 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)' : 'var(--color-surface)',
+        border: active ? '1.5px solid #a855f7' : '1px solid var(--color-border)',
+        boxShadow: active ? '0 4px 14px rgba(168, 85, 247, 0.4)' : 'none',
+        minWidth: 56,
+      }}
+    >
+      <span className="text-[0.65rem] font-bold uppercase tracking-wide" style={{ color: active ? '#fff' : 'var(--color-muted)' }}>
+        {isToday ? 'Today' : wkday}
+      </span>
+      <span className="text-lg font-bold leading-none" style={{ color: active ? '#fff' : 'var(--color-text)' }}>
+        {day}
+      </span>
+      {workMin > 0 && (
+        <span className="text-[0.55rem] font-mono" style={{ color: active ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)' }}>
+          {Math.round(workMin / 60 * 10) / 10}h
+        </span>
+      )}
+    </button>
+  );
+}
+
 // ─── Feasibility banner ───────────────────────────────────────────────────────
 
 function FeasibilityBanner({
-  mode,
-  issues,
-  questById,
+  mode, issues, questById,
 }: {
   mode: PlanMode;
   issues: Array<{ taskId: string; shortfallMin: number; suggestions: string[] }>;
@@ -464,19 +539,15 @@ function FeasibilityBanner({
   const headline = mode === 'crush'
     ? `🛑 Won't fit in working hours — short by ${totalShortfall}m (${issues.length} quest${issues.length > 1 ? 's' : ''})`
     : `⚠️ ${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline`;
-
   return (
     <div
-      className="rounded-[14px] p-3 mb-3"
+      className="rounded-2xl p-3 mb-3"
       style={{
         background: mode === 'crush' ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.10)',
         border: mode === 'crush' ? '1px solid rgba(239,68,68,0.45)' : '1px solid rgba(245,158,11,0.35)',
       }}
     >
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 w-full text-left"
-      >
+      <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 w-full text-left">
         <span className="text-sm font-semibold" style={{ color: mode === 'crush' ? '#fca5a5' : '#fbbf24' }}>
           {headline}
         </span>
@@ -490,12 +561,7 @@ function FeasibilityBanner({
       )}
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
             <div className="mt-2 space-y-1.5">
               {issues.map((issue) => {
                 const q = questById[issue.taskId];
@@ -514,19 +580,11 @@ function FeasibilityBanner({
   );
 }
 
-// ─── Selected-block drawer (bottom sheet) ─────────────────────────────────────
+// ─── Selected-block drawer ────────────────────────────────────────────────────
 
 function SelectedDrawer({
-  block,
-  quest,
-  status,
-  explanation,
-  loadingExplanation,
-  onClose,
-  onStart,
-  onPin,
-  onDelete,
-  onExplain,
+  block, quest, status, explanation, loadingExplanation,
+  onClose, onStart, onPin, onDelete, onExplain,
 }: {
   block: ScheduleBlock;
   quest: Quest | null;
@@ -539,7 +597,7 @@ function SelectedDrawer({
   onDelete: () => void;
   onExplain: () => void;
 }) {
-  const color = blockColor(block, quest);
+  const [g1] = blockGradient(block, quest);
   const startD = new Date(block.start);
   const endD = new Date(block.end);
   return (
@@ -551,19 +609,15 @@ function SelectedDrawer({
       className="fixed inset-x-3 bottom-20 z-40 rounded-2xl shadow-2xl"
       style={{
         background: 'var(--color-surface2)',
-        border: `1.5px solid ${color}`,
-        boxShadow: `0 0 30px ${color}33`,
+        border: `1.5px solid ${g1}`,
+        boxShadow: `0 0 30px ${g1}33`,
       }}
     >
-      {/* Accent strip */}
-      <div className="h-1 rounded-t-2xl" style={{ background: color }} />
+      <div className="h-1 rounded-t-2xl" style={{ background: g1 }} />
 
       <div className="p-4">
         <div className="flex items-start gap-2 mb-2">
-          <span
-            className="text-[0.62rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-            style={{ background: `${color}22`, color }}
-          >
+          <span className="text-[0.62rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: `${g1}22`, color: g1 }}>
             {typeLabel(block)}
           </span>
           <div className="flex-1 min-w-0">
@@ -575,22 +629,15 @@ function SelectedDrawer({
               {quest?.category && ` · ${quest.category.replace('_', ' ')}`}
             </p>
           </div>
-          <button onClick={onClose} className="text-lg opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }}>
-            ✕
-          </button>
+          <button onClick={onClose} className="text-lg opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }}>✕</button>
         </div>
 
         {block.note && block.type === 'work' && (
-          <p className="text-xs italic mt-2 mb-3" style={{ color: 'var(--color-muted)' }}>
-            {block.note}
-          </p>
+          <p className="text-xs italic mt-2 mb-3" style={{ color: 'var(--color-muted)' }}>{block.note}</p>
         )}
 
         {explanation && (
-          <div
-            className="rounded-lg p-2.5 mb-3 text-xs"
-            style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--color-text)' }}
-          >
+          <div className="rounded-lg p-2.5 mb-3 text-xs" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--color-text)' }}>
             💡 {explanation}
           </div>
         )}
@@ -601,7 +648,7 @@ function SelectedDrawer({
               <button
                 onClick={onStart}
                 className="text-sm px-4 py-1.5 rounded-full font-bold transition-transform hover:scale-105"
-                style={{ background: color, color: '#fff' }}
+                style={{ background: g1, color: '#fff' }}
               >
                 ▶ Start
               </button>
@@ -616,7 +663,7 @@ function SelectedDrawer({
             <button
               onClick={onExplain}
               disabled={loadingExplanation || !!explanation}
-              className="text-xs px-3 py-1.5 rounded-full border transition-colors disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-full border disabled:opacity-50"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
               {loadingExplanation ? '…' : '💡 Why this?'}
@@ -656,7 +703,6 @@ export default function GuildFeed() {
   const [loadingExplanation, setLoadingExplanation] = useState(false);
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
-  const timelineRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -672,21 +718,11 @@ export default function GuildFeed() {
     });
   }, [loadQuests]);
 
-  // When timeline renders, scroll the now-line into view if today.
-  useEffect(() => {
-    if (!timelineRef.current) return;
-    const isToday = selectedDay === startOfDay(now);
-    if (!isToday) return;
-    const top = minutesFromViewStart(now, selectedDay) * PX_PER_MIN;
-    timelineRef.current.scrollTo({ top: Math.max(0, top - 200), behavior: 'smooth' });
-  }, [selectedDay, schedule.length]); // re-run on day change + schedule refresh
-
   const questById = useMemo(
     () => Object.fromEntries(quests.map((q) => [q.id, q])) as Record<string, Quest | undefined>,
     [quests],
   );
 
-  // ─ Day tabs: today + next DAY_TABS-1 days ─
   const dayList = useMemo(() => {
     const out: Array<{ ts: number; date: Date; workMin: number }> = [];
     const t0 = startOfDay(now);
@@ -701,7 +737,6 @@ export default function GuildFeed() {
     return out;
   }, [schedule, now]);
 
-  // Blocks for selected day
   const dayBlocks = useMemo(
     () => schedule
       .filter((b) => sameDay(new Date(b.start), new Date(selectedDay)))
@@ -709,29 +744,31 @@ export default function GuildFeed() {
     [schedule, selectedDay],
   );
 
-  // Today progress (for headline % done)
-  const todayBlocks = schedule.filter((b) =>
-    sameDay(new Date(b.start), new Date(now)) && b.type === 'work',
-  );
+  // Index where the "Now" marker should be inserted in the stacked list.
+  const nowMarkerIdx = useMemo(() => {
+    if (selectedDay !== startOfDay(now)) return -1;
+    // Insert before the first block that starts >= now AND after the last that ended <= now.
+    for (let i = 0; i < dayBlocks.length; i += 1) {
+      const b = dayBlocks[i]!;
+      if (new Date(b.start).getTime() >= now) return i;
+    }
+    return dayBlocks.length; // all blocks are in the past — append at end
+  }, [dayBlocks, now, selectedDay]);
+
+  const todayBlocks = schedule.filter((b) => sameDay(new Date(b.start), new Date(now)) && b.type === 'work');
   const totalWorkMin = todayBlocks.reduce((a, b) => a + b.durationMin, 0);
   const doneWorkMin = todayBlocks
     .filter((b) => blockStatus(b, now) === 'past')
     .reduce((a, b) => a + b.durationMin, 0);
   const pctDone = totalWorkMin > 0 ? Math.round((doneWorkMin / totalWorkMin) * 100) : 0;
 
-  const selectedBlock = selectedBlockId
-    ? schedule.find((b) => b.id === selectedBlockId) ?? null
-    : null;
+  const selectedBlock = selectedBlockId ? schedule.find((b) => b.id === selectedBlockId) ?? null : null;
   const selectedQuest = selectedBlock?.taskId ? questById[selectedBlock.taskId] ?? null : null;
   const selectedStatus = selectedBlock ? blockStatus(selectedBlock, now) : 'upcoming';
 
   const handlePin = useCallback(
     (block: ScheduleBlock) => {
-      applyEdit(
-        block.locked
-          ? { kind: 'unpin_block', blockId: block.id }
-          : { kind: 'pin_block', blockId: block.id },
-      );
+      applyEdit(block.locked ? { kind: 'unpin_block', blockId: block.id } : { kind: 'pin_block', blockId: block.id });
     },
     [applyEdit],
   );
@@ -779,7 +816,6 @@ export default function GuildFeed() {
     }
   }, [selectedBlock]);
 
-  // Clear explanation when selection changes
   useEffect(() => {
     setExplanation(null);
   }, [selectedBlockId]);
@@ -792,7 +828,7 @@ export default function GuildFeed() {
       <div className="sticky top-[56px] z-30 h-1 w-full" style={{ background: 'var(--color-surface)' }}>
         <motion.div
           className="h-full"
-          style={{ background: 'var(--color-primary)' }}
+          style={{ background: 'linear-gradient(90deg, #a855f7 0%, #ec4899 100%)' }}
           animate={{ width: `${pctDone}%` }}
           transition={{ duration: 0.6 }}
         />
@@ -801,7 +837,7 @@ export default function GuildFeed() {
       <div className="mx-auto max-w-2xl px-4 pt-4">
         {/* Header row */}
         <div className="flex items-baseline gap-3 mb-3">
-          <h1 className="flex-1 text-xl font-bold" style={{ color: 'var(--color-text)' }}>
+          <h1 className="flex-1 text-2xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
             Guild Feed
           </h1>
           <span className="text-sm" style={{ color: 'var(--color-muted)' }}>
@@ -823,7 +859,7 @@ export default function GuildFeed() {
 
         {error && (
           <div
-            className="rounded-[14px] p-4 mb-3 text-sm"
+            className="rounded-2xl p-4 mb-3 text-sm"
             style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
           >
             {error}
@@ -838,114 +874,108 @@ export default function GuildFeed() {
               date={d.date}
               active={d.ts === selectedDay}
               workMin={d.workMin}
-              onClick={() => setSelectedDay(d.ts)}
+              onClick={() => { setSelectedDay(d.ts); setSelectedBlockId(null); }}
             />
           ))}
         </div>
 
-        {/* Empty state */}
+        {/* Drag hint */}
+        {dayBlocks.some((b) => b.type === 'work' && !b.locked) && (
+          <p className="mb-3 text-[0.7rem] text-center" style={{ color: 'var(--color-muted)' }}>
+            ✦ Drag a focus block onto another to swap · Hover for ✕ delete · Tap for actions
+          </p>
+        )}
+
+        {/* Empty state — no schedule at all */}
         {!loading && schedule.length === 0 && (
-          <div className="flex flex-col items-center gap-4 pt-16 text-center">
-            <p className="text-4xl">📅</p>
-            <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
-              No schedule yet
-            </p>
+          <div className="flex flex-col items-center gap-4 pt-12 text-center">
+            <p className="text-5xl">📅</p>
+            <p className="font-semibold" style={{ color: 'var(--color-text)' }}>No schedule yet</p>
             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
               Hit Regenerate to build today's plan from your quests.
             </p>
             <button
               onClick={() => generate()}
               disabled={loading}
-              className="mt-2 px-5 py-2 rounded-full font-semibold text-sm"
-              style={{ background: 'var(--color-primary)', color: '#fff' }}
+              className="mt-2 px-6 py-2.5 rounded-full font-bold text-sm"
+              style={{
+                background: 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)',
+                color: '#fff',
+                boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
+              }}
             >
-              Build my schedule
+              ↻ Build my schedule
             </button>
           </div>
         )}
 
-        {/* Empty state for day with no blocks */}
         {schedule.length > 0 && dayBlocks.length === 0 && (
           <div
-            className="rounded-[14px] p-6 text-center mb-3"
+            className="rounded-2xl p-8 text-center"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
-            <p className="text-2xl mb-1">🌤️</p>
-            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
-              Nothing scheduled this day.
-            </p>
+            <p className="text-3xl mb-2">🌤️</p>
+            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Nothing scheduled this day.</p>
           </div>
         )}
 
-        {/* Timeline */}
+        {/* Stacked timeline */}
         {dayBlocks.length > 0 && (
           <div
-            ref={timelineRef}
-            className="rounded-[14px] overflow-y-auto"
+            className="rounded-2xl p-3 flex flex-col"
             style={{
-              background: 'var(--color-surface)',
+              background: 'linear-gradient(180deg, var(--color-surface) 0%, rgba(22, 22, 42, 0.4) 100%)',
               border: '1px solid var(--color-border)',
-              maxHeight: '70vh',
+              gap: 6,
             }}
           >
-            <div
-              className="relative pl-12 pr-2 py-3"
-              style={{ height: TIMELINE_HEIGHT + 24 }}
-            >
-              <HourGrid />
-
-              {selectedDay === startOfDay(now) && (
-                <NowLine top={minutesFromViewStart(now, selectedDay) * PX_PER_MIN} />
-              )}
-
-              {dayBlocks.map((block) => {
-                const start = new Date(block.start).getTime();
-                const top = minutesFromViewStart(start, selectedDay) * PX_PER_MIN;
-                const height = Math.max(28, block.durationMin * PX_PER_MIN - 2);
+            <AnimatePresence initial={false}>
+              {dayBlocks.map((block, i) => {
                 const status = blockStatus(block, now);
                 const quest = block.taskId ? questById[block.taskId] ?? null : null;
+                const isBreak = block.type === 'break' || block.type === 'buffer';
+
+                const renderNow = i === nowMarkerIdx;
 
                 return (
-                  <BlockTile
-                    key={block.id}
-                    block={block}
-                    quest={quest}
-                    status={status}
-                    top={top}
-                    height={height}
-                    now={now}
-                    isSelected={selectedBlockId === block.id}
-                    onSelect={() => setSelectedBlockId(selectedBlockId === block.id ? null : block.id)}
-                    draggable={block.type === 'work' && status !== 'past'}
-                    isDragging={draggingId === block.id}
-                    isDragOver={dragOverId === block.id && draggingId !== block.id}
-                    onDragStart={(e) => {
-                      setDraggingId(block.id);
-                      e.dataTransfer.effectAllowed = 'move';
-                      e.dataTransfer.setData('text/plain', block.id);
-                    }}
-                    onDragEnd={() => {
-                      setDraggingId(null);
-                      setDragOverId(null);
-                    }}
-                    onDragOver={(e) => {
-                      if (draggingId && block.type === 'work' && status !== 'past' && draggingId !== block.id) {
-                        e.preventDefault();
-                        e.dataTransfer.dropEffect = 'move';
-                        if (dragOverId !== block.id) setDragOverId(block.id);
-                      }
-                    }}
-                    onDragLeave={() => {
-                      if (dragOverId === block.id) setDragOverId(null);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      handleDrop(block.id);
-                    }}
-                  />
+                  <div key={block.id}>
+                    {renderNow && <NowMarker time={now} />}
+                    {isBreak ? (
+                      <BreakLine block={block} />
+                    ) : (
+                      <BlockTile
+                        block={block}
+                        quest={quest}
+                        status={status}
+                        now={now}
+                        isSelected={selectedBlockId === block.id}
+                        onSelect={() => setSelectedBlockId(selectedBlockId === block.id ? null : block.id)}
+                        onQuickDelete={() => handleDelete(block.id)}
+                        draggable={block.type === 'work' && status !== 'past' && !block.locked}
+                        isDragging={draggingId === block.id}
+                        isDragOver={dragOverId === block.id && draggingId !== block.id}
+                        onDragStart={(e) => {
+                          setDraggingId(block.id);
+                          e.dataTransfer.effectAllowed = 'move';
+                          e.dataTransfer.setData('text/plain', block.id);
+                        }}
+                        onDragEnd={() => { setDraggingId(null); setDragOverId(null); }}
+                        onDragOver={(e) => {
+                          if (draggingId && block.type === 'work' && status !== 'past' && draggingId !== block.id) {
+                            e.preventDefault();
+                            e.dataTransfer.dropEffect = 'move';
+                            if (dragOverId !== block.id) setDragOverId(block.id);
+                          }
+                        }}
+                        onDragLeave={() => { if (dragOverId === block.id) setDragOverId(null); }}
+                        onDrop={(e) => { e.preventDefault(); handleDrop(block.id); }}
+                      />
+                    )}
+                  </div>
                 );
               })}
-            </div>
+              {nowMarkerIdx === dayBlocks.length && <NowMarker time={now} />}
+            </AnimatePresence>
           </div>
         )}
 
@@ -1028,7 +1058,6 @@ export default function GuildFeed() {
         }}
       />
 
-      {/* Floating "resume timer" badge when minimized */}
       {timerActive && !timerOpen && (
         <button
           onClick={() => setTimerOpen(true)}
