@@ -487,7 +487,7 @@ function FeedActionsMenu({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
-            className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[180px]"
+            className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[200px]"
             style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
           >
             <button
@@ -510,6 +510,17 @@ function FeedActionsMenu({
                 Keep pins + completed; re-flow the rest
               </div>
             </button>
+            <a
+              href="/settings"
+              onClick={() => setOpen(false)}
+              className="block w-full text-left px-3 py-2 text-sm hover:bg-white/5 border-t"
+              style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
+            >
+              🕘 Working hours…
+              <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
+                Set when the planner places blocks
+              </div>
+            </a>
           </div>
         </>
       )}

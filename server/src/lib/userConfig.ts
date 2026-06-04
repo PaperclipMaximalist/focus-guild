@@ -34,7 +34,10 @@ function isOverrides(v: unknown): v is SchedulerOverrides {
  * Merge user overrides on top of `defaultConfig()`. Pass the User row
  * with its `schedulerSettings` JSON column.
  */
-export function getUserConfig(user: { schedulerSettings?: unknown }): UserConfig {
+export function getUserConfig(
+  user: { schedulerSettings?: unknown },
+  tzOffsetMin?: number,
+): UserConfig {
   const base = defaultConfig();
   const overrides = isOverrides(user.schedulerSettings) ? user.schedulerSettings : {};
 
@@ -45,6 +48,7 @@ export function getUserConfig(user: { schedulerSettings?: unknown }): UserConfig
     workingHours: { ...base.workingHours, ...(overrides.workingHours ?? {}) },
     horizonDays: overrides.horizonDays ?? base.horizonDays,
     softMaxBlockMin: overrides.softMaxBlockMin ?? base.softMaxBlockMin,
+    tzOffsetMin,
   };
 }
 

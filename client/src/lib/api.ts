@@ -32,6 +32,15 @@ export function getCurrentClerkId(): string {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+/**
+ * Minutes to add to the user's local time to reach UTC (PDT → +420, UTC → 0).
+ * Sent on every /schedule/* call so the planner computes day boundaries in
+ * the user's timezone, not the server's (UTC on Railway).
+ */
+function tzOffset(): number {
+  return new Date().getTimezoneOffset();
+}
+
 interface ApiSuccess<T> { success: true; data: T }
 interface ApiError    { success: false; error: { code: string; message: string } }
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
@@ -237,26 +246,29 @@ export const api = {
     generate: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>('/schedule/generate', {
         method: 'POST',
-        body: JSON.stringify({ clerkId }),
+        body: JSON.stringify({ clerkId, tzOffsetMin: tzOffset() }),
       }),
     get: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}`),
     replan: (clerkId = getCurrentClerkId()) =>
-      request<ScheduleResponse>(`/schedule/${clerkId}/replan`, { method: 'POST', body: '{}' }),
+      request<ScheduleResponse>(`/schedule/${clerkId}/replan`, {
+        method: 'POST',
+        body: JSON.stringify({ tzOffsetMin: tzOffset() }),
+      }),
     edit: (edit: ScheduleEdit, clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}/edit`, {
         method: 'POST',
-        body: JSON.stringify({ edit }),
+        body: JSON.stringify({ edit, tzOffsetMin: tzOffset() }),
       }),
     /** Place one quest into the schedule incrementally. */
     insert: (questId: string, clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}/insert/${questId}`, {
         method: 'POST',
-        body: '{}',
+        body: JSON.stringify({ tzOffsetMin: tzOffset() }),
       }),
     /** Sampled energy-meter trace across today's working hours. */
     energy: (clerkId = getCurrentClerkId()) =>
-      request<{ trace: EnergyTracePoint[] }>(`/schedule/${clerkId}/energy`),
+      request<{ trace: EnergyTracePoint[] }>(`/schedule/${clerkId}/energy?tzOffsetMin=${tzOffset()}`),
     explain: (blockId: string, clerkId = getCurrentClerkId()) =>
       request<{ explanation: string }>(`/schedule/${clerkId}/explain?blockId=${blockId}`),
     getFillers: (clerkId = getCurrentClerkId()) =>

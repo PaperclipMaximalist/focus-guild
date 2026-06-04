@@ -201,6 +201,12 @@ function err(c: any, code: string, message: string, status: 400 | 404 | 500 = 40
 
 const GenerateSchema = z.object({
   clerkId: z.string().min(1).optional(),
+  /**
+   * User's timezone offset in minutes, from `Date.prototype.getTimezoneOffset()`
+   * on the client (e.g. PDT = +420). Lets the planner compute day boundaries
+   * in the user's local time instead of the server's (UTC on Railway).
+   */
+  tzOffsetMin: z.number().int().min(-720).max(840).optional(),
 });
 const FillersSchema = z.object({
   fillers: z.array(
@@ -221,18 +227,21 @@ const EditSchema = z.object({
     z.object({ kind: z.literal('pin_block'), blockId: z.string() }),
     z.object({ kind: z.literal('unpin_block'), blockId: z.string() }),
   ]),
+  tzOffsetMin: z.number().int().min(-720).max(840).optional(),
 });
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 
 schedule.post('/generate', async (c) => {
-  await c.req.json().catch(() => null);
+  const raw = await c.req.json().catch(() => ({}));
+  const parsed = GenerateSchema.safeParse(raw ?? {});
+  const tzOffsetMin = parsed.success ? parsed.data.tzOffsetMin : undefined;
 
   const user = c.get('user');
   const loaded = await loadQuestsForUser(user);
 
   const state = getState(user.id);
-  const cfg = getUserConfig(user);
+  const cfg = getUserConfig(user, tzOffsetMin);
   regenerate(state, { ...loaded, user }, cfg);
 
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
@@ -274,12 +283,16 @@ schedule.get('/:clerkId', async (c) => {
 });
 
 schedule.post('/:clerkId/replan', async (c) => {
+  const raw = await c.req.json().catch(() => ({}));
+  const parsed = GenerateSchema.safeParse(raw ?? {});
+  const tzOffsetMin = parsed.success ? parsed.data.tzOffsetMin : undefined;
+
   const user = c.get('user');
   const loaded = await loadQuestsForUser(user);
 
   const state = getState(user.id);
   const now = Date.now();
-  const cfg = getUserConfig(user);
+  const cfg = getUserConfig(user, tzOffsetMin);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
@@ -315,10 +328,10 @@ schedule.post('/:clerkId/edit', async (c) => {
   }
   state.schedule = applyEdit(state.schedule, edit);
 
-  // Re-flow around the new edit.
+  // Re-flow around the new edit. Reuse caller's tz hint if they sent one.
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const cfg = getUserConfig(user);
+  const cfg = getUserConfig(user, parsed.data.tzOffsetMin);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
@@ -362,6 +375,10 @@ schedule.get('/:clerkId/explain', (c) => {
 // preserves existing locked/past blocks and slots the new quest into the
 // best available gap before its deadline.
 schedule.post('/:clerkId/insert/:questId', async (c) => {
+  const raw = await c.req.json().catch(() => ({}));
+  const parsed = GenerateSchema.safeParse(raw ?? {});
+  const tzOffsetMin = parsed.success ? parsed.data.tzOffsetMin : undefined;
+
   const user = c.get('user');
   const questId = c.req.param('questId');
   const quest = await db.quest.findUnique({ where: { id: questId } });
@@ -378,7 +395,7 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
 
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const cfg = getUserConfig(user);
+  const cfg = getUserConfig(user, tzOffsetMin);
   // Only the requested quest is "new" — pass everything to replan, which
   // re-flows unlocked future blocks. Locked + past are preserved.
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
@@ -411,11 +428,18 @@ schedule.get('/:clerkId/energy', async (c) => {
   const now = Date.now();
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
 
-  const cfg = getUserConfig(user);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const dayStart = today.getTime() + cfg.workingHours.startHour * 60 * 60_000;
-  const dayEnd = today.getTime() + cfg.workingHours.endHour * 60 * 60_000;
+  // Use the client's tz hint (query param) so the sparkline range matches
+  // the user's local working day rather than the server's UTC day.
+  const tzQuery = c.req.query('tzOffsetMin');
+  const tzOffsetMin = tzQuery !== undefined ? Number(tzQuery) : undefined;
+  const cfg = getUserConfig(user, tzOffsetMin);
+  const tz = cfg.tzOffsetMin ?? 0;
+  // Midnight in the user's local time as UTC ms.
+  const todayLocalView = new Date(Date.now() - tz * 60_000);
+  todayLocalView.setUTCHours(0, 0, 0, 0);
+  const midnightUtc = todayLocalView.getTime() + tz * 60_000;
+  const dayStart = midnightUtc + cfg.workingHours.startHour * 60 * 60_000;
+  const dayEnd = midnightUtc + cfg.workingHours.endHour * 60 * 60_000;
   const trace = computeEnergyTrace(state.schedule, tasks, dayStart, dayEnd, 15);
   return ok(c, { trace: trace.map((p) => ({ time: new Date(p.time).toISOString(), meter: Math.round(p.meter) })) });
 });

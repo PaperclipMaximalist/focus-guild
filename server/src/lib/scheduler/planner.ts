@@ -40,6 +40,26 @@ const MS_PER_HOUR = 60 * MS_PER_MIN;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const EPSILON_MIN = 0.5;
 
+/**
+ * Compute midnight (00:00) in the user's timezone, returned as UTC ms.
+ *
+ * `tzOffsetMin` is the value returned by JS `Date.prototype.getTimezoneOffset()`
+ * on the client — i.e. minutes to ADD to local time to reach UTC. For PDT
+ * (UTC−7) this is +420. Server-local timezone is intentionally ignored: we
+ * want the user's day boundaries, not the host process's. Defaults to 0
+ * (UTC) when not supplied, which matches old behaviour.
+ */
+function userMidnightUtc(utcMs: number, tzOffsetMin: number): number {
+  const userLocalView = new Date(utcMs - tzOffsetMin * MS_PER_MIN);
+  userLocalView.setUTCHours(0, 0, 0, 0);
+  return userLocalView.getTime() + tzOffsetMin * MS_PER_MIN;
+}
+
+/** Hour `h` (0..24) on the user-local day starting at `midnightUtc`, as UTC ms. */
+function userHourUtc(midnightUtc: number, h: number): number {
+  return midnightUtc + h * MS_PER_HOUR;
+}
+
 // ─── Defaults for sitting-time soft bounds ────────────────────────────────────
 // A "big" task (≥60 min remaining) wants sessions in this range. The planner
 // will violate these if no better gap exists, but each violation costs score.
@@ -66,21 +86,9 @@ function makeIdGen(prefix: string, existingIds: Iterable<string> = []): () => st
   };
 }
 
-function startOfDayLocal(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-function setHourLocal(dayStartMs: number, hour: number): number {
-  const d = new Date(dayStartMs);
-  d.setHours(hour, 0, 0, 0);
-  return d.getTime();
-}
-
-function dayKey(ms: number): string {
-  const d = new Date(ms);
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+function dayKey(ms: number, tzOffsetMin = 0): string {
+  const d = new Date(ms - tzOffsetMin * MS_PER_MIN);
+  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
 }
 
 function sortBlocks(blocks: Block[]): Block[] {
@@ -139,16 +147,18 @@ function buildFreeIntervals(
   immovable: Block[],
 ): FreeInterval[] {
   const out: FreeInterval[] = [];
+  const tz = config.tzOffsetMin ?? 0;
   const horizonEnd = now + config.horizonDays * MS_PER_DAY;
   const immov = sortBlocks(immovable);
+  const todayMidnight = userMidnightUtc(now, tz);
 
   for (let d = 0; d < config.horizonDays; d += 1) {
-    const dayStart = startOfDayLocal(now + d * MS_PER_DAY);
-    const wStart = Math.max(setHourLocal(dayStart, config.workingHours.startHour), now);
-    const wEnd = Math.min(setHourLocal(dayStart, config.workingHours.endHour), horizonEnd);
+    const midnight = todayMidnight + d * MS_PER_DAY;
+    const wStart = Math.max(userHourUtc(midnight, config.workingHours.startHour), now);
+    const wEnd = Math.min(userHourUtc(midnight, config.workingHours.endHour), horizonEnd);
     if (wEnd <= wStart) continue;
 
-    const dKey = dayKey(dayStart);
+    const dKey = dayKey(midnight, tz);
     const todayBlocks = immov.filter((b) => b.end > wStart && b.start < wEnd);
 
     let cursor = wStart;
@@ -203,17 +213,17 @@ interface PlacedRef { block: Block; task: Task }
  * placed blocks chronologically (drain on work blocks, recovery on gaps).
  * Resets to ENERGY_MAX at the start of each day.
  */
-function meterAt(timestamp: number, placedRefs: PlacedRef[], taskMap: Map<string, Task>): number {
+function meterAt(timestamp: number, placedRefs: PlacedRef[], taskMap: Map<string, Task>, tzOffsetMin = 0): number {
   let meter = ENERGY_MAX;
-  let lastEnd = startOfDayLocal(timestamp);
+  let lastEnd = userMidnightUtc(timestamp, tzOffsetMin);
   const sorted = [...placedRefs].sort((a, b) => a.block.start - b.block.start);
 
   for (const { block, task } of sorted) {
     if (block.start >= timestamp) break;
-    // Day reset if this block starts on a new day.
-    if (startOfDayLocal(block.start) > startOfDayLocal(lastEnd)) {
+    // Day reset if this block starts on a new day (user-local).
+    if (userMidnightUtc(block.start, tzOffsetMin) > userMidnightUtc(lastEnd, tzOffsetMin)) {
       meter = ENERGY_MAX;
-      lastEnd = startOfDayLocal(block.start);
+      lastEnd = userMidnightUtc(block.start, tzOffsetMin);
     }
     // Recover during gap from lastEnd → block.start.
     if (block.start > lastEnd) {
@@ -385,6 +395,14 @@ function placementScore(
     cooldownPenalty = 0.4;
   }
 
+  // Same-task penalty: don't stack the same task back-to-back without break.
+  // The round-robin outer loop already discourages this, but in case a single
+  // task is the only candidate, this keeps placement scoring honest.
+  let sameTaskPenalty = 0;
+  if (neighbors.before && neighbors.before.task.id === task.id) {
+    sameTaskPenalty = 0.6;
+  }
+
   // Energy pressure: meter below threshold makes this slot risky.
   let energyPressure = 0;
   const expectedDrain = blockDrain(task, chunkMin);
@@ -398,26 +416,25 @@ function placementScore(
   const sessionPenalty = sessionSizePenalty(chunkMin, task) * 0.5;
 
   return earliness + importanceFit + clustering + preferredTime
-       - switchPenalty - cooldownPenalty - energyPressure - sessionPenalty;
+       - switchPenalty - cooldownPenalty - sameTaskPenalty - energyPressure - sessionPenalty;
 }
 
 // ─── Insertion engine ─────────────────────────────────────────────────────────
 
-interface InsertResult {
-  allocations: Array<{ start: number; end: number }>;
-  shortfallMin: number;
-  /** Mutated free-interval list (caller passes by reference). */
-  remainingIntervals: FreeInterval[];
-  /** Refs of the blocks we placed, for the energy meter. */
-  newRefs: PlacedRef[];
-}
-
 /**
- * Place a single task into the schedule by carving chunks from free
- * intervals. Each iteration picks the best-scoring candidate.
+ * Place ONE chunk of `task` into the best available interval (if any).
+ *
+ * Returns null when no interval can host a chunk for this task right now —
+ * either there's no usable time before the deadline, or every candidate
+ * fails the size floor. The round-robin driver in `plan()` calls this
+ * once per task per pass and stops the outer loop when no task makes
+ * progress in a full pass.
+ *
+ * Mutates `freeIntervals` in place (shrinks the consumed interval).
  */
-export function insertOne(
+function placeOneChunkFor(
   task: Task,
+  needed: number,
   schedule: Block[],
   freeIntervals: FreeInterval[],
   taskMap: Map<string, Task>,
@@ -425,89 +442,38 @@ export function insertOne(
   weights: { urgency: number; importance: number; energyFit: number },
   config: UserConfig,
   now: number,
-): InsertResult {
-  const allocations: Array<{ start: number; end: number }> = [];
-  let needed = task.remainingMin;
-  // softMaxBlockMin from config still applies as a meta-cap, but only for the
-  // long-warmup mitigation. We use the per-task maxChunkMin as the actual cap.
+): { start: number; end: number; chunkMin: number } | null {
   const setupLifts = task.setupCost >= 0.7 || (task.urgencyMultiplier ?? 1) >= 1.5;
   const hardChunkCap = setupLifts
     ? task.maxChunkMin
     : Math.min(task.maxChunkMin, config.softMaxBlockMin);
 
-  const newRefs: PlacedRef[] = [];
-
-  while (needed > EPSILON_MIN) {
-    // Build candidates: for each interval, what's the best chunk size we'd
-    // try to place from its start?
-    const candidates: PlacementCandidate[] = [];
-
-    for (let i = 0; i < freeIntervals.length; i += 1) {
-      const interval = freeIntervals[i]!;
-      if (interval.start >= task.deadline) break;
-
-      const usableEnd = Math.min(interval.end, task.deadline);
-      const usableMin = (usableEnd - interval.start) / MS_PER_MIN;
-      if (usableMin < EPSILON_MIN) continue;
-      // Soft floor: prefer not to use a chunk smaller than task.minChunkMin,
-      // but still try it if needed > 0 — sessionSizePenalty will dock score.
-      const ideal = Math.min(needed, usableMin, hardChunkCap);
-      const chunkMin = Math.floor(ideal);
-      if (chunkMin < 1) continue;
-
-      const start = interval.start;
-      const end = start + chunkMin * MS_PER_MIN;
-      const score = placementScore(
-        task,
-        chunkMin,
-        start,
-        schedule,
-        taskMap,
-        [...placedRefs, ...newRefs],
-        weights,
-        now,
-      );
-      candidates.push({ intervalIdx: i, chunkMin, start, end, score });
-    }
-
-    if (candidates.length === 0) break;
-
-    // Pick highest-scoring candidate. Tie-break: earlier start.
-    candidates.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      return a.start - b.start;
-    });
-    const pick = candidates[0]!;
-
-    // Emit the chunk.
-    allocations.push({ start: pick.start, end: pick.end });
-    needed -= pick.chunkMin;
-
-    // Shrink the consumed interval.
-    const consumedInterval = freeIntervals[pick.intervalIdx]!;
-    const leftover = shrinkFromStart(consumedInterval, pick.chunkMin);
-    if (leftover === null) {
-      freeIntervals.splice(pick.intervalIdx, 1);
-    } else {
-      freeIntervals[pick.intervalIdx] = leftover;
-    }
-
-    // Push a ref so subsequent chunks of THIS task see the energy meter drop.
-    newRefs.push({
-      block: {
-        id: `tmp-${pick.start}`,
-        start: pick.start,
-        end: pick.end,
-        type: 'work',
-        taskId: task.id,
-        locked: false,
-        note: null,
-      },
-      task,
-    });
+  const candidates: PlacementCandidate[] = [];
+  for (let i = 0; i < freeIntervals.length; i += 1) {
+    const interval = freeIntervals[i]!;
+    if (interval.start >= task.deadline) break;
+    const usableEnd = Math.min(interval.end, task.deadline);
+    const usableMin = (usableEnd - interval.start) / MS_PER_MIN;
+    if (usableMin < EPSILON_MIN) continue;
+    const ideal = Math.min(needed, usableMin, hardChunkCap);
+    const chunkMin = Math.floor(ideal);
+    if (chunkMin < 1) continue;
+    const start = interval.start;
+    const end = start + chunkMin * MS_PER_MIN;
+    const score = placementScore(task, chunkMin, start, schedule, taskMap, placedRefs, weights, now);
+    candidates.push({ intervalIdx: i, chunkMin, start, end, score });
   }
+  if (candidates.length === 0) return null;
 
-  return { allocations, shortfallMin: Math.max(0, needed), remainingIntervals: freeIntervals, newRefs };
+  candidates.sort((a, b) => (b.score !== a.score ? b.score - a.score : a.start - b.start));
+  const pick = candidates[0]!;
+
+  const consumed = freeIntervals[pick.intervalIdx]!;
+  const leftover = shrinkFromStart(consumed, pick.chunkMin);
+  if (leftover === null) freeIntervals.splice(pick.intervalIdx, 1);
+  else freeIntervals[pick.intervalIdx] = leftover;
+
+  return { start: pick.start, end: pick.end, chunkMin: pick.chunkMin };
 }
 
 // ─── Dep check ────────────────────────────────────────────────────────────────
@@ -571,31 +537,46 @@ export function plan(inputs: PlanInputs): SchedulerResult {
   });
 
   const weights = effectiveWeights(config);
-  let freeIntervals = buildFreeIntervals(config, now, immovable);
+  const freeIntervals = buildFreeIntervals(config, now, immovable);
   const placedRefs: PlacedRef[] = [];
   const allWorkBlocks: Block[] = [];
-  const issues: FeasibilityIssue[] = [];
-  const existingIds = [...immovable.map((b) => b.id)];
-  const idGen = makeIdGen('blk', existingIds);
+  const idGen = makeIdGen('blk', immovable.map((b) => b.id));
 
-  for (const task of sorted) {
-    const result = insertOne(
-      task,
-      [...immovable, ...allWorkBlocks],
-      freeIntervals,
-      taskMap,
-      placedRefs,
-      weights,
-      config,
-      now,
-    );
-    freeIntervals = result.remainingIntervals;
-
-    for (const alloc of result.allocations) {
+  // ── Round-robin allocation ──
+  //
+  // Old approach: place ALL chunks of task A, then ALL of task B, etc. With
+  // a high-priority 4-hour task this produced a morning + afternoon of the
+  // same task back-to-back. The user complaint was "no variety, same block
+  // for many hours in a row".
+  //
+  // New approach: each pass tries to place ONE chunk per task in priority
+  // order. After all tasks have had a turn, start another pass. Stop when
+  // a full pass makes zero progress (every remaining task is infeasible
+  // from where its meter / interval / deadline allows). This naturally
+  // interleaves tasks throughout the day while still respecting priority
+  // (high-pri tasks always get the best slot OF THAT PASS).
+  const remainingByTask = new Map<string, number>(sorted.map((t) => [t.id, t.remainingMin]));
+  for (let pass = 0; pass < 100; pass += 1) {
+    let progress = false;
+    for (const task of sorted) {
+      const remaining = remainingByTask.get(task.id) ?? 0;
+      if (remaining <= EPSILON_MIN) continue;
+      const result = placeOneChunkFor(
+        task,
+        remaining,
+        [...immovable, ...allWorkBlocks],
+        freeIntervals,
+        taskMap,
+        placedRefs,
+        weights,
+        config,
+        now,
+      );
+      if (!result) continue;
       const blk: Block = {
         id: idGen(),
-        start: alloc.start,
-        end: alloc.end,
+        start: result.start,
+        end: result.end,
         type: 'work',
         taskId: task.id,
         locked: false,
@@ -603,13 +584,21 @@ export function plan(inputs: PlanInputs): SchedulerResult {
       };
       allWorkBlocks.push(blk);
       placedRefs.push({ block: blk, task });
+      remainingByTask.set(task.id, remaining - result.chunkMin);
+      progress = true;
     }
+    if (!progress) break;
+  }
 
-    if (result.shortfallMin > EPSILON_MIN) {
+  // Any tasks still with remaining > 0 are infeasible.
+  const issues: FeasibilityIssue[] = [];
+  for (const task of sorted) {
+    const left = remainingByTask.get(task.id) ?? 0;
+    if (left > EPSILON_MIN) {
       issues.push({
         taskId: task.id,
-        shortfallMin: Math.ceil(result.shortfallMin),
-        suggestions: suggestForShortfall(Math.ceil(result.shortfallMin)),
+        shortfallMin: Math.ceil(left),
+        suggestions: suggestForShortfall(Math.ceil(left)),
       });
     }
   }

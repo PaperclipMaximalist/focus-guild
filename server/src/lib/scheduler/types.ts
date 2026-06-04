@@ -95,6 +95,15 @@ export interface UserConfig {
    * Default 90.
    */
   softMaxBlockMin: number;
+  /**
+   * User's timezone offset in minutes (as returned by Date.getTimezoneOffset()
+   * on the client — minutes to ADD to local time to reach UTC). When unset
+   * defaults to 0 (treat as UTC). Without this, the planner uses server-local
+   * time which means "9am working hours" gets interpreted in whatever timezone
+   * the host process runs in (UTC on Railway) — that broke today-scheduling
+   * for non-UTC users.
+   */
+  tzOffsetMin?: number;
 }
 
 export interface FeasibilityIssue {
