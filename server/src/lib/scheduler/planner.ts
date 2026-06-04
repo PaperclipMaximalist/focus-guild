@@ -624,8 +624,3 @@ export function plan(inputs: PlanInputs): SchedulerResult {
   };
 }
 
-// ─── Legacy test re-exports ───────────────────────────────────────────────────
-// Kept so existing test imports don't crash. Both return safe no-op values.
-export { buildFreeIntervals as __buildFreeIntervals };
-export function __buildSkeleton(): Block[] { return []; }
-export function __totalPenalty(): number { return 0; }

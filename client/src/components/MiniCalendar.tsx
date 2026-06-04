@@ -1,5 +1,7 @@
 /**
- * MiniCalendar — compact month grid for deadline picking.
+ * MiniCalendar — compact month grid. Used as both a deadline picker (in
+ * QuestModal) and a day-jumper with heatmap (in GuildFeed via the
+ * optional `intensity` prop).
  *
  * Pure, controlled component:
  *   <MiniCalendar value={date | null} onChange={(d) => ...} markers={[Date, ...]} />
@@ -8,12 +10,16 @@
  * - Past dates are SELECTABLE (deadlines in the past = immediately overdue,
  *   useful for capturing backlog items). They render in muted red.
  * - markers (e.g. other deadlines) render as dots.
+ * - `intensity(date)` paints a colored background per cell (rgba string),
+ *   for use as a load heatmap.
+ * - `footer` replaces the default deadline-picker footer when set.
  * - Month nav: ‹ ›.
  *
  * Pass `minDate` if you want to disable everything before a specific date.
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { startOfDay, sameDay, WEEKDAY_LETTERS } from '../lib/date';
 
 interface Props {
   value: Date | null;
@@ -22,25 +28,19 @@ interface Props {
   markers?: Date[];
   /** Optional hard minimum date. If unset, past dates are allowed (styled red). */
   minDate?: Date;
+  /**
+   * Per-day background tint for heatmap use. Return any valid CSS color
+   * (e.g. `rgba(168,85,247,0.5)`) to fill the cell, or null for none.
+   */
+  intensity?: (date: Date) => string | null;
+  /**
+   * Replaces the built-in deadline-picker footer when set. Useful when
+   * the calendar isn't being used to pick a deadline (e.g. day-jumping).
+   */
+  footer?: React.ReactNode;
 }
 
-const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-
-function startOfDay(d: Date): Date {
-  const out = new Date(d);
-  out.setHours(0, 0, 0, 0);
-  return out;
-}
-
-function sameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
-
-export function MiniCalendar({ value, onChange, markers = [], minDate }: Props) {
+export function MiniCalendar({ value, onChange, markers = [], minDate, intensity, footer }: Props) {
   const today = startOfDay(new Date());
   // Only enforce a hard minimum when the caller passes one. Otherwise past
   // dates are allowed (they render in red to signal immediately-overdue).
@@ -114,7 +114,7 @@ export function MiniCalendar({ value, onChange, markers = [], minDate }: Props) 
       </div>
 
       <div className="grid grid-cols-7 gap-0.5 mb-1">
-        {DAY_LABELS.map((d, i) => (
+        {WEEKDAY_LETTERS.map((d, i) => (
           <div
             key={i}
             className="text-center text-[10px] font-semibold uppercase tracking-wide"
@@ -143,6 +143,19 @@ export function MiniCalendar({ value, onChange, markers = [], minDate }: Props) 
             ? 'var(--color-fire)'   // selectable but red — immediately-overdue warning
             : 'var(--color-text)';
 
+          // intensity heatmap takes precedence over the default "past" tint
+          // but never overrides "selected" or "today" — those stay legible.
+          const intensityFill = intensity?.(d) ?? null;
+          const cellBg = isSelected
+            ? 'var(--color-primary)'
+            : isToday
+              ? 'rgba(139,92,246,0.15)'
+              : intensityFill
+                ? intensityFill
+                : isBeforeToday && !isBlocked
+                  ? 'rgba(239,68,68,0.05)'
+                  : 'transparent';
+
           return (
             <button
               key={idx}
@@ -152,13 +165,7 @@ export function MiniCalendar({ value, onChange, markers = [], minDate }: Props) 
               title={isBeforeToday && !isBlocked ? 'Past date — this will be immediately overdue' : undefined}
               className="relative aspect-square rounded-md text-xs font-medium transition-colors"
               style={{
-                background: isSelected
-                  ? 'var(--color-primary)'
-                  : isToday
-                  ? 'rgba(139,92,246,0.15)'
-                  : isBeforeToday && !isBlocked
-                  ? 'rgba(239,68,68,0.05)'
-                  : 'transparent',
+                background: cellBg,
                 color: baseColor,
                 border: isToday && !isSelected ? '1px solid var(--color-primary)' : '1px solid transparent',
                 cursor: isBlocked ? 'not-allowed' : 'pointer',
@@ -176,7 +183,14 @@ export function MiniCalendar({ value, onChange, markers = [], minDate }: Props) 
         })}
       </div>
 
-      {value && (
+      {footer !== undefined ? (
+        <div
+          className="mt-2 pt-2"
+          style={{ borderTop: '1px solid var(--color-border)' }}
+        >
+          {footer}
+        </div>
+      ) : value && (
         <div
           className="mt-2 pt-2 flex items-center justify-between text-xs"
           style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-muted)' }}

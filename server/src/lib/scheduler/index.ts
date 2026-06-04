@@ -7,8 +7,8 @@
 
 export { generateSchedule, replan } from './replan.js';
 export { applyEdit } from './edits.js';
-export { scoreTask } from './scoring.js';
 export { explainBlock } from './explain.js';
+export { priorityScore, computeEnergyTrace } from './planner.js';
 export { suggestPreferredHour, recordMove } from './preferences.js';
 export { questToTask, questsToTasks, ADAPTER_DEFAULTS } from './adapter.js';
 export type { QuestLike, QuestSchedulerOverrides } from './adapter.js';
@@ -33,9 +33,6 @@ export type {
   BreakPolicy,
   WorkingHours,
   EnergyCurve,
-  ScheduleContext,
-  ScoreBreakdown,
-  ScoreResult,
   FeasibilityIssue,
   FeasibilityReport,
   SchedulerResult,

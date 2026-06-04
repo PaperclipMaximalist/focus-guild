@@ -97,35 +97,6 @@ export interface UserConfig {
   softMaxBlockMin: number;
 }
 
-export interface ScoreBreakdown {
-  urgency: number;
-  staleness: number;
-  timeFit: number;
-  energyFit: number;
-  chunkFit: number;
-  adjacency: number;
-  switch: number;
-  fragmentation: number;
-  oversize: number;
-}
-
-export interface ScoreResult {
-  total: number;
-  breakdown: ScoreBreakdown;
-}
-
-export interface ScheduleContext {
-  /** Most recent non-break work block, or null. */
-  prevTask: Task | null;
-  /** Last up-to-3 non-break work tasks, newest first — used for windowed adjacency. */
-  recentWorkTasks: Task[];
-  /** Count of chunks for each taskId already placed today (calendar day of the block). */
-  chunksTodayByTaskId: Record<string, number>;
-  /** Block being filled. */
-  blockStart: number;
-  blockEnd: number;
-}
-
 export interface FeasibilityIssue {
   taskId: string;
   shortfallMin: number;

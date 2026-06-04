@@ -8,8 +8,10 @@ import { useAchievementsStore } from '../store/useAchievementsStore';
 import { useToastStore } from '../components/Toasts';
 import { Header } from '../components/Header';
 import { FocusTimer } from '../components/FocusTimer';
+import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
+import { sameDay as sameDayD, dayKey } from '../lib/date';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -17,8 +19,8 @@ import { levelFromXP } from '../lib/levels';
 const PX_PER_MIN = 1.5;
 /** Minimum focus-block height so titles + dots always fit. */
 const MIN_BLOCK_PX = 64;
-/** Number of days in the day-chip strip. */
-const DAY_TABS = 5;
+/** Number of days in the day-chip strip (today + 2). */
+const DAY_TABS = 3;
 
 const COMPACT_THRESHOLD_PX = 84;
 
@@ -67,17 +69,15 @@ function typeLabel(b: ScheduleBlock): string {
   return 'Focus';
 }
 
-function startOfDay(ms: number): number {
+/** Local startOfDay that works on a ms timestamp. Wraps the shared Date helper. */
+function startOfDayMs(ms: number): number {
   const d = new Date(ms);
   d.setHours(0, 0, 0, 0);
   return d.getTime();
 }
 
-function sameDay(a: Date, b: Date): boolean {
-  return a.getFullYear() === b.getFullYear()
-    && a.getMonth() === b.getMonth()
-    && a.getDate() === b.getDate();
-}
+// Alias for back-compat with the rest of this file's Date-Date comparisons.
+const sameDay = sameDayD;
 
 function loadDots(load: number | undefined): number {
   const l = load ?? 5;
@@ -716,7 +716,8 @@ export default function GuildFeed() {
   const [timerOpen, setTimerOpen] = useState(false);
 
   const [now, setNow] = useState(Date.now());
-  const [selectedDay, setSelectedDay] = useState<number>(startOfDay(Date.now()));
+  const [selectedDay, setSelectedDay] = useState<number>(startOfDayMs(Date.now()));
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
   const [loadingExplanation, setLoadingExplanation] = useState(false);
@@ -742,19 +743,31 @@ export default function GuildFeed() {
     [quests],
   );
 
+  // Work minutes per day across the full scheduled horizon — single pass
+  // over the schedule. Both the day-chip strip and the calendar heatmap
+  // read from this map.
+  const workMinByDay = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const b of schedule) {
+      if (b.type !== 'work') continue;
+      const key = dayKey(new Date(b.start));
+      out[key] = (out[key] ?? 0) + b.durationMin;
+    }
+    return out;
+  }, [schedule]);
+
+  // Day-chip strip: today + next DAY_TABS-1 days, work-min looked up from
+  // the shared workMinByDay map.
   const dayList = useMemo(() => {
     const out: Array<{ ts: number; date: Date; workMin: number }> = [];
-    const t0 = startOfDay(now);
+    const t0 = startOfDayMs(now);
     for (let i = 0; i < DAY_TABS; i += 1) {
       const ts = t0 + i * 24 * 60 * 60_000;
       const date = new Date(ts);
-      const workMin = schedule
-        .filter((b) => b.type === 'work' && sameDay(new Date(b.start), date))
-        .reduce((s, b) => s + b.durationMin, 0);
-      out.push({ ts, date, workMin });
+      out.push({ ts, date, workMin: workMinByDay[dayKey(date)] ?? 0 });
     }
     return out;
-  }, [schedule, now]);
+  }, [workMinByDay, now]);
 
   const dayBlocks = useMemo(
     () => schedule
@@ -765,7 +778,7 @@ export default function GuildFeed() {
 
   // Index where the "Now" marker should be inserted in the stacked list.
   const nowMarkerIdx = useMemo(() => {
-    if (selectedDay !== startOfDay(now)) return -1;
+    if (selectedDay !== startOfDayMs(now)) return -1;
     // Insert before the first block that starts >= now AND after the last that ended <= now.
     for (let i = 0; i < dayBlocks.length; i += 1) {
       const b = dayBlocks[i]!;
@@ -885,25 +898,76 @@ export default function GuildFeed() {
           </div>
         )}
 
-        {/* Day tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-hide">
-          {dayList.map((d) => (
-            <DayChip
-              key={d.ts}
-              date={d.date}
-              active={d.ts === selectedDay}
-              workMin={d.workMin}
-              onClick={() => { setSelectedDay(d.ts); setSelectedBlockId(null); }}
-            />
-          ))}
+        {/* Day strip: today + next 2, plus a calendar icon for the full month */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="flex gap-1.5 flex-1 overflow-x-auto scrollbar-hide">
+            {dayList.map((d) => (
+              <DayChip
+                key={d.ts}
+                date={d.date}
+                active={d.ts === selectedDay}
+                workMin={d.workMin}
+                onClick={() => { setSelectedDay(d.ts); setSelectedBlockId(null); }}
+              />
+            ))}
+          </div>
+          <div className="relative shrink-0">
+            <button
+              onClick={() => setCalendarOpen((v) => !v)}
+              className="w-12 h-12 rounded-xl transition-all flex items-center justify-center"
+              style={{
+                background: calendarOpen ? 'var(--color-primary)' : 'var(--color-surface)',
+                border: calendarOpen ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
+                color: calendarOpen ? '#fff' : 'var(--color-text)',
+              }}
+              aria-label="Open month calendar"
+            >
+              <span className="text-lg">📅</span>
+            </button>
+            {calendarOpen && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setCalendarOpen(false)} />
+                <div className="absolute right-0 top-full mt-2 z-30 w-[280px] shadow-2xl rounded-xl">
+                  <MiniCalendar
+                    value={new Date(selectedDay)}
+                    onChange={(d) => {
+                      if (!d) return;
+                      const t = new Date(d);
+                      t.setHours(0, 0, 0, 0);
+                      setSelectedDay(t.getTime());
+                      setSelectedBlockId(null);
+                      setCalendarOpen(false);
+                    }}
+                    intensity={(d) => {
+                      const mins = workMinByDay[dayKey(d)] ?? 0;
+                      if (mins < 1) return null;
+                      if (mins < 60) return 'rgba(34,211,238,0.28)';
+                      if (mins < 180) return 'rgba(168,85,247,0.42)';
+                      return 'rgba(236,72,153,0.55)';
+                    }}
+                    footer={(
+                      <div className="flex items-center gap-2 text-[0.6rem]" style={{ color: 'var(--color-muted)' }}>
+                        <span>Load:</span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(34,211,238,0.6)' }} />
+                          <span>&lt;1h</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(168,85,247,0.6)' }} />
+                          <span>1-3h</span>
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(236,72,153,0.6)' }} />
+                          <span>3h+</span>
+                        </span>
+                      </div>
+                    )}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </div>
-
-        {/* Drag hint */}
-        {dayBlocks.some((b) => b.type === 'work' && !b.locked) && (
-          <p className="mb-3 text-[0.7rem] text-center" style={{ color: 'var(--color-muted)' }}>
-            ✦ Drag a focus block onto another to swap · Hover for ✕ delete · Tap for actions
-          </p>
-        )}
 
         {/* Empty state — no schedule at all */}
         {!loading && schedule.length === 0 && (
