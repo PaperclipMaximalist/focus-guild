@@ -119,6 +119,7 @@ function regenerate(
     horizonDays: cfg.horizonDays,
     workingHours: cfg.workingHours,
     existingFixed: [],
+    tzOffsetMin: cfg.tzOffsetMin,
   });
 
   const { schedule, feasibilityReport } = generateSchedule(tasks, fillerBlocks, cfg, now);

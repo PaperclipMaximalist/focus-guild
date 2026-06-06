@@ -26,12 +26,18 @@
  * Pure: same inputs → same outputs. Deterministic tie-break on equal score.
  */
 
+import { DEFAULT_SCORE_WEIGHTS } from './config.js';
+import { dayKey, userHourOf, userHourUtc, userMidnightUtc } from './tz.js';
 import type {
   Block,
   FeasibilityIssue,
+  LoadTier,
+  Mode,
   Schedule,
   SchedulerResult,
+  ScoreWeights,
   Task,
+  TediumTier,
   UserConfig,
 } from './types.js';
 
@@ -39,35 +45,6 @@ const MS_PER_MIN = 60_000;
 const MS_PER_HOUR = 60 * MS_PER_MIN;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const EPSILON_MIN = 0.5;
-
-/**
- * Compute midnight (00:00) in the user's timezone, returned as UTC ms.
- *
- * `tzOffsetMin` is the value returned by JS `Date.prototype.getTimezoneOffset()`
- * on the client — i.e. minutes to ADD to local time to reach UTC. For PDT
- * (UTC−7) this is +420. Server-local timezone is intentionally ignored: we
- * want the user's day boundaries, not the host process's. Defaults to 0
- * (UTC) when not supplied, which matches old behaviour.
- */
-function userMidnightUtc(utcMs: number, tzOffsetMin: number): number {
-  const userLocalView = new Date(utcMs - tzOffsetMin * MS_PER_MIN);
-  userLocalView.setUTCHours(0, 0, 0, 0);
-  return userLocalView.getTime() + tzOffsetMin * MS_PER_MIN;
-}
-
-/** Hour `h` (0..24) on the user-local day starting at `midnightUtc`, as UTC ms. */
-function userHourUtc(midnightUtc: number, h: number): number {
-  return midnightUtc + h * MS_PER_HOUR;
-}
-
-// ─── Defaults for sitting-time soft bounds ────────────────────────────────────
-// A "big" task (≥60 min remaining) wants sessions in this range. The planner
-// will violate these if no better gap exists, but each violation costs score.
-
-/** Default soft floor on per-session length, in minutes. */
-const DEFAULT_SOFT_MIN_SESSION = 20;
-/** Default soft ceiling on per-session length, in minutes (3 hours). */
-const DEFAULT_SOFT_MAX_SESSION = 180;
 
 // ─── Util ─────────────────────────────────────────────────────────────────────
 
@@ -84,11 +61,6 @@ function makeIdGen(prefix: string, existingIds: Iterable<string> = []): () => st
     n += 1;
     return `${prefix}-${n}`;
   };
-}
-
-function dayKey(ms: number, tzOffsetMin = 0): string {
-  const d = new Date(ms - tzOffsetMin * MS_PER_MIN);
-  return `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
 }
 
 function sortBlocks(blocks: Block[]): Block[] {
@@ -272,62 +244,151 @@ export function computeEnergyTrace(
   return out;
 }
 
-// ─── Soft session-size penalty ────────────────────────────────────────────────
+// ─── Mode classification (variety axis) ───────────────────────────────────────
 
-function softSessionMin(task: Task): number {
-  // Use task's explicit minChunkMin if set; otherwise default 20 (or the task's
-  // remainingMin if it's smaller — a 10-min task can't have a 20-min session).
-  const userMin = task.minChunkMin > 0 ? task.minChunkMin : DEFAULT_SOFT_MIN_SESSION;
-  return Math.min(userMin, task.remainingMin);
+function loadTierOf(cogLoad: number): LoadTier {
+  if (cogLoad >= 0.7) return 'high';
+  if (cogLoad >= 0.4) return 'med';
+  return 'low';
 }
 
-function softSessionMax(task: Task): number {
-  return task.maxChunkMin > 0 ? task.maxChunkMin : DEFAULT_SOFT_MAX_SESSION;
+function tediumTierOf(tedium: number): TediumTier {
+  if (tedium >= 0.67) return 'high';
+  if (tedium >= 0.33) return 'med';
+  return 'low';
+}
+
+/** Compute the experiential mode of a task (drives monotony reasoning). */
+export function taskMode(task: Task): Mode {
+  return {
+    category: task.category,
+    load: loadTierOf(task.cognitiveLoad),
+    tedium: tediumTierOf(task.tediousness),
+  };
+}
+
+function modesEqual(a: Mode, b: Mode): boolean {
+  return a.category === b.category && a.load === b.load && a.tedium === b.tedium;
+}
+
+// ─── Ideal session sizing (scales with task size) ─────────────────────────────
+
+/**
+ * Returns the [softMin, softMax] minutes the planner *prefers* for a chunk
+ * of this task. Bigger tasks earn longer ideal sessions; tiny tasks shrink
+ * to match their own remainingMin. Per-task minChunkMin/maxChunkMin are
+ * the absolute floor/ceiling.
+ *
+ *   remaining ≥ 180 min : 30..90 min ideal  (big — full deep-work sessions)
+ *   remaining ≥  60 min : 20..60 min ideal  (medium — pomodoro-sized)
+ *   remaining <  60 min : 10..remaining   ideal  (small — finish in one go)
+ */
+export function idealSessionRange(task: Task): [number, number] {
+  const rem = task.remainingMin;
+  const userMin = task.minChunkMin > 0 ? task.minChunkMin : 1;
+  const userMax = task.maxChunkMin > 0 ? task.maxChunkMin : 240;
+  let lo: number;
+  let hi: number;
+  if (rem >= 180) { lo = 30; hi = 90; }
+  else if (rem >= 60) { lo = 20; hi = 60; }
+  else { lo = 10; hi = rem; }
+  // Respect per-task overrides as outer bounds.
+  return [Math.max(userMin, Math.min(lo, rem)), Math.max(userMin, Math.min(hi, userMax, rem))];
 }
 
 /**
- * Penalty (0..1) for a chunk size outside the soft session range.
- * Linear with distance from boundary, saturating at 1 when chunk is half/double.
+ * Session-size penalty in [0, 1]. 0 if chunk is inside the ideal range;
+ * grows linearly with distance from the boundary, saturating at 1 when
+ * the chunk is half/double the ideal bound.
  */
-function sessionSizePenalty(chunkMin: number, task: Task): number {
-  const sMin = softSessionMin(task);
-  const sMax = softSessionMax(task);
-  if (chunkMin >= sMin && chunkMin <= sMax) return 0;
-  if (chunkMin < sMin) {
-    return clamp((sMin - chunkMin) / sMin, 0, 1);
+export function sessionSizePenalty(chunkMin: number, task: Task): number {
+  const [lo, hi] = idealSessionRange(task);
+  if (chunkMin >= lo && chunkMin <= hi) return 0;
+  if (chunkMin < lo) return clamp((lo - chunkMin) / Math.max(lo, 1), 0, 1);
+  return clamp((chunkMin - hi) / Math.max(hi, 1), 0, 1);
+}
+
+// ─── Per-decision scoring terms (each returns ~[0,1]) ─────────────────────────
+
+/** Energy fit: how well task's cognitive load matches user's capacity at this hour. */
+export function energyFit(task: Task, blockStart: number, config: UserConfig): number {
+  const hour = userHourOf(blockStart, config.tzOffsetMin ?? 0);
+  const capacity = clamp(config.energyCurve(hour), 0, 1);
+  return clamp(1 - Math.abs(task.cognitiveLoad - capacity), 0, 1);
+}
+
+/**
+ * Slack-gated urgency. Returns ~1 when the task has no buffer beyond its
+ * deadline (must place now); decays toward 0 as slack grows beyond
+ * `remainingMin` of buffer. Multiplied by `urgencyMultiplier` so HIGH-tier
+ * quests still get a steady nudge even when slack is loose.
+ */
+export function urgencyFit(task: Task, blockStart: number): number {
+  const minsToDeadline = (task.deadline - blockStart) / MS_PER_MIN;
+  if (minsToDeadline <= 0) return 1;
+  const slack = minsToDeadline - task.remainingMin;
+  if (slack <= 0) return 1;
+  // Half-life of attention at one `remainingMin` of slack — i.e. a 60-min task
+  // with 60-min slack scores ~0.37; with 0 slack scores 1; with 4 hours of
+  // slack scores ~0.02. Multiplied by tier mult so HIGH still rises above MED.
+  const scale = Math.max(task.remainingMin, 60);
+  return clamp(Math.exp(-slack / scale), 0, 1) * Math.max(1, task.urgencyMultiplier ?? 1) / 1.5;
+}
+
+/** Small reward for chaining short admin/comms blocks back-to-back. */
+export function batchBonus(task: Task, chunkMin: number, prev: Task | null): number {
+  const isAdmin = task.category === 'admin' || task.category === 'comms';
+  if (!isAdmin || !prev || chunkMin > 30) return 0;
+  if (prev.category !== task.category) return 0;
+  return 0.5;
+}
+
+/**
+ * Variety/monotony penalty. Counts consecutive same-mode predecessors
+ * ending immediately before this block and grows quadratically.
+ *
+ *   runLen 0  → 0.00  (first of a mode)
+ *   runLen 1  → 0.00  (one same-mode predecessor — fine)
+ *   runLen 2  → 0.25  (warning — already two in a row)
+ *   runLen 3+ → 1.00  (cap)
+ */
+export function monotonyPenalty(
+  task: Task,
+  blockStart: number,
+  placedRefs: PlacedRef[],
+): number {
+  const target = taskMode(task);
+  const chrono = [...placedRefs]
+    .filter((r) => r.block.end <= blockStart)
+    .sort((a, b) => b.block.start - a.block.start); // newest first
+  let runLen = 0;
+  for (const r of chrono) {
+    if (modesEqual(taskMode(r.task), target)) runLen += 1;
+    else break;
   }
-  // chunkMin > sMax
-  return clamp((chunkMin - sMax) / sMax, 0, 1);
+  // (runLen - 1)² / 4, capped at 1. Subtract one so single same-mode preds
+  // are free — only escalating runs cost.
+  if (runLen <= 1) return 0;
+  return Math.min(1, ((runLen - 1) * (runLen - 1)) / 4);
+}
+
+/** 1 iff this block and the immediately-prior one are both high-tedium. */
+export function tediumClash(task: Task, prev: Task | null): number {
+  if (!prev) return 0;
+  return tediumTierOf(task.tediousness) === 'high'
+    && tediumTierOf(prev.tediousness) === 'high'
+    ? 1 : 0;
+}
+
+/** 1 iff this block and the immediately-prior one are both high-cognitive-load. */
+export function cooldownClash(task: Task, prev: Task | null): number {
+  if (!prev) return 0;
+  return loadTierOf(task.cognitiveLoad) === 'high'
+    && loadTierOf(prev.cognitiveLoad) === 'high'
+    ? 1 : 0;
 }
 
 // ─── Placement scoring (per-candidate-gap) ────────────────────────────────────
-
-interface NeighborInfo {
-  before: { task: Task; type: string } | null;
-  after: { task: Task; type: string } | null;
-}
-
-function findNeighbors(
-  schedule: Block[],
-  gapStart: number,
-  gapEnd: number,
-  taskMap: Map<string, Task>,
-): NeighborInfo {
-  let before: NeighborInfo['before'] = null;
-  let after: NeighborInfo['after'] = null;
-  for (const b of schedule) {
-    if (b.type !== 'work' || !b.taskId) continue;
-    const t = taskMap.get(b.taskId);
-    if (!t) continue;
-    if (b.end <= gapStart && (!before || b.end > 0)) {
-      before = { task: t, type: t.category };
-    }
-    if (b.start >= gapEnd && !after) {
-      after = { task: t, type: t.category };
-    }
-  }
-  return { before, after };
-}
 
 interface PlacementCandidate {
   intervalIdx: number;
@@ -337,86 +398,64 @@ interface PlacementCandidate {
   score: number;
 }
 
+/** Most recently-ended placed work block strictly before `blockStart`, or null. */
+function prevPlacedBefore(blockStart: number, placedRefs: PlacedRef[]): Task | null {
+  let best: PlacedRef | null = null;
+  for (const r of placedRefs) {
+    if (r.block.end > blockStart) continue;
+    if (!best || r.block.end > best.block.end) best = r;
+  }
+  return best?.task ?? null;
+}
+
+/** Resolve per-user score weights, falling back to defaults for any missing field. */
+function resolveScoreWeights(config: UserConfig): ScoreWeights {
+  return { ...DEFAULT_SCORE_WEIGHTS, ...(config.scoreWeights ?? {}) };
+}
+
 /**
- * Score a candidate placement of `task` of size `chunkMin` starting at
- * `start`. Higher = better.
+ * Compose a per-candidate placement score from §4.4 of the design doc.
  *
- * Components (all soft):
- *   + earliness        sooner placements beat later ones (deadline pressure)
- *   + importance_fit   linear in task.importance
- *   + clustering       adjacent block same-category → bonus
- *   + preferred_time   within preferredHour ± 2h → bonus
- *   − switch_penalty   adjacent block different category → small penalty
- *   − cooldown_penalty back-to-back high cognitive-load → penalty
- *   − energy_pressure  meter < 25% at start → penalty
- *   − session_size     chunk outside soft min/max session range → penalty
+ *   blockScore =
+ *     + w_energy   · energyFit          // capacity match at this hour
+ *     + w_urgency  · urgencyFit         // slack-gated deadline pressure
+ *     + w_batch    · batchBonus         // chain short admin/comms
+ *     − w_monotony · monotonyPenalty    // variety (mode-aware)
+ *     − w_tedium   · tediumClash        // back-to-back drag
+ *     − w_cooldown · cooldownClash      // back-to-back hard
+ *     − w_session  · sessionSizePenalty // chunk outside ideal range
+ *
+ * Each term is normalized to [0,1] (or [-1,0]) before weighting, so no
+ * single weight can swamp the others — fixes the old `1/hoursFromNow`
+ * domination bug.
  */
 function placementScore(
   task: Task,
   chunkMin: number,
   start: number,
-  schedule: Block[],
-  taskMap: Map<string, Task>,
   placedRefs: PlacedRef[],
-  weights: { urgency: number; importance: number; energyFit: number },
-  now: number,
+  weights: ScoreWeights,
+  config: UserConfig,
 ): number {
-  const neighbors = findNeighbors(schedule, start, start + chunkMin * MS_PER_MIN, taskMap);
-  const meter = meterAt(start, placedRefs, taskMap);
+  const prev = prevPlacedBefore(start, placedRefs);
 
-  // Earliness: hours from now; smaller = bigger bonus. Capped to avoid extreme
-  // bonuses for immediate-now placements.
-  const hoursFromNow = Math.max(0.25, (start - now) / MS_PER_HOUR);
-  const earliness = weights.urgency * (1 / hoursFromNow);
+  const eFit = energyFit(task, start, config);
+  const uFit = urgencyFit(task, start);
+  const batch = batchBonus(task, chunkMin, prev);
+  const mono = monotonyPenalty(task, start, placedRefs);
+  const ted = tediumClash(task, prev);
+  const cool = cooldownClash(task, prev);
+  const sess = sessionSizePenalty(chunkMin, task);
 
-  // Importance fit: scaled by task importance.
-  const importanceFit = weights.importance * task.importance;
-
-  // Clustering: same-category adjacent block on either side.
-  let clustering = 0;
-  if (neighbors.before && neighbors.before.type === task.category) clustering += 0.3;
-  if (neighbors.after && neighbors.after.type === task.category) clustering += 0.2;
-
-  // Preferred-time bonus: gaussian-ish window around preferredHour.
-  let preferredTime = 0;
-  if (task.preferredHour !== null) {
-    const startHour = new Date(start).getHours();
-    const diff = Math.abs(startHour - task.preferredHour);
-    if (diff <= 2) preferredTime = 0.2 * (1 - diff / 2);
-  }
-
-  // Switch penalty: previous block exists, different category.
-  let switchPenalty = 0;
-  if (neighbors.before && neighbors.before.type !== task.category) switchPenalty = 0.15;
-
-  // Cooldown penalty: two high-cog-load tasks back-to-back.
-  let cooldownPenalty = 0;
-  if (neighbors.before && task.cognitiveLoad >= 0.7 && neighbors.before.task.cognitiveLoad >= 0.7) {
-    cooldownPenalty = 0.4;
-  }
-
-  // Same-task penalty: don't stack the same task back-to-back without break.
-  // The round-robin outer loop already discourages this, but in case a single
-  // task is the only candidate, this keeps placement scoring honest.
-  let sameTaskPenalty = 0;
-  if (neighbors.before && neighbors.before.task.id === task.id) {
-    sameTaskPenalty = 0.6;
-  }
-
-  // Energy pressure: meter below threshold makes this slot risky.
-  let energyPressure = 0;
-  const expectedDrain = blockDrain(task, chunkMin);
-  if (meter - expectedDrain < 25) {
-    energyPressure = weights.energyFit * 0.3;
-  } else if (meter < 50) {
-    energyPressure = weights.energyFit * 0.1;
-  }
-
-  // Soft session-size penalty (the user-requested soft min/max).
-  const sessionPenalty = sessionSizePenalty(chunkMin, task) * 0.5;
-
-  return earliness + importanceFit + clustering + preferredTime
-       - switchPenalty - cooldownPenalty - sameTaskPenalty - energyPressure - sessionPenalty;
+  return (
+    weights.energy * eFit
+    + weights.urgency * uFit
+    + weights.batch * batch
+    - weights.monotony * mono
+    - weights.tedium * ted
+    - weights.cooldown * cool
+    - weights.session * sess
+  );
 }
 
 // ─── Insertion engine ─────────────────────────────────────────────────────────
@@ -435,18 +474,18 @@ function placementScore(
 function placeOneChunkFor(
   task: Task,
   needed: number,
-  schedule: Block[],
   freeIntervals: FreeInterval[],
-  taskMap: Map<string, Task>,
   placedRefs: PlacedRef[],
-  weights: { urgency: number; importance: number; energyFit: number },
+  weights: ScoreWeights,
   config: UserConfig,
-  now: number,
 ): { start: number; end: number; chunkMin: number } | null {
+  // Hard chunk caps come from per-task max and the global soft cap, unless
+  // the task earns a lift (long-warmup or rushing a deadline).
   const setupLifts = task.setupCost >= 0.7 || (task.urgencyMultiplier ?? 1) >= 1.5;
   const hardChunkCap = setupLifts
     ? task.maxChunkMin
     : Math.min(task.maxChunkMin, config.softMaxBlockMin);
+  const [idealLo, idealHi] = idealSessionRange(task);
 
   const candidates: PlacementCandidate[] = [];
   for (let i = 0; i < freeIntervals.length; i += 1) {
@@ -455,12 +494,15 @@ function placeOneChunkFor(
     const usableEnd = Math.min(interval.end, task.deadline);
     const usableMin = (usableEnd - interval.start) / MS_PER_MIN;
     if (usableMin < EPSILON_MIN) continue;
-    const ideal = Math.min(needed, usableMin, hardChunkCap);
-    const chunkMin = Math.floor(ideal);
+
+    // Prefer chunk = clamp(needed, idealLo, idealHi); never exceed slot or hard cap.
+    const target = clamp(needed, idealLo, idealHi);
+    const chunkMin = Math.floor(Math.min(target, usableMin, hardChunkCap, needed));
     if (chunkMin < 1) continue;
+
     const start = interval.start;
     const end = start + chunkMin * MS_PER_MIN;
-    const score = placementScore(task, chunkMin, start, schedule, taskMap, placedRefs, weights, now);
+    const score = placementScore(task, chunkMin, start, placedRefs, weights, config);
     candidates.push({ intervalIdx: i, chunkMin, start, end, score });
   }
   if (candidates.length === 0) return null;
@@ -504,18 +546,6 @@ export interface PlanInputs {
   now: number;
 }
 
-/**
- * Effective weights — config has 9 numbers historically, we use the three
- * that map to the new scoring. Defaults are fine if user hasn't tuned.
- */
-function effectiveWeights(config: UserConfig): { urgency: number; importance: number; energyFit: number } {
-  return {
-    urgency: config.weights.urgency,         // default 3.0
-    importance: config.weights.timeFit || 1, // re-purpose old timeFit slot as importance weight (legacy compat)
-    energyFit: config.weights.energyFit,     // default 1.0
-  };
-}
-
 export function plan(inputs: PlanInputs): SchedulerResult {
   const { tasks, fixedBlocks, lockedBlocks, config, now } = inputs;
 
@@ -536,7 +566,7 @@ export function plan(inputs: PlanInputs): SchedulerResult {
     return compareTie(a, b);
   });
 
-  const weights = effectiveWeights(config);
+  const weights = resolveScoreWeights(config);
   const freeIntervals = buildFreeIntervals(config, now, immovable);
   const placedRefs: PlacedRef[] = [];
   const allWorkBlocks: Block[] = [];
@@ -564,13 +594,10 @@ export function plan(inputs: PlanInputs): SchedulerResult {
       const result = placeOneChunkFor(
         task,
         remaining,
-        [...immovable, ...allWorkBlocks],
         freeIntervals,
-        taskMap,
         placedRefs,
         weights,
         config,
-        now,
       );
       if (!result) continue;
       const blk: Block = {

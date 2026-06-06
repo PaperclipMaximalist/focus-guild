@@ -14,6 +14,7 @@
  * lose to deadline-driven work).
  */
 
+import { userHourUtc, userMidnightUtc } from './tz.js';
 import type { Block } from './types.js';
 
 export interface DailyFiller {
@@ -35,23 +36,19 @@ export interface FillerPlacementInput {
   existingFixed: Block[];
   /** ms-epoch generator seed (kept deterministic). */
   idPrefix?: string;
+  /**
+   * User's timezone offset in minutes (`Date.getTimezoneOffset()` on the
+   * client). When omitted defaults to 0 (UTC) — same back-compat default
+   * the planner uses. Without this on Railway (UTC host), recurring
+   * fillers were placed at user-local 2am-5am instead of their preferred
+   * morning hour.
+   */
+  tzOffsetMin?: number;
 }
 
 const MS_PER_MIN = 60_000;
 const MS_PER_HOUR = 60 * MS_PER_MIN;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
-
-function startOfDayLocal(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-function setHourLocal(dayStartMs: number, hour: number): number {
-  const d = new Date(dayStartMs);
-  d.setHours(hour, 0, 0, 0);
-  return d.getTime();
-}
 
 function overlapsAny(s: number, e: number, blocks: Block[]): boolean {
   return blocks.some((b) => b.start < e && s < b.end);
@@ -64,16 +61,18 @@ function overlapsAny(s: number, e: number, blocks: Block[]): boolean {
 export function placeDailyFillers(input: FillerPlacementInput): Block[] {
   const { fillers, now, horizonDays, workingHours, existingFixed } = input;
   const prefix = input.idPrefix ?? 'filler';
+  const tz = input.tzOffsetMin ?? 0;
   const placed: Block[] = [];
   let counter = 0;
   const allFixed = [...existingFixed];
 
   const enabled = fillers.filter((f) => f.enabled !== false);
+  const todayMidnight = userMidnightUtc(now, tz);
 
   for (let day = 0; day < horizonDays; day += 1) {
-    const dayStart = startOfDayLocal(now + day * MS_PER_DAY);
-    const wStart = Math.max(setHourLocal(dayStart, workingHours.startHour), now);
-    const wEnd = setHourLocal(dayStart, workingHours.endHour);
+    const midnight = todayMidnight + day * MS_PER_DAY;
+    const wStart = Math.max(userHourUtc(midnight, workingHours.startHour), now);
+    const wEnd = userHourUtc(midnight, workingHours.endHour);
     if (wEnd <= wStart) continue;
 
     // For each filler, find a slot for the day. We spread fillers by
@@ -87,7 +86,7 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
       const durMs = f.durationMin * MS_PER_MIN;
       const preferredStart =
         f.preferredHour !== null
-          ? setHourLocal(dayStart, f.preferredHour)
+          ? userHourUtc(midnight, f.preferredHour)
           : wStart + idx * spreadStep;
 
       const slot = findNonOverlappingSlot(

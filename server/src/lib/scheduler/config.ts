@@ -4,7 +4,14 @@
  * has no magic numbers.
  */
 
-import type { BreakPolicy, EnergyCurve, UserConfig, Weights, WorkingHours } from './types.js';
+import type {
+  BreakPolicy,
+  EnergyCurve,
+  ScoreWeights,
+  UserConfig,
+  Weights,
+  WorkingHours,
+} from './types.js';
 
 export const DEFAULT_WEIGHTS: Weights = {
   urgency: 3.0,
@@ -16,6 +23,30 @@ export const DEFAULT_WEIGHTS: Weights = {
   switch: 0.5,
   fragmentation: 0.4,
   oversize: 1.2,
+};
+
+/**
+ * Per-decision scoring weights for the new placementScore. Each term in
+ * placementScore is normalized to ~[0,1] (penalties to [-1,0]) BEFORE
+ * being multiplied by its weight, so these numbers are dimensionless
+ * importance ratios — not raw magnitudes. Tuning recipe:
+ *
+ *   - energy=1.5, urgency=2.0 — main "where in the day this goes" forces.
+ *   - monotony=1.5            — strong enough to fight clustering+batch
+ *                               at default settings, so variety wins ties.
+ *   - tedium=0.8, cooldown=0.8 — back-to-back penalties; matter mostly
+ *                               when two same-flavored options are tied.
+ *   - batch=0.5               — small positive nudge for chained admin.
+ *   - session=0.5             — soft sizing penalty; rarely the deciding term.
+ */
+export const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
+  energy: 1.5,
+  urgency: 2.0,
+  batch: 0.5,
+  monotony: 1.5,
+  tedium: 0.8,
+  cooldown: 0.8,
+  session: 0.5,
 };
 
 /**
@@ -81,6 +112,7 @@ export function defaultConfig(): UserConfig {
     workingHours: { ...DEFAULT_WORKING_HOURS },
     horizonDays: DEFAULT_HORIZON_DAYS,
     softMaxBlockMin: DEFAULT_SOFT_MAX_BLOCK_MIN,
+    scoreWeights: { ...DEFAULT_SCORE_WEIGHTS },
   };
 }
 

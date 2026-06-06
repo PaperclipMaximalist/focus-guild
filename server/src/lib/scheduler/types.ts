@@ -52,6 +52,11 @@ export interface Block {
 
 export type Schedule = Block[];
 
+/**
+ * Legacy 9-knob weight set. Most fields are unused by the current planner;
+ * kept on UserConfig so old persisted overrides don't crash. Will be pruned
+ * in Phase C of the revamp once the Settings UI is updated.
+ */
 export interface Weights {
   urgency: number;
   staleness: number;
@@ -63,6 +68,40 @@ export interface Weights {
   fragmentation: number;
   /** Penalty per minute over softMaxBlockMin. Higher = stricter block-size cap. */
   oversize: number;
+}
+
+/** Mode = the experiential bucket a block falls into for variety/monotony reasoning. */
+export type LoadTier = 'low' | 'med' | 'high';
+export type TediumTier = 'low' | 'med' | 'high';
+export interface Mode {
+  category: string;
+  load: LoadTier;
+  tedium: TediumTier;
+}
+
+/**
+ * Per-decision scoring weights, one per term in placementScore. Each term
+ * is normalized to ~[0,1] (or [-1,0] for penalties) before weighting, so
+ * these are dimensionless multipliers — no single term can swamp another.
+ *
+ * Defaults live in config.ts (DEFAULT_SCORE_WEIGHTS). Per-user overrides
+ * land in UserConfig.scoreWeights (everything optional, deep-merged).
+ */
+export interface ScoreWeights {
+  /** Match task cognitive load to user's capacity curve at the hour. */
+  energy: number;
+  /** Slack-gated deadline pressure — bites only when (deadline−now)−remaining is small. */
+  urgency: number;
+  /** Small reward for batching consecutive short admin/comms chunks. */
+  batch: number;
+  /** Penalty for escalating same-mode runs (the real variety lever). */
+  monotony: number;
+  /** Penalty for back-to-back high-tedium blocks. */
+  tedium: number;
+  /** Penalty for back-to-back high-cognitive-load blocks (mental cooldown). */
+  cooldown: number;
+  /** Penalty for chunks outside the task's task-size-scaled ideal session range. */
+  session: number;
 }
 
 export interface BreakPolicy {
@@ -104,6 +143,12 @@ export interface UserConfig {
    * for non-UTC users.
    */
   tzOffsetMin?: number;
+  /**
+   * Per-decision scoring weights. Optional — when absent, falls back to
+   * DEFAULT_SCORE_WEIGHTS from config.ts. Each individual field is also
+   * optional so partial overrides merge cleanly.
+   */
+  scoreWeights?: Partial<ScoreWeights>;
 }
 
 export interface FeasibilityIssue {
