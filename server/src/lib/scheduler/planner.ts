@@ -26,8 +26,10 @@
  * Pure: same inputs → same outputs. Deterministic tie-break on equal score.
  */
 
+import { allocateBudgets, buildDayInfo } from './budget.js';
 import { DEFAULT_SCORE_WEIGHTS } from './config.js';
-import { dayKey, userHourOf, userHourUtc, userMidnightUtc } from './tz.js';
+import { constructDay } from './constructor.js';
+import { userHourOf, userMidnightUtc } from './tz.js';
 import type {
   Block,
   FeasibilityIssue,
@@ -105,57 +107,8 @@ function compareTie(a: Task, b: Task): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
-// ─── Free intervals ───────────────────────────────────────────────────────────
-
-interface FreeInterval {
-  start: number;
-  end: number;
-  day: string;
-}
-
-function buildFreeIntervals(
-  config: UserConfig,
-  now: number,
-  immovable: Block[],
-): FreeInterval[] {
-  const out: FreeInterval[] = [];
-  const tz = config.tzOffsetMin ?? 0;
-  const horizonEnd = now + config.horizonDays * MS_PER_DAY;
-  const immov = sortBlocks(immovable);
-  const todayMidnight = userMidnightUtc(now, tz);
-
-  for (let d = 0; d < config.horizonDays; d += 1) {
-    const midnight = todayMidnight + d * MS_PER_DAY;
-    const wStart = Math.max(userHourUtc(midnight, config.workingHours.startHour), now);
-    const wEnd = Math.min(userHourUtc(midnight, config.workingHours.endHour), horizonEnd);
-    if (wEnd <= wStart) continue;
-
-    const dKey = dayKey(midnight, tz);
-    const todayBlocks = immov.filter((b) => b.end > wStart && b.start < wEnd);
-
-    let cursor = wStart;
-    for (const b of todayBlocks) {
-      const bs = Math.max(b.start, wStart);
-      const be = Math.min(b.end, wEnd);
-      if (bs > cursor) out.push({ start: cursor, end: bs, day: dKey });
-      cursor = Math.max(cursor, be);
-    }
-    if (cursor < wEnd) out.push({ start: cursor, end: wEnd, day: dKey });
-  }
-
-  return out;
-}
-
-/**
- * Subtract the first `minutes` from an interval. Returns the leftover
- * (or null if the interval is fully consumed).
- */
-function shrinkFromStart(interval: FreeInterval, minutes: number): FreeInterval | null {
-  const consumedMs = minutes * MS_PER_MIN;
-  const remainingMs = interval.end - interval.start - consumedMs;
-  if (remainingMs < EPSILON_MIN * MS_PER_MIN) return null;
-  return { ...interval, start: interval.start + consumedMs };
-}
+// (Free-interval types + construction live in budget.ts so the budgeting
+//  layer that needs them owns them.)
 
 // ─── Energy meter ─────────────────────────────────────────────────────────────
 
@@ -178,7 +131,7 @@ const ENERGY_RECOVERY_PER_MIN = 0.6;
 /** Energy at the start of every working day. */
 const ENERGY_MAX = 100;
 
-interface PlacedRef { block: Block; task: Task }
+export interface PlacedRef { block: Block; task: Task }
 
 /**
  * Compute the energy meter at a specific timestamp by replaying all
@@ -399,7 +352,7 @@ interface PlacementCandidate {
 }
 
 /** Most recently-ended placed work block strictly before `blockStart`, or null. */
-function prevPlacedBefore(blockStart: number, placedRefs: PlacedRef[]): Task | null {
+export function prevPlacedBefore(blockStart: number, placedRefs: PlacedRef[]): Task | null {
   let best: PlacedRef | null = null;
   for (const r of placedRefs) {
     if (r.block.end > blockStart) continue;
@@ -409,7 +362,7 @@ function prevPlacedBefore(blockStart: number, placedRefs: PlacedRef[]): Task | n
 }
 
 /** Resolve per-user score weights, falling back to defaults for any missing field. */
-function resolveScoreWeights(config: UserConfig): ScoreWeights {
+export function resolveScoreWeights(config: UserConfig): ScoreWeights {
   return { ...DEFAULT_SCORE_WEIGHTS, ...(config.scoreWeights ?? {}) };
 }
 
@@ -429,7 +382,7 @@ function resolveScoreWeights(config: UserConfig): ScoreWeights {
  * single weight can swamp the others — fixes the old `1/hoursFromNow`
  * domination bug.
  */
-function placementScore(
+export function placementScore(
   task: Task,
   chunkMin: number,
   start: number,
@@ -456,66 +409,6 @@ function placementScore(
     - weights.cooldown * cool
     - weights.session * sess
   );
-}
-
-// ─── Insertion engine ─────────────────────────────────────────────────────────
-
-/**
- * Place ONE chunk of `task` into the best available interval (if any).
- *
- * Returns null when no interval can host a chunk for this task right now —
- * either there's no usable time before the deadline, or every candidate
- * fails the size floor. The round-robin driver in `plan()` calls this
- * once per task per pass and stops the outer loop when no task makes
- * progress in a full pass.
- *
- * Mutates `freeIntervals` in place (shrinks the consumed interval).
- */
-function placeOneChunkFor(
-  task: Task,
-  needed: number,
-  freeIntervals: FreeInterval[],
-  placedRefs: PlacedRef[],
-  weights: ScoreWeights,
-  config: UserConfig,
-): { start: number; end: number; chunkMin: number } | null {
-  // Hard chunk caps come from per-task max and the global soft cap, unless
-  // the task earns a lift (long-warmup or rushing a deadline).
-  const setupLifts = task.setupCost >= 0.7 || (task.urgencyMultiplier ?? 1) >= 1.5;
-  const hardChunkCap = setupLifts
-    ? task.maxChunkMin
-    : Math.min(task.maxChunkMin, config.softMaxBlockMin);
-  const [idealLo, idealHi] = idealSessionRange(task);
-
-  const candidates: PlacementCandidate[] = [];
-  for (let i = 0; i < freeIntervals.length; i += 1) {
-    const interval = freeIntervals[i]!;
-    if (interval.start >= task.deadline) break;
-    const usableEnd = Math.min(interval.end, task.deadline);
-    const usableMin = (usableEnd - interval.start) / MS_PER_MIN;
-    if (usableMin < EPSILON_MIN) continue;
-
-    // Prefer chunk = clamp(needed, idealLo, idealHi); never exceed slot or hard cap.
-    const target = clamp(needed, idealLo, idealHi);
-    const chunkMin = Math.floor(Math.min(target, usableMin, hardChunkCap, needed));
-    if (chunkMin < 1) continue;
-
-    const start = interval.start;
-    const end = start + chunkMin * MS_PER_MIN;
-    const score = placementScore(task, chunkMin, start, placedRefs, weights, config);
-    candidates.push({ intervalIdx: i, chunkMin, start, end, score });
-  }
-  if (candidates.length === 0) return null;
-
-  candidates.sort((a, b) => (b.score !== a.score ? b.score - a.score : a.start - b.start));
-  const pick = candidates[0]!;
-
-  const consumed = freeIntervals[pick.intervalIdx]!;
-  const leftover = shrinkFromStart(consumed, pick.chunkMin);
-  if (leftover === null) freeIntervals.splice(pick.intervalIdx, 1);
-  else freeIntervals[pick.intervalIdx] = leftover;
-
-  return { start: pick.start, end: pick.end, chunkMin: pick.chunkMin };
 }
 
 // ─── Dep check ────────────────────────────────────────────────────────────────
@@ -546,12 +439,31 @@ export interface PlanInputs {
   now: number;
 }
 
+/**
+ * plan() — Phase B pipeline: budget → construct.
+ *
+ *   1. Filter eligible tasks (status, remainingMin, deadline, deps).
+ *   2. Build DayInfo for every day in horizon (working window minus immovable).
+ *   3. allocateBudgets(): give each task a per-day quota sized to its share
+ *      of remaining work, drained by priority — owns *cross-day spread*.
+ *   4. For each day, constructDay() runs a timeline-driven beam search with
+ *      the §4.4 placementScore — owns *within-day texture* (variety, energy
+ *      fit, session sizing). Variety floor is a candidate filter, so the
+ *      raw construction output is already varied without any polish pass.
+ *   5. Any granted budget the constructor couldn't place (e.g. variety floor
+ *      ate it on a tight day) folds back into shortfalls; combined with the
+ *      budget-level leftovers, we emit one feasibility issue per task short.
+ *
+ * Public contract preserved: same PlanInputs / SchedulerResult.
+ * Pure: deterministic given inputs (beam tie-break is stable).
+ */
 export function plan(inputs: PlanInputs): SchedulerResult {
   const { tasks, fixedBlocks, lockedBlocks, config, now } = inputs;
 
   const immovable = sortBlocks([...fixedBlocks, ...lockedBlocks]);
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
 
+  // ── 1. Eligibility filter ─────────────────────────────────────────────
   const eligible = tasks.filter(
     (t) =>
       t.status !== 'done' &&
@@ -559,80 +471,51 @@ export function plan(inputs: PlanInputs): SchedulerResult {
       t.deadline > now &&
       depsMet(t, taskMap),
   );
-
+  // Stable priority order used both for budgeting and tie-breaks.
   const sorted = [...eligible].sort((a, b) => {
-    const scoreDiff = priorityScore(b, now) - priorityScore(a, now);
-    if (Math.abs(scoreDiff) > 1e-6) return scoreDiff;
+    const diff = priorityScore(b, now) - priorityScore(a, now);
+    if (Math.abs(diff) > 1e-6) return diff;
     return compareTie(a, b);
   });
 
-  const weights = resolveScoreWeights(config);
-  const freeIntervals = buildFreeIntervals(config, now, immovable);
-  const placedRefs: PlacedRef[] = [];
+  // ── 2/3. Build per-day capacity + allocate budgets ───────────────────
+  const days = buildDayInfo(config, now, immovable);
+  const budgets = allocateBudgets(sorted, days, now);
+
+  // ── 4. Construct each day ────────────────────────────────────────────
   const allWorkBlocks: Block[] = [];
   const idGen = makeIdGen('blk', immovable.map((b) => b.id));
+  // Track how many minutes each task actually got placed (vs granted).
+  const placedByTask = new Map<string, number>();
 
-  // ── Round-robin allocation ──
-  //
-  // Old approach: place ALL chunks of task A, then ALL of task B, etc. With
-  // a high-priority 4-hour task this produced a morning + afternoon of the
-  // same task back-to-back. The user complaint was "no variety, same block
-  // for many hours in a row".
-  //
-  // New approach: each pass tries to place ONE chunk per task in priority
-  // order. After all tasks have had a turn, start another pass. Stop when
-  // a full pass makes zero progress (every remaining task is infeasible
-  // from where its meter / interval / deadline allows). This naturally
-  // interleaves tasks throughout the day while still respecting priority
-  // (high-pri tasks always get the best slot OF THAT PASS).
-  const remainingByTask = new Map<string, number>(sorted.map((t) => [t.id, t.remainingMin]));
-  for (let pass = 0; pass < 100; pass += 1) {
-    let progress = false;
-    for (const task of sorted) {
-      const remaining = remainingByTask.get(task.id) ?? 0;
-      if (remaining <= EPSILON_MIN) continue;
-      const result = placeOneChunkFor(
-        task,
-        remaining,
-        freeIntervals,
-        placedRefs,
-        weights,
-        config,
-      );
-      if (!result) continue;
-      const blk: Block = {
-        id: idGen(),
-        start: result.start,
-        end: result.end,
-        type: 'work',
-        taskId: task.id,
-        locked: false,
-        note: null,
-      };
+  for (const budget of budgets) {
+    const day = constructDay(budget, taskMap, config);
+    for (const b of day.blocks) {
+      const blk: Block = { ...b, id: idGen() };
       allWorkBlocks.push(blk);
-      placedRefs.push({ block: blk, task });
-      remainingByTask.set(task.id, remaining - result.chunkMin);
-      progress = true;
+      if (blk.taskId) {
+        const mins = (blk.end - blk.start) / MS_PER_MIN;
+        placedByTask.set(blk.taskId, (placedByTask.get(blk.taskId) ?? 0) + mins);
+      }
     }
-    if (!progress) break;
   }
 
-  // Any tasks still with remaining > 0 are infeasible.
+  // ── 5. Feasibility — anything not placed before deadline counts ──────
   const issues: FeasibilityIssue[] = [];
   for (const task of sorted) {
-    const left = remainingByTask.get(task.id) ?? 0;
-    if (left > EPSILON_MIN) {
+    const placed = placedByTask.get(task.id) ?? 0;
+    const short = task.remainingMin - placed;
+    if (short > EPSILON_MIN) {
       issues.push({
         taskId: task.id,
-        shortfallMin: Math.ceil(left),
-        suggestions: suggestForShortfall(Math.ceil(left)),
+        shortfallMin: Math.ceil(short),
+        suggestions: suggestForShortfall(Math.ceil(short)),
       });
     }
   }
 
-  // NO automatic break-block insertion. Gaps between work blocks are the
+  // No automatic break-block insertion. Gaps between work blocks ARE the
   // breaks; the client visualizes the energy-meter dip and the user decides.
-
   const schedule = sortBlocks([...immovable, ...allWorkBlocks]);
   return {
     schedule,
