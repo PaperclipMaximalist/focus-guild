@@ -10,16 +10,23 @@
  */
 
 import { defaultConfig } from './scheduler/index.js';
-import type { UserConfig, Weights, BreakPolicy, WorkingHours } from './scheduler/index.js';
+import type { UserConfig, Weights, ScoreWeights, BreakPolicy, WorkingHours } from './scheduler/index.js';
 
 /**
  * The subset of UserConfig the user can override via the Settings page.
  * The energyCurve function stays as-is (the default two-peak curve);
  * exposing it as JSON would be ugly. We can add curve presets later.
+ *
+ * `weights` + `breakPolicy` are legacy fields from the pre-revamp 9-knob
+ * scorer — accepted (so persisted overrides don't break) but no longer
+ * consumed by the planner. `scoreWeights` is the live knob set.
  */
 export interface SchedulerOverrides {
+  /** @deprecated legacy 9-knob scorer weights — ignored by the planner. */
   weights?: Partial<Weights>;
+  /** @deprecated auto-break insertion was removed — ignored by the planner. */
   breakPolicy?: Partial<BreakPolicy>;
+  scoreWeights?: Partial<ScoreWeights>;
   workingHours?: Partial<WorkingHours>;
   horizonDays?: number;
   softMaxBlockMin?: number;
@@ -45,6 +52,7 @@ export function getUserConfig(
     ...base,
     weights: { ...base.weights, ...(overrides.weights ?? {}) },
     breakPolicy: { ...base.breakPolicy, ...(overrides.breakPolicy ?? {}) },
+    scoreWeights: { ...base.scoreWeights, ...(overrides.scoreWeights ?? {}) },
     workingHours: { ...base.workingHours, ...(overrides.workingHours ?? {}) },
     horizonDays: overrides.horizonDays ?? base.horizonDays,
     softMaxBlockMin: overrides.softMaxBlockMin ?? base.softMaxBlockMin,

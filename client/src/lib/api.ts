@@ -296,23 +296,19 @@ export const api = {
 
 // ─── Settings types ───────────────────────────────────────────────────────────
 
-export interface SchedulerWeights {
+/**
+ * Per-decision scoring weights for the timeline constructor. Each term is
+ * normalized to [0,1] before weighting, so these are importance ratios.
+ * Mirrors server scheduler/types.ts ScoreWeights.
+ */
+export interface ScoreWeights {
+  energy: number;
   urgency: number;
-  staleness: number;
-  timeFit: number;
-  energyFit: number;
-  chunkFit: number;
-  adjacency: number;
-  switch: number;
-  fragmentation: number;
-  oversize: number;
-}
-
-export interface BreakPolicy {
-  shortBreakAfterMin: number;
-  shortBreakDurationMin: number;
-  longBreakAfterMin: number;
-  longBreakDurationMin: number;
+  batch: number;
+  monotony: number;
+  tedium: number;
+  cooldown: number;
+  session: number;
 }
 
 export interface WorkingHours {
@@ -321,8 +317,7 @@ export interface WorkingHours {
 }
 
 export interface SchedulerConfigShape {
-  weights: SchedulerWeights;
-  breakPolicy: BreakPolicy;
+  scoreWeights: ScoreWeights;
   workingHours: WorkingHours;
   horizonDays: number;
   softMaxBlockMin: number;

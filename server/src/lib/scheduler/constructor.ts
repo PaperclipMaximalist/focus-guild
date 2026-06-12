@@ -22,10 +22,13 @@
  */
 
 import {
+  dominantTerm,
   idealSessionRange,
+  placementBreakdown,
   placementScore,
   resolveScoreWeights,
   taskMode,
+  totalFromBreakdown,
   type PlacedRef,
 } from './planner.js';
 import type { DayBudget, FreeInterval } from './budget.js';
@@ -181,6 +184,8 @@ function countSameModeRun(
 /** Apply a candidate to a state, returning the successor state. */
 function applyCandidate(state: BeamState, c: Candidate): BeamState {
   const iv = state.freeIntervals[0]!;
+  // Note: we don't compute the explain-note here — that's only worth doing
+  // for the WINNING candidate, so we defer it until after beam selection.
   const blocks = [
     ...state.blocks,
     {
@@ -284,10 +289,36 @@ export function constructDay(
     if (left > EPSILON_MIN) unfulfilled.set(q.task.id, left);
   }
 
-  // Sort blocks by start for stable output.
-  const sortedBlocks = [...winner.blocks].sort((a, b) => a.start - b.start);
+  // Compute explain-notes for the winning placements. Replay the winning
+  // sequence so the breakdown for each block sees only its prior context
+  // (otherwise later blocks would leak into earlier blocks' "why").
+  const weights = resolveScoreWeights(config);
+  const replayRefs: PlacedRef[] = [];
+  for (const b of immovable) {
+    if (b.type !== 'work' || !b.taskId) continue;
+    const t = taskMap.get(b.taskId);
+    if (t) replayRefs.push({ block: b, task: t });
+  }
+  const annotated = [...winner.blocks].sort((a, b) => a.start - b.start);
+  for (let i = 0; i < annotated.length; i += 1) {
+    const blk = annotated[i]!;
+    const t = blk.taskId ? taskMap.get(blk.taskId) : null;
+    if (!t) continue;
+    const chunkMin = (blk.end - blk.start) / MS_PER_MIN;
+    const breakdown = placementBreakdown(t, chunkMin, blk.start, replayRefs, weights, config);
+    const total = totalFromBreakdown(breakdown);
+    const dom = dominantTerm(breakdown);
+    // Compact JSON: explain.ts reads `term` + `sign` to phrase the reason;
+    // `total` is handy for debugging.
+    annotated[i] = {
+      ...blk,
+      note: JSON.stringify({ term: dom.term, sign: dom.sign, total: Number(total.toFixed(2)) }),
+    };
+    replayRefs.push({ block: { ...blk, id: 'tmp' } as Block, task: t });
+  }
+
   return {
-    blocks: sortedBlocks,
+    blocks: annotated,
     totalScore: winner.totalScore,
     unfulfilledByTaskId: unfulfilled,
   };

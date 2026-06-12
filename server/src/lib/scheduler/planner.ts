@@ -382,6 +382,46 @@ export function resolveScoreWeights(config: UserConfig): ScoreWeights {
  * single weight can swamp the others — fixes the old `1/hoursFromNow`
  * domination bug.
  */
+/**
+ * Per-term breakdown of placementScore. Each field is the WEIGHTED
+ * contribution to the total (positive = pushed toward this placement,
+ * negative = pushed against). Sum equals the placementScore.
+ */
+export interface ScoreBreakdown {
+  energy: number;
+  urgency: number;
+  batch: number;
+  monotony: number;
+  tedium: number;
+  cooldown: number;
+  session: number;
+}
+
+export function placementBreakdown(
+  task: Task,
+  chunkMin: number,
+  start: number,
+  placedRefs: PlacedRef[],
+  weights: ScoreWeights,
+  config: UserConfig,
+): ScoreBreakdown {
+  const prev = prevPlacedBefore(start, placedRefs);
+  return {
+    energy:   weights.energy   * energyFit(task, start, config),
+    urgency:  weights.urgency  * urgencyFit(task, start),
+    batch:    weights.batch    * batchBonus(task, chunkMin, prev),
+    monotony: -weights.monotony * monotonyPenalty(task, start, placedRefs),
+    tedium:   -weights.tedium  * tediumClash(task, prev),
+    cooldown: -weights.cooldown * cooldownClash(task, prev),
+    session:  -weights.session * sessionSizePenalty(chunkMin, task),
+  };
+}
+
+/** Sum the breakdown to get the score. */
+export function totalFromBreakdown(b: ScoreBreakdown): number {
+  return b.energy + b.urgency + b.batch + b.monotony + b.tedium + b.cooldown + b.session;
+}
+
 export function placementScore(
   task: Task,
   chunkMin: number,
@@ -390,25 +430,28 @@ export function placementScore(
   weights: ScoreWeights,
   config: UserConfig,
 ): number {
-  const prev = prevPlacedBefore(start, placedRefs);
+  return totalFromBreakdown(placementBreakdown(task, chunkMin, start, placedRefs, weights, config));
+}
 
-  const eFit = energyFit(task, start, config);
-  const uFit = urgencyFit(task, start);
-  const batch = batchBonus(task, chunkMin, prev);
-  const mono = monotonyPenalty(task, start, placedRefs);
-  const ted = tediumClash(task, prev);
-  const cool = cooldownClash(task, prev);
-  const sess = sessionSizePenalty(chunkMin, task);
-
-  return (
-    weights.energy * eFit
-    + weights.urgency * uFit
-    + weights.batch * batch
-    - weights.monotony * mono
-    - weights.tedium * ted
-    - weights.cooldown * cool
-    - weights.session * sess
-  );
+/**
+ * Identifies the single most-influential term in a breakdown. Used by
+ * explain.ts to surface a one-line reason the constructor picked this
+ * task for this slot.
+ *
+ * Returns `{ term, sign }` where:
+ *   - term  = the key with the largest |contribution|
+ *   - sign  = '+' if the term pushed toward placement, '−' if against
+ *             (used to phrase the explanation positively or negatively)
+ */
+export function dominantTerm(b: ScoreBreakdown): { term: keyof ScoreBreakdown; sign: '+' | '-' } {
+  const keys = Object.keys(b) as Array<keyof ScoreBreakdown>;
+  let bestKey: keyof ScoreBreakdown = 'energy';
+  let bestAbs = -Infinity;
+  for (const k of keys) {
+    const v = Math.abs(b[k]);
+    if (v > bestAbs) { bestAbs = v; bestKey = k; }
+  }
+  return { term: bestKey, sign: b[bestKey] >= 0 ? '+' : '-' };
 }
 
 // ─── Dep check ────────────────────────────────────────────────────────────────

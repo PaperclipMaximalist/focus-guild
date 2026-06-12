@@ -4,6 +4,12 @@
  * GET /settings returns { defaults, overrides }. We seed every slider
  * from defaults, then overlay any user overrides. Save sends a partial
  * (only fields that differ from default).
+ *
+ * Exposes exactly the knobs the planner actually reads:
+ *   - workingHours + horizonDays + softMaxBlockMin (structure)
+ *   - the 7 ScoreWeights (per-decision scoring)
+ * The pre-revamp 9-weight set and break policy are gone — the new
+ * constructor derives breaks from gaps and reads none of those fields.
  */
 
 import { useEffect, useState, useMemo } from 'react';
@@ -11,24 +17,47 @@ import { Link } from 'react-router-dom';
 import {
   api,
   type SchedulerConfigShape,
-  type SchedulerWeights,
-  type BreakPolicy,
+  type ScoreWeights,
   type WorkingHours,
 } from '../lib/api';
 import { useToastStore } from '../components/Toasts';
 import { InfoTip } from '../components/InfoTip';
 
-const WEIGHT_INFO: Record<keyof SchedulerWeights, { label: string; help: string }> = {
-  urgency:       { label: 'Urgency',       help: 'Deadline pressure. Default 3.0 — dominant signal.' },
-  staleness:     { label: 'Staleness',     help: 'Boost long-neglected quests. Raise if old tasks rot.' },
-  timeFit:       { label: 'Time-of-day fit', help: 'How hard to honor preferredHour. Raise = stricter.' },
-  energyFit:     { label: 'Energy fit',    help: 'Match cognitive load to energy curve. Raise = stricter.' },
-  chunkFit:      { label: 'Chunk fit',     help: 'Reward chunks near maxChunkMin. Raise for longer focus.' },
-  adjacency:     { label: 'Adjacency',     help: 'Penalty for tedious-after-tedious. Raise to spread the boring stuff.' },
-  switch:        { label: 'Context switch', help: 'Penalty for category change. Raise to batch similar work.' },
-  fragmentation: { label: 'Fragmentation', help: 'Penalty for too few/too many chunks per day vs target.' },
-  oversize:      { label: 'Oversize',      help: 'Penalty for blocks above the 1.5h soft cap. Raise = stricter cap.' },
+const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
+  energy: {
+    label: '⚡ Energy match',
+    help: 'How strongly hard tasks are pulled into your high-capacity hours (morning peak, late-afternoon recovery) and easy ones into the post-lunch dip. Raise = stricter time-of-day matching.',
+  },
+  urgency: {
+    label: '⏰ Deadline pressure',
+    help: 'How much a closing deadline pulls a quest earlier. Only kicks in when slack is genuinely tight — a quest with days of buffer is not rushed. Raise if deadline work feels late; lower if everything stampedes to the front.',
+  },
+  monotony: {
+    label: '🎨 Variety',
+    help: 'Penalty for runs of same-flavor work (same category + difficulty + tedium). The variety floor hard-caps runs at 2 in a row; this weight shapes how hard the scheduler avoids even getting close. Raise for more interleaving.',
+  },
+  batch: {
+    label: '📎 Batch small admin',
+    help: 'Small bonus for chaining short admin/comms tasks back-to-back so you stay in shallow-work mode and knock them out together. Only applies to chunks ≤ 30min.',
+  },
+  tedium: {
+    label: '😩 Spread the boring',
+    help: 'Penalty for two high-tedium blocks back-to-back. Raise if you keep getting boring-then-boring; the scheduler will sandwich tedious work between engaging blocks.',
+  },
+  cooldown: {
+    label: '🧠 Mental cooldown',
+    help: 'Penalty for two high-difficulty blocks back-to-back. Raise to force a lighter task (or a gap) between brain-melters.',
+  },
+  session: {
+    label: '⏳ Session sizing',
+    help: 'How strictly chunks stick to their ideal size (big tasks: 30–90min sessions, medium: 20–60, small: one sitting). Raise = more uniform sessions; lower = scheduler freely uses odd-sized gaps.',
+  },
 };
+
+// Display order: the two main forces, then variety, then the fine-tuners.
+const WEIGHT_ORDER: Array<keyof ScoreWeights> = [
+  'energy', 'urgency', 'monotony', 'batch', 'tedium', 'cooldown', 'session',
+];
 
 export default function Settings() {
   const pushToast = useToastStore((s) => s.push);
@@ -43,7 +72,16 @@ export default function Settings() {
       .get()
       .then(({ defaults, overrides }) => {
         setDefaults(defaults);
-        setOverrides(overrides ?? {});
+        // Old persisted overrides may carry legacy keys (weights, breakPolicy)
+        // — keep only the fields this UI knows so we never re-save dead knobs.
+        const { scoreWeights, workingHours, horizonDays, softMaxBlockMin } =
+          (overrides ?? {}) as Partial<SchedulerConfigShape>;
+        setOverrides({
+          ...(scoreWeights ? { scoreWeights } : {}),
+          ...(workingHours ? { workingHours } : {}),
+          ...(horizonDays !== undefined ? { horizonDays } : {}),
+          ...(softMaxBlockMin !== undefined ? { softMaxBlockMin } : {}),
+        });
       })
       .finally(() => setLoaded(true));
   }, []);
@@ -52,8 +90,7 @@ export default function Settings() {
   const current = useMemo<SchedulerConfigShape | null>(() => {
     if (!defaults) return null;
     return {
-      weights: { ...defaults.weights, ...(overrides.weights ?? {}) },
-      breakPolicy: { ...defaults.breakPolicy, ...(overrides.breakPolicy ?? {}) },
+      scoreWeights: { ...defaults.scoreWeights, ...(overrides.scoreWeights ?? {}) },
       workingHours: { ...defaults.workingHours, ...(overrides.workingHours ?? {}) },
       horizonDays: overrides.horizonDays ?? defaults.horizonDays,
       softMaxBlockMin: overrides.softMaxBlockMin ?? defaults.softMaxBlockMin,
@@ -65,17 +102,11 @@ export default function Settings() {
     if (!defaults || !current) return {};
     const out: Partial<SchedulerConfigShape> = {};
 
-    const weightDiff: Partial<SchedulerWeights> = {};
-    (Object.keys(current.weights) as Array<keyof SchedulerWeights>).forEach((k) => {
-      if (current.weights[k] !== defaults.weights[k]) weightDiff[k] = current.weights[k];
+    const weightDiff: Partial<ScoreWeights> = {};
+    (Object.keys(current.scoreWeights) as Array<keyof ScoreWeights>).forEach((k) => {
+      if (current.scoreWeights[k] !== defaults.scoreWeights[k]) weightDiff[k] = current.scoreWeights[k];
     });
-    if (Object.keys(weightDiff).length) out.weights = weightDiff as SchedulerWeights;
-
-    const breakDiff: Partial<BreakPolicy> = {};
-    (Object.keys(current.breakPolicy) as Array<keyof BreakPolicy>).forEach((k) => {
-      if (current.breakPolicy[k] !== defaults.breakPolicy[k]) breakDiff[k] = current.breakPolicy[k];
-    });
-    if (Object.keys(breakDiff).length) out.breakPolicy = breakDiff as BreakPolicy;
+    if (Object.keys(weightDiff).length) out.scoreWeights = weightDiff as ScoreWeights;
 
     const hoursDiff: Partial<WorkingHours> = {};
     (Object.keys(current.workingHours) as Array<keyof WorkingHours>).forEach((k) => {
@@ -95,7 +126,7 @@ export default function Settings() {
     try {
       const payload = diffFromDefault();
       await api.settings.save(payload);
-      pushToast({ icon: '⚙️', title: 'Settings saved', sub: 'Next replan will use them', variant: 'xp' });
+      pushToast({ icon: '⚙️', title: 'Settings saved', sub: 'Next reflow will use them', variant: 'xp' });
     } catch (e) {
       pushToast({ icon: '⚠️', title: 'Save failed', sub: String(e), variant: 'xp' });
     } finally {
@@ -119,11 +150,8 @@ export default function Settings() {
     return <div className="p-8" style={{ color: 'var(--color-muted)' }}>Loading…</div>;
   }
 
-  const updateWeight = (k: keyof SchedulerWeights, v: number) => {
-    setOverrides((prev) => ({ ...prev, weights: { ...(prev.weights ?? {}), [k]: v } as SchedulerWeights }));
-  };
-  const updateBreak = (k: keyof BreakPolicy, v: number) => {
-    setOverrides((prev) => ({ ...prev, breakPolicy: { ...(prev.breakPolicy ?? {}), [k]: v } as BreakPolicy }));
+  const updateWeight = (k: keyof ScoreWeights, v: number) => {
+    setOverrides((prev) => ({ ...prev, scoreWeights: { ...(prev.scoreWeights ?? {}), [k]: v } as ScoreWeights }));
   };
   const updateHours = (k: keyof WorkingHours, v: number) => {
     setOverrides((prev) => ({ ...prev, workingHours: { ...(prev.workingHours ?? {}), [k]: v } as WorkingHours }));
@@ -141,60 +169,41 @@ export default function Settings() {
       </header>
 
       <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
-        Tune the scheduler. Changes apply on the next <b>Generate</b> or <b>Replan</b> on the Guild Feed.
-        Every knob has an ⓘ explaining its effect.
+        Tune the scheduler. Changes apply on the next <b>Reflow day</b> on the Guild Feed.
+        Every knob has an ⓘ explaining its effect — the defaults are good; only move what bothers you.
       </p>
 
       {/* Working hours */}
       <Section title="🕘 Working hours">
-        <Row label="Day starts at" hint="When the scheduler starts placing work blocks.">
+        <Row label="Day starts at" hint="When the scheduler starts placing work blocks (your local time).">
           <HourInput value={current.workingHours.startHour} onChange={(v) => updateHours('startHour', v)} />
         </Row>
-        <Row label="Day ends at" hint="When the scheduler stops placing work blocks.">
+        <Row label="Day ends at" hint="When the scheduler stops placing work blocks (your local time).">
           <HourInput value={current.workingHours.endHour} onChange={(v) => updateHours('endHour', v)} />
         </Row>
-        <Row label="Planning horizon" hint="How many days the scheduler plans ahead.">
+        <Row label="Planning horizon" hint="How many days the scheduler plans ahead. Big tasks spread toward their deadline across this window.">
           <NumberInput min={1} max={30} value={current.horizonDays} onChange={(v) => setOverrides((p) => ({ ...p, horizonDays: v }))} suffix="days" />
         </Row>
-      </Section>
-
-      {/* Breaks */}
-      <Section title="☕ Break policy">
-        <Row label="Short break every" hint="Insert a short break after this many minutes of contiguous work.">
-          <NumberInput min={15} max={240} step={5} value={current.breakPolicy.shortBreakAfterMin} onChange={(v) => updateBreak('shortBreakAfterMin', v)} suffix="min" />
-        </Row>
-        <Row label="Short break length">
-          <NumberInput min={1} max={60} value={current.breakPolicy.shortBreakDurationMin} onChange={(v) => updateBreak('shortBreakDurationMin', v)} suffix="min" />
-        </Row>
-        <Row label="Long break every" hint="Insert a longer break after this much cumulative work.">
-          <NumberInput min={30} max={480} step={15} value={current.breakPolicy.longBreakAfterMin} onChange={(v) => updateBreak('longBreakAfterMin', v)} suffix="min" />
-        </Row>
-        <Row label="Long break length">
-          <NumberInput min={5} max={120} step={5} value={current.breakPolicy.longBreakDurationMin} onChange={(v) => updateBreak('longBreakDurationMin', v)} suffix="min" />
-        </Row>
-      </Section>
-
-      {/* Soft cap */}
-      <Section title="🏛 Block size">
-        <Row label="Soft cap on work block" hint="Discourages blocks longer than this. Special tasks (setupCost ≥ 0.7 OR urgencyMult ≥ 1.5) override.">
+        <Row label="Longest single block" hint="Soft cap on one sitting. Lifted automatically for tasks with heavy setup cost or a rushed deadline.">
           <NumberInput min={15} max={480} step={15} value={current.softMaxBlockMin} onChange={(v) => setOverrides((p) => ({ ...p, softMaxBlockMin: v }))} suffix="min" />
         </Row>
       </Section>
 
-      {/* Weights */}
-      <Section title="🎚 Scoring weights">
+      {/* Scoring weights */}
+      <Section title="🎚 Day-building priorities">
         <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
-          Higher = bigger pull on the schedule. Default is shown to the right of each label.
+          Each slider sets how much that force matters when the scheduler picks what goes
+          in each slot. They're relative to each other — doubling everything changes nothing.
         </p>
-        {(Object.keys(WEIGHT_INFO) as Array<keyof SchedulerWeights>).map((k) => (
+        {WEIGHT_ORDER.map((k) => (
           <SliderRow
             key={k}
             label={WEIGHT_INFO[k].label}
             help={WEIGHT_INFO[k].help}
-            value={current.weights[k]}
-            defaultValue={defaults.weights[k]}
+            value={current.scoreWeights[k]}
+            defaultValue={defaults.scoreWeights[k]}
             min={0}
-            max={5}
+            max={4}
             step={0.1}
             onChange={(v) => updateWeight(k, v)}
           />

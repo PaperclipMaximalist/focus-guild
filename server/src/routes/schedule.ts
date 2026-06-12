@@ -363,12 +363,15 @@ schedule.get('/:clerkId/fillers', (c) => {
   return ok(c, { fillers: state.fillers });
 });
 
-schedule.get('/:clerkId/explain', (c) => {
+schedule.get('/:clerkId/explain', async (c) => {
   const user = c.get('user');
   const blockId = c.req.query('blockId');
   if (!blockId) return err(c, 'BAD_REQUEST', 'blockId query param required');
   const state = getState(user.id);
-  return ok(c, { explanation: explainBlock(blockId, state.schedule) });
+  // Hydrate task names so the explanation can reference the quest by title.
+  const loaded = await loadQuestsForUser(user);
+  const tasks = questsToTasks(loaded.regular, state.overrides, Date.now());
+  return ok(c, { explanation: explainBlock(blockId, state.schedule, tasks) });
 });
 
 // POST /schedule/:clerkId/insert/:questId — incremental "add one quest to the

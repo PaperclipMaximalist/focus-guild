@@ -6,9 +6,11 @@
  */
 
 export { generateSchedule, replan } from './replan.js';
+export { reflow } from './reflow.js';
 export { applyEdit } from './edits.js';
 export { explainBlock } from './explain.js';
-export { priorityScore, computeEnergyTrace } from './planner.js';
+export { priorityScore, computeEnergyTrace, taskMode, placementScore } from './planner.js';
+export type { ScoreBreakdown, PlacedRef } from './planner.js';
 export { suggestPreferredHour, recordMove } from './preferences.js';
 export { questToTask, questsToTasks, ADAPTER_DEFAULTS } from './adapter.js';
 export type { QuestLike, QuestSchedulerOverrides } from './adapter.js';
@@ -17,6 +19,7 @@ export type { DailyFiller, FillerPlacementInput } from './dailyFiller.js';
 export {
   defaultConfig,
   DEFAULT_WEIGHTS,
+  DEFAULT_SCORE_WEIGHTS,
   DEFAULT_BREAK_POLICY,
   DEFAULT_WORKING_HOURS,
   DEFAULT_ENERGY_CURVE,
@@ -30,6 +33,10 @@ export type {
   Schedule,
   UserConfig,
   Weights,
+  ScoreWeights,
+  Mode,
+  LoadTier,
+  TediumTier,
   BreakPolicy,
   WorkingHours,
   EnergyCurve,

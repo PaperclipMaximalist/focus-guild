@@ -17,6 +17,8 @@ import { getOverrides, type SchedulerOverrides } from '../lib/userConfig.js';
 
 export const settings = new Hono();
 
+// Legacy 9-knob weights — still accepted so persisted overrides from the
+// pre-revamp scorer don't 400 on save, but the planner ignores them.
 const WeightsSchema = z
   .object({
     urgency: z.number().min(0).max(20).optional(),
@@ -28,6 +30,20 @@ const WeightsSchema = z
     switch: z.number().min(0).max(20).optional(),
     fragmentation: z.number().min(0).max(20).optional(),
     oversize: z.number().min(0).max(20).optional(),
+  })
+  .strict();
+
+// Live per-decision scoring weights (see scheduler/config.ts for defaults
+// and SCHEDULER_PSEUDOCODE.md for what each term does).
+const ScoreWeightsSchema = z
+  .object({
+    energy: z.number().min(0).max(10).optional(),
+    urgency: z.number().min(0).max(10).optional(),
+    batch: z.number().min(0).max(10).optional(),
+    monotony: z.number().min(0).max(10).optional(),
+    tedium: z.number().min(0).max(10).optional(),
+    cooldown: z.number().min(0).max(10).optional(),
+    session: z.number().min(0).max(10).optional(),
   })
   .strict();
 
@@ -49,8 +65,9 @@ const WorkingHoursSchema = z
 
 const OverridesSchema = z
   .object({
-    weights: WeightsSchema.optional(),
-    breakPolicy: BreakPolicySchema.optional(),
+    weights: WeightsSchema.optional(),       // legacy, ignored by planner
+    breakPolicy: BreakPolicySchema.optional(), // legacy, ignored by planner
+    scoreWeights: ScoreWeightsSchema.optional(),
     workingHours: WorkingHoursSchema.optional(),
     horizonDays: z.number().int().min(1).max(30).optional(),
     softMaxBlockMin: z.number().int().min(15).max(480).optional(),
@@ -64,8 +81,7 @@ settings.get('/', (c) => {
     success: true,
     data: {
       defaults: {
-        weights: defaults.weights,
-        breakPolicy: defaults.breakPolicy,
+        scoreWeights: defaults.scoreWeights,
         workingHours: defaults.workingHours,
         horizonDays: defaults.horizonDays,
         softMaxBlockMin: defaults.softMaxBlockMin,
