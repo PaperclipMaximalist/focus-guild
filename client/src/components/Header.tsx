@@ -3,6 +3,7 @@ import { SignedIn, UserButton } from '@clerk/clerk-react';
 import { useUserStore } from '../store/useUserStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
+import { SoundToggle } from './SoundToggle';
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
@@ -71,6 +72,15 @@ export function Header() {
           <HeaderStat icon="🔥" value={user.currentStreak} label="streak" />
           <HeaderStat icon="⭐" value={user.totalXP.toLocaleString()} label="total XP" />
           <HeaderStat icon="✅" value={completedCount} label="done" />
+          <SoundToggle />
+          <Link
+            to="/trophies"
+            className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) bg-white/5 text-base transition hover:bg-white/15"
+            title="Trophy Room"
+            aria-label="Trophy Room"
+          >
+            🏆
+          </Link>
           <Link
             to="/settings"
             className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) bg-white/5 text-base transition hover:bg-white/15"

@@ -39,6 +39,12 @@ export interface AchievementContext {
   hasOverdueQuests: boolean;
   // Days since the user's last "zero-overdue" streak started (null = no streak)
   daysWithZeroOverdue: number;
+  // Current daily streak length (from User.currentStreak).
+  currentStreak: number;
+  // Lifetime XP after this completion (from User.totalXP).
+  totalXP: number;
+  // Total quests this user has completed, including this one.
+  totalCompleted: number;
 }
 
 export interface AchievementDef {
@@ -120,6 +126,73 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     xpReward: 125,
     check: (ctx) =>
       ctx.completedQuest.status === 'RESCUE' && ctx.remainingRescueCount === 0,
+  },
+  {
+    slug: 'first-blood',
+    title: 'First Steps',
+    description: 'Completed your very first quest. The journey begins.',
+    icon: '🌱',
+    xpReward: 25,
+    check: (ctx) => ctx.totalCompleted >= 1,
+  },
+  {
+    slug: 'dedicated',
+    title: 'Dedicated',
+    description: 'Completed 25 quests. The habit is forming.',
+    icon: '🎯',
+    xpReward: 150,
+    check: (ctx) => ctx.totalCompleted >= 25,
+  },
+  {
+    slug: 'centurion',
+    title: 'Centurion',
+    description: 'Completed 100 quests. A true force of focus.',
+    icon: '🏛️',
+    xpReward: 500,
+    check: (ctx) => ctx.totalCompleted >= 100,
+  },
+  {
+    slug: 'week-warrior',
+    title: 'Week Warrior',
+    description: 'Held a 7-day streak. Momentum is yours.',
+    icon: '🗓️',
+    xpReward: 175,
+    check: (ctx) => ctx.currentStreak >= 7,
+  },
+  {
+    slug: 'unbreakable',
+    title: 'Unbreakable',
+    description: 'Held a 30-day streak. Nothing stops you.',
+    icon: '💪',
+    xpReward: 750,
+    check: (ctx) => ctx.currentStreak >= 30,
+  },
+  {
+    slug: 'night-owl',
+    title: 'Night Owl',
+    description: 'Finished a quest late at night. Burning the midnight oil.',
+    icon: '🦉',
+    xpReward: 60,
+    check: (ctx) => {
+      const h = ctx.completedQuest.completedAt.getUTCHours();
+      return h >= 22 || h < 5;
+    },
+  },
+  {
+    slug: 'marathon',
+    title: 'Marathon',
+    description: 'Completed a single quest estimated at 2+ hours.',
+    icon: '🏃',
+    xpReward: 120,
+    check: (ctx) => ctx.completedQuest.estimatedMinutes >= 120,
+  },
+  {
+    slug: 'flow-state',
+    title: 'Flow State',
+    description: 'Reached Level 5 — Flow Master.',
+    icon: '💎',
+    xpReward: 0,
+    check: (ctx) => ctx.totalXP >= 7000,
   },
 ];
 

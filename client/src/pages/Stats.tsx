@@ -4,6 +4,7 @@ import { useUserStore } from '../store/useUserStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { LevelBadge } from '../components/LevelBadge';
+import { StreakHeatmap } from '../components/StreakHeatmap';
 import { LEVELS } from '../lib/levels';
 import { api, type XPEventDTO } from '../lib/api';
 
@@ -190,6 +191,24 @@ export default function Stats() {
             );
           })}
         </div>
+      </section>
+
+      {/* Consistency heatmap */}
+      <section
+        className="rounded-(--radius-card) border p-4"
+        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+      >
+        <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
+          🔥 Consistency
+          <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
+            (last 12 weeks)
+          </span>
+        </h2>
+        <StreakHeatmap
+          completions={completed
+            .map((q) => q.completedAt)
+            .filter((d): d is string => Boolean(d))}
+        />
       </section>
 
       {/* XP over time */}

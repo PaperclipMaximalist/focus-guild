@@ -58,12 +58,19 @@ export async function evalAndUnlockAchievements(
   // until a proper tracker is built. Good enough for MVP unlock signaling.
   const daysWithZeroOverdue = overdueCount === 0 ? 7 : 0;
 
-  // Spin the Wheel usage — sourced from User.spinCount.
+  // Spin the Wheel usage + streak + XP — sourced from the User row.
   const userRow = await db.user.findUnique({
     where: { id: userId },
-    select: { spinCount: true },
+    select: { spinCount: true, currentStreak: true, totalXP: true },
   });
   const spinWheelUses = userRow?.spinCount ?? 0;
+  const currentStreak = userRow?.currentStreak ?? 0;
+  const totalXP = userRow?.totalXP ?? 0;
+
+  // Total completed quests (milestone achievements).
+  const totalCompleted = await db.quest.count({
+    where: { userId, status: 'COMPLETE' },
+  });
 
   const candidateSlugs = evaluateAchievements({
     completedQuest: {
@@ -85,6 +92,9 @@ export async function evalAndUnlockAchievements(
     spinWheelUses,
     hasOverdueQuests: overdueCount > 0,
     daysWithZeroOverdue,
+    currentStreak,
+    totalXP,
+    totalCompleted,
   });
 
   if (candidateSlugs.length === 0) return [];

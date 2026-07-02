@@ -10,9 +10,12 @@ import Stats from './pages/Stats';
 import GuildFeed from './pages/GuildFeed';
 import Rescue from './pages/Rescue';
 import Settings from './pages/Settings';
+import Trophies from './pages/Trophies';
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
+import { CommandPalette } from './components/CommandPalette';
+import { RankThemeController } from './components/RankThemeController';
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
@@ -120,6 +123,7 @@ function AuthenticatedApp() {
 
   return (
     <BrowserRouter>
+      <RankThemeController />
       <div className="min-h-screen pb-16">
         <Routes>
           <Route path="/" element={<Today />} />
@@ -129,9 +133,11 @@ function AuthenticatedApp() {
           <Route path="/quests" element={<Quests />} />
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<Settings />} />
+          <Route path="/trophies" element={<Trophies />} />
         </Routes>
         <ToastContainer />
         <KeyboardShortcuts />
+        <CommandPalette />
         <BottomNav />
       </div>
     </BrowserRouter>

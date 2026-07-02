@@ -23,6 +23,7 @@ import { useAchievementsStore } from '../store/useAchievementsStore';
 import { api } from '../lib/api';
 import { spawnConfetti } from '../lib/confetti';
 import { levelFromXP } from '../lib/levels';
+import { sfxComplete, sfxAchievement, sfxLevelUp } from '../lib/sfx';
 import { type Quest } from '../lib/api';
 
 export default function Today() {
@@ -78,6 +79,7 @@ export default function Today() {
     const prevLevel = levelFromXP(user.totalXP).level;
     const result = await complete(id);
     applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
+    sfxComplete();
 
     pushToast({
       icon: '⭐',
@@ -108,6 +110,7 @@ export default function Today() {
       );
       result.newlyUnlocked.forEach((a, idx) => {
         setTimeout(() => {
+          sfxAchievement();
           pushToast({
             icon: a.icon,
             title: `Achievement unlocked: ${a.title}`,
@@ -121,6 +124,7 @@ export default function Today() {
     const newLevel = levelFromXP(result.totalXP).level;
     if (newLevel > prevLevel) {
       setTimeout(() => {
+        sfxLevelUp();
         setLevelUp(newLevel);
         spawnConfetti();
       }, 500);

@@ -125,6 +125,7 @@ export function KeyboardShortcuts() {
                 ⌨️ Keyboard shortcuts
               </h2>
               <div className="space-y-1.5 text-sm" style={{ color: 'var(--color-text)' }}>
+                <Row k="⌘ K" desc="Command palette (jump anywhere)" />
                 <Row k="N" desc="New quest" />
                 <Row k="S" desc="Spin the wheel" />
                 <Row k="/" desc="Focus search (on Quests page)" />

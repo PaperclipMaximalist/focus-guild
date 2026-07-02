@@ -22,6 +22,10 @@ import {
 } from '../lib/api';
 import { useToastStore } from '../components/Toasts';
 import { InfoTip } from '../components/InfoTip';
+import {
+  isSfxEnabled, setSfxEnabled, isHapticsEnabled, setHapticsEnabled, subscribeSfx, sfxClick,
+} from '../lib/sfx';
+import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -210,6 +214,9 @@ export default function Settings() {
         ))}
       </Section>
 
+      {/* Experience (client-side, saved instantly to this device) */}
+      <ExperienceSection />
+
       {/* Action bar */}
       <div className="sticky bottom-20 z-40 flex items-center justify-between gap-2 rounded-full border px-4 py-2.5 shadow-xl"
         style={{
@@ -239,6 +246,71 @@ export default function Settings() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Experience section (client-only toggles, persisted to localStorage) ──────
+
+function ExperienceSection() {
+  const [sfx, setSfx] = useState(isSfxEnabled());
+  const [haptics, setHaptics] = useState(isHapticsEnabled());
+  const [rankTheme, setRankTheme] = useState(isRankThemeEnabled());
+
+  useEffect(() => {
+    const unsubSfx = subscribeSfx(() => { setSfx(isSfxEnabled()); setHaptics(isHapticsEnabled()); });
+    const unsubTheme = subscribeTheme(() => setRankTheme(isRankThemeEnabled()));
+    return () => { unsubSfx(); unsubTheme(); };
+  }, []);
+
+  return (
+    <Section title="✨ Experience">
+      <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
+        Saved instantly to this device.
+      </p>
+      <Toggle
+        label="🔊 Sound effects"
+        hint="Plays a little chime when you finish a quest, level up, or unlock an achievement."
+        on={sfx}
+        onChange={(v) => { setSfxEnabled(v); if (v) sfxClick(); }}
+      />
+      <Toggle
+        label="📳 Haptics"
+        hint="Subtle vibration feedback on supported phones."
+        on={haptics}
+        onChange={(v) => setHapticsEnabled(v)}
+      />
+      <Toggle
+        label="🎨 Rank theming"
+        hint="Re-skins the app's accent color to match your guild rank. Leveling up changes the whole vibe."
+        on={rankTheme}
+        onChange={(v) => setRankThemeEnabled(v)}
+      />
+    </Section>
+  );
+}
+
+function Toggle({
+  label, hint, on, onChange,
+}: { label: string; hint: string; on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="text-sm" style={{ color: 'var(--color-text)' }}>{label}</span>
+        <InfoTip>{hint}</InfoTip>
+      </div>
+      <button
+        onClick={() => onChange(!on)}
+        role="switch"
+        aria-checked={on}
+        className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
+        style={{ background: on ? 'var(--color-primary)' : 'rgba(255,255,255,0.12)' }}
+      >
+        <span
+          className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+          style={{ left: on ? '22px' : '2px' }}
+        />
+      </button>
     </div>
   );
 }

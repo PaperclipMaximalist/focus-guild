@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { api, type Quest, type UnlockedAchievement } from '../lib/api';
 import { useToastStore } from './Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
+import { sfxSpin, sfxAchievement } from '../lib/sfx';
 
 interface Props {
   open: boolean;
@@ -26,6 +27,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
     setSpinning(true);
     setPicked(null);
     setError(null);
+    sfxSpin();
     try {
       // Build suspense: animate for ~1.2s before revealing.
       const [result] = await Promise.all([
@@ -39,6 +41,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
         );
         result.newlyUnlocked.forEach((a: UnlockedAchievement, idx) => {
           setTimeout(() => {
+            sfxAchievement();
             pushToast({
               icon: a.icon,
               title: `Achievement unlocked: ${a.title}`,

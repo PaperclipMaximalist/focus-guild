@@ -12,6 +12,7 @@ import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
+import { sfxComplete, sfxAchievement, sfxLevelUp, sfxStart } from '../lib/sfx';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -1093,6 +1094,7 @@ export default function GuildFeed() {
             onStart={() => {
               setActiveBlock(selectedBlock.id);
               if (selectedQuest) {
+                sfxStart();
                 startTimer({
                   questId: selectedQuest.id,
                   questTitle: selectedQuest.title,
@@ -1121,6 +1123,7 @@ export default function GuildFeed() {
             ? await completeDaily(questId)
             : await completeQuest(questId);
           applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
+          sfxComplete();
           pushToast({
             icon: '⭐',
             title: `+${result.xpAwarded} XP`,
@@ -1133,6 +1136,7 @@ export default function GuildFeed() {
             );
             result.newlyUnlocked.forEach((a, idx) => {
               setTimeout(() => {
+                sfxAchievement();
                 pushToast({
                   icon: a.icon,
                   title: `Achievement: ${a.title}`,
@@ -1144,6 +1148,7 @@ export default function GuildFeed() {
           }
           const newLevel = levelFromXP(result.totalXP).level;
           if (newLevel > prevLevel) {
+            sfxLevelUp();
             pushToast({ icon: '🆙', title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
           }
           replan();
