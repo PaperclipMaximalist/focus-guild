@@ -139,6 +139,28 @@ describe('no front-loading on loose deadlines', () => {
   });
 });
 
+describe('daily check-in integration', () => {
+  it("todayCapMin caps today's placed minutes; later days are unaffected", () => {
+    const now = nowAt9amUtc();
+    const t = task('big', {
+      remainingMin: 300,
+      maxChunkMin: 120,
+      deadline: now + 3 * DAY,
+    });
+    const cfg = configWith({ horizonDays: 3, todayCapMin: 60 });
+    const { schedule } = generateSchedule([t], [], cfg, now);
+    const work = schedule.filter((b) => b.type === 'work' && b.taskId === 'big');
+    const todayMin = work
+      .filter((b) => b.start < now + (24 - 9) * HOUR) // before today's midnight-ish
+      .filter((b) => b.start - now < 15 * HOUR)
+      .reduce((s, b) => s + (b.end - b.start) / MIN, 0);
+    expect(todayMin).toBeLessThanOrEqual(60);
+    // The rest of the work still lands on later days rather than vanishing.
+    const totalMin = work.reduce((s, b) => s + (b.end - b.start) / MIN, 0);
+    expect(totalMin).toBeGreaterThan(60);
+  });
+});
+
 describe('determinism', () => {
   it('same input twice produces identical schedules', () => {
     const now = nowAt9amUtc();

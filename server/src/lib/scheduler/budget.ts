@@ -136,9 +136,9 @@ export function allocateBudgets(
   tasks: Task[],
   days: DayInfo[],
   now: number,
+  /** Optional cap on today's total budget (from the daily check-in). */
+  todayCapMin?: number,
 ): DayBudget[] {
-  const tz = 0;
-  void tz; // future: tz for deadline-day rollover if we change semantics
   const remaining = new Map<string, number>(tasks.map((t) => [t.id, t.remainingMin]));
   const priority = new Map<string, number>(tasks.map((t) => [t.id, priorityScore(t, now)]));
 
@@ -147,6 +147,11 @@ export function allocateBudgets(
   for (let dayIdx = 0; dayIdx < days.length; dayIdx += 1) {
     const day = days[dayIdx]!;
     let residual = day.freeMinutes;
+    // The daily check-in's "available minutes" caps today only — the user
+    // told us how much time they actually have, regardless of working hours.
+    if (dayIdx === 0 && todayCapMin !== undefined) {
+      residual = Math.min(residual, Math.max(0, todayCapMin));
+    }
     if (residual < EPSILON_MIN) continue;
 
     // Tasks still eligible on this day, in priority order.

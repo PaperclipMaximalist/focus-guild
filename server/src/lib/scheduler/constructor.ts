@@ -22,6 +22,7 @@
  */
 
 import {
+  ADJACENT_GAP_MAX_MIN,
   dominantTerm,
   idealSessionRange,
   placementBreakdown,
@@ -163,20 +164,30 @@ function enumerateCandidates(
   return out;
 }
 
-/** Same-mode run length ending at `cursor` (looks at refs only). */
+/**
+ * Same-mode run length ending at `cursor`, counting only a CONTIGUOUS chain
+ * of blocks (each within ADJACENT_GAP_MAX_MIN of the next). A lunch gap or
+ * an overnight boundary resets the run — mirrors monotonyPenalty's
+ * adjacency semantics so the floor and the soft penalty agree.
+ */
 function countSameModeRun(
   refs: PlacedRef[],
   cursor: number,
   targetMode: ReturnType<typeof taskMode>,
 ): number {
+  const gapMs = ADJACENT_GAP_MAX_MIN * 60_000;
   const chrono = [...refs]
     .filter((r) => r.block.end <= cursor)
-    .sort((a, b) => b.block.start - a.block.start); // newest first
+    .sort((a, b) => b.block.end - a.block.end); // most recently ended first
   let n = 0;
+  let at = cursor;
   for (const r of chrono) {
+    if (at - r.block.end > gapMs) break; // real break — run over
     const m = taskMode(r.task);
-    if (m.category === targetMode.category && m.load === targetMode.load && m.tedium === targetMode.tedium) n += 1;
-    else break;
+    if (m.category === targetMode.category && m.load === targetMode.load && m.tedium === targetMode.tedium) {
+      n += 1;
+      at = r.block.start;
+    } else break;
   }
   return n;
 }

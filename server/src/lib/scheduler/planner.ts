@@ -283,9 +283,14 @@ export function urgencyFit(task: Task, blockStart: number): number {
   if (slack <= 0) return 1;
   // Half-life of attention at one `remainingMin` of slack — i.e. a 60-min task
   // with 60-min slack scores ~0.37; with 0 slack scores 1; with 4 hours of
-  // slack scores ~0.02. Multiplied by tier mult so HIGH still rises above MED.
+  // slack scores ~0.02. The tier multiplier enters as a sqrt so HIGH-tier
+  // quests rise above MED at equal slack, while the result stays in [0,1]
+  // (the old `× mult / 1.5` form dampened baseline tasks and broke the
+  // upper bound for mult > 1.5).
   const scale = Math.max(task.remainingMin, 60);
-  return clamp(Math.exp(-slack / scale), 0, 1) * Math.max(1, task.urgencyMultiplier ?? 1) / 1.5;
+  const base = clamp(Math.exp(-slack / scale), 0, 1);
+  const mult = Math.sqrt(clamp(task.urgencyMultiplier ?? 1, 0.25, 4));
+  return Math.min(1, base * mult);
 }
 
 /** Small reward for chaining short admin/comms blocks back-to-back. */
@@ -305,6 +310,19 @@ export function batchBonus(task: Task, chunkMin: number, prev: Task | null): num
  *   runLen 2  → 0.25  (warning — already two in a row)
  *   runLen 3+ → 1.00  (cap)
  */
+/**
+ * Two blocks count as "adjacent" (for run/clash purposes) only when the gap
+ * between them is at most this many minutes. A longer gap is a real break —
+ * a lunch hour or an overnight — and resets variety/cooldown reasoning.
+ * Without this, a same-mode block placed yesterday counted toward today's
+ * "run" and back-to-back penalties fired across days.
+ */
+export const ADJACENT_GAP_MAX_MIN = 45;
+
+function withinAdjacency(prevEnd: number, nextStart: number): boolean {
+  return nextStart - prevEnd <= ADJACENT_GAP_MAX_MIN * MS_PER_MIN;
+}
+
 export function monotonyPenalty(
   task: Task,
   blockStart: number,
@@ -313,11 +331,16 @@ export function monotonyPenalty(
   const target = taskMode(task);
   const chrono = [...placedRefs]
     .filter((r) => r.block.end <= blockStart)
-    .sort((a, b) => b.block.start - a.block.start); // newest first
+    .sort((a, b) => b.block.end - a.block.end); // most recently ended first
   let runLen = 0;
+  let cursor = blockStart;
   for (const r of chrono) {
-    if (modesEqual(taskMode(r.task), target)) runLen += 1;
-    else break;
+    // Chain must stay contiguous: each block ends within the adjacency
+    // window of the next one's start. A real gap breaks the run.
+    if (!withinAdjacency(r.block.end, cursor)) break;
+    if (!modesEqual(taskMode(r.task), target)) break;
+    runLen += 1;
+    cursor = r.block.start;
   }
   // (runLen - 1)² / 4, capped at 1. Subtract one so single same-mode preds
   // are free — only escalating runs cost.
@@ -351,14 +374,21 @@ interface PlacementCandidate {
   score: number;
 }
 
-/** Most recently-ended placed work block strictly before `blockStart`, or null. */
+/**
+ * The task of the most recently-ended work block before `blockStart` —
+ * but only if it's genuinely adjacent (gap ≤ ADJACENT_GAP_MAX_MIN).
+ * Returns null when the nearest predecessor is across a real break, so
+ * tedium/cooldown clashes and batch bonuses never fire over a lunch gap
+ * or an overnight boundary.
+ */
 export function prevPlacedBefore(blockStart: number, placedRefs: PlacedRef[]): Task | null {
   let best: PlacedRef | null = null;
   for (const r of placedRefs) {
     if (r.block.end > blockStart) continue;
     if (!best || r.block.end > best.block.end) best = r;
   }
-  return best?.task ?? null;
+  if (!best) return null;
+  return withinAdjacency(best.block.end, blockStart) ? best.task : null;
 }
 
 /** Resolve per-user score weights, falling back to defaults for any missing field. */
@@ -434,24 +464,31 @@ export function placementScore(
 }
 
 /**
- * Identifies the single most-influential term in a breakdown. Used by
- * explain.ts to surface a one-line reason the constructor picked this
- * task for this slot.
+ * Picks the most *informative* term in a breakdown for explain.ts.
  *
- * Returns `{ term, sign }` where:
- *   - term  = the key with the largest |contribution|
- *   - sign  = '+' if the term pushed toward placement, '−' if against
- *             (used to phrase the explanation positively or negatively)
+ * Naively taking the largest |contribution| always lands on "energy" —
+ * capacity fit is near its max for every morning block, so every
+ * explanation read "your capacity is high right now". Instead we rank by
+ * how much a term actually tells the user:
+ *
+ *   1. A meaningful penalty (something fought this placement) — rare and
+ *      therefore interesting.
+ *   2. A batch bonus — explains a deliberate chaining decision.
+ *   3. Deadline pressure, when it's non-trivial and comparable to the
+ *      energy term — "this needed a slot soon" beats "morning is good".
+ *   4. Energy fit as the default.
  */
 export function dominantTerm(b: ScoreBreakdown): { term: keyof ScoreBreakdown; sign: '+' | '-' } {
-  const keys = Object.keys(b) as Array<keyof ScoreBreakdown>;
-  let bestKey: keyof ScoreBreakdown = 'energy';
-  let bestAbs = -Infinity;
-  for (const k of keys) {
-    const v = Math.abs(b[k]);
-    if (v > bestAbs) { bestAbs = v; bestKey = k; }
+  const penaltyKeys: Array<keyof ScoreBreakdown> = ['monotony', 'tedium', 'cooldown', 'session'];
+  let worst: keyof ScoreBreakdown | null = null;
+  let worstV = 0;
+  for (const k of penaltyKeys) {
+    if (b[k] < worstV) { worstV = b[k]; worst = k; }
   }
-  return { term: bestKey, sign: b[bestKey] >= 0 ? '+' : '-' };
+  if (worst && Math.abs(worstV) >= 0.15) return { term: worst, sign: '-' };
+  if (b.batch >= 0.15) return { term: 'batch', sign: '+' };
+  if (b.urgency >= 0.35 && b.urgency >= b.energy * 0.6) return { term: 'urgency', sign: '+' };
+  return { term: 'energy', sign: b.energy >= 0 ? '+' : '-' };
 }
 
 // ─── Dep check ────────────────────────────────────────────────────────────────
@@ -523,7 +560,7 @@ export function plan(inputs: PlanInputs): SchedulerResult {
 
   // ── 2/3. Build per-day capacity + allocate budgets ───────────────────
   const days = buildDayInfo(config, now, immovable);
-  const budgets = allocateBudgets(sorted, days, now);
+  const budgets = allocateBudgets(sorted, days, now, config.todayCapMin);
 
   // ── 4. Construct each day ────────────────────────────────────────────
   const allWorkBlocks: Block[] = [];

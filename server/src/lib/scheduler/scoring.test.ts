@@ -118,6 +118,11 @@ describe('urgencyFit (slack-gated)', () => {
     const boosted = task('b', { remainingMin: 60, deadline: nowAt9amUtc() + 24 * HOUR, urgencyMultiplier: 1.4 });
     expect(urgencyFit(boosted, nowAt9amUtc())).toBeGreaterThan(urgencyFit(relaxed, nowAt9amUtc()));
   });
+
+  it('never exceeds 1, even with an extreme multiplier at zero slack', () => {
+    const t = task('t', { remainingMin: 60, deadline: nowAt9amUtc() + HOUR, urgencyMultiplier: 4.0 });
+    expect(urgencyFit(t, nowAt9amUtc())).toBeLessThanOrEqual(1);
+  });
 });
 
 describe('monotonyPenalty (mode-based)', () => {
@@ -146,6 +151,23 @@ describe('monotonyPenalty (mode-based)', () => {
     const prevTask = task('p', { category: 'admin', cognitiveLoad: 0.8, tediousness: 0.2 });
     const placed = [{ block: block('p', nowAt9amUtc(), 30), task: prevTask }];
     expect(monotonyPenalty(t, nowAt9amUtc() + 31 * MIN, placed)).toBe(0);
+  });
+
+  it('a long gap (real break) resets the run', () => {
+    // Three contiguous same-mode blocks… then a 2-hour gap. The run must
+    // not survive the gap — that's a genuine break, not monotony.
+    const same = (id: string) => task(id, { cognitiveLoad: 0.8, tediousness: 0.2, category: 'deep_work' });
+    const placed = [0, 30, 60].map((m) => ({ block: block(`p${m}`, nowAt9amUtc() + m * MIN, 30), task: same(`p${m}`) }));
+    // Last block ends at +90min; probe at +90min + 2h.
+    const probe = nowAt9amUtc() + 90 * MIN + 2 * HOUR;
+    expect(monotonyPenalty(same('next'), probe, placed)).toBe(0);
+  });
+
+  it('a same-mode block from the previous day does not count', () => {
+    const same = (id: string) => task(id, { cognitiveLoad: 0.8, tediousness: 0.2, category: 'deep_work' });
+    const yesterday = [{ block: block('y', nowAt9amUtc() - DAY, 60), task: same('y') },
+                       { block: block('y2', nowAt9amUtc() - DAY + 61 * MIN, 60), task: same('y2') }];
+    expect(monotonyPenalty(same('today'), nowAt9amUtc(), yesterday)).toBe(0);
   });
 });
 

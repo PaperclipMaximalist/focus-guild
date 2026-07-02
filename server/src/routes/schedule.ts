@@ -66,6 +66,38 @@ function getState(userId: string): UserScheduleState {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/**
+ * Build the effective scheduler config for this user: persisted settings +
+ * tz hint + TODAY'S CHECK-IN. The check-in finally does something:
+ *
+ *   - energyLevel (1–5) scales the whole capacity curve. Low-energy days
+ *     compress capacity so hard tasks migrate to the true peaks (or to
+ *     better days); high-energy days lift the mid-day dip.
+ *   - availableMinutes caps today's total budget — "I only have 2 hours
+ *     today" now actually means today's plan holds ≤ 2 hours.
+ */
+async function configForUser(
+  user: { id: string; schedulerSettings?: unknown },
+  tzOffsetMin?: number,
+): Promise<ReturnType<typeof getUserConfig>> {
+  const cfg = getUserConfig(user, tzOffsetMin);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const checkIn = await db.dailyCheckIn.findUnique({
+    where: { userId_date: { userId: user.id, date: today } },
+  }).catch(() => null);
+  if (!checkIn) return cfg;
+
+  // energyLevel 1→0.74, 2→0.83, 3→0.92, 4→1.01 (≈neutral), 5→1.10.
+  const scale = 0.65 + 0.09 * Math.min(5, Math.max(1, checkIn.energyLevel));
+  const baseCurve = cfg.energyCurve;
+  return {
+    ...cfg,
+    energyCurve: (h: number) => Math.min(1, Math.max(0, baseCurve(h) * scale)),
+    todayCapMin: checkIn.availableMinutes,
+  };
+}
+
 async function loadQuestsForUser(user: { id: string }) {
   const all = await db.quest.findMany({
     where: { userId: user.id, status: { in: ['ACTIVE', 'RESCUE'] } },
@@ -242,7 +274,7 @@ schedule.post('/generate', async (c) => {
   const loaded = await loadQuestsForUser(user);
 
   const state = getState(user.id);
-  const cfg = getUserConfig(user, tzOffsetMin);
+  const cfg = await configForUser(user, tzOffsetMin);
   regenerate(state, { ...loaded, user }, cfg);
 
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
@@ -293,7 +325,7 @@ schedule.post('/:clerkId/replan', async (c) => {
 
   const state = getState(user.id);
   const now = Date.now();
-  const cfg = getUserConfig(user, tzOffsetMin);
+  const cfg = await configForUser(user, tzOffsetMin);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
@@ -332,7 +364,7 @@ schedule.post('/:clerkId/edit', async (c) => {
   // Re-flow around the new edit. Reuse caller's tz hint if they sent one.
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const cfg = getUserConfig(user, parsed.data.tzOffsetMin);
+  const cfg = await configForUser(user, parsed.data.tzOffsetMin);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
   const result = replan(state.schedule, tasks, cfg, now);
   state.schedule = result.schedule;
@@ -399,7 +431,7 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
 
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const cfg = getUserConfig(user, tzOffsetMin);
+  const cfg = await configForUser(user, tzOffsetMin);
   // Only the requested quest is "new" — pass everything to replan, which
   // re-flows unlocked future blocks. Locked + past are preserved.
   const tasks = questsToTasks(loaded.regular, state.overrides, now);

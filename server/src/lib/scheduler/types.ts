@@ -149,6 +149,12 @@ export interface UserConfig {
    * optional so partial overrides merge cleanly.
    */
   scoreWeights?: Partial<ScoreWeights>;
+  /**
+   * Cap on how many minutes of work can be budgeted for TODAY, sourced
+   * from the daily check-in's "available minutes". Later days are
+   * unaffected. Unset = no cap beyond working hours.
+   */
+  todayCapMin?: number;
 }
 
 export interface FeasibilityIssue {
