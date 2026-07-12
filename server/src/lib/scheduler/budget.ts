@@ -120,17 +120,55 @@ function softMaxPerDay(t: Task): number {
 }
 
 /**
- * Allocate per-day quotas. Iterates day-by-day in time order; within each
- * day iterates tasks in priority order, granting each task its fair share
- * of remaining work spread across the days it has left, capped by
- * softMaxPerDay and by the day's residual capacity.
+ * Minutes of free time on `day` that fall strictly before `deadline`.
+ * The constructor can never place a chunk past the deadline, so any
+ * budget granted beyond this number is physically unplaceable.
+ */
+function usableMinBeforeDeadline(day: DayInfo, deadline: number): number {
+  let mins = 0;
+  for (const iv of day.freeIntervals) {
+    const end = Math.min(iv.end, deadline);
+    if (end > iv.start) mins += (end - iv.start) / MS_PER_MIN;
+  }
+  return mins;
+}
+
+/** Minutes already granted to `taskId` in this day's budget. */
+function grantedOnDay(budget: DayBudget, taskId: string): number {
+  let mins = 0;
+  for (const q of budget.quotas) if (q.task.id === taskId) mins += q.targetMin;
+  return mins;
+}
+
+/** Add `mins` to a task's quota on a day, merging with an existing entry. */
+function addQuota(budget: DayBudget, task: Task, mins: number): void {
+  const existing = budget.quotas.find((q) => q.task.id === task.id);
+  if (existing) existing.targetMin += mins;
+  else budget.quotas.push({ task, targetMin: mins });
+}
+
+/**
+ * Allocate per-day quotas in two passes.
+ *
+ * PASS 1 — fair spread. Day-by-day in time order; within each day tasks in
+ * priority order, each granted its per-day share:
  *
  *   perDayWant = ceil(remainingForTask / daysAvailableForTask)
- *   grant      = min(perDayWant, softMaxPerDay, dayResidual, remainingForTask)
+ *   grant      = min(perDayWant, softMaxPerDay, dayResidual,
+ *                    usableMinBeforeDeadline − alreadyGranted, remaining)
  *
- * Higher-priority tasks claim first → naturally spread, deadline-aware,
- * no task ever silently dropped (anything not granted by horizon end shows
- * up as feasibility shortfall in plan()).
+ * The usable-before-deadline cap is what makes the spread *deadline-
+ * capacity* aware, not just deadline-day aware: a task due tomorrow 10am
+ * can only receive tomorrow's pre-10am minutes there — day COUNT alone
+ * would grant it a full half share that physically can't be placed.
+ *
+ * PASS 2 — deadline-safety repair. Any task still short after the fair
+ * spread (in deadline order) grabs leftover residual from the earliest
+ * days that still have usable pre-deadline time, ignoring softMaxPerDay —
+ * day-balance is a preference, deadline safety is a guarantee. After this
+ * pass, a feasibility shortfall means the time GENUINELY doesn't exist
+ * before the deadline (or the user's check-in cap excludes it), never
+ * that the budgeter mis-shaped the spread.
  */
 export function allocateBudgets(
   tasks: Task[],
@@ -143,18 +181,18 @@ export function allocateBudgets(
   const priority = new Map<string, number>(tasks.map((t) => [t.id, priorityScore(t, now)]));
 
   const budgets: DayBudget[] = days.map((d) => ({ day: d, quotas: [] }));
+  // Per-day residual capacity, surviving into the repair pass.
+  const residuals: number[] = days.map((d, i) => {
+    let r = d.freeMinutes;
+    if (i === 0 && todayCapMin !== undefined) r = Math.min(r, Math.max(0, todayCapMin));
+    return r;
+  });
 
+  // ── PASS 1: fair spread ──
   for (let dayIdx = 0; dayIdx < days.length; dayIdx += 1) {
     const day = days[dayIdx]!;
-    let residual = day.freeMinutes;
-    // The daily check-in's "available minutes" caps today only — the user
-    // told us how much time they actually have, regardless of working hours.
-    if (dayIdx === 0 && todayCapMin !== undefined) {
-      residual = Math.min(residual, Math.max(0, todayCapMin));
-    }
-    if (residual < EPSILON_MIN) continue;
+    if (residuals[dayIdx]! < EPSILON_MIN) continue;
 
-    // Tasks still eligible on this day, in priority order.
     const eligible = tasks
       .filter((t) => (remaining.get(t.id) ?? 0) > EPSILON_MIN && t.deadline > day.workStart)
       .sort((a, b) => {
@@ -164,11 +202,10 @@ export function allocateBudgets(
       });
 
     for (const task of eligible) {
-      if (residual < EPSILON_MIN) break;
+      if (residuals[dayIdx]! < EPSILON_MIN) break;
       const left = remaining.get(task.id) ?? 0;
       if (left <= EPSILON_MIN) continue;
 
-      // Count this day's remaining usable days for this task.
       let daysAvailable = 0;
       for (let j = dayIdx; j < days.length; j += 1) {
         if (days[j]!.workStart >= task.deadline) break;
@@ -177,14 +214,40 @@ export function allocateBudgets(
       if (daysAvailable === 0) continue;
 
       const perDayWant = Math.ceil(left / daysAvailable);
-      const grant = Math.floor(Math.min(perDayWant, softMaxPerDay(task), residual, left));
+      const placeable = usableMinBeforeDeadline(day, task.deadline);
+      const grant = Math.floor(
+        Math.min(perDayWant, softMaxPerDay(task), residuals[dayIdx]!, placeable, left),
+      );
       if (grant < 1) continue;
 
-      budgets[dayIdx]!.quotas.push({ task, targetMin: grant });
-      residual -= grant;
+      addQuota(budgets[dayIdx]!, task, grant);
+      residuals[dayIdx]! -= grant;
       remaining.set(task.id, left - grant);
     }
   }
+
+  // ── PASS 2: deadline-safety repair ──
+  const short = tasks
+    .filter((t) => (remaining.get(t.id) ?? 0) > EPSILON_MIN)
+    .sort((a, b) => a.deadline - b.deadline || (a.id < b.id ? -1 : 1));
+
+  for (const task of short) {
+    let left = remaining.get(task.id) ?? 0;
+    for (let dayIdx = 0; dayIdx < days.length && left > EPSILON_MIN; dayIdx += 1) {
+      const day = days[dayIdx]!;
+      if (day.workStart >= task.deadline) break;
+      if (residuals[dayIdx]! < EPSILON_MIN) continue;
+      const placeable = usableMinBeforeDeadline(day, task.deadline)
+        - grantedOnDay(budgets[dayIdx]!, task.id);
+      const grab = Math.floor(Math.min(residuals[dayIdx]!, Math.max(0, placeable), left));
+      if (grab < 1) continue;
+      addQuota(budgets[dayIdx]!, task, grab);
+      residuals[dayIdx]! -= grab;
+      left -= grab;
+    }
+    remaining.set(task.id, left);
+  }
+
   return budgets;
 }
 

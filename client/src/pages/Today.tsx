@@ -18,6 +18,8 @@ import { QuestDetail } from '../components/QuestDetail';
 import { LevelUpSplash } from '../components/LevelUpSplash';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
+import { UpNextCard } from '../components/UpNextCard';
+import { QuickAddBar } from '../components/QuickAddBar';
 import { useToastStore } from '../components/Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { api } from '../lib/api';
@@ -155,6 +157,12 @@ export default function Today() {
             ⚡ Daily check-in not done yet — tell the Guild your energy level →
           </Link>
         )}
+
+        {/* What should I do right now? — the scheduler answers on arrival. */}
+        <UpNextCard onCompleteQuest={handleComplete} />
+
+        {/* Zero-friction capture: "Write report 2h by fri #work !high" */}
+        <QuickAddBar />
 
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <Link

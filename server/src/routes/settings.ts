@@ -40,6 +40,7 @@ const ScoreWeightsSchema = z
     energy: z.number().min(0).max(10).optional(),
     urgency: z.number().min(0).max(10).optional(),
     batch: z.number().min(0).max(10).optional(),
+    prefHour: z.number().min(0).max(10).optional(),
     monotony: z.number().min(0).max(10).optional(),
     tedium: z.number().min(0).max(10).optional(),
     cooldown: z.number().min(0).max(10).optional(),

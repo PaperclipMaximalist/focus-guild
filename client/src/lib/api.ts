@@ -305,6 +305,7 @@ export interface ScoreWeights {
   energy: number;
   urgency: number;
   batch: number;
+  prefHour: number;
   monotony: number;
   tedium: number;
   cooldown: number;

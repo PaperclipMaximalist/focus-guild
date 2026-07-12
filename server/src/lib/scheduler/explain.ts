@@ -43,6 +43,8 @@ function reasonFor(note: NoteShape, task: Task | null): string {
       return `Deadline is close enough that ${name} needed a slot soon.`;
     case 'batch':
       return `Chained with the previous admin/comms block to stay in flow.`;
+    case 'prefHour':
+      return `Placed at the time of day you asked for on ${name}.`;
     case 'monotony':
       return pos
         ? `Picked to keep variety — different mode from recent blocks.`

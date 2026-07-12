@@ -47,6 +47,9 @@ export const DEFAULT_SCORE_WEIGHTS: ScoreWeights = {
   tedium: 0.8,
   cooldown: 0.8,
   session: 0.5,
+  // Preferred-hour pull. Soft by design: "I do my best writing at 10am"
+  // should nudge, not override deadline pressure or energy fit.
+  prefHour: 0.6,
 };
 
 /**

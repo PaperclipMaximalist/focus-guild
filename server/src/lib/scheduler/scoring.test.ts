@@ -14,6 +14,7 @@ import {
   tediumClash,
   cooldownClash,
   batchBonus,
+  prefHourFit,
   sessionSizePenalty,
   idealSessionRange,
   taskMode,
@@ -183,6 +184,31 @@ describe('tediumClash + cooldownClash', () => {
     const t = task('t', { cognitiveLoad: 0.9 });
     expect(cooldownClash(t, task('p', { cognitiveLoad: 0.9 }))).toBe(1);
     expect(cooldownClash(t, task('p', { cognitiveLoad: 0.5 }))).toBe(0);
+  });
+});
+
+describe('prefHourFit', () => {
+  it('is 0 (neutral) when no preferred hour is set', () => {
+    const t = task('t', { preferredHour: null });
+    expect(prefHourFit(t, Date.UTC(2026, 4, 18, 10, 0), cfg)).toBe(0);
+  });
+
+  it('is ~1 exactly at the preferred hour and decays with distance', () => {
+    const t = task('t', { preferredHour: 10 });
+    const at10 = prefHourFit(t, Date.UTC(2026, 4, 18, 10, 0), cfg);
+    const at12 = prefHourFit(t, Date.UTC(2026, 4, 18, 12, 0), cfg);
+    const at16 = prefHourFit(t, Date.UTC(2026, 4, 18, 16, 0), cfg);
+    expect(at10).toBeGreaterThan(0.95);
+    expect(at12).toBeLessThan(at10);
+    expect(at16).toBeLessThan(at12);
+  });
+
+  it('uses circular hour distance (23:00 is 2h from 01:00)', () => {
+    const t = task('t', { preferredHour: 23 });
+    const at1am = prefHourFit(t, Date.UTC(2026, 4, 18, 1, 0), cfg);
+    const at11am = prefHourFit(t, Date.UTC(2026, 4, 18, 11, 0), cfg);
+    expect(at1am).toBeGreaterThan(0.5); // 2h away, not 22h
+    expect(at11am).toBeLessThan(0.01);  // 12h away — truly far
   });
 });
 

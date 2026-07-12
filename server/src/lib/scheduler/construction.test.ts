@@ -139,6 +139,31 @@ describe('no front-loading on loose deadlines', () => {
   });
 });
 
+describe('budget deadline-capacity awareness', () => {
+  it('no phantom shortfall when a deadline cuts the last day short', () => {
+    // 300-min task due tomorrow 10am. Naive day-COUNT spread grants 150
+    // to tomorrow, but only 60 minutes exist there before 10am — the old
+    // budgeter reported a 90-min shortfall while today sat with hours of
+    // free capacity. The capacity-aware spread + repair pass must place
+    // all 300 minutes (240 today, 60 tomorrow) and report feasible.
+    const now = nowAt9amUtc();
+    const t = task('crunch', {
+      remainingMin: 300,
+      minChunkMin: 15,
+      maxChunkMin: 120,
+      deadline: now + 25 * HOUR, // tomorrow 10:00
+    });
+    const { schedule, feasibilityReport } = generateSchedule(
+      [t], [], configWith({ horizonDays: 2 }), now,
+    );
+    const work = schedule.filter((b) => b.type === 'work' && b.taskId === 'crunch');
+    const placed = work.reduce((s, b) => s + (b.end - b.start) / MIN, 0);
+    expect(placed).toBe(300);
+    expect(feasibilityReport.ok).toBe(true);
+    for (const b of work) expect(b.end).toBeLessThanOrEqual(t.deadline);
+  });
+});
+
 describe('daily check-in integration', () => {
   it("todayCapMin caps today's placed minutes; later days are unaffected", () => {
     const now = nowAt9amUtc();

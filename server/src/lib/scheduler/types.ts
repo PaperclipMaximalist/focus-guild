@@ -102,6 +102,8 @@ export interface ScoreWeights {
   cooldown: number;
   /** Penalty for chunks outside the task's task-size-scaled ideal session range. */
   session: number;
+  /** Pull toward a task's preferredHour (gaussian, σ≈2h). 0 for tasks without one. */
+  prefHour: number;
 }
 
 export interface BreakPolicy {

@@ -56,11 +56,15 @@ const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> =
     label: '⏳ Session sizing',
     help: 'How strictly chunks stick to their ideal size (big tasks: 30–90min sessions, medium: 20–60, small: one sitting). Raise = more uniform sessions; lower = scheduler freely uses odd-sized gaps.',
   },
+  prefHour: {
+    label: '🕰️ Preferred time',
+    help: 'How strongly a quest\'s "preferred hour" pulls it toward that time of day (σ≈2h). Only affects quests where you set one. Raise for stricter honoring; 0 to ignore preferences.',
+  },
 };
 
 // Display order: the two main forces, then variety, then the fine-tuners.
 const WEIGHT_ORDER: Array<keyof ScoreWeights> = [
-  'energy', 'urgency', 'monotony', 'batch', 'tedium', 'cooldown', 'session',
+  'energy', 'urgency', 'monotony', 'prefHour', 'batch', 'tedium', 'cooldown', 'session',
 ];
 
 export default function Settings() {

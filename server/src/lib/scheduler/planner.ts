@@ -293,6 +293,21 @@ export function urgencyFit(task: Task, blockStart: number): number {
   return Math.min(1, base * mult);
 }
 
+/**
+ * Preferred-hour fit ∈ [0,1]. Gaussian around the task's preferredHour with
+ * σ≈2h, using circular hour distance (23:00 is 2 hours from 01:00, not 22).
+ * Returns 0 (neutral, no pull) for tasks without a preference — the term is
+ * a bonus for tasks that asked for a time, never a penalty for ones that
+ * didn't.
+ */
+export function prefHourFit(task: Task, blockStart: number, config: UserConfig): number {
+  if (task.preferredHour === null) return 0;
+  const hour = userHourOf(blockStart, config.tzOffsetMin ?? 0);
+  const raw = Math.abs(hour - task.preferredHour);
+  const diff = Math.min(raw, 24 - raw);
+  return Math.exp(-(diff * diff) / 8); // σ = 2h
+}
+
 /** Small reward for chaining short admin/comms blocks back-to-back. */
 export function batchBonus(task: Task, chunkMin: number, prev: Task | null): number {
   const isAdmin = task.category === 'admin' || task.category === 'comms';
@@ -421,6 +436,7 @@ export interface ScoreBreakdown {
   energy: number;
   urgency: number;
   batch: number;
+  prefHour: number;
   monotony: number;
   tedium: number;
   cooldown: number;
@@ -440,6 +456,7 @@ export function placementBreakdown(
     energy:   weights.energy   * energyFit(task, start, config),
     urgency:  weights.urgency  * urgencyFit(task, start),
     batch:    weights.batch    * batchBonus(task, chunkMin, prev),
+    prefHour: weights.prefHour * prefHourFit(task, start, config),
     monotony: -weights.monotony * monotonyPenalty(task, start, placedRefs),
     tedium:   -weights.tedium  * tediumClash(task, prev),
     cooldown: -weights.cooldown * cooldownClash(task, prev),
@@ -449,7 +466,7 @@ export function placementBreakdown(
 
 /** Sum the breakdown to get the score. */
 export function totalFromBreakdown(b: ScoreBreakdown): number {
-  return b.energy + b.urgency + b.batch + b.monotony + b.tedium + b.cooldown + b.session;
+  return b.energy + b.urgency + b.batch + b.prefHour + b.monotony + b.tedium + b.cooldown + b.session;
 }
 
 export function placementScore(
@@ -487,6 +504,9 @@ export function dominantTerm(b: ScoreBreakdown): { term: keyof ScoreBreakdown; s
   }
   if (worst && Math.abs(worstV) >= 0.15) return { term: worst, sign: '-' };
   if (b.batch >= 0.15) return { term: 'batch', sign: '+' };
+  // A strong preferred-hour hit is a deliberate, user-set preference —
+  // "landed at your requested time" is worth surfacing over generic fit.
+  if (b.prefHour >= 0.4) return { term: 'prefHour', sign: '+' };
   if (b.urgency >= 0.35 && b.urgency >= b.energy * 0.6) return { term: 'urgency', sign: '+' };
   return { term: 'energy', sign: b.energy >= 0 ? '+' : '-' };
 }
