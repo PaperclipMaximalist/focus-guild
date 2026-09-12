@@ -8,6 +8,7 @@ import { quests } from './routes/quests.js';
 import { checkin } from './routes/checkin.js';
 import { schedule } from './routes/schedule.js';
 import { settings } from './routes/settings.js';
+import { tracker } from './routes/tracker.js';
 import { requireUser } from './lib/auth.js';
 
 const app = new Hono();
@@ -46,6 +47,7 @@ app.route('/quests', quests);
 app.route('/checkin', checkin);
 app.route('/schedule', schedule);
 app.route('/settings', settings);
+app.route('/tracker', tracker);
 
 // 404 catch-all
 app.notFound((c) =>
