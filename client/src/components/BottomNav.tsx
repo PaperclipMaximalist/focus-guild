@@ -7,6 +7,7 @@
  */
 
 import { Link, useLocation } from 'react-router-dom';
+import { useTrackerStore } from '../store/useTrackerStore';
 
 interface Item {
   to: string;
@@ -19,6 +20,7 @@ const ITEMS: Item[] = [
   { to: '/feed', icon: '📅', label: 'Feed' },
   { to: '/rescue', icon: '🚑', label: 'Rescue' },
   { to: '/quests', icon: '⚔️', label: 'Quests' },
+  { to: '/tracker', icon: '🗺️', label: 'Tracker' },
   { to: '/stats', icon: '📊', label: 'Stats' },
 ];
 
@@ -27,11 +29,14 @@ const HIDDEN_ROUTES = new Set(['/checkin']);
 
 export function BottomNav() {
   const { pathname } = useLocation();
+  // The CAS lens is a navigation-level state, so the tracker tab shows which
+  // lens you'd be returning to rather than hiding it inside the page.
+  const casMode = useTrackerStore((s) => s.casMode);
   if (HIDDEN_ROUTES.has(pathname)) return null;
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-4 z-40"
+      className="fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-1 sm:px-4 z-40"
       style={{
         background: 'var(--color-surface)',
         borderTop: '1px solid var(--color-border)',
@@ -45,13 +50,15 @@ export function BottomNav() {
           <Link
             key={item.to}
             to={item.to}
-            className="flex flex-col items-center gap-0.5 text-xs transition-colors"
+            className="flex flex-1 flex-col items-center gap-0.5 text-[11px] transition-colors sm:text-xs"
             style={{
               color: active ? 'var(--color-primary)' : 'var(--color-muted)',
             }}
           >
-            <span className="text-xl">{item.icon}</span>
-            {item.label}
+            <span className="text-xl">
+              {item.to === '/tracker' && casMode ? '🎭' : item.icon}
+            </span>
+            {item.to === '/tracker' && casMode ? 'CAS' : item.label}
           </Link>
         );
       })}

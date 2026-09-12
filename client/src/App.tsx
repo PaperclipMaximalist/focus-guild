@@ -11,6 +11,9 @@ import GuildFeed from './pages/GuildFeed';
 import Rescue from './pages/Rescue';
 import Settings from './pages/Settings';
 import Trophies from './pages/Trophies';
+import Tracker from './pages/Tracker';
+import TrackerPresets from './pages/TrackerPresets';
+import TrackerMarkdown from './pages/TrackerMarkdown';
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
@@ -134,6 +137,9 @@ function AuthenticatedApp() {
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/trophies" element={<Trophies />} />
+          <Route path="/tracker" element={<Tracker />} />
+          <Route path="/tracker/presets" element={<TrackerPresets />} />
+          <Route path="/tracker/markdown" element={<TrackerMarkdown />} />
         </Routes>
         <ToastContainer />
         <KeyboardShortcuts />
