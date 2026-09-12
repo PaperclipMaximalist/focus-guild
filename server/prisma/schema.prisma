@@ -20,6 +20,10 @@ model User {
   /// User-tunable scheduler overrides (weights, working hours, break policy, etc.).
   /// Shape: Partial<UserConfig> — see server/src/lib/userConfig.ts.
   schedulerSettings   Json?
+  /// User-editable tracker presets (active cap, status labels, code prefixes,
+  /// required fields, review cadence). Shape: Partial<TrackerConfig> —
+  /// see server/src/lib/trackerConfig.ts. Domains are rows, not config.
+  trackerSettings     Json?
 
   quests         Quest[]
   checkIns       DailyCheckIn[]
@@ -27,6 +31,11 @@ model User {
   achievements   UserAchievement[]
   scheduleBlocks ScheduleBlock[]
   recurringCompletions RecurringCompletion[]
+  trackerItems   TrackerItem[]
+  trackerDomains TrackerDomain[]
+  parkingLot     ParkingLotEntry[]
+  decisions      DecisionLogEntry[]
+  casInterviews  CasInterview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -202,4 +211,149 @@ enum BlockType {
   WORK
   BREAK
   FIXED
+}
+
+// ─── Long-horizon tracker ─────────────────────────────────────────────────────
+// Two-year, ~100+ item horizon. Deliberately flat: no subtasks, no priority
+// levels (the scheduler owns weighting). Items feed the scheduler by having
+// their `nextAction` materialised as a Quest — see questId below.
+
+model TrackerDomain {
+  id     String @id @default(cuid())
+  userId String
+  name   String
+  /// Hex colour for chips/sections, e.g. "#8b5cf6".
+  color  String @default("#8b5cf6")
+  /// Manual sort position; lower sorts first.
+  sortOrder Int  @default(0)
+
+  user  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items TrackerItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, name])
+  @@index([userId, sortOrder])
+  @@map("tracker_domains")
+}
+
+model TrackerItem {
+  id       String        @id @default(cuid())
+  userId   String
+  /// Stable human-facing code, e.g. "A29". Unique per user; never reused.
+  /// Import matches on this, so it must not change once assigned.
+  code     String
+  domainId String?
+  title    String
+  status   TrackerStatus @default(TODO)
+  /// Physical first step, not a topic. Required for ACTIVE (configurable).
+  nextAction String?
+  notes      String?
+  dueDate    DateTime?
+
+  /// Optional link to the Quest materialised from `nextAction`, so the
+  /// existing scheduler consumes tracker work instead of re-planning it.
+  questId  String?
+
+  // ── CAS fields (a lens over the same items; empty = not a CAS item) ──
+  /// Subset of: creativity | activity | service. Non-empty ⇒ CAS-tagged.
+  casStrands        String[]
+  /// IB learning outcomes evidenced by this item, values 1..7.
+  learningOutcomes  Int[]
+  /// CAS may not double-count with DP coursework — flagged for resolution.
+  isCourseworkLinked Boolean  @default(false)
+  casStartDate       DateTime?
+  casEndDate         DateTime?
+  isCasProject       Boolean  @default(false)
+  /// Only surfaced when the optional hours toggle is on; IB requires no hours.
+  hours              Float?
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  domain      TrackerDomain? @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  reflections Reflection[]
+
+  completedAt DateTime?
+  droppedAt   DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, code])
+  @@index([userId, status])
+  @@index([userId, domainId])
+  @@map("tracker_items")
+}
+
+enum TrackerStatus {
+  TODO
+  ACTIVE
+  BLOCKED
+  DONE
+  DROPPED
+}
+
+model Reflection {
+  id     String   @id @default(cuid())
+  itemId String
+  text   String
+  date   DateTime @default(now())
+  /// Learning outcomes this reflection evidences, values 1..7.
+  loTags Int[]
+  /// Optional media pointer (URL or object key); no upload pipeline yet.
+  mediaUrl String?
+
+  item TrackerItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId, date])
+  @@map("reflections")
+}
+
+model ParkingLotEntry {
+  id     String  @id @default(cuid())
+  userId String
+  /// Zero-friction capture — text is the only required field.
+  text   String
+  /// Set when the entry graduates into a real item.
+  promotedToCode String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("parking_lot_entries")
+}
+
+model DecisionLogEntry {
+  id     String   @id @default(cuid())
+  userId String
+  text   String
+  /// Append-only by convention: no update/delete routes are exposed.
+  decidedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, decidedAt])
+  @@map("decision_log_entries")
+}
+
+model CasInterview {
+  id     String @id @default(cuid())
+  userId String
+  /// Which of the three required coordinator interviews: 1, 2 or 3.
+  ordinal Int
+  date    DateTime?
+  notes   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, ordinal])
+  @@map("cas_interviews")
 }
