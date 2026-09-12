@@ -142,6 +142,50 @@ Never commit .env files. Never log API keys.
 
 ## Current Build Phase
 [Update this at the end of every session]
+Phase: 11 — Long-horizon Tracker + CAS lens (server done, client not started)
+
+Session (2026-09-12 — tracker/CAS server side + Railway restore):
+  - RAILWAY: free trial had expired and taken the server down (404
+    "Application not found"). Upgraded to Hobby; server live again.
+    Note the client bundle has VITE_API_URL baked in at build time, so a
+    recreated service with a new subdomain would need a Vercel redeploy.
+  - LOCAL NO-ACCOUNT MODE (new, permanent): server/src/env.ts loads .env
+    then .env.local with override:true, imported FIRST in index.ts
+    (auth.ts reads CLERK_SECRET_KEY at module top level). Gitignored
+    server/.env.local blanks CLERK_SECRET_KEY -> dev auth fallback;
+    the real .env is never edited. Vite now binds 127.0.0.1 (was
+    IPv6-only). Open http://127.0.0.1:5173.
+  - FIXES: invalid nested <button> in GuildFeed BlockTile (quick-delete
+    was inside the tile's own button); `tags` added to the quest
+    add/update client types (server already accepted it).
+  - TRACKER + CAS, server side complete, client NOT started:
+    - schema: tracker_items (flat, no priority field — the scheduler owns
+      weighting; questId reserved for materialising nextAction as a Quest,
+      not yet wired), tracker_domains as rows, reflections, parking lot,
+      decision log, 3 CAS interviews, TrackerStatus enum, and
+      User.trackerSettings for presets.
+    - server/src/lib/tracker/config.ts — presets, mirrors userConfig.ts.
+    - server/src/lib/tracker/markdown.ts — 4 export tiers + delta, YAML
+      frontmatter, `[ ] [~] [x] [-] [!]` marks, code-matched import where
+      an absent field means "not asserted" and nothing is ever deleted.
+    - server/src/lib/tracker/cas.ts — 7x3 LO-by-strand coverage matrix,
+      strand balance by recency/duration (hours optional, off by default),
+      coursework-conflict detection.
+    - server/src/routes/tracker.ts — mounted at /tracker. Active cap
+      enforced server-side; CAS-tagged items are exempt as a property of
+      the data, not of whether the CAS lens is toggled on.
+    - 192 server tests pass (was 136).
+  - ⚠️ BLOCKER: prisma/migrations/20260912000000_tracker_and_cas is
+    committed but NOT APPLIED, so /tracker 500s with ColumnNotFound. The
+    Prisma schema engine cannot reach Neon from this Windows machine
+    (migrate diff against the live DB silently returns an empty
+    datamodel). SQL is idempotent and additive, so it is safe to re-run;
+    let `prisma migrate deploy` apply it on a Linux host, or apply it via
+    the Neon HTTP driver. Note `start` is `migrate deploy && node …`, so
+    a bad migration blocks boot.
+  - Still queued: db:seed (DB has 6 of 14 achievements), merge
+    scheduler-revamp -> main (10 commits ahead).
+
 Phase: 9 — Auth backend + Focus Timer + Spin the Wheel + Rescue Mode
 
 Session add-ons (2026-05-31 — XP-over-time chart):
