@@ -13,11 +13,19 @@ interface QuestState {
   loadRecurring: () => Promise<void>;
   loadCompleted: () => Promise<void>;
   add: (
-    input: { title: string; estimatedMinutes?: number; mentalLoad?: number; impact?: number; deadline?: string | null } & QuestSchedulerHints,
+    input: {
+      title: string;
+      estimatedMinutes?: number;
+      mentalLoad?: number;
+      impact?: number;
+      deadline?: string | null;
+      tags?: string[];
+    } & QuestSchedulerHints,
   ) => Promise<Quest>;
   update: (
     id: string,
-    fields: Partial<Pick<Quest, 'title' | 'estimatedMinutes' | 'mentalLoad' | 'impact' | 'deadline'>> & QuestSchedulerHints,
+    fields: Partial<Pick<Quest, 'title' | 'estimatedMinutes' | 'mentalLoad' | 'impact' | 'deadline' | 'tags'>> &
+      QuestSchedulerHints,
   ) => Promise<Quest>;
   complete: (id: string) => Promise<CompleteQuestResult>;
   completeDaily: (id: string) => Promise<CompleteQuestResult>;

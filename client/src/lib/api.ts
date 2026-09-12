@@ -224,7 +224,7 @@ export const api = {
       request<Quest>('/quests', { method: 'POST', body: JSON.stringify({ clerkId, ...input }) }),
     update: (
       id: string,
-      fields: Partial<Pick<Quest, 'title' | 'estimatedMinutes' | 'mentalLoad' | 'impact' | 'deadline'>> &
+      fields: Partial<Pick<Quest, 'title' | 'estimatedMinutes' | 'mentalLoad' | 'impact' | 'deadline' | 'tags'>> &
         QuestSchedulerHints,
     ) => request<Quest>(`/quests/${id}`, { method: 'PATCH', body: JSON.stringify(fields) }),
     complete: (id: string) =>

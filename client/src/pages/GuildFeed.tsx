@@ -246,9 +246,16 @@ function BlockTile({
       className="relative w-full"
       style={{ height, cursor: draggable ? 'grab' : 'pointer' }}
     >
-      <motion.button
-        type="button"
+      <motion.div
+        role="button"
+        tabIndex={0}
         onClick={onSelect}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onSelect();
+          }
+        }}
         layout
         initial={{ opacity: 0, y: 8, scale: 0.96 }}
         animate={{
@@ -258,7 +265,7 @@ function BlockTile({
         }}
         whileHover={isPast ? undefined : { y: -2, scale: 1.005 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="group relative w-full h-full rounded-2xl overflow-hidden text-left"
+        className="group relative w-full h-full rounded-2xl overflow-hidden text-left cursor-pointer"
         style={{
           background: `linear-gradient(135deg, ${g1} 0%, ${g2} 100%)`,
           border: isDragOver
@@ -395,7 +402,7 @@ function BlockTile({
             )}
           </div>
         </div>
-      </motion.button>
+      </motion.div>
     </div>
   );
 }
