@@ -6,6 +6,8 @@
  *   PATCH  /tracker/items/:id            → update (enforces active cap + next action)
  *   POST   /tracker/items/:id/drop       → one-tap drop
  *   DELETE /tracker/items/:id
+ *   POST   /tracker/items/:id/schedule  → materialise nextAction as a Quest
+ *   DELETE /tracker/items/:id/schedule  → unlink (the Quest itself survives)
  *   POST   /tracker/items/:id/reflections
  *   DELETE /tracker/reflections/:id
  *   GET/POST/PATCH/DELETE /tracker/domains…
@@ -185,6 +187,16 @@ tracker.get('/', async (c) => {
     db.casInterview.findMany({ where: { userId: user.id }, orderBy: { ordinal: 'asc' } }),
   ]);
 
+  // `questId` has no FK (quests and tracker items are independent lifecycles),
+  // so resolve the links here and let the client detect a dangling one.
+  const linkedQuests = await db.quest.findMany({
+    where: {
+      userId: user.id,
+      id: { in: items.map((i) => i.questId).filter((id): id is string => Boolean(id)) },
+    },
+    select: { id: true, title: true, status: true },
+  });
+
   return c.json({
     success: true,
     data: {
@@ -194,6 +206,7 @@ tracker.get('/', async (c) => {
       parkingLot,
       decisions,
       interviews,
+      linkedQuests,
       activeUsed: items.filter((i) => i.status === 'ACTIVE' && i.casStrands.length === 0).length,
     },
   });
@@ -380,6 +393,82 @@ tracker.delete('/items/:id', async (c) => {
   if (!current || current.userId !== user.id) return c.json(notFound('Item'), 404);
   await db.trackerItem.delete({ where: { id } });
   return c.json({ success: true, data: { id } });
+});
+
+// ─── Scheduler hand-off ───────────────────────────────────────────────────────
+
+/**
+ * Materialise an item's `nextAction` as a Quest so the existing scheduler
+ * plans it, and record the link on the item.
+ *
+ * Deliberately explicit rather than automatic on activation: silently
+ * creating quests as a side effect of a status change would make the feed
+ * fill up with work the user never asked to schedule. Re-scheduling an item
+ * whose quest is still open is a no-op that returns the existing quest, so
+ * a double tap cannot produce duplicates.
+ */
+tracker.post('/items/:id/schedule', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const parsed = z
+    .object({ estimatedMinutes: z.number().int().min(5).max(600).optional() })
+    .safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json(bad(parsed.error.message), 400);
+
+  const item = await db.trackerItem.findUnique({ where: { id }, include: ITEM_INCLUDE });
+  if (!item || item.userId !== user.id) return c.json(notFound('Item'), 404);
+
+  const nextAction = item.nextAction?.trim();
+  if (!nextAction) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'NEXT_ACTION_REQUIRED',
+          message: 'Give the item a next action first — that is what gets scheduled.',
+        },
+      },
+      400,
+    );
+  }
+
+  if (item.questId) {
+    const existing = await db.quest.findFirst({
+      where: { id: item.questId, userId: user.id, status: 'ACTIVE' },
+    });
+    if (existing) return c.json({ success: true, data: { item, quest: existing } });
+  }
+
+  const quest = await db.quest.create({
+    data: {
+      userId: user.id,
+      title: nextAction.slice(0, 280),
+      deadline: item.dueDate,
+      tags: item.domain ? [item.domain.name.toLowerCase().replace(/\s+/g, '-')] : [],
+    },
+  });
+  const updated = await db.trackerItem.update({
+    where: { id },
+    data: { questId: quest.id },
+    include: ITEM_INCLUDE,
+  });
+
+  return c.json({ success: true, data: { item: updated, quest } }, 201);
+});
+
+/** Drop the link only. The quest keeps its own life in the feed. */
+tracker.delete('/items/:id/schedule', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const current = await db.trackerItem.findUnique({ where: { id } });
+  if (!current || current.userId !== user.id) return c.json(notFound('Item'), 404);
+
+  const item = await db.trackerItem.update({
+    where: { id },
+    data: { questId: null },
+    include: ITEM_INCLUDE,
+  });
+  return c.json({ success: true, data: item });
 });
 
 // ─── Reflections ──────────────────────────────────────────────────────────────
