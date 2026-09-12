@@ -45,6 +45,23 @@ interface ApiSuccess<T> { success: true; data: T }
 interface ApiError    { success: false; error: { code: string; message: string } }
 type ApiResponse<T> = ApiSuccess<T> | ApiError;
 
+/**
+ * Carries the server's error code alongside the message, so callers can
+ * branch on it (ACTIVE_CAP_REACHED, NEXT_ACTION_REQUIRED, …) instead of
+ * matching on prose. The message keeps the old `CODE: message` shape, so
+ * anything already rendering `String(err)` is unaffected.
+ */
+export class ApiRequestError extends Error {
+  readonly code: string;
+  readonly detail: string;
+  constructor(code: string, detail: string) {
+    super(`${code}: ${detail}`);
+    this.name = 'ApiRequestError';
+    this.code = code;
+    this.detail = detail;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -68,7 +85,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   const body = (await res.json()) as ApiResponse<T>;
   if (!body.success) {
-    throw new Error(`${body.error.code}: ${body.error.message}`);
+    throw new ApiRequestError(body.error.code, body.error.message);
   }
   return body.data;
 }
@@ -292,6 +309,116 @@ export const api = {
     reset: () =>
       request<{ overrides: Record<string, never> }>('/settings', { method: 'DELETE' }),
   },
+  tracker: {
+    /** One call for everything the tracker page renders. */
+    bootstrap: () => request<TrackerBootstrap>('/tracker'),
+
+    createItem: (input: TrackerItemCreate) =>
+      request<TrackerItem>('/tracker/items', { method: 'POST', body: JSON.stringify(input) }),
+    updateItem: (id: string, fields: TrackerItemUpdate) =>
+      request<TrackerItem>(`/tracker/items/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(fields),
+      }),
+    /** One tap, no confirmation — dropping is meant to be cheap. */
+    dropItem: (id: string) =>
+      request<TrackerItem>(`/tracker/items/${id}/drop`, { method: 'POST', body: '{}' }),
+    deleteItem: (id: string) =>
+      request<{ id: string }>(`/tracker/items/${id}`, { method: 'DELETE' }),
+
+    /** Materialise the item's next action as a Quest the scheduler plans. */
+    schedule: (id: string, estimatedMinutes?: number) =>
+      request<{ item: TrackerItem; quest: Quest }>(`/tracker/items/${id}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify(estimatedMinutes ? { estimatedMinutes } : {}),
+      }),
+    unschedule: (id: string) =>
+      request<TrackerItem>(`/tracker/items/${id}/schedule`, { method: 'DELETE' }),
+
+    addReflection: (itemId: string, input: ReflectionCreate) =>
+      request<TrackerReflection>(`/tracker/items/${itemId}/reflections`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+    deleteReflection: (id: string) =>
+      request<{ id: string }>(`/tracker/reflections/${id}`, { method: 'DELETE' }),
+
+    createDomain: (input: { name: string; color?: string }) =>
+      request<TrackerDomain>('/tracker/domains', { method: 'POST', body: JSON.stringify(input) }),
+    updateDomain: (id: string, fields: { name?: string; color?: string }) =>
+      request<TrackerDomain>(`/tracker/domains/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(fields),
+      }),
+    /** Whole new order in one call, so a reorder isn't N requests. */
+    reorderDomains: (ids: string[]) =>
+      request<TrackerDomain[]>('/tracker/domains/order', {
+        method: 'PUT',
+        body: JSON.stringify({ ids }),
+      }),
+    /** Items survive — their domain is nulled and they land in Unsorted. */
+    deleteDomain: (id: string) =>
+      request<{ id: string }>(`/tracker/domains/${id}`, { method: 'DELETE' }),
+
+    addParkingLot: (text: string) =>
+      request<ParkingLotEntry>('/tracker/parking-lot', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      }),
+    deleteParkingLot: (id: string) =>
+      request<{ id: string }>(`/tracker/parking-lot/${id}`, { method: 'DELETE' }),
+    promoteParkingLot: (id: string, input: { domainId?: string | null } = {}) =>
+      request<TrackerItem>(`/tracker/parking-lot/${id}/promote`, {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
+
+    /** Append-only by design: there is no update or delete. */
+    addDecision: (text: string) =>
+      request<DecisionLogEntry>('/tracker/decisions', {
+        method: 'POST',
+        body: JSON.stringify({ text }),
+      }),
+
+    updateInterview: (ordinal: 1 | 2 | 3, fields: { date?: string | null; notes?: string | null }) =>
+      request<CasInterview>(`/tracker/interviews/${ordinal}`, {
+        method: 'PATCH',
+        body: JSON.stringify(fields),
+      }),
+
+    cas: () => request<CasProjection>('/tracker/cas'),
+
+    getConfig: () =>
+      request<{ config: TrackerConfigShape; overrides: TrackerOverrides }>('/tracker/config'),
+    /** Takes a whole preset set — which is also what preset import posts. */
+    saveConfig: (overrides: TrackerOverrides) =>
+      request<{ config: TrackerConfigShape; overrides: TrackerOverrides }>('/tracker/config', {
+        method: 'PUT',
+        body: JSON.stringify(overrides),
+      }),
+    resetConfig: () =>
+      request<{ config: TrackerConfigShape; overrides: TrackerOverrides }>('/tracker/config', {
+        method: 'DELETE',
+      }),
+
+    export: (tier: ExportTier, since?: string | null) =>
+      request<{ tier: ExportTier; markdown: string; chars: number }>(
+        `/tracker/export?tier=${tier}${since ? `&since=${encodeURIComponent(since)}` : ''}`,
+      ),
+    /** All four tier sizes in one call, so the buttons can show them upfront. */
+    exportSizes: () =>
+      request<{ sizes: Record<ExportTier, number> }>('/tracker/export/sizes'),
+    importPreview: (markdown: string) =>
+      request<{ diff: ImportDiff; schema: number | null; tier: ExportTier | null }>(
+        '/tracker/import/preview',
+        { method: 'POST', body: JSON.stringify({ markdown }) },
+      ),
+    importApply: (markdown: string) =>
+      request<ImportApplyResult>('/tracker/import/apply', {
+        method: 'POST',
+        body: JSON.stringify({ markdown }),
+      }),
+  },
 };
 
 // ─── Settings types ───────────────────────────────────────────────────────────
@@ -367,4 +494,227 @@ export interface DailyFiller {
   durationMin: number;
   preferredHour: number | null;
   enabled?: boolean;
+}
+
+// ─── Tracker types ────────────────────────────────────────────────────────────
+//
+// Mirrors server/src/lib/tracker/*. The five statuses are a fixed DB enum
+// because behaviour depends on them (active cap, export exclusions); only
+// their labels are user-editable, which is what `statusLabels` carries.
+
+export const TRACKER_STATUSES = ['TODO', 'ACTIVE', 'BLOCKED', 'DONE', 'DROPPED'] as const;
+export type TrackerStatus = (typeof TRACKER_STATUSES)[number];
+
+export const CAS_STRANDS = ['creativity', 'activity', 'service'] as const;
+export type CasStrand = (typeof CAS_STRANDS)[number];
+
+/** IB learning outcomes are numbered 1..7. */
+export const LEARNING_OUTCOMES = [1, 2, 3, 4, 5, 6, 7] as const;
+
+export type ExportTier = 'compact' | 'working' | 'full' | 'archive';
+
+export interface TrackerReflection {
+  id: string;
+  itemId: string;
+  text: string;
+  date: string;
+  loTags: number[];
+  mediaUrl: string | null;
+  createdAt: string;
+}
+
+export interface TrackerDomain {
+  id: string;
+  name: string;
+  color: string;
+  sortOrder: number;
+}
+
+export interface TrackerItem {
+  id: string;
+  code: string;
+  domainId: string | null;
+  title: string;
+  status: TrackerStatus;
+  /** Physical first step, not a topic. Shown more prominently than the title. */
+  nextAction: string | null;
+  notes: string | null;
+  dueDate: string | null;
+  /** Set once the next action has been materialised as a Quest. */
+  questId: string | null;
+  /** Non-empty ⇒ CAS-tagged, which is also what exempts it from the cap. */
+  casStrands: CasStrand[];
+  learningOutcomes: number[];
+  isCourseworkLinked: boolean;
+  casStartDate: string | null;
+  casEndDate: string | null;
+  isCasProject: boolean;
+  hours: number | null;
+  completedAt: string | null;
+  droppedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  domain: { name: string } | null;
+  reflections: TrackerReflection[];
+}
+
+export interface ParkingLotEntry {
+  id: string;
+  text: string;
+  promotedToCode: string | null;
+  createdAt: string;
+}
+
+export interface DecisionLogEntry {
+  id: string;
+  text: string;
+  decidedAt: string;
+  createdAt: string;
+}
+
+export interface CasInterview {
+  id: string;
+  ordinal: number;
+  date: string | null;
+  notes: string | null;
+}
+
+export interface TrackerRequiredFields {
+  nextActionForActive: boolean;
+  domain: boolean;
+  dueDate: boolean;
+}
+
+export interface TrackerConfigShape {
+  activeCap: number;
+  statusLabels: Record<TrackerStatus, string>;
+  codePrefixes: string[];
+  requiredFields: TrackerRequiredFields;
+  reviewCadenceDays: number;
+  reviewPrompts: string[];
+  showHours: boolean;
+}
+
+/** Only the fields the user actually changed; everything else falls back. */
+export type TrackerOverrides = Partial<{
+  activeCap: number;
+  statusLabels: Partial<Record<TrackerStatus, string>>;
+  codePrefixes: string[];
+  requiredFields: Partial<TrackerRequiredFields>;
+  reviewCadenceDays: number;
+  reviewPrompts: string[];
+  showHours: boolean;
+}>;
+
+export interface TrackerBootstrap {
+  config: TrackerConfigShape;
+  domains: TrackerDomain[];
+  items: TrackerItem[];
+  parkingLot: ParkingLotEntry[];
+  decisions: DecisionLogEntry[];
+  interviews: CasInterview[];
+  /** Resolved quests for items that have been scheduled; may be shorter
+   *  than the set of linked ids if a quest was deleted from the feed. */
+  linkedQuests: Array<{ id: string; title: string; status: string }>;
+  /** ACTIVE items counting against the cap — CAS-tagged ones are exempt. */
+  activeUsed: number;
+}
+
+export interface TrackerItemCreate {
+  title: string;
+  domainId?: string | null;
+  status?: TrackerStatus;
+  nextAction?: string | null;
+  notes?: string | null;
+  dueDate?: string | null;
+  codePrefix?: string;
+  casStrands?: CasStrand[];
+  learningOutcomes?: number[];
+  isCourseworkLinked?: boolean;
+  casStartDate?: string | null;
+  casEndDate?: string | null;
+  isCasProject?: boolean;
+  hours?: number | null;
+}
+
+/** Every field optional: PATCH asserts only what it sends. */
+export type TrackerItemUpdate = Partial<Omit<TrackerItemCreate, 'codePrefix'>>;
+
+export interface ReflectionCreate {
+  text: string;
+  date?: string;
+  loTags?: number[];
+  mediaUrl?: string | null;
+}
+
+// ─── CAS projections ──────────────────────────────────────────────────────────
+
+export interface MatrixCell {
+  outcome: number;
+  strand: CasStrand;
+  /** Item codes supplying evidence for this pairing. */
+  codes: string[];
+}
+
+export interface CoverageMatrix {
+  outcomes: number[];
+  strands: CasStrand[];
+  cells: MatrixCell[];
+  /** Outcomes with no evidence in any strand — the gaps worth acting on. */
+  uncoveredOutcomes: number[];
+  coveredCount: number;
+  totalCells: number;
+}
+
+export interface StrandBalance {
+  strand: CasStrand;
+  itemCount: number;
+  daysSinceLastActivity: number | null;
+  totalDurationDays: number;
+  /** Only present when the optional hours field is switched on. */
+  totalHours?: number;
+}
+
+export interface CasProjection {
+  matrix: CoverageMatrix;
+  balance: StrandBalance[];
+  conflicts: Array<{ code: string; title: string }>;
+  interviews: CasInterview[];
+}
+
+// ─── Markdown import ──────────────────────────────────────────────────────────
+
+export interface FieldChange {
+  field: string;
+  from: unknown;
+  to: unknown;
+}
+
+/** Incoming item as parsed from markdown — every field may be unasserted. */
+export interface MdItem {
+  code: string;
+  title: string;
+  status: TrackerStatus;
+  domain?: string | null;
+  nextAction?: string | null;
+  dueDate?: string | null;
+  casStrands?: CasStrand[];
+}
+
+export interface ImportDiff {
+  creates: MdItem[];
+  updates: Array<{ code: string; changes: FieldChange[]; incoming: MdItem }>;
+  /** In the import and identical — nothing to do. */
+  unchanged: string[];
+  /** In the app but absent from the import. Reported, never deleted. */
+  untouched: string[];
+  warnings: string[];
+}
+
+export interface ImportApplyResult {
+  created: number;
+  updated: number;
+  unchanged: number;
+  untouched: number;
+  warnings: string[];
 }

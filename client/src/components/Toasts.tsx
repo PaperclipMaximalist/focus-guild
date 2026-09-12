@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { AnimatePresence, motion } from 'framer-motion';
 
-export type ToastVariant = 'xp' | 'streak' | 'badge' | 'levelup';
+export type ToastVariant = 'xp' | 'streak' | 'badge' | 'levelup' | 'error';
 
 interface Toast {
   id: number;
@@ -34,6 +34,7 @@ const BORDER: Record<ToastVariant, string> = {
   streak:  'rgba(239,68,68,0.5)',
   badge:   'rgba(245,158,11,0.5)',
   levelup: 'rgba(245,158,11,0.8)',
+  error:   'rgba(239,68,68,0.7)',
 };
 
 const BG: Record<ToastVariant, string> = {
@@ -41,13 +42,14 @@ const BG: Record<ToastVariant, string> = {
   streak:  'var(--color-surface2)',
   badge:   'var(--color-surface2)',
   levelup: '#1e1508',
+  error:   '#2a1214',
 };
 
 export function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);
 
   return (
-    <div className="pointer-events-none fixed bottom-6 right-6 z-[500] flex flex-col gap-2">
+    <div className="pointer-events-none fixed bottom-20 right-4 z-[500] flex flex-col gap-2 sm:bottom-6 sm:right-6">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div
