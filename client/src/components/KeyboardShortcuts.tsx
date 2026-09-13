@@ -52,6 +52,7 @@ export function KeyboardShortcuts() {
         else if (k === 'r') navigate('/rescue');
         else if (k === 'q') navigate('/quests');
         else if (k === 's') navigate('/stats');
+        else if (k === 'k') navigate('/tracker');
         else if (k === ',' || k === '.') navigate('/settings');
         return;
       }
@@ -90,7 +91,7 @@ export function KeyboardShortcuts() {
       <button
         onClick={() => setHelpOpen(true)}
         title="Keyboard shortcuts (?)"
-        className="fixed bottom-20 left-4 z-40 h-7 w-7 rounded-full text-xs font-bold transition-opacity opacity-50 hover:opacity-100"
+        className="fixed bottom-20 left-4 z-40 h-7 w-7 rounded-full text-xs font-bold transition-opacity opacity-50 hover:opacity-100 [@media(hover:none)]:hidden"
         style={{ background: 'rgba(139,92,246,0.18)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
       >
         ?
@@ -138,6 +139,7 @@ export function KeyboardShortcuts() {
                 <Row k="G F" desc="Guild Feed" />
                 <Row k="G R" desc="Rescue" />
                 <Row k="G Q" desc="Quests" />
+                <Row k="G K" desc="Tracker" />
                 <Row k="G S" desc="Stats" />
                 <Row k="G ," desc="Settings" />
               </div>

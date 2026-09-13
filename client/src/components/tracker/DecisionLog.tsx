@@ -12,6 +12,7 @@ import type { DecisionLogEntry } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { fieldClass, fieldStyle } from './Sheet';
+import { sfxClick } from '../../lib/sfx';
 
 function dayLabel(iso: string): string {
   const d = new Date(iso);
@@ -39,6 +40,7 @@ export function DecisionLog() {
     try {
       await addDecision(value);
       setText('');
+      sfxClick();
     } catch (err) {
       pushToast({ title: 'Could not record', sub: String(err), icon: '⚠️', variant: 'error' });
     } finally {

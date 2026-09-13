@@ -12,12 +12,7 @@
 
 import { useState } from 'react';
 import type { CasStrand, CoverageMatrix } from '../../lib/api';
-
-const STRAND_COLOR: Record<CasStrand, string> = {
-  creativity: '#a855f7',
-  activity: '#22c55e',
-  service: '#3b82f6',
-};
+import { STRAND_COLOR } from '../../lib/tracker';
 
 const STRAND_SHORT: Record<CasStrand, string> = {
   creativity: 'Creat.',

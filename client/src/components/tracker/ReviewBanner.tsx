@@ -12,9 +12,10 @@
  */
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import type { TrackerConfigShape } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
+import { sfxComplete } from '../../lib/sfx';
+import { useToastStore } from '../Toasts';
 
 interface Props {
   config: TrackerConfigShape;
@@ -23,6 +24,7 @@ interface Props {
 export function ReviewBanner({ config }: Props) {
   const { lastReviewedAt, markReviewed } = useTrackerStore();
   const [expanded, setExpanded] = useState(false);
+  const pushToast = useToastStore((s) => s.push);
 
   const daysSince =
     lastReviewedAt === null
@@ -33,11 +35,9 @@ export function ReviewBanner({ config }: Props) {
   if (!due || config.reviewPrompts.length === 0) return null;
 
   return (
-    <motion.section
-      initial={{ opacity: 0, y: -4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-(--radius-card) border p-3.5"
-      style={{ borderColor: 'rgba(245,158,11,0.45)', background: 'rgba(245,158,11,0.08)' }}
+    <section
+      className="rounded-(--radius-card) border px-3.5 py-2.5"
+      style={{ borderColor: 'rgba(245,158,11,0.5)', background: 'rgba(245,158,11,0.12)' }}
     >
       <button
         type="button"
@@ -45,7 +45,7 @@ export function ReviewBanner({ config }: Props) {
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <span className="text-sm font-bold" style={{ color: 'var(--color-gold)' }}>
-          Review due
+          🧭 Review due
           <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
             {daysSince === null
               ? 'never reviewed'
@@ -67,7 +67,16 @@ export function ReviewBanner({ config }: Props) {
           </ul>
           <button
             type="button"
-            onClick={markReviewed}
+            onClick={() => {
+              markReviewed();
+              sfxComplete();
+              pushToast({
+                title: 'Review done',
+                sub: `Next one in ${config.reviewCadenceDays} day${config.reviewCadenceDays === 1 ? '' : 's'}`,
+                icon: '🧭',
+                variant: 'xp',
+              });
+            }}
             className="mt-3 w-full rounded-lg py-2.5 text-sm font-bold"
             style={{ background: 'var(--color-gold)', color: '#1a1205' }}
           >
@@ -75,6 +84,6 @@ export function ReviewBanner({ config }: Props) {
           </button>
         </>
       )}
-    </motion.section>
+    </section>
   );
 }

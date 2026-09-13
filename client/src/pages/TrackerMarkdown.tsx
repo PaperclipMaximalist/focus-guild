@@ -12,13 +12,14 @@
  * absent from the document is left alone rather than deleted.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ExportTier, ImportDiff } from '../lib/api';
 import { api } from '../lib/api';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
+import { sfxClick, sfxComplete } from '../lib/sfx';
 
 const TIERS: Array<{ id: ExportTier; label: string; blurb: string }> = [
   { id: 'compact', label: 'Compact', blurb: 'Open items, one line each' },
@@ -47,16 +48,21 @@ export default function TrackerMarkdown() {
   const [diff, setDiff] = useState<ImportDiff | null>(null);
   const [applying, setApplying] = useState(false);
 
-  useEffect(() => {
+  const refreshSizes = useCallback(() => {
     api.tracker
       .exportSizes()
       .then((d) => setSizes(d.sizes))
       .catch((err) => pushToast({ title: 'Could not size exports', sub: String(err), icon: '⚠️', variant: 'error' }));
   }, [pushToast]);
 
+  useEffect(() => {
+    refreshSizes();
+  }, [refreshSizes]);
+
   const copy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
+      sfxClick();
       pushToast({ title: 'Copied', sub: `${text.length} characters`, icon: '📋', variant: 'xp' });
     } catch {
       // Clipboard permission can be refused; the text is on screen regardless.
@@ -111,8 +117,10 @@ export default function TrackerMarkdown() {
     try {
       const res = await api.tracker.importApply(paste);
       await load();
+      refreshSizes();
       setDiff(null);
       setPaste('');
+      sfxComplete();
       pushToast({
         title: 'Import applied',
         sub: `${res.created} created · ${res.updated} updated`,

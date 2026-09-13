@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn, useAuth, useUser } from '@clerk/clerk-react';
 import { useUserStore } from './store/useUserStore';
@@ -11,9 +11,11 @@ import GuildFeed from './pages/GuildFeed';
 import Rescue from './pages/Rescue';
 import Settings from './pages/Settings';
 import Trophies from './pages/Trophies';
-import Tracker from './pages/Tracker';
-import TrackerPresets from './pages/TrackerPresets';
-import TrackerMarkdown from './pages/TrackerMarkdown';
+// The tracker is its own world with its own screens; load it on first visit
+// rather than making every Today-page load pay for it.
+const Tracker = lazy(() => import('./pages/Tracker'));
+const TrackerPresets = lazy(() => import('./pages/TrackerPresets'));
+const TrackerMarkdown = lazy(() => import('./pages/TrackerMarkdown'));
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
@@ -137,9 +139,9 @@ function AuthenticatedApp() {
           <Route path="/stats" element={<Stats />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/trophies" element={<Trophies />} />
-          <Route path="/tracker" element={<Tracker />} />
-          <Route path="/tracker/presets" element={<TrackerPresets />} />
-          <Route path="/tracker/markdown" element={<TrackerMarkdown />} />
+          <Route path="/tracker" element={<TrackerRoute><Tracker /></TrackerRoute>} />
+          <Route path="/tracker/presets" element={<TrackerRoute><TrackerPresets /></TrackerRoute>} />
+          <Route path="/tracker/markdown" element={<TrackerRoute><TrackerMarkdown /></TrackerRoute>} />
         </Routes>
         <ToastContainer />
         <KeyboardShortcuts />
@@ -147,5 +149,20 @@ function AuthenticatedApp() {
         <BottomNav />
       </div>
     </BrowserRouter>
+  );
+}
+
+function TrackerRoute({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto flex max-w-2xl flex-col gap-3 p-4" aria-busy="true">
+          <div className="h-8 w-32 animate-pulse rounded-lg bg-(--color-surface)" />
+          <div className="h-32 animate-pulse rounded-(--radius-card) bg-(--color-surface)" />
+        </div>
+      }
+    >
+      {children}
+    </Suspense>
   );
 }

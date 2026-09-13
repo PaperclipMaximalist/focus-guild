@@ -10,19 +10,8 @@
  * the loud number and item count is the quiet one.
  */
 
-import type { CasStrand, StrandBalance } from '../../lib/api';
-
-const STRAND_COLOR: Record<CasStrand, string> = {
-  creativity: '#a855f7',
-  activity: '#22c55e',
-  service: '#3b82f6',
-};
-
-const STRAND_LABEL: Record<CasStrand, string> = {
-  creativity: 'Creativity',
-  activity: 'Activity',
-  service: 'Service',
-};
+import type { StrandBalance } from '../../lib/api';
+import { STRAND_COLOR, STRAND_LABEL } from '../../lib/tracker';
 
 /** Quiet for over a month reads as a gap worth acting on. */
 const STALE_DAYS = 30;

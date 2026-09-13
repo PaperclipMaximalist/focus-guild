@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import type { CasInterview } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
+import { fromDateInput, toDateInput } from '../../lib/tracker';
 import { fieldClass, fieldStyle } from './Sheet';
 
 const TITLES: Record<number, { name: string; when: string }> = {
@@ -21,23 +22,11 @@ const TITLES: Record<number, { name: string; when: string }> = {
   3: { name: 'Third interview', when: 'Final — reviewing the whole portfolio' },
 };
 
-function toDateInput(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function fromDateInput(value: string): string | null {
-  if (!value) return null;
-  const [y, m, d] = value.split('-').map(Number);
-  return new Date(y!, m! - 1, d!, 12, 0, 0).toISOString();
-}
-
 function InterviewCard({ interview }: { interview: CasInterview }) {
   const updateInterview = useTrackerStore((s) => s.updateInterview);
   const pushToast = useToastStore((s) => s.push);
   const [notes, setNotes] = useState(interview.notes ?? '');
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const meta = TITLES[interview.ordinal] ?? { name: `Interview ${interview.ordinal}`, when: '' };
 
   // Re-sync if the row changes underneath (e.g. a CAS refresh).
@@ -48,12 +37,20 @@ function InterviewCard({ interview }: { interview: CasInterview }) {
   const save = async (fields: { date?: string | null; notes?: string | null }) => {
     try {
       await updateInterview(interview.ordinal as 1 | 2 | 3, fields);
+      setSavedAt(Date.now());
     } catch (err) {
       pushToast({ title: 'Could not save', sub: String(err), icon: '⚠️', variant: 'error' });
     }
   };
 
   const done = Boolean(interview.date);
+
+  // Fade the "saved" note out after a moment.
+  useEffect(() => {
+    if (savedAt === null) return;
+    const t = setTimeout(() => setSavedAt(null), 2000);
+    return () => clearTimeout(t);
+  }, [savedAt]);
 
   return (
     <div
@@ -94,6 +91,9 @@ function InterviewCard({ interview }: { interview: CasInterview }) {
         className={`${fieldClass} mt-2 resize-y`}
         style={fieldStyle}
       />
+      <p className="mt-1 h-4 text-right text-[11px]" style={{ color: 'var(--color-green)' }} aria-live="polite">
+        {savedAt !== null ? '✓ saved' : ''}
+      </p>
     </div>
   );
 }

@@ -13,6 +13,7 @@ import type { TrackerDomain } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { fieldClass, fieldStyle } from './Sheet';
+import { sfxClick, sfxXp } from '../../lib/sfx';
 
 export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
   const { parkingLot, addParkingLot, deleteParkingLot, promoteParkingLot } = useTrackerStore();
@@ -28,6 +29,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
     setText('');
     try {
       await addParkingLot(value);
+      sfxClick();
     } catch (err) {
       setText(value);
       pushToast({ title: 'Could not capture', sub: String(err), icon: '⚠️', variant: 'error' });
@@ -39,6 +41,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
     try {
       const item = await promoteParkingLot(id, domainId);
       setPromoting(null);
+      sfxXp();
       pushToast({
         title: `Promoted to ${item.code}`,
         sub: item.title,
@@ -62,6 +65,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
             if (e.key === 'Enter') capture();
           }}
           placeholder="Anything, unsorted…"
+          enterKeyHint="done"
           className={fieldClass}
           style={fieldStyle}
           aria-label="Capture a thought"

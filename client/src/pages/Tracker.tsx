@@ -17,11 +17,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import {
-  CAS_STRANDS,
-  type CasStrand,
-  type TrackerItem,
-} from '../lib/api';
+import { CAS_STRANDS, type TrackerItem } from '../lib/api';
+import { STRAND_COLOR, STRAND_LABEL } from '../lib/tracker';
 import { cappedActive, hasCourseworkConflict, useTrackerStore } from '../store/useTrackerStore';
 import { TrackerItemCard } from '../components/tracker/TrackerItemCard';
 import { TrackerItemSheet } from '../components/tracker/TrackerItemSheet';
@@ -35,17 +32,7 @@ import { CasInterviews } from '../components/tracker/CasInterviews';
 
 type Tab = 'items' | 'lot' | 'log' | 'coverage' | 'balance' | 'interviews';
 
-const STRAND_LABEL: Record<CasStrand, string> = {
-  creativity: 'Creativity',
-  activity: 'Activity',
-  service: 'Service',
-};
-
-const STRAND_COLOR: Record<CasStrand, string> = {
-  creativity: '#a855f7',
-  activity: '#22c55e',
-  service: '#3b82f6',
-};
+const COLLAPSED_KEY = 'fg.tracker.collapsed';
 
 export default function Tracker() {
   const {
@@ -67,8 +54,15 @@ export default function Tracker() {
   const [editing, setEditing] = useState<TrackerItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [reflecting, setReflecting] = useState<TrackerItem | null>(null);
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? '[]') as string[]);
+    } catch {
+      return new Set();
+    }
+  });
   const [showTerminal, setShowTerminal] = useState(false);
+  const [jumpTarget, setJumpTarget] = useState<string | null>(null);
 
   useEffect(() => {
     load();
@@ -109,6 +103,7 @@ export default function Tracker() {
     [lensItems, showTerminal],
   );
 
+  const terminalCount = lensItems.length - lensItems.filter((i) => i.status !== 'DONE' && i.status !== 'DROPPED').length;
   const active = visible.filter((i) => i.status === 'ACTIVE');
   const rest = visible.filter((i) => i.status !== 'ACTIVE');
 
@@ -151,6 +146,38 @@ export default function Tracker() {
       return next;
     });
 
+  // Persist from one place, so every path that changes it (toggle or jump) sticks.
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...collapsed]));
+    } catch {
+      // Non-fatal — collapse state just won't survive a reload.
+    }
+  }, [collapsed]);
+
+  /** Open whatever hides a card (collapsed group, done filter), then land on it. */
+  const jumpTo = (item: TrackerItem) => {
+    setTab('items');
+    if (item.status === 'DONE' || item.status === 'DROPPED') setShowTerminal(true);
+    const keys = [item.domainId ?? 'unsorted', ...item.casStrands];
+    setCollapsed((prev) => new Set([...prev].filter((k) => !keys.includes(k))));
+    setJumpTarget(item.code);
+  };
+
+  // Scroll only after React has committed the reopened group — a timer
+  // guessing at render timing finds no card and silently does nothing.
+  useEffect(() => {
+    if (!jumpTarget) return;
+    const el = document.getElementById(`item-${jumpTarget}`);
+    setJumpTarget(null);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.animate(
+      [{ outline: '2px solid rgba(239,68,68,0.9)' }, { outline: '2px solid rgba(239,68,68,0)' }],
+      { duration: 1400, easing: 'ease-out' },
+    );
+  }, [jumpTarget, collapsed, showTerminal, tab]);
+
   const openNew = () => {
     setEditing(null);
     setSheetOpen(true);
@@ -182,131 +209,148 @@ export default function Tracker() {
 
   if (!config || (loading && !loaded)) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center" style={{ color: 'var(--color-muted)' }}>
-        Loading the tracker…
+      <div className="mx-auto flex max-w-2xl flex-col gap-3 p-4" aria-busy="true" aria-label="Loading the tracker">
+        <div className="h-8 w-32 animate-pulse rounded-lg" style={{ background: 'var(--color-surface)' }} />
+        <div className="h-14 animate-pulse rounded-(--radius-card)" style={{ background: 'var(--color-surface)' }} />
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className="h-32 animate-pulse rounded-(--radius-card)"
+            style={{ background: 'var(--color-surface)', animationDelay: `${i * 120}ms` }}
+          />
+        ))}
       </div>
     );
   }
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pb-28">
-      {/* Page chrome: lens toggle and the two sibling screens. */}
-      <header className="flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-3">
-          <h1 className="text-2xl font-extrabold">{casMode ? 'CAS' : 'Tracker'}</h1>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/tracker/markdown"
-              aria-label="Export and import markdown"
-              className="grid h-10 w-10 place-items-center rounded-full border text-base"
-              style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
-            >
-              ⇅
-            </Link>
-            <Link
-              to="/tracker/presets"
-              aria-label="Presets"
-              className="grid h-10 w-10 place-items-center rounded-full border text-base"
-              style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
-            >
-              ⚙
-            </Link>
-          </div>
-        </div>
-
-        {/* CAS lens. Never changes what a write is allowed to do. */}
-        <button
-          type="button"
-          role="switch"
-          aria-checked={casMode}
-          onClick={() => setCasMode(!casMode)}
-          className="flex items-center justify-between gap-3 rounded-(--radius-card) border px-3.5 py-2.5"
-          style={{
-            borderColor: casMode ? 'rgba(34,197,94,0.45)' : 'var(--color-border)',
-            background: casMode ? 'rgba(34,197,94,0.08)' : 'var(--color-surface)',
-          }}
-        >
-          <span className="text-left">
-            <span className="block text-sm font-bold">CAS mode</span>
-            <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
-              {casMode ? 'Showing CAS items by strand' : 'A lens — it never changes your data'}
-            </span>
-          </span>
-          <span
-            className="relative h-7 w-12 shrink-0 rounded-full transition-colors"
-            style={{ background: casMode ? 'var(--color-green)' : 'rgba(255,255,255,0.14)' }}
-          >
-            <motion.span
-              layout
-              transition={{ type: 'spring', stiffness: 500, damping: 34 }}
-              className="absolute top-1 h-5 w-5 rounded-full bg-white"
-              style={{ left: casMode ? 26 : 4 }}
-            />
-          </span>
-        </button>
-
-        {/* Cap usage — hidden under the CAS lens, which is cap-exempt anyway. */}
-        {!casMode && (
-          <div
-            className="rounded-(--radius-card) border px-3.5 py-2.5"
-            style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-          >
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
-                Active
-              </span>
-              <span className="text-sm font-bold" style={{ color: used >= config.activeCap ? 'var(--color-fire)' : 'var(--color-primary)' }}>
-                {used} / {config.activeCap}
-              </span>
-            </div>
-            <div className="mt-2 flex gap-1">
-              {Array.from({ length: config.activeCap }, (_, i) => (
-                <span
-                  key={i}
-                  className="h-1.5 flex-1 rounded-full"
-                  style={{
-                    background: i < used ? 'var(--color-primary)' : 'rgba(255,255,255,0.08)',
-                  }}
-                />
-              ))}
-            </div>
-            {used >= config.activeCap && (
-              <p className="mt-1.5 text-xs" style={{ color: 'var(--color-fire)' }}>
-                Cap reached — complete, drop or block something to start anything new.
+      {/* Page chrome, kept to two short rows so the first item is on screen
+          without scrolling: title + cap, then the lens switch and the two
+          sibling screens. */}
+      <header className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl font-extrabold leading-tight">{casMode ? 'CAS' : 'Tracker'}</h1>
+            {casMode ? (
+              <p className="truncate text-xs" style={{ color: 'var(--color-muted)' }}>
+                Grouped by strand
+              </p>
+            ) : (
+              // Cap usage — hidden under the CAS lens, which is cap-exempt anyway.
+              <p
+                className="text-xs font-semibold"
+                style={{ color: used >= config.activeCap ? 'var(--color-fire)' : 'var(--color-muted)' }}
+              >
+                {used >= config.activeCap ? 'Cap reached · ' : ''}
+                {used} of {config.activeCap} active
               </p>
             )}
+          </div>
+
+          {/* CAS lens. Never changes what a write is allowed to do. */}
+          <button
+            type="button"
+            role="switch"
+            aria-checked={casMode}
+            aria-label="CAS mode"
+            onClick={() => setCasMode(!casMode)}
+            className="flex h-10 shrink-0 items-center gap-2 rounded-full border pl-3 pr-1.5 text-xs font-bold"
+            style={{
+              borderColor: casMode ? 'rgba(34,197,94,0.5)' : 'var(--color-border)',
+              background: casMode ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)',
+              color: casMode ? 'var(--color-green)' : 'var(--color-muted)',
+            }}
+          >
+            CAS
+            <span
+              className="relative h-6 w-10 rounded-full transition-colors"
+              style={{ background: casMode ? 'var(--color-green)' : 'rgba(255,255,255,0.14)' }}
+            >
+              <motion.span
+                layout
+                transition={{ type: 'spring', stiffness: 500, damping: 34 }}
+                className="absolute top-1 h-4 w-4 rounded-full bg-white"
+                style={{ left: casMode ? 20 : 4 }}
+              />
+            </span>
+          </button>
+          <Link
+            to="/tracker/markdown"
+            aria-label="Export and import markdown"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
+            style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
+          >
+            ⇅
+          </Link>
+          <Link
+            to="/tracker/presets"
+            aria-label="Presets"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
+            style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
+          >
+            ⚙
+          </Link>
+        </div>
+
+        {!casMode && (
+          <div className="flex gap-1" aria-hidden>
+            {Array.from({ length: config.activeCap }, (_, i) => (
+              <span
+                key={i}
+                className="h-1 flex-1 rounded-full transition-colors"
+                style={{
+                  background:
+                    i < used
+                      ? used >= config.activeCap
+                        ? 'var(--color-fire)'
+                        : 'var(--color-primary)'
+                      : 'rgba(255,255,255,0.08)',
+                }}
+              />
+            ))}
           </div>
         )}
       </header>
 
-      <ReviewBanner config={config} />
+      {items.length > 0 && <ReviewBanner config={config} />}
 
-      {/* Coursework conflicts: persistent while unresolved, but never blocking. */}
+      {/* Coursework conflicts: persistent while unresolved, but never blocking.
+          Each code jumps to its card, where the two-button fix lives. */}
       {conflicts.length > 0 && (
         <div
-          className="rounded-(--radius-card) border p-3.5"
-          style={{ borderColor: 'rgba(239,68,68,0.45)', background: 'rgba(239,68,68,0.08)' }}
+          className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-(--radius-card) border px-3.5 py-2.5"
+          style={{ borderColor: 'rgba(239,68,68,0.45)', background: 'rgba(239,68,68,0.1)' }}
         >
-          <p className="text-sm font-bold" style={{ color: '#fca5a5' }}>
-            {conflicts.length} item{conflicts.length > 1 ? 's' : ''} double-counted with coursework
-          </p>
-          <p className="mt-1 text-xs leading-snug" style={{ color: 'var(--color-muted)' }}>
-            CAS may not double-count with DP coursework. Each flagged card below offers the two
-            ways out: {conflicts.map((c) => c.code).join(', ')}
-          </p>
+          <span className="text-xs font-bold" style={{ color: '#fca5a5' }}>
+            ⚠ Counted as CAS and coursework
+          </span>
+          {conflicts.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => jumpTo(c)}
+              className="rounded-full px-2.5 py-1 font-mono text-xs font-bold"
+              style={{ background: 'rgba(239,68,68,0.2)', color: '#fecaca' }}
+            >
+              {c.code} →
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Tabs */}
-      <nav className="flex gap-1.5 overflow-x-auto pb-0.5">
+      {/* Tabs — equal-width segments, so four CAS tabs fit a phone without
+          spilling into a scroll strip. */}
+      <nav className="flex gap-1 rounded-full p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
-            className="shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold transition-colors"
+            aria-pressed={tab === t.id}
+            className="min-w-0 flex-1 truncate rounded-full px-2 py-2 text-[13px] font-semibold transition-colors"
             style={{
-              background: tab === t.id ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)',
+              background: tab === t.id ? 'var(--color-primary)' : 'transparent',
               color: tab === t.id ? '#fff' : 'var(--color-muted)',
             }}
           >
@@ -318,11 +362,40 @@ export default function Tracker() {
       {tab === 'items' && (
         <div className="flex flex-col gap-5">
           {lensItems.length === 0 ? (
-            <p className="py-10 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
-              {casMode
-                ? 'No CAS-tagged items yet. Tag an item with a strand to see it here.'
-                : 'Nothing tracked yet. Add your first item below.'}
-            </p>
+            <div
+              className="flex flex-col items-center gap-3 rounded-(--radius-card) border border-dashed px-6 py-10 text-center"
+              style={{ borderColor: 'var(--color-border)' }}
+            >
+              <span className="text-4xl" aria-hidden>
+                {casMode ? '🎭' : '🗺️'}
+              </span>
+              <div>
+                <p className="font-bold">{casMode ? 'No CAS experiences yet' : 'Chart your long quests'}</p>
+                <p className="mt-1 text-sm leading-snug" style={{ color: 'var(--color-muted)' }}>
+                  {casMode
+                    ? 'Tag any item with a strand and it appears here, grouped by strand.'
+                    : 'Projects and commitments that outlive a single day. Each one gets a code and a physical next step.'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={openNew}
+                className="mt-1 rounded-full px-5 py-2.5 text-sm font-bold"
+                style={{ background: 'var(--color-primary)', color: '#fff' }}
+              >
+                + {casMode ? 'Add a CAS item' : 'Add your first item'}
+              </button>
+              {!casMode && (
+                <button
+                  type="button"
+                  onClick={() => setTab('lot')}
+                  className="text-xs underline"
+                  style={{ color: 'var(--color-muted)' }}
+                >
+                  Not sure yet? Park a thought instead
+                </button>
+              )}
+            </div>
           ) : (
             <>
               {/* Active, pinned above everything regardless of grouping. */}
@@ -372,6 +445,7 @@ export default function Tracker() {
                             item={item}
                             config={config}
                             casMode={casMode}
+                            showDomain={false}
                             onEdit={openEdit}
                             onReflect={setReflecting}
                           />
@@ -384,14 +458,16 @@ export default function Tracker() {
             </>
           )}
 
-          <button
-            type="button"
-            onClick={() => setShowTerminal((v) => !v)}
-            className="self-center rounded-full px-4 py-2 text-xs font-semibold"
-            style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--color-muted)' }}
-          >
-            {showTerminal ? 'Hide done & dropped' : 'Show done & dropped'}
-          </button>
+          {terminalCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowTerminal((v) => !v)}
+              className="self-center rounded-full px-4 py-2 text-xs font-semibold"
+              style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--color-muted)' }}
+            >
+              {showTerminal ? 'Hide' : 'Show'} {terminalCount} done & dropped
+            </button>
+          )}
         </div>
       )}
 
@@ -419,7 +495,7 @@ export default function Tracker() {
       {tab === 'interviews' && <CasInterviews interviews={interviews} />}
 
       {/* New item — bottom-right, clear of the nav bar and under the thumb. */}
-      {tab === 'items' && (
+      {tab === 'items' && lensItems.length > 0 && (
         <button
           type="button"
           onClick={openNew}

@@ -16,6 +16,7 @@ import { LEARNING_OUTCOMES, type TrackerItem } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { Sheet, Label, fieldClass, fieldStyle } from './Sheet';
+import { sfxXp } from '../../lib/sfx';
 
 interface Props {
   open: boolean;
@@ -46,6 +47,7 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
       setText('');
       setLoTags([]);
       setMediaUrl('');
+      sfxXp();
     } catch (err) {
       pushToast({ title: 'Could not save', sub: String(err), icon: '⚠️', variant: 'error' });
     } finally {
