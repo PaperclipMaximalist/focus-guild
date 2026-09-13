@@ -9,11 +9,13 @@ interface Toast {
   sub: string;
   icon: string;
   variant: ToastVariant;
+  /** A single inline action, e.g. Undo. Tapping it also dismisses the toast. */
+  action?: { label: string; run: () => void };
 }
 
 interface ToastStore {
   toasts: Toast[];
-  push: (t: Omit<Toast, 'id'>) => void;
+  push: (t: Omit<Toast, 'id'>) => number;
   dismiss: (id: number) => void;
 }
 
@@ -24,7 +26,13 @@ export const useToastStore = create<ToastStore>((set) => ({
   push: (t) => {
     const id = nextId++;
     set((s) => ({ toasts: [...s.toasts, { id, ...t }] }));
-    setTimeout(() => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })), 3000);
+    // Actionable toasts linger longer — three seconds is too short to reach
+    // an Undo with a thumb.
+    setTimeout(
+      () => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
+      t.action ? 6000 : 3000,
+    );
+    return id;
   },
   dismiss: (id) => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
 }));
@@ -47,6 +55,7 @@ const BG: Record<ToastVariant, string> = {
 
 export function ToastContainer() {
   const toasts = useToastStore((s) => s.toasts);
+  const dismiss = useToastStore((s) => s.dismiss);
 
   return (
     <div className="pointer-events-none fixed bottom-20 right-4 z-[500] flex flex-col gap-2 sm:bottom-6 sm:right-6">
@@ -62,10 +71,23 @@ export function ToastContainer() {
             style={{ borderColor: BORDER[t.variant], background: BG[t.variant] }}
           >
             <span className="shrink-0 text-xl">{t.icon}</span>
-            <div className="leading-tight">
+            <div className="min-w-0 flex-1 leading-tight">
               <strong className="block">{t.title}</strong>
               <span className="text-xs text-(--color-muted)">{t.sub}</span>
             </div>
+            {t.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  t.action!.run();
+                  dismiss(t.id);
+                }}
+                className="shrink-0 rounded-lg px-3 py-2 text-xs font-bold"
+                style={{ background: 'rgba(139,92,246,0.22)', color: 'var(--color-primary)' }}
+              >
+                {t.action.label}
+              </button>
+            )}
           </motion.div>
         ))}
       </AnimatePresence>
