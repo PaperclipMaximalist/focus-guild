@@ -142,7 +142,60 @@ Never commit .env files. Never log API keys.
 
 ## Current Build Phase
 [Update this at the end of every session]
-Phase: 11 — Long-horizon Tracker + CAS lens (server done, client not started)
+Phase: 11 — Long-horizon Tracker + CAS lens (server AND client done)
+
+Session (2026-09-12 — migration applied, tracker/CAS client built):
+  - ✅ BLOCKER CLEARED: the tracker migration is APPLIED. Ran the
+    idempotent SQL statement-by-statement through the Neon HTTP driver
+    (@neondatabase/serverless works from this machine; the Prisma schema
+    engine still does not). All six tables + users.trackerSettings exist
+    and GET /tracker returns 200. `prisma migrate deploy` will re-run and
+    checksum it harmlessly on the next Linux deploy.
+  - SERVER GAP CLOSED — scheduler hand-off:
+    - POST /tracker/items/:id/schedule creates a Quest from the item's
+      nextAction (deadline from its due date, tagged with its domain) and
+      links questId. Explicit, not automatic on activation — silent quest
+      creation would surprise. Re-scheduling while the quest is still open
+      returns the existing one, so a double tap can't duplicate.
+    - DELETE /tracker/items/:id/schedule unlinks; the quest survives.
+    - GET /tracker now returns linkedQuests (questId has no FK, so the
+      client needs this to spot a link whose quest was deleted).
+  - CLIENT, all four areas built and verified at 375px:
+    - lib/api.ts — api.tracker.* over every endpoint; request() now throws
+      ApiRequestError carrying the server's error code (message keeps the
+      old `CODE: message` shape, so String(err) call sites are unchanged).
+    - store/useTrackerStore.ts — bootstrap + in-place array patches;
+      cappedActive() mirrors the server rule exactly. CAS mode persisted
+      to localStorage; it is a lens and gates no write.
+    - pages/Tracker.tsx — active pinned above collapsible domain sections,
+      next action as the headline with the title beneath, cap segment bar,
+      one-tap drop, parking lot, append-only decision log, review banner.
+    - components/tracker/Cas*.tsx — 7x3 matrix (outcomes as rows so three
+      columns fit a phone), strand balance by recency/duration,
+      reflections with LO tags that feed the matrix, three interviews.
+    - pages/TrackerPresets.tsx — domains (add/rename/reorder via buttons,
+      not drag/recolor/delete), cap, status labels, prefixes, required
+      fields, review cadence + prompts, hours toggle, JSON preset
+      export/import.
+    - pages/TrackerMarkdown.tsx — four tier buttons with real char counts
+      from /export/sizes, compact auto-copies, delta export with a date
+      picker, import via paste or .md upload with a mandatory diff preview.
+    - Routes /tracker, /tracker/presets, /tracker/markdown; Tracker tab in
+      BottomNav that switches to 🎭 CAS when the lens is on; three command
+      palette entries. Toasts lifted clear of the bottom nav.
+  - VERIFIED in-browser at 375px (no horizontal overflow anywhere): item
+    create, cap 409 and next-action 400 both surfacing as toasts, one-tap
+    drop, schedule → quest really lands in the feed, CAS lens narrowing +
+    strand grouping + cap hidden, matrix cell drill-down, a reflection's
+    LO tag closing a coverage gap, interview save-on-blur, parking-lot
+    promote, decision append, domain reorder/rename/delete (items survive
+    into Unsorted), and a compact-export round-trip that left unmentioned
+    notes intact and never deleted absent items.
+  - 192 server tests pass; client typecheck clean; build ~198 kB gzipped.
+  - Still queued: db:seed (DB has 6 of 14 achievements), merge
+    scheduler-revamp -> main (16 commits ahead).
+
+Previous phase-11 session (2026-09-12 — server side):
 
 Session (2026-09-12 — tracker/CAS server side + Railway restore):
   - RAILWAY: free trial had expired and taken the server down (404
@@ -175,7 +228,7 @@ Session (2026-09-12 — tracker/CAS server side + Railway restore):
       enforced server-side; CAS-tagged items are exempt as a property of
       the data, not of whether the CAS lens is toggled on.
     - 192 server tests pass (was 136).
-  - ⚠️ BLOCKER: prisma/migrations/20260912000000_tracker_and_cas is
+  - ⚠️ BLOCKER (RESOLVED in the session above): the migration was
     committed but NOT APPLIED, so /tracker 500s with ColumnNotFound. The
     Prisma schema engine cannot reach Neon from this Windows machine
     (migrate diff against the live DB silently returns an empty
@@ -183,8 +236,7 @@ Session (2026-09-12 — tracker/CAS server side + Railway restore):
     let `prisma migrate deploy` apply it on a Linux host, or apply it via
     the Neon HTTP driver. Note `start` is `migrate deploy && node …`, so
     a bad migration blocks boot.
-  - Still queued: db:seed (DB has 6 of 14 achievements), merge
-    scheduler-revamp -> main (10 commits ahead).
+  - (At the time: 10 commits ahead of main.)
 
 Phase: 9 — Auth backend + Focus Timer + Spin the Wheel + Rescue Mode
 
