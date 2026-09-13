@@ -8,45 +8,47 @@
  * you read and nothing about what happens.
  *
  * Domains are the exception: they are rows, not settings, because items point
- * at them. Deleting one therefore does not delete its items; they lose the
- * link and land in Unsorted.
+ * at them. They save immediately, and deleting one does not delete its items;
+ * they lose the link and land in Unsorted.
  *
  * Reordering uses buttons rather than drag-and-drop. Dragging a list on a
  * phone fights the page scroll, and the whole tracker is built to be usable
  * one-handed.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   TRACKER_STATUSES,
   type TrackerConfigShape,
+  type TrackerDomain,
   type TrackerOverrides,
-  type TrackerStatus,
 } from '../lib/api';
+import { trackerErrorToast } from '../lib/tracker';
+import { sfxClick } from '../lib/sfx';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
 
 const SWATCHES = ['#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6', '#ec4899', '#64748b'];
 
+/** Codes are matched by `<letters><digits>`, so a prefix must be letters only. */
+const PREFIX_RE = /^[A-Za-z]{1,6}$/;
+
+function parsePrefixes(raw: string): string[] {
+  return [...new Set(raw.split(',').map((p) => p.trim()).filter(Boolean))];
+}
+
+const defaultLabel = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
+
 export default function TrackerPresets() {
-  const {
-    config,
-    domains,
-    loaded,
-    load,
-    saveConfig,
-    resetConfig,
-    createDomain,
-    updateDomain,
-    deleteDomain,
-    reorderDomains,
-  } = useTrackerStore();
+  const { config, domains, items, loaded, load, saveConfig, resetConfig, createDomain } = useTrackerStore();
   const pushToast = useToastStore((s) => s.push);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [draft, setDraft] = useState<TrackerConfigShape | null>(null);
+  // Kept as raw text so a half-typed "A, " isn't normalised away mid-keystroke.
+  const [prefixText, setPrefixText] = useState('');
   const [newDomain, setNewDomain] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -56,28 +58,67 @@ export default function TrackerPresets() {
 
   // Seed the draft once config arrives; edits stay local until Save.
   useEffect(() => {
-    if (config && !draft) setDraft(structuredClone(config));
+    if (config && !draft) {
+      setDraft(structuredClone(config));
+      setPrefixText(config.codePrefixes.join(', '));
+    }
   }, [config, draft]);
 
-  if (!draft) {
+  const itemCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const i of items) if (i.domainId) m.set(i.domainId, (m.get(i.domainId) ?? 0) + 1);
+    return m;
+  }, [items]);
+
+  // The exact set that Save would send — also what dirty-checking compares.
+  const cleaned = useMemo((): TrackerConfigShape | null => {
+    if (!draft) return null;
+    return {
+      ...draft,
+      codePrefixes: parsePrefixes(prefixText),
+      statusLabels: Object.fromEntries(
+        TRACKER_STATUSES.map((s) => [s, draft.statusLabels[s]?.trim() || defaultLabel(s)]),
+      ) as TrackerConfigShape['statusLabels'],
+      reviewPrompts: draft.reviewPrompts.map((p) => p.trim()).filter(Boolean),
+    };
+  }, [draft, prefixText]);
+
+  if (!draft || !cleaned || !config) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center" style={{ color: 'var(--color-muted)' }}>
-        Loading presets…
+      <div className="mx-auto flex max-w-2xl flex-col gap-3 p-4">
+        {[0, 1, 2].map((i) => (
+          <div key={i} className="h-24 animate-pulse rounded-(--radius-card)" style={{ background: 'var(--color-surface)' }} />
+        ))}
       </div>
     );
   }
 
+  const badPrefixes = cleaned.codePrefixes.filter((p) => !PREFIX_RE.test(p));
+  const prefixError =
+    cleaned.codePrefixes.length === 0
+      ? 'You need at least one prefix.'
+      : badPrefixes.length > 0
+        ? `Letters only (1–6): ${badPrefixes.join(', ')}`
+        : null;
+  const dirty = JSON.stringify(cleaned) !== JSON.stringify(config);
+
   const patch = (fields: Partial<TrackerConfigShape>) =>
     setDraft((prev) => (prev ? { ...prev, ...fields } : prev));
 
+  const fail = (err: unknown) => pushToast({ ...trackerErrorToast(err), variant: 'error' });
+
   const save = async () => {
+    if (prefixError) return;
     setBusy(true);
     try {
       // The server takes a whole preset set, which is also what import posts.
-      await saveConfig(draft as TrackerOverrides);
+      await saveConfig(cleaned as TrackerOverrides);
+      setDraft(structuredClone(cleaned));
+      setPrefixText(cleaned.codePrefixes.join(', '));
+      sfxClick();
       pushToast({ title: 'Presets saved', sub: 'Applied everywhere', icon: '⚙️', variant: 'xp' });
     } catch (err) {
-      pushToast({ title: 'Could not save', sub: String(err), icon: '⚠️', variant: 'error' });
+      fail(err);
     } finally {
       setBusy(false);
     }
@@ -87,10 +128,10 @@ export default function TrackerPresets() {
     setBusy(true);
     try {
       await resetConfig();
-      setDraft(null);
+      setDraft(null); // re-seeds from the fresh defaults
       pushToast({ title: 'Back to defaults', sub: 'Your overrides were cleared', icon: '↩️', variant: 'xp' });
     } catch (err) {
-      pushToast({ title: 'Could not reset', sub: String(err), icon: '⚠️', variant: 'error' });
+      fail(err);
     } finally {
       setBusy(false);
     }
@@ -98,7 +139,7 @@ export default function TrackerPresets() {
 
   /** Presets travel as their own JSON file, separate from the item markdown. */
   const exportPresets = () => {
-    const blob = new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(cleaned, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -115,24 +156,18 @@ export default function TrackerPresets() {
       }
       // Merge over the current draft so an older file missing a newer field
       // doesn't silently blank it.
-      setDraft((prev) => (prev ? { ...prev, ...parsed } : prev));
-      pushToast({
-        title: 'Presets loaded',
-        sub: 'Review them, then Save to apply',
-        icon: '📥',
-        variant: 'xp',
-      });
+      const merged = {
+        ...draft,
+        ...parsed,
+        statusLabels: { ...draft.statusLabels, ...(parsed.statusLabels ?? {}) },
+        requiredFields: { ...draft.requiredFields, ...(parsed.requiredFields ?? {}) },
+      };
+      setDraft(merged);
+      if (Array.isArray(parsed.codePrefixes)) setPrefixText(parsed.codePrefixes.join(', '));
+      pushToast({ title: 'Presets loaded', sub: 'Review them, then Save to apply', icon: '📥', variant: 'xp' });
     } catch (err) {
       pushToast({ title: 'Could not read that file', sub: String(err), icon: '⚠️', variant: 'error' });
     }
-  };
-
-  const move = (index: number, delta: number) => {
-    const next = [...domains];
-    const target = index + delta;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target]!, next[index]!];
-    reorderDomains(next.map((d) => d.id));
   };
 
   const addDomain = async () => {
@@ -141,13 +176,14 @@ export default function TrackerPresets() {
     try {
       await createDomain({ name, color: SWATCHES[domains.length % SWATCHES.length] });
       setNewDomain('');
+      sfxClick();
     } catch (err) {
-      pushToast({ title: 'Could not add', sub: String(err), icon: '⚠️', variant: 'error' });
+      fail(err);
     }
   };
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-4 pb-28">
+    <div className="mx-auto flex max-w-2xl flex-col gap-7 p-4 pb-32">
       <header className="flex items-center gap-3">
         <Link
           to="/tracker"
@@ -157,91 +193,31 @@ export default function TrackerPresets() {
         >
           ←
         </Link>
-        <h1 className="text-2xl font-extrabold">Presets</h1>
+        <div>
+          <h1 className="text-2xl font-extrabold leading-tight">Presets</h1>
+          <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
+            How the tracker behaves for you
+          </p>
+        </div>
       </header>
 
       {/* ── Domains ─────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
-            Domains
-          </h2>
-          <p className="mt-1 text-xs" style={{ color: 'var(--color-muted)' }}>
-            Saved immediately — these are records, not settings. Deleting one keeps its items and
-            moves them to Unsorted.
-          </p>
-        </div>
+        <SectionHead
+          title="Domains"
+          hint="Saved as you go. Deleting one keeps its items and moves them to Unsorted."
+        />
 
         <ul className="flex flex-col gap-2">
           {domains.map((d, i) => (
-            <li
+            <DomainRow
               key={d.id}
-              className="rounded-(--radius-card) border p-3"
-              style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-            >
-              <div className="flex items-center gap-2">
-                <input
-                  value={d.name}
-                  onChange={(e) =>
-                    useTrackerStore.setState({
-                      domains: domains.map((x) => (x.id === d.id ? { ...x, name: e.target.value } : x)),
-                    })
-                  }
-                  onBlur={(e) => {
-                    const name = e.target.value.trim();
-                    if (name && name !== d.name) updateDomain(d.id, { name });
-                  }}
-                  aria-label={`Name of ${d.name}`}
-                  className={fieldClass}
-                  style={fieldStyle}
-                />
-                <button
-                  type="button"
-                  onClick={() => move(i, -1)}
-                  disabled={i === 0}
-                  aria-label={`Move ${d.name} up`}
-                  className="grid h-10 w-9 shrink-0 place-items-center rounded-lg disabled:opacity-25"
-                  style={{ background: 'rgba(255,255,255,0.06)' }}
-                >
-                  ↑
-                </button>
-                <button
-                  type="button"
-                  onClick={() => move(i, 1)}
-                  disabled={i === domains.length - 1}
-                  aria-label={`Move ${d.name} down`}
-                  className="grid h-10 w-9 shrink-0 place-items-center rounded-lg disabled:opacity-25"
-                  style={{ background: 'rgba(255,255,255,0.06)' }}
-                >
-                  ↓
-                </button>
-              </div>
-
-              <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                {SWATCHES.map((c) => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => updateDomain(d.id, { color: c })}
-                    aria-label={`Colour ${d.name} ${c}`}
-                    className="h-7 w-7 rounded-full"
-                    style={{
-                      background: c,
-                      outline: d.color.toLowerCase() === c ? '2px solid var(--color-text)' : 'none',
-                      outlineOffset: 2,
-                    }}
-                  />
-                ))}
-                <button
-                  type="button"
-                  onClick={() => deleteDomain(d.id)}
-                  className="ml-auto rounded-full px-3 py-1.5 text-xs font-semibold"
-                  style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5' }}
-                >
-                  Delete
-                </button>
-              </div>
-            </li>
+              domain={d}
+              index={i}
+              total={domains.length}
+              itemCount={itemCounts.get(d.id) ?? 0}
+              onError={fail}
+            />
           ))}
         </ul>
 
@@ -266,19 +242,33 @@ export default function TrackerPresets() {
         </div>
       </section>
 
+      <Divider />
+
       {/* ── Active cap ──────────────────────────────────────────────────── */}
       <section>
-        <Label hint="CAS-tagged items are exempt and never count toward this.">
-          Active cap — {draft.activeCap}
-        </Label>
-        <input
-          type="range"
-          min={1}
-          max={20}
-          value={draft.activeCap}
-          onChange={(e) => patch({ activeCap: Number(e.target.value) })}
-          className="w-full"
-        />
+        <div className="mb-1.5 flex items-baseline justify-between gap-3">
+          <Label hint="CAS-tagged items are exempt and never count toward this.">Active cap</Label>
+          <span className="text-2xl font-extrabold" style={{ color: 'var(--color-primary)' }}>
+            {draft.activeCap}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Stepper label="Lower the cap" onClick={() => patch({ activeCap: Math.max(1, draft.activeCap - 1) })} disabled={draft.activeCap <= 1}>
+            −
+          </Stepper>
+          <input
+            type="range"
+            min={1}
+            max={20}
+            value={draft.activeCap}
+            onChange={(e) => patch({ activeCap: Number(e.target.value) })}
+            aria-label="Active cap"
+            className="flex-1 accent-(--color-primary)"
+          />
+          <Stepper label="Raise the cap" onClick={() => patch({ activeCap: Math.min(20, draft.activeCap + 1) })} disabled={draft.activeCap >= 20}>
+            +
+          </Stepper>
+        </div>
       </section>
 
       {/* ── Status labels ───────────────────────────────────────────────── */}
@@ -287,20 +277,17 @@ export default function TrackerPresets() {
           Status labels
         </Label>
         <div className="flex flex-col gap-2">
-          {TRACKER_STATUSES.map((s: TrackerStatus) => (
+          {TRACKER_STATUSES.map((s) => (
             <div key={s} className="flex items-center gap-2">
-              <span
-                className="w-20 shrink-0 text-xs font-bold uppercase"
-                style={{ color: 'var(--color-muted)' }}
-              >
-                {s.toLowerCase()}
+              <span className="w-20 shrink-0 font-mono text-[11px] font-bold uppercase" style={{ color: 'var(--color-muted)' }}>
+                {s}
               </span>
               <input
                 value={draft.statusLabels[s]}
-                onChange={(e) =>
-                  patch({ statusLabels: { ...draft.statusLabels, [s]: e.target.value } })
-                }
+                onChange={(e) => patch({ statusLabels: { ...draft.statusLabels, [s]: e.target.value } })}
+                placeholder={defaultLabel(s)}
                 aria-label={`Label for ${s}`}
+                maxLength={40}
                 className={fieldClass}
                 style={fieldStyle}
               />
@@ -311,28 +298,42 @@ export default function TrackerPresets() {
 
       {/* ── Code prefixes ───────────────────────────────────────────────── */}
       <section>
-        <Label hint="Comma-separated. The first is used by default; numbers are assigned for you and never reused.">
+        <Label hint="Comma-separated letters. The first is the default; numbers are assigned for you and never reused.">
           Code prefixes
         </Label>
         <input
-          value={draft.codePrefixes.join(', ')}
-          onChange={(e) =>
-            patch({
-              codePrefixes: e.target.value
-                .split(',')
-                .map((p) => p.trim())
-                .filter(Boolean),
-            })
-          }
+          value={prefixText}
+          onChange={(e) => setPrefixText(e.target.value)}
+          aria-label="Code prefixes"
           className={fieldClass}
-          style={fieldStyle}
+          style={{ ...fieldStyle, borderColor: prefixError ? 'rgba(239,68,68,0.6)' : fieldStyle.borderColor }}
         />
+        {prefixError ? (
+          <p className="mt-1 text-xs" style={{ color: '#fca5a5' }}>
+            {prefixError}
+          </p>
+        ) : (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {cleaned.codePrefixes.map((p, i) => (
+              <span
+                key={p}
+                className="rounded px-2 py-1 font-mono text-xs font-bold"
+                style={{
+                  background: i === 0 ? 'rgba(139,92,246,0.22)' : 'rgba(255,255,255,0.06)',
+                  color: i === 0 ? 'var(--color-primary)' : 'var(--color-muted)',
+                }}
+              >
+                {p}1{i === 0 && <span className="ml-1 font-sans font-normal opacity-70">default</span>}
+              </span>
+            ))}
+          </div>
+        )}
       </section>
 
       {/* ── Required fields ─────────────────────────────────────────────── */}
       <section>
         <Label>Required fields</Label>
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-1">
           {(
             [
               ['nextActionForActive', 'A next action before an item can go Active'],
@@ -340,14 +341,12 @@ export default function TrackerPresets() {
               ['dueDate', 'A due date on every item'],
             ] as const
           ).map(([key, label]) => (
-            <label key={key} className="flex items-center gap-3 text-sm">
+            <label key={key} className="flex min-h-11 items-center gap-3 text-sm">
               <input
                 type="checkbox"
                 checked={draft.requiredFields[key]}
-                onChange={(e) =>
-                  patch({ requiredFields: { ...draft.requiredFields, [key]: e.target.checked } })
-                }
-                className="h-5 w-5 shrink-0"
+                onChange={(e) => patch({ requiredFields: { ...draft.requiredFields, [key]: e.target.checked } })}
+                className="h-5 w-5 shrink-0 accent-(--color-primary)"
               />
               {label}
             </label>
@@ -355,19 +354,43 @@ export default function TrackerPresets() {
         </div>
       </section>
 
+      <Divider />
+
       {/* ── Review cadence ──────────────────────────────────────────────── */}
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-4">
         <div>
-          <Label hint="Produces a banner on the tracker listing these prompts. No notifications.">
-            Review every {draft.reviewCadenceDays} day{draft.reviewCadenceDays === 1 ? '' : 's'}
-          </Label>
+          <div className="mb-1.5 flex items-baseline justify-between gap-3">
+            <Label hint="Shows a banner on the tracker listing these prompts. No notifications.">
+              Review cadence
+            </Label>
+            <span className="shrink-0 text-sm font-bold" style={{ color: 'var(--color-gold)' }}>
+              every {draft.reviewCadenceDays} day{draft.reviewCadenceDays === 1 ? '' : 's'}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[1, 7, 14, 30].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => patch({ reviewCadenceDays: n })}
+                className="rounded-full px-3.5 py-2 text-xs font-semibold"
+                style={{
+                  background: draft.reviewCadenceDays === n ? 'var(--color-gold)' : 'rgba(255,255,255,0.06)',
+                  color: draft.reviewCadenceDays === n ? '#1a1205' : 'var(--color-muted)',
+                }}
+              >
+                {n === 1 ? 'Daily' : n === 7 ? 'Weekly' : n === 14 ? 'Fortnightly' : 'Monthly'}
+              </button>
+            ))}
+          </div>
           <input
             type="range"
             min={1}
             max={60}
             value={draft.reviewCadenceDays}
             onChange={(e) => patch({ reviewCadenceDays: Number(e.target.value) })}
-            className="w-full"
+            aria-label="Review cadence in days"
+            className="mt-3 w-full accent-(--color-gold)"
           />
         </div>
 
@@ -379,11 +402,11 @@ export default function TrackerPresets() {
                 <input
                   value={prompt}
                   onChange={(e) =>
-                    patch({
-                      reviewPrompts: draft.reviewPrompts.map((p, j) => (j === i ? e.target.value : p)),
-                    })
+                    patch({ reviewPrompts: draft.reviewPrompts.map((p, j) => (j === i ? e.target.value : p)) })
                   }
+                  placeholder="A question to ask yourself…"
                   aria-label={`Review prompt ${i + 1}`}
+                  maxLength={280}
                   className={fieldClass}
                   style={fieldStyle}
                 />
@@ -417,23 +440,23 @@ export default function TrackerPresets() {
             type="checkbox"
             checked={draft.showHours}
             onChange={(e) => patch({ showHours: e.target.checked })}
-            className="mt-0.5 h-5 w-5 shrink-0"
+            className="mt-0.5 h-5 w-5 shrink-0 accent-(--color-primary)"
           />
           <span>
             Track hours on CAS items
             <span className="mt-0.5 block text-xs" style={{ color: 'var(--color-muted)' }}>
-              Off by default — IB requires no hour counting. Switch it on only if your school
-              imposes its own quota.
+              Off by default — IB requires no hour counting. Switch it on only if your school imposes
+              its own quota.
             </span>
           </span>
         </label>
       </section>
 
+      <Divider />
+
       {/* ── Preset set as a file ────────────────────────────────────────── */}
       <section className="flex flex-col gap-2">
-        <Label hint="Separate from the item markdown — this is just the settings.">
-          Preset set
-        </Label>
+        <SectionHead title="Preset file" hint="Just the settings above — item data lives in Markdown export." />
         <div className="flex gap-2">
           <button
             type="button"
@@ -465,30 +488,224 @@ export default function TrackerPresets() {
         </div>
       </section>
 
-      {/* Sticky actions — reachable without scrolling back up. */}
+      {/* Sticky actions — reachable without scrolling back up, and honest
+          about whether there is anything to save. */}
       <div
-        className="sticky bottom-20 flex gap-2 rounded-xl border p-2"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface2)' }}
+        className={`flex items-center gap-2 rounded-xl border p-2 ${
+          // Only float over the content when there's something to save; a
+          // sticky "All saved" bar just covers the fields beneath it.
+          dirty ? 'sticky bottom-20 shadow-[0_8px_30px_rgba(0,0,0,0.45)]' : ''
+        }`}
+        style={{
+          borderColor: dirty ? 'rgba(139,92,246,0.55)' : 'var(--color-border)',
+          background: 'var(--color-surface2)',
+        }}
       >
         <button
           type="button"
           onClick={reset}
           disabled={busy}
-          className="rounded-lg px-4 py-3 text-sm font-semibold"
+          className="rounded-lg px-3.5 py-3 text-sm font-semibold"
           style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-muted)' }}
         >
           Defaults
         </button>
+        <span className="flex-1 px-1 text-xs" style={{ color: dirty ? 'var(--color-gold)' : 'var(--color-muted)' }}>
+          {prefixError ? 'Fix the prefixes first' : dirty ? '● Unsaved changes' : '✓ All saved'}
+        </span>
         <button
           type="button"
           onClick={save}
-          disabled={busy}
-          className="flex-1 rounded-lg py-3 text-sm font-bold disabled:opacity-40"
+          disabled={busy || !dirty || Boolean(prefixError)}
+          className="rounded-lg px-5 py-3 text-sm font-bold transition-opacity active:opacity-70 disabled:opacity-40"
           style={{ background: 'var(--color-primary)', color: '#fff' }}
         >
-          {busy ? 'Saving…' : 'Save presets'}
+          {busy ? 'Saving…' : 'Save'}
         </button>
       </div>
     </div>
+  );
+}
+
+/** One domain: inline rename, reorder, recolour, and a two-tap delete. */
+function DomainRow({
+  domain,
+  index,
+  total,
+  itemCount,
+  onError,
+}: {
+  domain: TrackerDomain;
+  index: number;
+  total: number;
+  itemCount: number;
+  onError: (err: unknown) => void;
+}) {
+  const { domains, updateDomain, deleteDomain, reorderDomains } = useTrackerStore();
+  const [name, setName] = useState(domain.name);
+  const [confirming, setConfirming] = useState(false);
+
+  useEffect(() => setName(domain.name), [domain.name]);
+
+  // Arm-then-fire rather than a dialog; disarm on its own if left alone.
+  useEffect(() => {
+    if (!confirming) return;
+    const t = setTimeout(() => setConfirming(false), 4000);
+    return () => clearTimeout(t);
+  }, [confirming]);
+
+  const rename = async () => {
+    const next = name.trim();
+    if (!next || next === domain.name) {
+      setName(domain.name);
+      return;
+    }
+    try {
+      await updateDomain(domain.id, { name: next });
+    } catch (err) {
+      setName(domain.name); // a duplicate name 409s — put the real one back
+      onError(err);
+    }
+  };
+
+  const move = (delta: number) => {
+    const next = [...domains];
+    const target = index + delta;
+    if (target < 0 || target >= next.length) return;
+    [next[index], next[target]] = [next[target]!, next[index]!];
+    reorderDomains(next.map((d) => d.id)).catch(onError);
+  };
+
+  return (
+    <li
+      className="rounded-(--radius-card) border p-3"
+      style={{
+        borderColor: 'var(--color-border)',
+        background: 'var(--color-surface)',
+        boxShadow: `inset 3px 0 0 ${domain.color}`,
+      }}
+    >
+      <div className="flex items-center gap-2">
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={rename}
+          onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+          aria-label={`Name of ${domain.name}`}
+          maxLength={60}
+          className={fieldClass}
+          style={fieldStyle}
+        />
+        <button
+          type="button"
+          onClick={() => move(-1)}
+          disabled={index === 0}
+          aria-label={`Move ${domain.name} up`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg disabled:opacity-25"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        >
+          ↑
+        </button>
+        <button
+          type="button"
+          onClick={() => move(1)}
+          disabled={index === total - 1}
+          aria-label={`Move ${domain.name} down`}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-lg disabled:opacity-25"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        >
+          ↓
+        </button>
+      </div>
+
+      <div className="mt-2.5 flex flex-wrap items-center gap-2">
+        {SWATCHES.map((c) => {
+          const selected = domain.color.toLowerCase() === c;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => !selected && updateDomain(domain.id, { color: c }).catch(onError)}
+              aria-label={`Colour ${domain.name} ${c}`}
+              aria-pressed={selected}
+              className="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-white"
+              style={{
+                background: c,
+                outline: selected ? '2px solid var(--color-text)' : 'none',
+                outlineOffset: 2,
+              }}
+            >
+              {selected ? '✓' : ''}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="mt-2.5 flex items-center justify-between gap-2">
+        <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
+          {itemCount === 0 ? 'No items' : `${itemCount} item${itemCount === 1 ? '' : 's'}`}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            if (!confirming) return setConfirming(true);
+            deleteDomain(domain.id).catch(onError);
+          }}
+          className="rounded-full px-3 py-2 text-xs font-semibold"
+          style={{
+            background: confirming ? 'var(--color-fire)' : 'rgba(239,68,68,0.12)',
+            color: confirming ? '#fff' : '#fca5a5',
+          }}
+        >
+          {confirming
+            ? itemCount > 0
+              ? `Delete · ${itemCount} to Unsorted`
+              : 'Tap again to delete'
+            : 'Delete'}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function SectionHead({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div>
+      <h2 className="text-sm font-bold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
+        {title}
+      </h2>
+      <p className="mt-1 text-xs" style={{ color: 'var(--color-muted)', opacity: 0.8 }}>
+        {hint}
+      </p>
+    </div>
+  );
+}
+
+function Divider() {
+  return <hr className="border-0 border-t" style={{ borderColor: 'var(--color-border)' }} />;
+}
+
+function Stepper({
+  children,
+  onClick,
+  disabled,
+  label,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
+  disabled: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-lg font-bold disabled:opacity-25"
+      style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
+    >
+      {children}
+    </button>
   );
 }

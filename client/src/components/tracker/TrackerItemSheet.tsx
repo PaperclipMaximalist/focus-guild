@@ -11,7 +11,6 @@
 
 import { useEffect, useState } from 'react';
 import {
-  ApiRequestError,
   CAS_STRANDS,
   LEARNING_OUTCOMES,
   type CasStrand,
@@ -21,6 +20,8 @@ import {
   type TrackerItemCreate,
   type TrackerStatus,
 } from '../../lib/api';
+import { STRAND_COLOR, STRAND_LABEL, fromDateInput, toDateInput, trackerErrorToast } from '../../lib/tracker';
+import { sfxClick } from '../../lib/sfx';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { Sheet, Label, fieldClass, fieldStyle } from './Sheet';
@@ -34,27 +35,6 @@ interface Props {
   domains: TrackerDomain[];
   /** Pre-tag a new item with a strand when created from the CAS lens. */
   defaultCas?: boolean;
-}
-
-const STRAND_LABEL: Record<CasStrand, string> = {
-  creativity: 'Creativity',
-  activity: 'Activity',
-  service: 'Service',
-};
-
-/** `<input type="date">` wants YYYY-MM-DD in local time, not an ISO instant. */
-function toDateInput(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** Midday local, so a timezone shift can't roll the date onto the day before. */
-function fromDateInput(value: string): string | null {
-  if (!value) return null;
-  const [y, m, d] = value.split('-').map(Number);
-  return new Date(y!, m! - 1, d!, 12, 0, 0).toISOString();
 }
 
 export function TrackerItemSheet({ open, onClose, editing, config, domains, defaultCas }: Props) {
@@ -103,8 +83,26 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
   const toggle = <T,>(list: T[], value: T): T[] =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 
+  // The server enforces all of these; checking here just says so before the
+  // round trip instead of after it.
+  const hoursValue = hours.trim() === '' ? null : Number(hours);
+  const problems = {
+    title: !title.trim() ? 'Give it a title.' : null,
+    nextAction:
+      status === 'ACTIVE' && config.requiredFields.nextActionForActive && !nextAction.trim()
+        ? 'Active items need a next action — a physical first step.'
+        : null,
+    domain: config.requiredFields.domain && !domainId ? 'Your presets require a domain.' : null,
+    dueDate: config.requiredFields.dueDate && !dueDate ? 'Your presets require a due date.' : null,
+    hours:
+      hoursValue !== null && (!Number.isFinite(hoursValue) || hoursValue < 0)
+        ? 'Hours must be a positive number.'
+        : null,
+  };
+  const firstProblem = Object.values(problems).find(Boolean) ?? null;
+
   const save = async () => {
-    if (!title.trim()) return;
+    if (firstProblem) return;
     setBusy(true);
     const payload: TrackerItemCreate = {
       title: title.trim(),
@@ -119,29 +117,20 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
       casStartDate: fromDateInput(casStart),
       casEndDate: fromDateInput(casEnd),
       isCasProject: isProject,
-      hours: hours.trim() ? Number(hours) : null,
+      hours: hoursValue,
     };
 
     try {
       if (editing) {
         await updateItem(editing.id, payload);
       } else {
-        await createItem({ ...payload, codePrefix });
+        const created = await createItem({ ...payload, codePrefix });
+        pushToast({ title: `${created.code} added`, sub: created.nextAction ?? created.title, icon: '🗺️', variant: 'xp' });
       }
+      sfxClick();
       onClose();
     } catch (err) {
-      const known = err instanceof ApiRequestError;
-      pushToast({
-        title:
-          known && err.code === 'ACTIVE_CAP_REACHED'
-            ? 'Active cap reached'
-            : known && err.code === 'NEXT_ACTION_REQUIRED'
-              ? 'Needs a next action'
-              : 'That did not save',
-        sub: known ? err.detail : String(err),
-        icon: known && err.code === 'ACTIVE_CAP_REACHED' ? '🧱' : '⚠️',
-        variant: 'error',
-      });
+      pushToast({ ...trackerErrorToast(err), variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -153,15 +142,22 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
       onClose={onClose}
       title={editing ? `Edit ${editing.code}` : 'New item'}
       footer={
-        <button
-          type="button"
-          onClick={save}
-          disabled={busy || !title.trim()}
-          className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-40"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
-        >
-          {busy ? 'Saving…' : editing ? 'Save changes' : 'Create item'}
-        </button>
+        <div className="flex flex-col gap-2">
+          {firstProblem && firstProblem !== problems.nextAction && (title.trim() || nextAction.trim()) && (
+            <p className="text-center text-xs" style={{ color: 'var(--color-gold)' }}>
+              {firstProblem}
+            </p>
+          )}
+          <button
+            type="button"
+            onClick={save}
+            disabled={busy || Boolean(firstProblem)}
+            className="w-full rounded-xl py-3 text-sm font-bold transition-opacity active:opacity-70 disabled:opacity-40"
+            style={{ background: 'var(--color-primary)', color: '#fff' }}
+          >
+            {busy ? 'Saving…' : editing ? 'Save changes' : 'Create item'}
+          </button>
+        </div>
       }
     >
       <div className="flex flex-col gap-4">
@@ -171,9 +167,18 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
             value={nextAction}
             onChange={(e) => setNextAction(e.target.value)}
             placeholder="Open the doc and write the first paragraph"
+            autoFocus={!editing}
             className={fieldClass}
-            style={fieldStyle}
+            style={{
+              ...fieldStyle,
+              borderColor: problems.nextAction ? 'rgba(245,158,11,0.6)' : fieldStyle.borderColor,
+            }}
           />
+          {problems.nextAction && (
+            <p className="mt-1 text-xs" style={{ color: 'var(--color-gold)' }}>
+              {problems.nextAction}
+            </p>
+          )}
         </div>
 
         <div>
@@ -295,8 +300,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
                       onClick={() => setStrands((prev) => toggle(prev, s))}
                       className="rounded-full px-3 py-1.5 text-xs font-semibold"
                       style={{
-                        background: strands.includes(s) ? 'var(--color-green)' : 'rgba(255,255,255,0.06)',
-                        color: strands.includes(s) ? '#04210f' : 'var(--color-muted)',
+                        background: strands.includes(s) ? `${STRAND_COLOR[s]}33` : 'rgba(255,255,255,0.06)',
+                        color: strands.includes(s) ? STRAND_COLOR[s] : 'var(--color-muted)',
+                        boxShadow: strands.includes(s) ? `inset 0 0 0 1px ${STRAND_COLOR[s]}` : 'none',
                       }}
                     >
                       {STRAND_LABEL[s]}
