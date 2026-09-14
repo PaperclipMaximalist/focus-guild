@@ -4,7 +4,7 @@ import { db } from '../db/client.js';
 import { computePriorityScore } from '../lib/priority.js';
 import { computeXP } from '../lib/xp.js';
 import { updateStreak, computeMultiplier } from '../lib/streak.js';
-import { AI_ENABLED, getClient } from '../lib/ai.js';
+import { AI_ENABLED, AI_MODEL, getClient } from '../lib/ai.js';
 import { evalAndUnlockAchievements } from '../lib/evalAndUnlock.js';
 
 export const quests = new Hono();
@@ -180,8 +180,9 @@ Respond ONLY with valid JSON, no prose, of this exact shape:
   try {
     const client = getClient();
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-5-20250929',
-      max_tokens: 1024,
+      model: AI_MODEL,
+      // Opus 5 thinks by default and thinking counts against max_tokens.
+      max_tokens: 16000,
       messages: [{ role: 'user', content: prompt }],
     });
     const textBlock = response.content.find((b) => b.type === 'text');

@@ -9,6 +9,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 
 const KEY = process.env['ANTHROPIC_API_KEY'];
+/** One place to bump the model for every AI feature. */
+export const AI_MODEL = 'claude-opus-5';
+
 export const AI_ENABLED = !!KEY && KEY.length > 10;
 
 let client: Anthropic | null = null;

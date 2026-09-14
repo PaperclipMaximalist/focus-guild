@@ -37,6 +37,8 @@ import {
   getTrackerConfig,
   getTrackerOverrides,
   nextItemCode,
+  readHighWater,
+  bumpHighWater,
 } from '../lib/tracker/config.js';
 import { buildCoverageMatrix, buildStrandBalance, courseworkConflicts } from '../lib/tracker/cas.js';
 import { diffImport, parse, serialize, type MdItem } from '../lib/tracker/markdown.js';
@@ -265,7 +267,11 @@ tracker.post('/items', async (c) => {
     where: { userId: user.id },
     select: { code: true },
   });
-  const code = nextItemCode(existing.map((e) => e.code), prefix);
+  const code = nextItemCode(
+    existing.map((e) => e.code),
+    prefix,
+    readHighWater(user.trackerCodeHighWater),
+  );
 
   const item = await db.trackerItem.create({
     data: {
@@ -391,7 +397,16 @@ tracker.delete('/items/:id', async (c) => {
   const id = c.req.param('id');
   const current = await db.trackerItem.findUnique({ where: { id } });
   if (!current || current.userId !== user.id) return c.json(notFound('Item'), 404);
-  await db.trackerItem.delete({ where: { id } });
+  // Remember the code's number so it is never issued again (see nextItemCode).
+  await db.$transaction([
+    db.trackerItem.delete({ where: { id } }),
+    db.user.update({
+      where: { id: user.id },
+      data: {
+        trackerCodeHighWater: bumpHighWater(readHighWater(user.trackerCodeHighWater), current.code),
+      },
+    }),
+  ]);
   return c.json({ success: true, data: { id } });
 });
 
@@ -634,7 +649,11 @@ tracker.post('/parking-lot/:id/promote', async (c) => {
     where: { userId: user.id },
     select: { code: true },
   });
-  const code = nextItemCode(existing.map((e) => e.code), prefix);
+  const code = nextItemCode(
+    existing.map((e) => e.code),
+    prefix,
+    readHighWater(user.trackerCodeHighWater),
+  );
 
   const [item] = await db.$transaction([
     db.trackerItem.create({

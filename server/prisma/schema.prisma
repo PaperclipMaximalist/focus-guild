@@ -24,6 +24,10 @@ model User {
   /// required fields, review cadence). Shape: Partial<TrackerConfig> —
   /// see server/src/lib/trackerConfig.ts. Domains are rows, not config.
   trackerSettings     Json?
+  /// Highest item-code number ever issued per prefix, e.g. { "A": 29 }.
+  /// Bumped on delete so freed codes are never reissued. Not in trackerSettings
+  /// because a presets save/reset replaces that JSON wholesale.
+  trackerCodeHighWater Json?
 
   quests         Quest[]
   checkIns       DailyCheckIn[]

@@ -136,12 +136,44 @@ export function hasCourseworkConflict(item: {
 }
 
 /**
- * Next free code for a prefix, given codes already in use.
- * Codes are never reused, so this takes the max and increments.
+ * Highest number ever issued per prefix, e.g. `{ A: 29 }`. Kept on the user
+ * (not in presets, which a save or reset replaces wholesale) and bumped when
+ * an item is deleted — the only moment a code leaves `existingCodes`.
  */
-export function nextItemCode(existingCodes: string[], prefix: string): string {
+export type CodeHighWater = Record<string, number>;
+
+/** Type-narrow helper for JSON-from-DB. */
+export function readHighWater(v: unknown): CodeHighWater {
+  if (typeof v !== 'object' || v === null || Array.isArray(v)) return {};
+  const out: CodeHighWater = {};
+  for (const [k, n] of Object.entries(v)) {
+    if (typeof n === 'number' && Number.isFinite(n)) out[k] = n;
+  }
+  return out;
+}
+
+/** Record a deleted code so its number is never handed out again. */
+export function bumpHighWater(highWater: CodeHighWater, code: string): CodeHighWater {
+  const m = /^(\D+)(\d+)$/.exec(code);
+  if (!m) return highWater;
+  const [, prefix, num] = m as unknown as [string, string, string];
+  const n = Number(num);
+  return n > (highWater[prefix] ?? 0) ? { ...highWater, [prefix]: n } : highWater;
+}
+
+/**
+ * Next free code for a prefix, given codes in use and the high-water mark.
+ * Codes are never reused: deleting the highest item must not free its number,
+ * because markdown import matches on code and an old export would otherwise
+ * update whichever new item inherited it.
+ */
+export function nextItemCode(
+  existingCodes: string[],
+  prefix: string,
+  highWater: CodeHighWater = {},
+): string {
   const re = new RegExp(`^${prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\d+)$`);
-  let max = 0;
+  let max = highWater[prefix] ?? 0;
   for (const code of existingCodes) {
     const m = re.exec(code);
     if (m) max = Math.max(max, Number(m[1]));

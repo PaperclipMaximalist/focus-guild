@@ -6,6 +6,8 @@ import {
   hasCourseworkConflict,
   isCasTagged,
   nextItemCode,
+  bumpHighWater,
+  readHighWater,
 } from './config.js';
 
 describe('defaults', () => {
@@ -87,5 +89,39 @@ describe('nextItemCode', () => {
 
   it('is not confused by a prefix that is a substring of another', () => {
     expect(nextItemCode(['AB5', 'A2'], 'A')).toBe('A3');
+  });
+  it('does not reissue the highest code after it is deleted', () => {
+    // A5 was the top item and got deleted; only the high-water mark remembers it.
+    expect(nextItemCode(['A1', 'A2'], 'A', { A: 5 })).toBe('A6');
+    // Even after every item is gone.
+    expect(nextItemCode([], 'A', { A: 5 })).toBe('A6');
+  });
+
+  it('ignores a stale high-water mark below live codes', () => {
+    expect(nextItemCode(['A9'], 'A', { A: 3 })).toBe('A10');
+    expect(nextItemCode([], 'B', { A: 3 })).toBe('B1');
+  });
+});
+
+describe('bumpHighWater / readHighWater', () => {
+  it('raises the mark for the deleted code prefix only', () => {
+    expect(bumpHighWater({}, 'A7')).toEqual({ A: 7 });
+    expect(bumpHighWater({ A: 9, B: 2 }, 'B4')).toEqual({ A: 9, B: 4 });
+  });
+
+  it('never lowers the mark', () => {
+    const hw = { A: 9 };
+    expect(bumpHighWater(hw, 'A3')).toBe(hw);
+  });
+
+  it('handles multi-letter prefixes and ignores malformed codes', () => {
+    expect(bumpHighWater({}, 'AB12')).toEqual({ AB: 12 });
+    expect(bumpHighWater({ A: 1 }, 'nonsense')).toEqual({ A: 1 });
+  });
+
+  it('tolerates junk JSON from the DB', () => {
+    expect(readHighWater(null)).toEqual({});
+    expect(readHighWater([1, 2])).toEqual({});
+    expect(readHighWater({ A: 4, B: 'x' })).toEqual({ A: 4 });
   });
 });
