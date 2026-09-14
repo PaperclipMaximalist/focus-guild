@@ -28,6 +28,7 @@ import {
   type TrackerItemUpdate,
   type TrackerOverrides,
 } from '../lib/api';
+import { duckReact } from './useMascotStore';
 
 const CAS_MODE_KEY = 'fg.tracker.casMode';
 const LAST_REVIEW_KEY = 'fg.tracker.lastReviewedAt';
@@ -184,14 +185,18 @@ export const useTrackerStore = create<TrackerState>((set, get) => ({
   },
 
   updateItem: async (id, fields) => {
+    const before = get().items.find((i) => i.id === id);
     const item = await api.tracker.updateItem(id, fields);
     set({ items: get().items.map((i) => (i.id === id ? item : i)) });
+    if (fields.status === 'DONE' && before?.status !== 'DONE') duckReact('trackerDone');
+    else if (fields.status === 'DROPPED' && before?.status !== 'DROPPED') duckReact('dropped');
     return item;
   },
 
   dropItem: async (id) => {
     const item = await api.tracker.dropItem(id);
     set({ items: get().items.map((i) => (i.id === id ? item : i)) });
+    duckReact('dropped');
   },
 
   deleteItem: async (id) => {
@@ -219,6 +224,7 @@ export const useTrackerStore = create<TrackerState>((set, get) => ({
 
   addReflection: async (itemId, input) => {
     const reflection = await api.tracker.addReflection(itemId, input);
+    duckReact('logged');
     set({
       items: get().items.map((i) =>
         i.id === itemId ? { ...i, reflections: [reflection, ...i.reflections] } : i,
@@ -285,6 +291,7 @@ export const useTrackerStore = create<TrackerState>((set, get) => ({
   addParkingLot: async (text) => {
     const entry = await api.tracker.addParkingLot(text);
     set({ parkingLot: [entry, ...get().parkingLot] });
+    duckReact('logged');
   },
 
   deleteParkingLot: async (id) => {
@@ -308,6 +315,7 @@ export const useTrackerStore = create<TrackerState>((set, get) => ({
   addDecision: async (text) => {
     const entry = await api.tracker.addDecision(text);
     set({ decisions: [entry, ...get().decisions] });
+    duckReact('logged');
   },
 
   updateInterview: async (ordinal, fields) => {

@@ -23,6 +23,7 @@ import type { TrackerConfigShape, TrackerItem, TrackerStatus } from '../../lib/a
 import { STRAND_COLOR, formatDue, trackerErrorToast } from '../../lib/tracker';
 import { sfxClick, sfxComplete, sfxStart } from '../../lib/sfx';
 import { hasCourseworkConflict, useTrackerStore } from '../../store/useTrackerStore';
+import { duckReact } from '../../store/useMascotStore';
 import { useToastStore } from '../Toasts';
 import { CalendarPlus, CircleCheck, Footprints, Leaf, PenLine, TriangleAlert, Zap } from 'lucide-react';
 
@@ -88,7 +89,10 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
       variant: 'xp',
       action: {
         label: 'Undo',
-        run: () => void run(() => updateItem(item.id, { status: previous })),
+        run: () => void run(async () => {
+          await updateItem(item.id, { status: previous });
+          duckReact('undo');
+        }),
       },
     });
   };

@@ -16,6 +16,7 @@ import { FAB } from '../components/FAB';
 import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
 import { LevelUpSplash } from '../components/LevelUpSplash';
+import { duckReact } from '../store/useMascotStore';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
 import { UpNextCard } from '../components/UpNextCard';
@@ -130,6 +131,7 @@ export default function Today() {
       setTimeout(() => {
         sfxLevelUp();
         setLevelUp(newLevel);
+        duckReact('levelUp');
         spawnConfetti();
       }, 500);
     }

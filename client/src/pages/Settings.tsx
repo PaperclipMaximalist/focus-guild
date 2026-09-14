@@ -26,6 +26,7 @@ import {
   isSfxEnabled, setSfxEnabled, isHapticsEnabled, setHapticsEnabled, subscribeSfx, sfxClick,
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
+import { useMascotStore } from '../store/useMascotStore';
 import { RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
@@ -258,6 +259,8 @@ export default function Settings() {
 // ─── Experience section (client-only toggles, persisted to localStorage) ──────
 
 function ExperienceSection() {
+  const duck = useMascotStore((s) => s.enabled);
+  const setDuck = useMascotStore((s) => s.setEnabled);
   const [sfx, setSfx] = useState(isSfxEnabled());
   const [haptics, setHaptics] = useState(isHapticsEnabled());
   const [rankTheme, setRankTheme] = useState(isRankThemeEnabled());
@@ -284,6 +287,12 @@ function ExperienceSection() {
         hint="Subtle vibration feedback on supported phones."
         on={haptics}
         onChange={(v) => setHapticsEnabled(v)}
+      />
+      <Toggle
+        label="Rubber duck"
+        hint="A small duck in the corner that cheers you on. Tap it for a pep talk. Turn it off if it's distracting."
+        on={duck}
+        onChange={(v) => setDuck(v)}
       />
       <Toggle
         label="Rank theming"

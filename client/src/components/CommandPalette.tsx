@@ -15,7 +15,8 @@ import { AnimatePresence, motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { isSfxEnabled, setSfxEnabled, sfxClick } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled } from '../lib/theme';
-import { ArrowDownUp, BatteryMedium, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, Palette, Plus, SettingsIcon, SlidersHorizontal, Swords, Trophy, Volume2 } from 'lucide-react';
+import { useMascotStore } from '../store/useMascotStore';
+import { ArrowDownUp, BatteryMedium, Bird, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, Palette, Plus, SettingsIcon, SlidersHorizontal, Swords, Trophy, Volume2 } from 'lucide-react';
 
 interface Command {
   id: string;
@@ -66,6 +67,8 @@ export function CommandPalette() {
       { id: 'go-checkin', label: 'Daily check-in', icon: BatteryMedium, keywords: 'energy mood available', run: go('/checkin') },
       { id: 'toggle-sound', label: `${isSfxEnabled() ? 'Mute' : 'Enable'} sound effects`, icon: Volume2, keywords: 'audio mute volume',
         run: () => setSfxEnabled(!isSfxEnabled()) },
+      { id: 'toggle-duck', label: `${useMascotStore.getState().enabled ? 'Hide' : 'Show'} the rubber duck`, icon: Bird, keywords: 'mascot duck pep talk encouragement',
+        run: () => useMascotStore.getState().setEnabled(!useMascotStore.getState().enabled) },
       { id: 'toggle-theme', label: `${isRankThemeEnabled() ? 'Disable' : 'Enable'} rank theming`, icon: Palette, keywords: 'color accent skin',
         run: () => setRankThemeEnabled(!isRankThemeEnabled()) },
     ];

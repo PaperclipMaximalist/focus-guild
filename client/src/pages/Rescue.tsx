@@ -12,6 +12,7 @@
 
 import { achievementIcon } from '../lib/achievementCatalog';
 import { useEffect, useState } from 'react';
+import { duckReact } from '../store/useMascotStore';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from '../components/Header';
@@ -47,6 +48,19 @@ export default function Rescue() {
   useEffect(() => {
     load();
   }, []);
+
+  // The duck notices the pile once it loads, and cheers when it's gone —
+  // but only if there was a pile this visit, not on an already-empty page.
+  const [hadOverdue, setHadOverdue] = useState(false);
+  useEffect(() => {
+    if (loading) return;
+    if (rescue.length > 0 && !hadOverdue) {
+      setHadOverdue(true);
+      duckReact('overdue', rescue.length);
+    } else if (rescue.length === 0 && hadOverdue) {
+      duckReact('rescueClear');
+    }
+  }, [loading, rescue.length, hadOverdue]);
 
   const handleExtend = async (id: string, days: number) => {
     setBusyId(id);

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { duckReact } from './useMascotStore';
 import { api, type CheckIn } from '../lib/api';
 
 interface CheckInState {
@@ -27,5 +28,6 @@ export const useCheckInStore = create<CheckInState>((set) => ({
   submit: async (input) => {
     const today = await api.checkin.submit(input);
     set({ today });
+    duckReact('checkIn');
   },
 }));

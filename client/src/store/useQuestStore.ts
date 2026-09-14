@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { api, type Quest, type CompleteQuestResult, type QuestSchedulerHints } from '../lib/api';
 import { useScheduleStore } from './useScheduleStore';
+import { duckReact } from './useMascotStore';
 
 interface QuestState {
   quests: Quest[];           // active non-recurring quests
@@ -94,6 +95,7 @@ export const useQuestStore = create<QuestState>((set, get) => ({
 
   complete: async (id) => {
     const result = await api.quests.complete(id);
+    duckReact('questDone');
     const movedQuest = get().quests.find((q) => q.id === id);
     set({
       quests: get().quests.filter((q) => q.id !== id),
@@ -106,6 +108,7 @@ export const useQuestStore = create<QuestState>((set, get) => ({
 
   completeDaily: async (id) => {
     const result = await api.quests.completeDaily(id);
+    duckReact('questDone');
     // Flip doneToday locally so the row dims instantly.
     set({
       recurring: get().recurring.map((q) =>

@@ -21,6 +21,7 @@ import { BottomNav } from './components/BottomNav';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
 import { RankThemeController } from './components/RankThemeController';
+import { MascotDock } from './components/mascot/MascotDock';
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
@@ -146,6 +147,7 @@ function AuthenticatedApp() {
         <ToastContainer />
         <KeyboardShortcuts />
         <CommandPalette />
+        <MascotDock />
         <BottomNav />
       </div>
     </BrowserRouter>

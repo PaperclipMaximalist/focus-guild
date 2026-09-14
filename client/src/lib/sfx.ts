@@ -164,3 +164,28 @@ export function sfxStart(): void {
   sequence([[D5, 0, 0.1], [A5, 0.06, 0.14]], 'sine', 0.2);
   vibrate(12);
 }
+
+/**
+ * Rubber-duck squeak — a quick up-and-down pitch bend on a hollow triangle
+ * wave, which is roughly what squeezing air through a rubber reed sounds like.
+ */
+export function sfxSqueak(): void {
+  if (!sfxEnabled) return;
+  const audio = getCtx();
+  if (!audio || !masterGain) return;
+  const t0 = audio.currentTime;
+  const osc = audio.createOscillator();
+  const g = audio.createGain();
+  osc.type = 'triangle';
+  osc.frequency.setValueAtTime(820, t0);
+  osc.frequency.exponentialRampToValueAtTime(1480, t0 + 0.06);
+  osc.frequency.exponentialRampToValueAtTime(980, t0 + 0.16);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(0.2, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.19);
+  osc.connect(g);
+  g.connect(masterGain);
+  osc.start(t0);
+  osc.stop(t0 + 0.22);
+  vibrate(10);
+}
