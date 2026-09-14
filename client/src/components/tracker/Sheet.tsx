@@ -9,6 +9,7 @@
 
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -67,7 +68,7 @@ export function Sheet({ open, onClose, title, footer, children }: Props) {
                 className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg"
                 style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-muted)' }}
               >
-                ✕
+                <X size={18} aria-hidden />
               </button>
             </header>
 

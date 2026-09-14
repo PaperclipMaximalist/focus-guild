@@ -1,5 +1,7 @@
+import type { LucideIcon } from 'lucide-react';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
+import { Brain, CalendarDays, ChartLine, Flame, Target } from 'lucide-react';
 
 function toLocalDateStr(d: Date | string): string {
   const date = typeof d === 'string' ? new Date(d) : d;
@@ -30,19 +32,19 @@ export function StatsRow() {
 
   return (
     <div className="grid grid-cols-2 gap-3 pt-5 sm:grid-cols-3 lg:grid-cols-5">
-      <StatCard icon="🎯" value={todayDone}                  label="Today's Quests" />
-      <StatCard icon="📅" value={weekDone}                   label="This Week" />
-      <StatCard icon="💪" value={avgLoad}                    label="Avg Mental Load" />
-      <StatCard icon="📈" value={rate}                       label="Completion Rate" />
-      <StatCard icon="🏆" value={user?.currentStreak ?? 0}   label="Current Streak" />
+      <StatCard icon={Target} value={todayDone}                  label="Today's Quests" />
+      <StatCard icon={CalendarDays} value={weekDone}                   label="This Week" />
+      <StatCard icon={Brain} value={avgLoad}                    label="Avg Mental Load" />
+      <StatCard icon={ChartLine} value={rate}                       label="Completion Rate" />
+      <StatCard icon={Flame} value={user?.currentStreak ?? 0}   label="Current Streak" />
     </div>
   );
 }
 
-function StatCard({ icon, value, label }: { icon: string; value: number | string; label: string }) {
+function StatCard({ icon: Icon, value, label }: { icon: LucideIcon; value: number | string; label: string }) {
   return (
     <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4 transition hover:-translate-y-0.5 hover:border-(--color-primary)">
-      <div className="mb-1 text-2xl leading-none">{icon}</div>
+      <Icon size={20} className="mb-2 opacity-70" aria-hidden />
       <div className="text-2xl font-extrabold leading-none">{value}</div>
       <div className="mt-1 text-[0.72rem] text-(--color-muted)">{label}</div>
     </div>

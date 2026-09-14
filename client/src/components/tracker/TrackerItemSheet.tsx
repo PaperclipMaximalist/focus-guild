@@ -25,6 +25,7 @@ import { sfxClick } from '../../lib/sfx';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { Sheet, Label, fieldClass, fieldStyle } from './Sheet';
+import { ChevronDown, ChevronRight, MapIcon } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -125,7 +126,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
         await updateItem(editing.id, payload);
       } else {
         const created = await createItem({ ...payload, codePrefix });
-        pushToast({ title: `${created.code} added`, sub: created.nextAction ?? created.title, icon: '🗺️', variant: 'xp' });
+        pushToast({ title: `${created.code} added`, sub: created.nextAction ?? created.title, icon: MapIcon, variant: 'xp' });
       }
       sfxClick();
       onClose();
@@ -285,7 +286,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
                 </span>
               )}
             </span>
-            <span style={{ color: 'var(--color-muted)' }}>{casOpen ? '▾' : '▸'}</span>
+            <span style={{ color: 'var(--color-muted)' }}>{casOpen ? <ChevronDown size={18} aria-hidden /> : <ChevronRight size={18} aria-hidden />}</span>
           </button>
 
           {casOpen && (

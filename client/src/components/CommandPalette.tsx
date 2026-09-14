@@ -12,14 +12,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { isSfxEnabled, setSfxEnabled, sfxClick } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled } from '../lib/theme';
+import { ArrowDownUp, BatteryMedium, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, Palette, Plus, SettingsIcon, SlidersHorizontal, Swords, Trophy, Volume2 } from 'lucide-react';
 
 interface Command {
   id: string;
   label: string;
   hint?: string;
-  icon: string;
+  icon: LucideIcon;
   keywords: string;
   run: () => void;
 }
@@ -47,24 +49,24 @@ export function CommandPalette() {
   const commands = useMemo<Command[]>(() => {
     const go = (path: string) => () => { navigate(path); };
     return [
-      { id: 'new-quest', label: 'New quest', hint: 'N', icon: '⚔️', keywords: 'add create task todo',
+      { id: 'new-quest', label: 'New quest', hint: 'N', icon: Plus, keywords: 'add create task todo',
         run: () => window.dispatchEvent(new CustomEvent('quest-modal:open')) },
-      { id: 'spin', label: 'Spin the Wheel', hint: 'S', icon: '🎲', keywords: 'random pick roll',
+      { id: 'spin', label: 'Spin the Wheel', hint: 'S', icon: Dices, keywords: 'random pick roll',
         run: () => window.dispatchEvent(new CustomEvent('spin-wheel:open')) },
-      { id: 'go-today', label: 'Go to Today', icon: '🏠', keywords: 'home dashboard', run: go('/') },
-      { id: 'go-feed', label: 'Go to Guild Feed', icon: '📅', keywords: 'schedule plan timeline', run: go('/feed') },
-      { id: 'go-quests', label: 'Go to Quests', icon: '📜', keywords: 'list all tasks', run: go('/quests') },
-      { id: 'go-rescue', label: 'Go to Rescue', icon: '🚑', keywords: 'overdue triage late', run: go('/rescue') },
-      { id: 'go-stats', label: 'Go to Stats', icon: '📊', keywords: 'progress charts xp', run: go('/stats') },
-      { id: 'go-tracker', label: 'Go to Tracker', icon: '🗺️', keywords: 'items domains long horizon cas parking lot decisions', run: go('/tracker') },
-      { id: 'go-tracker-presets', label: 'Tracker presets', icon: '🎛️', keywords: 'domains cap status labels prefixes review', run: go('/tracker/presets') },
-      { id: 'go-tracker-markdown', label: 'Tracker markdown export / import', icon: '⇅', keywords: 'export import download markdown backup', run: go('/tracker/markdown') },
-      { id: 'go-trophies', label: 'Open Trophy Room', icon: '🏆', keywords: 'achievements badges awards', run: go('/trophies') },
-      { id: 'go-settings', label: 'Open Settings', icon: '⚙️', keywords: 'config tune preferences', run: go('/settings') },
-      { id: 'go-checkin', label: 'Daily check-in', icon: '⚡', keywords: 'energy mood available', run: go('/checkin') },
-      { id: 'toggle-sound', label: `${isSfxEnabled() ? 'Mute' : 'Enable'} sound effects`, icon: '🔊', keywords: 'audio mute volume',
+      { id: 'go-today', label: 'Go to Today', icon: House, keywords: 'home dashboard', run: go('/') },
+      { id: 'go-feed', label: 'Go to Guild Feed', icon: CalendarDays, keywords: 'schedule plan timeline', run: go('/feed') },
+      { id: 'go-quests', label: 'Go to Quests', icon: Swords, keywords: 'list all tasks', run: go('/quests') },
+      { id: 'go-rescue', label: 'Go to Rescue', icon: LifeBuoy, keywords: 'overdue triage late', run: go('/rescue') },
+      { id: 'go-stats', label: 'Go to Stats', icon: ChartColumn, keywords: 'progress charts xp', run: go('/stats') },
+      { id: 'go-tracker', label: 'Go to Tracker', icon: MapIcon, keywords: 'items domains long horizon cas parking lot decisions', run: go('/tracker') },
+      { id: 'go-tracker-presets', label: 'Tracker presets', icon: SlidersHorizontal, keywords: 'domains cap status labels prefixes review', run: go('/tracker/presets') },
+      { id: 'go-tracker-markdown', label: 'Tracker markdown export / import', icon: ArrowDownUp, keywords: 'export import download markdown backup', run: go('/tracker/markdown') },
+      { id: 'go-trophies', label: 'Open Trophy Room', icon: Trophy, keywords: 'achievements badges awards', run: go('/trophies') },
+      { id: 'go-settings', label: 'Open Settings', icon: SettingsIcon, keywords: 'config tune preferences', run: go('/settings') },
+      { id: 'go-checkin', label: 'Daily check-in', icon: BatteryMedium, keywords: 'energy mood available', run: go('/checkin') },
+      { id: 'toggle-sound', label: `${isSfxEnabled() ? 'Mute' : 'Enable'} sound effects`, icon: Volume2, keywords: 'audio mute volume',
         run: () => setSfxEnabled(!isSfxEnabled()) },
-      { id: 'toggle-theme', label: `${isRankThemeEnabled() ? 'Disable' : 'Enable'} rank theming`, icon: '🎨', keywords: 'color accent skin',
+      { id: 'toggle-theme', label: `${isRankThemeEnabled() ? 'Disable' : 'Enable'} rank theming`, icon: Palette, keywords: 'color accent skin',
         run: () => setRankThemeEnabled(!isRankThemeEnabled()) },
     ];
   }, [navigate]);
@@ -136,7 +138,7 @@ export function CommandPalette() {
             style={{ background: 'var(--color-surface2)', borderColor: 'var(--color-border)' }}
           >
             <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
-              <span className="text-base opacity-60">⌘</span>
+              <Command size={16} strokeWidth={2} className="opacity-60" aria-hidden />
               <input
                 ref={inputRef}
                 value={query}
@@ -164,7 +166,7 @@ export function CommandPalette() {
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
                   style={{ background: i === active ? 'rgba(139,92,246,0.16)' : 'transparent' }}
                 >
-                  <span className="text-lg leading-none">{c.icon}</span>
+                  <c.icon size={18} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{c.label}</span>
                   {c.hint && (
                     <kbd className="rounded px-1.5 py-0.5 text-[0.62rem] font-mono" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-muted)' }}>

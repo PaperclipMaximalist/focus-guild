@@ -8,6 +8,7 @@ import { QuestCard } from '../components/QuestCard';
 import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
 import { api, type Quest } from '../lib/api';
+import { Check, Hourglass, MapIcon, Search, Star, Trash2 } from 'lucide-react';
 
 type Sort = 'priority' | 'deadline' | 'created' | 'title';
 
@@ -118,7 +119,7 @@ export default function Quests() {
   const handleComplete = async (id: string) => {
     const result = await complete(id);
     applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-    pushToast({ icon: '⭐', title: `+${result.xpAwarded} XP`, sub: 'Quest complete', variant: 'xp' });
+    pushToast({ icon: Star, title: `+${result.xpAwarded} XP`, sub: 'Quest complete', variant: 'xp' });
   };
 
   const bulkComplete = async () => {
@@ -157,7 +158,7 @@ export default function Quests() {
     try {
       await Promise.all([...selected].map((id) => api.quests.extendDeadline(id, days)));
       await load();
-      pushToast({ icon: '⏳', title: `Extended ${selected.size}`, sub: `+${days}d`, variant: 'xp' });
+      pushToast({ icon: Hourglass, title: `Extended ${selected.size}`, sub: `+${days}d`, variant: 'xp' });
       clearSelection();
     } finally {
       setBulkBusy(false);
@@ -312,7 +313,9 @@ export default function Quests() {
             className="rounded-(--radius-card) border px-6 py-12 text-center"
             style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
           >
-            <p className="text-4xl mb-3">{quests.length === 0 ? '🗺️' : '🔍'}</p>
+            {quests.length === 0
+              ? <MapIcon size={40} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />
+              : <Search size={40} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />}
             <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
               {quests.length === 0 ? 'No active quests yet' : 'Nothing matches'}
             </p>
@@ -348,7 +351,7 @@ export default function Quests() {
               className="text-xs rounded-full px-3 py-1.5 font-semibold text-white disabled:opacity-40"
               style={{ background: 'var(--color-green)' }}
             >
-              ✓ Complete
+              <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
             </button>
             <button
               onClick={() => bulkExtend(7)}
@@ -364,7 +367,7 @@ export default function Quests() {
               className="text-xs rounded-full border px-3 py-1.5 font-semibold disabled:opacity-40"
               style={{ borderColor: 'rgba(239,68,68,0.5)', color: 'var(--color-fire)' }}
             >
-              🗑 Delete
+              <span className="inline-flex items-center gap-1.5"><Trash2 size={12} aria-hidden /> Delete</span>
             </button>
             <button
               onClick={clearSelection}

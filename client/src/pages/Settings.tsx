@@ -26,38 +26,39 @@ import {
   isSfxEnabled, setSfxEnabled, isHapticsEnabled, setHapticsEnabled, subscribeSfx, sfxClick,
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
+import { RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
-    label: '⚡ Energy match',
+    label: 'Energy match',
     help: 'How strongly hard tasks are pulled into your high-capacity hours (morning peak, late-afternoon recovery) and easy ones into the post-lunch dip. Raise = stricter time-of-day matching.',
   },
   urgency: {
-    label: '⏰ Deadline pressure',
+    label: 'Deadline pressure',
     help: 'How much a closing deadline pulls a quest earlier. Only kicks in when slack is genuinely tight — a quest with days of buffer is not rushed. Raise if deadline work feels late; lower if everything stampedes to the front.',
   },
   monotony: {
-    label: '🎨 Variety',
+    label: 'Variety',
     help: 'Penalty for runs of same-flavor work (same category + difficulty + tedium). The variety floor hard-caps runs at 2 in a row; this weight shapes how hard the scheduler avoids even getting close. Raise for more interleaving.',
   },
   batch: {
-    label: '📎 Batch small admin',
+    label: 'Batch small admin',
     help: 'Small bonus for chaining short admin/comms tasks back-to-back so you stay in shallow-work mode and knock them out together. Only applies to chunks ≤ 30min.',
   },
   tedium: {
-    label: '😩 Spread the boring',
+    label: 'Spread the boring',
     help: 'Penalty for two high-tedium blocks back-to-back. Raise if you keep getting boring-then-boring; the scheduler will sandwich tedious work between engaging blocks.',
   },
   cooldown: {
-    label: '🧠 Mental cooldown',
+    label: 'Mental cooldown',
     help: 'Penalty for two high-difficulty blocks back-to-back. Raise to force a lighter task (or a gap) between brain-melters.',
   },
   session: {
-    label: '⏳ Session sizing',
+    label: 'Session sizing',
     help: 'How strictly chunks stick to their ideal size (big tasks: 30–90min sessions, medium: 20–60, small: one sitting). Raise = more uniform sessions; lower = scheduler freely uses odd-sized gaps.',
   },
   prefHour: {
-    label: '🕰️ Preferred time',
+    label: 'Preferred time',
     help: 'How strongly a quest\'s "preferred hour" pulls it toward that time of day (σ≈2h). Only affects quests where you set one. Raise for stricter honoring; 0 to ignore preferences.',
   },
 };
@@ -134,9 +135,9 @@ export default function Settings() {
     try {
       const payload = diffFromDefault();
       await api.settings.save(payload);
-      pushToast({ icon: '⚙️', title: 'Settings saved', sub: 'Next reflow will use them', variant: 'xp' });
+      pushToast({ icon: SettingsIcon, title: 'Settings saved', sub: 'Next reflow will use them', variant: 'xp' });
     } catch (e) {
-      pushToast({ icon: '⚠️', title: 'Save failed', sub: String(e), variant: 'xp' });
+      pushToast({ icon: TriangleAlert, title: 'Save failed', sub: String(e), variant: 'xp' });
     } finally {
       setSaving(false);
     }
@@ -148,7 +149,7 @@ export default function Settings() {
     try {
       await api.settings.reset();
       setOverrides({});
-      pushToast({ icon: '↺', title: 'Reset to defaults', sub: '', variant: 'xp' });
+      pushToast({ icon: RotateCcw, title: 'Reset to defaults', sub: '', variant: 'xp' });
     } finally {
       setResetting(false);
     }
@@ -169,7 +170,7 @@ export default function Settings() {
     <div className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-5">
       <header className="flex items-baseline justify-between">
         <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--color-text)' }}>
-          ⚙️ Settings
+          Settings
         </h1>
         <Link to="/" className="text-sm" style={{ color: 'var(--color-primary)' }}>
           ← Today
@@ -182,7 +183,7 @@ export default function Settings() {
       </p>
 
       {/* Working hours */}
-      <Section title="🕘 Working hours">
+      <Section title="Working hours">
         <Row label="Day starts at" hint="When the scheduler starts placing work blocks (your local time).">
           <HourInput value={current.workingHours.startHour} onChange={(v) => updateHours('startHour', v)} />
         </Row>
@@ -198,7 +199,7 @@ export default function Settings() {
       </Section>
 
       {/* Scoring weights */}
-      <Section title="🎚 Day-building priorities">
+      <Section title="Day-building priorities">
         <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
           Each slider sets how much that force matters when the scheduler picks what goes
           in each slot. They're relative to each other — doubling everything changes nothing.
@@ -229,7 +230,7 @@ export default function Settings() {
         }}
       >
         <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
-          {hasChanges ? '⚡ Unsaved changes' : 'Everything saved'}
+          {hasChanges ? 'Unsaved changes' : 'Everything saved'}
         </span>
         <div className="flex gap-2">
           <button
@@ -238,7 +239,7 @@ export default function Settings() {
             className="text-xs rounded-full border px-3 py-1.5 font-semibold disabled:opacity-40"
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
           >
-            {resetting ? '…' : '↺ Reset all'}
+            {resetting ? '…' : <span className="inline-flex items-center gap-1.5"><RotateCcw size={12} aria-hidden /> Reset all</span>}
           </button>
           <button
             onClick={handleSave}
@@ -268,24 +269,24 @@ function ExperienceSection() {
   }, []);
 
   return (
-    <Section title="✨ Experience">
+    <Section title="Experience">
       <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
         Saved instantly to this device.
       </p>
       <Toggle
-        label="🔊 Sound effects"
+        label="Sound effects"
         hint="Plays a little chime when you finish a quest, level up, or unlock an achievement."
         on={sfx}
         onChange={(v) => { setSfxEnabled(v); if (v) sfxClick(); }}
       />
       <Toggle
-        label="📳 Haptics"
+        label="Haptics"
         hint="Subtle vibration feedback on supported phones."
         on={haptics}
         onChange={(v) => setHapticsEnabled(v)}
       />
       <Toggle
-        label="🎨 Rank theming"
+        label="Rank theming"
         hint="Re-skins the app's accent color to match your guild rank. Leveling up changes the whole vibe."
         on={rankTheme}
         onChange={(v) => setRankThemeEnabled(v)}

@@ -16,6 +16,7 @@ import type { TrackerConfigShape } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { sfxComplete } from '../../lib/sfx';
 import { useToastStore } from '../Toasts';
+import { ChevronDown, ChevronRight, Compass } from 'lucide-react';
 
 interface Props {
   config: TrackerConfigShape;
@@ -45,14 +46,14 @@ export function ReviewBanner({ config }: Props) {
         className="flex w-full items-center justify-between gap-3 text-left"
       >
         <span className="text-sm font-bold" style={{ color: 'var(--color-gold)' }}>
-          🧭 Review due
+          <Compass size={16} className="mr-1.5 inline -translate-y-px" aria-hidden />Review due
           <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
             {daysSince === null
               ? 'never reviewed'
               : `${daysSince}d since the last one · every ${config.reviewCadenceDays}d`}
           </span>
         </span>
-        <span style={{ color: 'var(--color-gold)' }}>{expanded ? '▾' : '▸'}</span>
+        <span style={{ color: 'var(--color-gold)' }}>{expanded ? <ChevronDown size={18} aria-hidden /> : <ChevronRight size={18} aria-hidden />}</span>
       </button>
 
       {expanded && (
@@ -73,7 +74,7 @@ export function ReviewBanner({ config }: Props) {
               pushToast({
                 title: 'Review done',
                 sub: `Next one in ${config.reviewCadenceDays} day${config.reviewCadenceDays === 1 ? '' : 's'}`,
-                icon: '🧭',
+                icon: Compass,
                 variant: 'xp',
               });
             }}

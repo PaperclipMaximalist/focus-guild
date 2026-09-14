@@ -27,6 +27,8 @@ import { spawnConfetti } from '../lib/confetti';
 import { levelFromXP } from '../lib/levels';
 import { sfxComplete, sfxAchievement, sfxLevelUp } from '../lib/sfx';
 import { type Quest } from '../lib/api';
+import { BatteryMedium, CalendarDays, Dices, Flame, LifeBuoy, MapIcon, Star, Swords } from 'lucide-react';
+import { achievementIcon } from '../lib/achievementCatalog';
 
 export default function Today() {
   const { quests, completed, load, loadCompleted, loadRecurring, complete, remove } = useQuestStore();
@@ -84,7 +86,7 @@ export default function Today() {
     sfxComplete();
 
     pushToast({
-      icon: '⭐',
+      icon: Star,
       title: `+${result.xpAwarded} XP`,
       sub: `Quest completed`,
       variant: 'xp',
@@ -92,14 +94,14 @@ export default function Today() {
 
     if (result.streakEvent === 'extended' && [3, 5, 7, 10, 14, 21, 30].includes(result.newStreak)) {
       pushToast({
-        icon: '🔥',
+        icon: Flame,
         title: `${result.newStreak}-day streak!`,
         sub: 'Keep the momentum.',
         variant: 'streak',
       });
     } else if (result.streakEvent === 'started') {
       pushToast({
-        icon: '🔥',
+        icon: Flame,
         title: 'Streak started!',
         sub: 'Show up tomorrow to keep it.',
         variant: 'streak',
@@ -114,7 +116,7 @@ export default function Today() {
         setTimeout(() => {
           sfxAchievement();
           pushToast({
-            icon: a.icon,
+            icon: achievementIcon(a.slug),
             title: `Achievement unlocked: ${a.title}`,
             sub: `+${a.xpReward} XP — ${a.description}`,
             variant: 'badge',
@@ -154,7 +156,7 @@ export default function Today() {
             to="/checkin"
             className="mt-5 block rounded-(--radius-card) border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 transition hover:bg-amber-500/15"
           >
-            ⚡ Daily check-in not done yet — tell the Guild your energy level →
+            <span className="flex items-center gap-2"><BatteryMedium size={16} className="shrink-0" aria-hidden /> Daily check-in not done yet — tell the Guild your energy level →</span>
           </Link>
         )}
 
@@ -169,7 +171,7 @@ export default function Today() {
             to="/feed"
             className="flex items-center gap-3 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-4 py-3 transition hover:border-(--color-primary)/40 hover:bg-(--color-surface2)"
           >
-            <span className="text-2xl">📅</span>
+            <CalendarDays size={22} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Guild Feed</p>
               <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>Auto-scheduled day →</p>
@@ -180,7 +182,7 @@ export default function Today() {
             onClick={() => setSpinOpen(true)}
             className="flex items-center gap-3 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-4 py-3 transition hover:border-(--color-gold)/40 hover:bg-(--color-surface2) text-left"
           >
-            <span className="text-2xl">🎲</span>
+            <Dices size={22} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Spin the Wheel</p>
               <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>Random quest pick →</p>
@@ -195,7 +197,7 @@ export default function Today() {
               borderColor: overdueCount > 0 ? 'rgba(239,68,68,0.35)' : 'var(--color-border)',
             }}
           >
-            <span className="text-2xl">🚑</span>
+            <LifeBuoy size={22} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
                 Rescue {overdueCount > 0 && <span className="text-(--color-fire)">· {overdueCount}</span>}
@@ -213,7 +215,7 @@ export default function Today() {
           {/* Active quests */}
           <div>
             <div className="mb-3.5 flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-1.5 text-base font-bold">⚡ Active Quests</div>
+              <div className="flex items-center gap-1.5 text-base font-bold"><Swords size={16} aria-hidden /> Active Quests</div>
               <Link to="/stats" className="text-xs text-(--color-muted) hover:text-(--color-text)">
                 View ranks →
               </Link>
@@ -238,7 +240,7 @@ export default function Today() {
 
             {quests.length === 0 && (
               <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-5 py-12 text-center text-(--color-muted)">
-                <div className="mb-3 text-5xl">🗺️</div>
+                <MapIcon size={48} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />
                 <p>
                   No active quests yet.
                   <br />

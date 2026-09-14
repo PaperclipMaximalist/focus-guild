@@ -7,6 +7,8 @@ import { LevelBadge } from '../components/LevelBadge';
 import { StreakHeatmap } from '../components/StreakHeatmap';
 import { LEVELS } from '../lib/levels';
 import { api, type XPEventDTO } from '../lib/api';
+import { ChartColumn, ChartLine, ChartPie, Flame, Medal, Trophy } from 'lucide-react';
+import { achievementIcon } from '../lib/achievementCatalog';
 
 const XP_WINDOW_DAYS = 14;
 
@@ -19,11 +21,11 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
-  deep_work: '🧠 Deep work',
-  comms: '💬 Comms',
-  admin: '📋 Admin',
-  creative: '🎨 Creative',
-  other: '🗂️ Other',
+  deep_work: 'Deep work',
+  comms: 'Comms',
+  admin: 'Admin',
+  creative: 'Creative',
+  other: 'Other',
 };
 
 function dayKey(d: Date): string {
@@ -158,7 +160,7 @@ export default function Stats() {
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
       >
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-          📈 Last 7 days
+          <span className="inline-flex items-center gap-1.5"><ChartColumn size={16} aria-hidden /> Last 7 days</span>
         </h2>
         <div className="flex items-end justify-between gap-1.5 h-32">
           {last7Days.days.map(({ date, count }, i) => {
@@ -199,7 +201,7 @@ export default function Stats() {
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
       >
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-          🔥 Consistency
+          <span className="inline-flex items-center gap-1.5"><Flame size={16} aria-hidden /> Consistency</span>
           <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
             (last 12 weeks)
           </span>
@@ -217,7 +219,7 @@ export default function Stats() {
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
       >
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-          ⚡ XP over time
+          <span className="inline-flex items-center gap-1.5"><ChartLine size={16} aria-hidden /> XP over time</span>
           <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
             (last {XP_WINDOW_DAYS} days)
           </span>
@@ -241,7 +243,7 @@ export default function Stats() {
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
       >
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-          🏷️ Category mix
+          <span className="inline-flex items-center gap-1.5"><ChartPie size={16} aria-hidden /> Category mix</span>
           <span className="ml-2 text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
             ({categoryBreakdown.total} quests, last 30 days)
           </span>
@@ -301,7 +303,7 @@ export default function Stats() {
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
       >
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-          🏆 Achievements
+          <span className="inline-flex items-center gap-1.5"><Trophy size={16} aria-hidden /> Achievements</span>
         </h2>
         {unlocked.length === 0 ? (
           <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
@@ -316,7 +318,7 @@ export default function Stats() {
                 className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
                 style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--color-gold)' }}
               >
-                {a.icon} {a.title}
+                {(() => { const I = achievementIcon(a.slug); return <I size={12} aria-hidden />; })()} {a.title}
               </span>
             ))}
           </div>
@@ -329,7 +331,7 @@ export default function Stats() {
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
       >
         <h2 className="text-base font-semibold mb-3" style={{ color: 'var(--color-text)' }}>
-          🎖 Guild Ranks
+          <span className="inline-flex items-center gap-1.5"><Medal size={16} aria-hidden /> Guild Ranks</span>
         </h2>
         <div className="flex flex-col gap-2">
           {LEVELS.map((l) => {

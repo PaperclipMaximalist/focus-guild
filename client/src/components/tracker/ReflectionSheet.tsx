@@ -17,6 +17,7 @@ import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { Sheet, Label, fieldClass, fieldStyle } from './Sheet';
 import { sfxXp } from '../../lib/sfx';
+import { ExternalLink, TriangleAlert } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -49,7 +50,7 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
       setMediaUrl('');
       sfxXp();
     } catch (err) {
-      pushToast({ title: 'Could not save', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Could not save', sub: String(err), icon: TriangleAlert, variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -161,7 +162,7 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
                         className="underline"
                         style={{ color: 'var(--color-teal)' }}
                       >
-                        evidence ↗
+                        <span className="inline-flex items-center gap-1.5"><ExternalLink size={11} aria-hidden /> evidence</span>
                       </a>
                     )}
                     <button

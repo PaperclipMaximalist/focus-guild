@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCheckInStore } from '../store/useCheckInStore';
+import { BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, Zap } from 'lucide-react';
 
-const ENERGY_LABELS = ['😵 Fried', '😩 Low', '😐 Meh', '🙂 Good', '🤩 Peak'];
+// A battery that fills with the level: readable without colour or faces.
+const ENERGY_LABELS = [
+  { label: 'Fried', Icon: BatteryWarning },
+  { label: 'Low', Icon: BatteryLow },
+  { label: 'Meh', Icon: BatteryMedium },
+  { label: 'Good', Icon: BatteryFull },
+  { label: 'Peak', Icon: Zap },
+] as const;
 
 export default function CheckIn() {
   const { today, submit, load } = useCheckInStore();
@@ -45,19 +53,20 @@ export default function CheckIn() {
       <section className="flex flex-col gap-3">
         <label className="text-sm text-slate-300">Energy level</label>
         <div className="grid grid-cols-5 gap-2">
-          {ENERGY_LABELS.map((label, i) => {
+          {ENERGY_LABELS.map(({ label, Icon }, i) => {
             const v = i + 1;
             return (
               <button
                 key={v}
                 onClick={() => setEnergy(v)}
+                aria-pressed={energy === v}
                 className={`rounded-lg border p-3 text-sm transition-colors ${
                   energy === v
                     ? 'border-violet-500 bg-violet-500/20 text-violet-100'
                     : 'border-slate-700 text-slate-400 hover:border-slate-500'
                 }`}
               >
-                {label}
+                <span className="flex flex-col items-center gap-1"><Icon size={20} aria-hidden />{label}</span>
               </button>
             );
           })}

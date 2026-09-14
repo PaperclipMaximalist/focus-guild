@@ -15,6 +15,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { useToastStore } from './Toasts';
 import { parseQuickAdd } from '../lib/quickAdd';
 import { sfxClick } from '../lib/sfx';
+import { CornerDownLeft, Swords, TriangleAlert, Zap } from 'lucide-react';
 
 export function QuickAddBar() {
   const add = useQuestStore((s) => s.add);
@@ -38,14 +39,14 @@ export function QuickAddBar() {
       });
       sfxClick();
       pushToast({
-        icon: '⚔️',
+        icon: Swords,
         title: `Quest added: ${parsed.title}`,
-        sub: parsed.chips.map((c) => `${c.icon} ${c.label}`).join('  ') || 'Slotted into your feed.',
+        sub: parsed.chips.map((c) => c.label).join(' · ') || 'Slotted into your feed.',
         variant: 'xp',
       });
       setText('');
     } catch (e) {
-      pushToast({ icon: '⚠️', title: 'Could not add quest', sub: String(e), variant: 'xp' });
+      pushToast({ icon: TriangleAlert, title: 'Could not add quest', sub: String(e), variant: 'xp' });
     } finally {
       setBusy(false);
     }
@@ -57,7 +58,7 @@ export function QuickAddBar() {
       style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
     >
       <div className="flex items-center gap-2">
-        <span className="text-lg shrink-0">⚡</span>
+        <Zap size={18} className="shrink-0 opacity-70" aria-hidden />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -73,7 +74,7 @@ export function QuickAddBar() {
           className="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold text-white transition disabled:opacity-30"
           style={{ background: 'var(--color-primary)' }}
         >
-          {busy ? '…' : 'Add ⏎'}
+          {busy ? '…' : <span className="inline-flex items-center gap-1">Add <CornerDownLeft size={12} aria-hidden /></span>}
         </button>
       </div>
 
@@ -96,7 +97,7 @@ export function QuickAddBar() {
                   className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold"
                   style={{ background: 'rgba(139,92,246,0.14)', color: 'var(--color-primary)' }}
                 >
-                  {c.icon} {c.label}
+                  <c.icon size={11} aria-hidden /> {c.label}
                 </span>
               ))}
             </div>

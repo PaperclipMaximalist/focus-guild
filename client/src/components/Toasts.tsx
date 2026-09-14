@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { AnimatePresence, motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 
 export type ToastVariant = 'xp' | 'streak' | 'badge' | 'levelup' | 'error';
 
@@ -7,7 +8,7 @@ interface Toast {
   id: number;
   title: string;
   sub: string;
-  icon: string;
+  icon: LucideIcon;
   variant: ToastVariant;
   /** A single inline action, e.g. Undo. Tapping it also dismisses the toast. */
   action?: { label: string; run: () => void };
@@ -70,7 +71,7 @@ export function ToastContainer() {
             className="pointer-events-auto flex min-w-[220px] max-w-[320px] items-center gap-2.5 rounded-xl border p-3 px-4 text-sm font-medium shadow-[0_4px_32px_rgba(0,0,0,0.45)]"
             style={{ borderColor: BORDER[t.variant], background: BG[t.variant] }}
           >
-            <span className="shrink-0 text-xl">{t.icon}</span>
+            <t.icon className="shrink-0" size={20} strokeWidth={2} aria-hidden />
             <div className="min-w-0 flex-1 leading-tight">
               <strong className="block">{t.title}</strong>
               <span className="text-xs text-(--color-muted)">{t.sub}</span>

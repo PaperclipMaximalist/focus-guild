@@ -14,6 +14,7 @@ import {
   TOTAL_ACHIEVEMENTS,
   type AchievementMeta,
 } from '../lib/achievementCatalog';
+import { Check, Lock, Star, Trophy } from 'lucide-react';
 
 export default function Trophies() {
   const { unlocked, loaded, load } = useAchievementsStore();
@@ -37,7 +38,7 @@ export default function Trophies() {
     <div className="mx-auto max-w-3xl px-4 py-6 flex flex-col gap-5 pb-24">
       <header className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-          🏆 Trophy Room
+          <Trophy size={26} aria-hidden /> Trophy Room
         </h1>
         <Link to="/" className="text-sm" style={{ color: 'var(--color-primary)' }}>
           ← Today
@@ -61,7 +62,7 @@ export default function Trophies() {
           </div>
           <div className="text-right">
             <div className="text-xl font-bold" style={{ color: 'var(--color-gold)' }}>
-              ⭐ {earnedXp.toLocaleString()}
+              <span className="inline-flex items-center gap-1.5"><Star size={18} aria-hidden /> {earnedXp.toLocaleString()}</span>
             </div>
             <div className="text-xs" style={{ color: 'var(--color-muted)' }}>bonus XP from trophies</div>
           </div>
@@ -76,7 +77,7 @@ export default function Trophies() {
           />
         </div>
         <p className="mt-2 text-xs text-center" style={{ color: 'var(--color-muted)' }}>
-          {pct === 100 ? '🎉 Every trophy claimed. Legendary.' : `${pct}% of the guild's honors unlocked`}
+          {pct === 100 ? 'Every trophy claimed. Legendary.' : `${pct}% of the guild's honors unlocked`}
         </p>
       </div>
 
@@ -127,7 +128,7 @@ function TrophyCard({ meta, unlockedAt }: { meta: AchievementMeta; unlockedAt?: 
         />
       )}
       <div className="flex items-center justify-between">
-        <span className={`text-3xl leading-none ${isUnlocked ? '' : 'grayscale'}`}>{meta.icon}</span>
+        <meta.icon size={30} strokeWidth={1.75} className={isUnlocked ? '' : 'opacity-40'} aria-hidden />
         {meta.xp > 0 && (
           <span
             className="text-[0.62rem] font-bold rounded-full px-1.5 py-0.5"
@@ -150,9 +151,11 @@ function TrophyCard({ meta, unlockedAt }: { meta: AchievementMeta; unlockedAt?: 
         {meta.desc}
       </div>
       <div className="mt-0.5 text-[0.62rem] font-semibold" style={{ color: isUnlocked ? 'var(--color-green)' : 'var(--color-muted)' }}>
-        {isUnlocked
-          ? `✓ Unlocked${unlockedAt ? ` · ${new Date(unlockedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}`
-          : '🔒 Locked'}
+        {isUnlocked ? (
+          <span className="inline-flex items-center gap-1"><Check size={11} strokeWidth={3} aria-hidden /> Unlocked{unlockedAt ? ` · ${new Date(unlockedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}</span>
+        ) : (
+          <span className="inline-flex items-center gap-1"><Lock size={11} aria-hidden /> Locked</span>
+        )}
       </div>
     </motion.div>
   );

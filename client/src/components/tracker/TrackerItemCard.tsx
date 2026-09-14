@@ -17,12 +17,14 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { TrackerConfigShape, TrackerItem, TrackerStatus } from '../../lib/api';
 import { STRAND_COLOR, formatDue, trackerErrorToast } from '../../lib/tracker';
 import { sfxClick, sfxComplete, sfxStart } from '../../lib/sfx';
 import { hasCourseworkConflict, useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
+import { CalendarPlus, CircleCheck, Footprints, Leaf, PenLine, TriangleAlert, Zap } from 'lucide-react';
 
 interface Props {
   item: TrackerItem;
@@ -78,7 +80,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
   };
 
   /** Any change that hides the card from the default view gets an Undo. */
-  const offerUndo = (title: string, icon: string, previous: TrackerStatus) => {
+  const offerUndo = (title: string, icon: LucideIcon, previous: TrackerStatus) => {
     pushToast({
       title,
       sub: `${item.code} · ${item.nextAction ?? item.title}`,
@@ -98,10 +100,10 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
     if (!ok) return;
     if (next === 'DONE') {
       sfxComplete();
-      offerUndo('Done', '✅', previous);
+      offerUndo('Done', CircleCheck, previous);
     } else if (next === 'DROPPED') {
       sfxClick();
-      offerUndo('Dropped', '🍂', previous);
+      offerUndo('Dropped', Leaf, previous);
     } else {
       sfxClick();
     }
@@ -111,7 +113,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
     const previous = item.status;
     if (await run(() => dropItem(item.id))) {
       sfxClick();
-      offerUndo('Dropped', '🍂', previous);
+      offerUndo('Dropped', Leaf, previous);
     }
   };
 
@@ -121,7 +123,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
       pushToast({
         title: 'Sent to the feed',
         sub: item.nextAction ?? item.title,
-        icon: '⚡',
+        icon: Zap,
         variant: 'xp',
       });
     }
@@ -189,7 +191,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
               className="mt-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
               style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--color-gold)' }}
             >
-              👣 Add a next step
+              <span className="inline-flex items-center gap-1.5"><Footprints size={12} aria-hidden /> Add a next step</span>
             </button>
           )}
         </>
@@ -259,11 +261,11 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
         >
           {inFeed && (
             <Link to="/feed" className="font-semibold underline-offset-2 hover:underline">
-              ⚡ In the Guild Feed →
+              <span className="inline-flex items-center gap-1.5"><Zap size={12} aria-hidden /> In the Guild Feed</span>
             </Link>
           )}
-          {questDone && <span>✓ Last scheduled step done</span>}
-          {dangling && <span>⚠ Quest removed from feed</span>}
+          {questDone && <span className="inline-flex items-center gap-1.5"><CircleCheck size={12} aria-hidden /> Last scheduled step done</span>}
+          {dangling && <span className="inline-flex items-center gap-1.5"><TriangleAlert size={12} aria-hidden /> Quest removed from feed</span>}
           <span style={{ color: 'var(--color-muted)' }}>·</span>
           <button
             type="button"
@@ -306,7 +308,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
             className={pill}
             style={{ background: 'rgba(20,184,166,0.15)', color: 'var(--color-teal)' }}
           >
-            ⚡ Schedule
+            <span className="inline-flex items-center gap-1.5"><CalendarPlus size={13} aria-hidden /> Schedule</span>
           </button>
         )}
 
@@ -317,7 +319,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
             className={pill}
             style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
           >
-            ✍ Reflect{item.reflections.length > 0 ? ` · ${item.reflections.length}` : ''}
+            <span className="inline-flex items-center gap-1.5"><PenLine size={13} aria-hidden /> Reflect{item.reflections.length > 0 ? ` · ${item.reflections.length}` : ''}</span>
           </button>
         )}
 

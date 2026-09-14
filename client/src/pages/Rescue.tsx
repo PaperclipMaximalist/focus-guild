@@ -10,6 +10,7 @@
  *   - Extend all overdue by 7 days ("rescue everyone")
  */
 
+import { achievementIcon } from '../lib/achievementCatalog';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -21,6 +22,7 @@ import { useToastStore } from '../components/Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { levelFromXP } from '../lib/levels';
 import { formatDeadline } from '../lib/formatters';
+import { Check, ChevronsUp, Hourglass, LifeBuoy, Sparkles, Trash2 } from 'lucide-react';
 
 export default function Rescue() {
   const [rescue, setRescue] = useState<Quest[]>([]);
@@ -51,7 +53,7 @@ export default function Rescue() {
     try {
       await api.quests.extendDeadline(id, days);
       setRescue((r) => r.filter((q) => q.id !== id));
-      pushToast({ icon: '⏳', title: `Extended +${days}d`, sub: 'Back on the board', variant: 'xp' });
+      pushToast({ icon: Hourglass, title: `Extended +${days}d`, sub: 'Back on the board', variant: 'xp' });
     } finally {
       setBusyId(null);
     }
@@ -66,7 +68,7 @@ export default function Rescue() {
       applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
       setRescue((r) => r.filter((q) => q.id !== id));
       pushToast({
-        icon: '🚑',
+        icon: LifeBuoy,
         title: `+${result.xpAwarded} XP`,
         sub: 'Rescue cleared',
         variant: 'xp',
@@ -78,7 +80,7 @@ export default function Rescue() {
         result.newlyUnlocked.forEach((a, idx) => {
           setTimeout(() => {
             pushToast({
-              icon: a.icon,
+              icon: achievementIcon(a.slug),
               title: `Achievement: ${a.title}`,
               sub: `+${a.xpReward} XP`,
               variant: 'badge',
@@ -88,7 +90,7 @@ export default function Rescue() {
       }
       const newLevel = levelFromXP(result.totalXP).level;
       if (newLevel > prevLevel) {
-        pushToast({ icon: '🆙', title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
+        pushToast({ icon: ChevronsUp, title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
       }
     } finally {
       setBusyId(null);
@@ -107,7 +109,7 @@ export default function Rescue() {
     try {
       await Promise.all(rescue.map((q) => api.quests.extendDeadline(q.id, 7)));
       setRescue([]);
-      pushToast({ icon: '✨', title: 'Rescued', sub: `All ${rescue.length} pushed +7d`, variant: 'xp' });
+      pushToast({ icon: Sparkles, title: 'Rescued', sub: `All ${rescue.length} pushed +7d`, variant: 'xp' });
     } finally {
       setBusyId(null);
     }
@@ -120,7 +122,7 @@ export default function Rescue() {
       <div className="mx-auto max-w-2xl px-4 pt-4">
         <div className="flex items-center gap-3 mb-4">
           <h1 className="flex-1 text-xl font-bold" style={{ color: 'var(--color-text)' }}>
-            🚑 Rescue Mode
+            <span className="inline-flex items-center gap-1.5"><LifeBuoy size={20} aria-hidden /> Rescue Mode</span>
           </h1>
           <Link
             to="/"
@@ -143,7 +145,7 @@ export default function Rescue() {
               className="text-sm rounded-full px-4 py-1.5 font-semibold transition disabled:opacity-50"
               style={{ background: 'var(--color-gold)', color: '#0d0d1a' }}
             >
-              {busyId === 'bulk' ? '…' : `✨ Rescue all ${rescue.length} (+7d)`}
+              {busyId === 'bulk' ? '…' : <span className="inline-flex items-center gap-1.5"><Sparkles size={14} aria-hidden /> Rescue all {rescue.length} (+7d)</span>}
             </button>
           </div>
         )}
@@ -156,7 +158,7 @@ export default function Rescue() {
 
         {!loading && rescue.length === 0 && (
           <div className="flex flex-col items-center gap-4 pt-16 text-center">
-            <p className="text-4xl">✨</p>
+            <Sparkles size={40} strokeWidth={1.5} className="opacity-70" aria-hidden />
             <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
               All clear
             </p>
@@ -194,8 +196,9 @@ export default function Rescue() {
                     onClick={() => handleDelete(q.id)}
                     className="text-base opacity-50 hover:opacity-100"
                     title="Drop"
+                    aria-label="Drop"
                   >
-                    🗑️
+                    <Trash2 size={16} aria-hidden />
                   </button>
                 </div>
 
@@ -206,7 +209,7 @@ export default function Rescue() {
                     className="text-xs rounded-full px-3 py-1 font-semibold text-white disabled:opacity-50"
                     style={{ background: 'var(--color-green)' }}
                   >
-                    ✓ Complete
+                    <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
                   </button>
                   <button
                     onClick={() => handleExtend(q.id, 1)}

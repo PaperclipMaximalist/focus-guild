@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { useQuestStore } from '../store/useQuestStore';
 import { type Quest, type PriorityTier } from '../lib/api';
 import { MiniCalendar } from './MiniCalendar';
 import { InfoTip } from './InfoTip';
 import { PriorityDragger } from './PriorityDragger';
+import { BookOpen, Brush, ChevronDown, ChevronRight, Dumbbell, Inbox, Phone, Swords, Target, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -25,14 +27,14 @@ function loadToFive(load: number): number {
 
 const LOAD_LABELS = ['', 'Easy', 'Mild', 'Medium', 'Hard', 'Brutal'];
 const CATEGORIES = [
-  { value: 'deep_work', label: '🧠 Deep work', desc: 'High focus, code/writing/design' },
-  { value: 'comms', label: '💬 Comms', desc: 'Email, chats, meetings' },
-  { value: 'admin', label: '📋 Admin', desc: 'Forms, errands, planning' },
-  { value: 'creative', label: '🎨 Creative', desc: 'Brainstorm, sketch, ideate' },
+  { value: 'deep_work', label: 'Deep work', desc: 'High focus, code/writing/design' },
+  { value: 'comms', label: 'Comms', desc: 'Email, chats, meetings' },
+  { value: 'admin', label: 'Admin', desc: 'Forms, errands, planning' },
+  { value: 'creative', label: 'Creative', desc: 'Brainstorm, sketch, ideate' },
 ];
 
 interface Template {
-  emoji: string;
+  icon: LucideIcon;
   label: string;
   apply: () => Partial<{
     title: string;
@@ -50,7 +52,7 @@ interface Template {
 
 const TEMPLATES: Template[] = [
   {
-    emoji: '📥',
+    icon: Inbox,
     label: 'Inbox zero',
     apply: () => ({
       title: 'Inbox zero',
@@ -64,7 +66,7 @@ const TEMPLATES: Template[] = [
     }),
   },
   {
-    emoji: '📖',
+    icon: BookOpen,
     label: 'Read 30 min',
     apply: () => ({
       title: 'Read for 30 minutes',
@@ -79,7 +81,7 @@ const TEMPLATES: Template[] = [
     }),
   },
   {
-    emoji: '💪',
+    icon: Dumbbell,
     label: 'Workout',
     apply: () => ({
       title: 'Workout',
@@ -95,7 +97,7 @@ const TEMPLATES: Template[] = [
     }),
   },
   {
-    emoji: '🎯',
+    icon: Target,
     label: 'Deep focus block',
     apply: () => ({
       title: 'Deep focus session',
@@ -109,7 +111,7 @@ const TEMPLATES: Template[] = [
     }),
   },
   {
-    emoji: '☎️',
+    icon: Phone,
     label: 'Phone call',
     apply: () => ({
       title: '',
@@ -122,7 +124,7 @@ const TEMPLATES: Template[] = [
     }),
   },
   {
-    emoji: '🧹',
+    icon: Brush,
     label: 'Tidy / chores',
     apply: () => ({
       title: 'Tidy up',
@@ -280,7 +282,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             className="w-full max-w-[560px] rounded-2xl border border-(--color-border) bg-(--color-surface2) p-6 shadow-[0_4px_32px_rgba(0,0,0,0.45)] max-h-[90vh] overflow-y-auto"
           >
             <div className="mb-4 flex items-center gap-2 text-lg font-bold">
-              ⚔️ <span>{editing ? 'Edit Quest' : 'New Quest'}</span>
+              <Swords size={20} aria-hidden /> <span>{editing ? 'Edit Quest' : 'New Quest'}</span>
             </div>
 
             <Field label="Quest title *">
@@ -296,7 +298,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             {/* Quick-start templates — only on create */}
             {!editing && (
               <div className="mb-4">
-                <Label>⚡ Quick start (optional)</Label>
+                <Label>Quick start (optional)</Label>
                 <div className="flex flex-wrap gap-1.5">
                   {TEMPLATES.map((t) => (
                     <button
@@ -315,13 +317,13 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         if (r.tags !== undefined) setTags(r.tags);
                         if (r.preferredHour !== undefined) setPreferredHour(r.preferredHour);
                       }}
-                      className="text-xs rounded-full border px-2.5 py-1 transition-colors hover:bg-white/5"
+                      className="inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 transition-colors hover:bg-white/5"
                       style={{
                         borderColor: 'var(--color-border)',
                         color: 'var(--color-text)',
                       }}
                     >
-                      {t.emoji} {t.label}
+                      <t.icon size={13} aria-hidden /> {t.label}
                     </button>
                   ))}
                 </div>
@@ -337,25 +339,25 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 className="cursor-pointer font-semibold"
                 style={{ color: 'var(--color-text)' }}
               >
-                ❓ How are these fields different?
+                How are these fields different?
               </summary>
               <ul className="mt-2 space-y-1.5" style={{ color: 'var(--color-muted)' }}>
                 <li>
-                  <b style={{ color: 'var(--color-text)' }}>🧠 Mental load</b> — how hard is it
+                  <b style={{ color: 'var(--color-text)' }}>Mental load</b> — how hard is it
                   to <i>think through</i>? Drives <b>when</b> in the day this lands (peak energy
                   vs slump).
                 </li>
                 <li>
-                  <b style={{ color: 'var(--color-text)' }}>🎯 Impact</b> — how much does the
+                  <b style={{ color: 'var(--color-text)' }}>Impact</b> — how much does the
                   <i> outcome</i> matter? Pushes high-impact quests up the priority list, even
                   when deadlines are far.
                 </li>
                 <li>
-                  <b style={{ color: 'var(--color-text)' }}>😩 Tediousness</b> — how <i>boring
+                  <b style={{ color: 'var(--color-text)' }}>Tediousness</b> — how <i>boring
                   / draining</i> is it? Prevents stacking two tedious quests back-to-back.
                 </li>
                 <li>
-                  <b style={{ color: 'var(--color-text)' }}>🚀 Urgency multiplier</b> — manual
+                  <b style={{ color: 'var(--color-text)' }}>Urgency multiplier</b> — manual
                   override on deadline pressure. Use only when something is{' '}
                   <i>more urgent than its deadline suggests</i>.
                 </li>
@@ -378,7 +380,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
               />
               <div className="flex-1">
                 <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                  🔁 Daily recurring quest
+                  Daily recurring quest
                 </p>
                 <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
                   Scheduled every day as a short fixed block. Resets at midnight.
@@ -389,7 +391,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             {/* Priority tier — 3-stop slider/dragger */}
             <div className="mb-4">
               <div className="mb-1.5 flex items-center gap-1.5">
-                <Label>🎯 Priority</Label>
+                <Label>Priority</Label>
                 <InfoTip>
                   <p className="font-semibold mb-1">Three tiers</p>
                   <p>
@@ -399,7 +401,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                     <b>Med</b> = default; algorithm decides based on deadline + impact.
                   </p>
                   <p>
-                    <b>Low</b> = nice-to-have; dampened and dropped entirely in 🔥 Crush mode.
+                    <b>Low</b> = nice-to-have; dampened and dropped entirely in Crush mode.
                   </p>
                 </InfoTip>
               </div>
@@ -408,13 +410,13 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
             {/* Deadline picker (hidden for recurring) */}
             {!isRecurring && (
-              <Field label="📅 Deadline">
+              <Field label="Deadline">
                 <MiniCalendar value={deadline} onChange={setDeadline} />
               </Field>
             )}
 
             <div className="grid grid-cols-2 gap-3">
-              <Field label="🕐 Est. hours">
+              <Field label="Est. hours">
                 <input
                   type="number"
                   min={0.1}
@@ -429,7 +431,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
               <div className="mb-4">
                 <div className="mb-1.5 flex items-center gap-1.5">
                   <label className="text-[0.78rem] font-semibold text-(--color-muted)">
-                    🎯 Impact (1–10)
+                    Impact (1–10)
                   </label>
                   <InfoTip>
                     <p className="font-semibold mb-1">Outcome importance</p>
@@ -456,7 +458,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
             <div className="mt-4">
               <div className="mb-1.5 flex items-center gap-1.5">
-                <Label>🧠 Mental load</Label>
+                <Label>Mental load</Label>
                 <InfoTip>
                   <p className="font-semibold mb-1">Cognitive demand</p>
                   <p>
@@ -491,7 +493,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             {/* Category */}
             <div className="mt-4">
               <div className="mb-1.5 flex items-center gap-1.5">
-                <Label>🏷️ Category</Label>
+                <Label>Category</Label>
                 <InfoTip>
                   <p className="font-semibold mb-1">Context-switch grouping</p>
                   <p>
@@ -525,7 +527,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
             {/* Tags */}
             <div className="mt-4">
-              <Label>🏷️ Tags (filter on the Quests page)</Label>
+              <Label>Tags (filter on the Quests page)</Label>
               <div className="flex flex-wrap gap-1.5 items-center rounded-lg border px-2 py-1.5"
                 style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}>
                 {tags.map((t) => (
@@ -544,7 +546,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                       className="opacity-60 hover:opacity-100"
                       aria-label={`Remove ${t}`}
                     >
-                      ✕
+                      <X size={11} aria-hidden />
                     </button>
                   </span>
                 ))}
@@ -576,7 +578,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
               className="mt-4 text-xs font-semibold transition-colors"
               style={{ color: 'var(--color-muted)' }}
             >
-              {showAdvanced ? '▾' : '▸'} Advanced scheduler hints
+              <span className="inline-flex items-center gap-1">{showAdvanced ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />} Advanced scheduler hints</span>
             </button>
 
             <AnimatePresence>
@@ -591,7 +593,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                     <div className="grid grid-cols-2 gap-3">
                       <div className="mb-4">
                         <div className="mb-1.5 flex items-center gap-1.5">
-                          <Label>⏰ Preferred hour</Label>
+                          <Label>Preferred hour</Label>
                           <InfoTip>
                             <p className="font-semibold mb-1">Time-of-day fit</p>
                             <p>
@@ -615,7 +617,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                       </div>
                       <div className="mb-4">
                         <div className="mb-1.5 flex items-center gap-1.5">
-                          <Label>🚀 Urgency multiplier</Label>
+                          <Label>Urgency multiplier</Label>
                           <InfoTip>
                             <p className="font-semibold mb-1">Manual urgency override</p>
                             <p>
@@ -650,7 +652,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
                     <div className="mb-4">
                       <div className="mb-1.5 flex items-center gap-1.5">
-                        <Label>{`😩 Tediousness — ${(tediousness * 100).toFixed(0)}%`}</Label>
+                        <Label>{`Tediousness — ${(tediousness * 100).toFixed(0)}%`}</Label>
                         <InfoTip>
                           <p className="font-semibold mb-1">Boringness, not difficulty</p>
                           <p>
@@ -680,7 +682,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
                     <div className="mb-4">
                       <div className="mb-1.5 flex items-center gap-1.5">
-                        <Label>{`🔥 Setup cost — ${(setupCost * 100).toFixed(0)}%`}</Label>
+                        <Label>{`Setup cost — ${(setupCost * 100).toFixed(0)}%`}</Label>
                         <InfoTip>
                           <p className="font-semibold mb-1">Warmup cost / hates interruption</p>
                           <p>
@@ -708,7 +710,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
-                      <Field label="🧱 Min chunk (min)">
+                      <Field label="Min chunk (min)">
                         <input
                           type="number"
                           min={5}
@@ -718,7 +720,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                           onChange={(e) => setMinChunk(e.target.value)}
                         />
                       </Field>
-                      <Field label="🏛️ Max chunk (min)">
+                      <Field label="Max chunk (min)">
                         <input
                           type="number"
                           min={5}
@@ -746,7 +748,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 disabled={!title.trim() || saving}
                 className="flex items-center gap-1 rounded-full bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(139,92,246,0.4)] transition hover:bg-(--color-primary-d) disabled:cursor-not-allowed disabled:opacity-40"
               >
-                ⚡ {editing ? 'Save Changes' : 'Save Quest'}
+                {editing ? 'Save Changes' : 'Save Quest'}
               </button>
             </div>
 

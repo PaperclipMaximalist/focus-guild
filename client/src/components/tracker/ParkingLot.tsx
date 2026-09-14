@@ -14,6 +14,7 @@ import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { fieldClass, fieldStyle } from './Sheet';
 import { sfxClick, sfxXp } from '../../lib/sfx';
+import { ArrowUp, TriangleAlert } from 'lucide-react';
 
 export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
   const { parkingLot, addParkingLot, deleteParkingLot, promoteParkingLot } = useTrackerStore();
@@ -32,7 +33,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
       sfxClick();
     } catch (err) {
       setText(value);
-      pushToast({ title: 'Could not capture', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Could not capture', sub: String(err), icon: TriangleAlert, variant: 'error' });
     }
   };
 
@@ -45,11 +46,11 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
       pushToast({
         title: `Promoted to ${item.code}`,
         sub: item.title,
-        icon: '⬆️',
+        icon: ArrowUp,
         variant: 'xp',
       });
     } catch (err) {
-      pushToast({ title: 'Could not promote', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Could not promote', sub: String(err), icon: TriangleAlert, variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -155,7 +156,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
                         className="rounded-full px-3 py-1.5 text-xs font-semibold"
                         style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
                       >
-                        ⬆ Promote
+                        <span className="inline-flex items-center gap-1.5"><ArrowUp size={12} aria-hidden /> Promote</span>
                       </button>
                     )}
                     <button

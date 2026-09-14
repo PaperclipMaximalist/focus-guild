@@ -3,12 +3,14 @@
  * Visual: animated wheel-shaped reveal that lands on the picked title.
  */
 
+import { achievementIcon } from '../lib/achievementCatalog';
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api, type Quest, type UnlockedAchievement } from '../lib/api';
 import { useToastStore } from './Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { sfxSpin, sfxAchievement } from '../lib/sfx';
+import { Check, Dices, Target } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -43,7 +45,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
           setTimeout(() => {
             sfxAchievement();
             pushToast({
-              icon: a.icon,
+              icon: achievementIcon(a.slug),
               title: `Achievement unlocked: ${a.title}`,
               sub: `+${a.xpReward} XP — ${a.description}`,
               variant: 'badge',
@@ -88,7 +90,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
             }}
           >
             <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--color-text)' }}>
-              🎲 Spin the Wheel
+              <span className="inline-flex items-center gap-1.5"><Dices size={20} aria-hidden /> Spin the Wheel</span>
             </h2>
             <p className="text-xs mb-4" style={{ color: 'var(--color-muted)' }}>
               Random quest, weighted by priority. Let the dice decide.
@@ -116,7 +118,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
                   border: '1.5px solid var(--color-border)',
                 }}
               >
-                {picked ? '🎯' : '🎲'}
+                {picked ? <Target size={40} strokeWidth={1.5} aria-hidden /> : <Dices size={40} strokeWidth={1.5} aria-hidden />}
               </div>
             </div>
 
@@ -153,7 +155,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
                   className="rounded-full px-5 py-2 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(139,92,246,0.4)] transition disabled:opacity-40"
                   style={{ background: 'var(--color-primary)' }}
                 >
-                  {spinning ? 'Spinning…' : '🎲 Spin'}
+                  {spinning ? 'Spinning…' : <span className="inline-flex items-center gap-1.5"><Dices size={14} aria-hidden /> Spin</span>}
                 </button>
               )}
               {picked && (
@@ -166,7 +168,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
                     className="rounded-full px-5 py-2 text-sm font-semibold text-white"
                     style={{ background: 'var(--color-green)' }}
                   >
-                    ✓ Do it
+                    <span className="inline-flex items-center gap-1.5"><Check size={14} aria-hidden /> Do it</span>
                   </button>
                   <button
                     onClick={() => {

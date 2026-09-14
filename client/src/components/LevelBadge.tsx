@@ -1,4 +1,5 @@
 import { levelFromXP, progressToNextLevel, nextLevel } from '../lib/levels';
+import { Flame } from 'lucide-react';
 
 interface Props {
   totalXP: number;
@@ -23,7 +24,7 @@ export function LevelBadge({ totalXP, currentStreak, multiplier }: Props) {
         <div className="text-right">
           <div className="text-2xl font-bold text-slate-100">{totalXP.toLocaleString()} XP</div>
           <div className="text-xs text-slate-400">
-            🔥 {currentStreak}-day streak · {multiplier.toFixed(2)}×
+            <span className="inline-flex items-center gap-1"><Flame size={12} aria-hidden /> {currentStreak}-day streak · {multiplier.toFixed(2)}×</span>
           </div>
         </div>
       </div>

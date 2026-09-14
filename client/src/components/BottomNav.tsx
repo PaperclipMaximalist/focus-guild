@@ -7,21 +7,23 @@
  */
 
 import { Link, useLocation } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { useTrackerStore } from '../store/useTrackerStore';
+import { CalendarDays, ChartColumn, Drama, House, LifeBuoy, MapIcon, Swords } from 'lucide-react';
 
 interface Item {
   to: string;
-  icon: string;
+  icon: LucideIcon;
   label: string;
 }
 
 const ITEMS: Item[] = [
-  { to: '/', icon: '🏠', label: 'Today' },
-  { to: '/feed', icon: '📅', label: 'Feed' },
-  { to: '/rescue', icon: '🚑', label: 'Rescue' },
-  { to: '/quests', icon: '⚔️', label: 'Quests' },
-  { to: '/tracker', icon: '🗺️', label: 'Tracker' },
-  { to: '/stats', icon: '📊', label: 'Stats' },
+  { to: '/', icon: House, label: 'Today' },
+  { to: '/feed', icon: CalendarDays, label: 'Feed' },
+  { to: '/rescue', icon: LifeBuoy, label: 'Rescue' },
+  { to: '/quests', icon: Swords, label: 'Quests' },
+  { to: '/tracker', icon: MapIcon, label: 'Tracker' },
+  { to: '/stats', icon: ChartColumn, label: 'Stats' },
 ];
 
 // Routes that should hide the bar (focused full-screen flows).
@@ -55,9 +57,10 @@ export function BottomNav() {
               color: active ? 'var(--color-primary)' : 'var(--color-muted)',
             }}
           >
-            <span className="text-xl">
-              {item.to === '/tracker' && casMode ? '🎭' : item.icon}
-            </span>
+            {(() => {
+              const Icon = item.to === '/tracker' && casMode ? Drama : item.icon;
+              return <Icon size={22} strokeWidth={active ? 2.25 : 1.75} aria-hidden />;
+            })()}
             {item.to === '/tracker' && casMode ? 'CAS' : item.label}
           </Link>
         );

@@ -4,7 +4,9 @@
  * the item sheet and the cards can't drift apart.
  */
 
+import type { LucideIcon } from 'lucide-react';
 import { ApiRequestError, type CasStrand } from './api';
+import { BrickWall, Footprints, TriangleAlert } from 'lucide-react';
 
 export const STRAND_COLOR: Record<CasStrand, string> = {
   creativity: '#a855f7',
@@ -56,15 +58,15 @@ export function formatDue(due: string | null): { text: string; urgent: boolean }
  * own headline; the server's message is already written for humans, so it
  * is shown as-is rather than paraphrased.
  */
-export function trackerErrorToast(err: unknown): { title: string; sub: string; icon: string } {
+export function trackerErrorToast(err: unknown): { title: string; sub: string; icon: LucideIcon } {
   if (err instanceof ApiRequestError) {
     if (err.code === 'ACTIVE_CAP_REACHED') {
-      return { title: 'Active cap reached', sub: err.detail, icon: '🧱' };
+      return { title: 'Active cap reached', sub: err.detail, icon: BrickWall };
     }
     if (err.code === 'NEXT_ACTION_REQUIRED') {
-      return { title: 'Needs a next action', sub: err.detail, icon: '👣' };
+      return { title: 'Needs a next action', sub: err.detail, icon: Footprints };
     }
-    return { title: 'That did not save', sub: err.detail, icon: '⚠️' };
+    return { title: 'That did not save', sub: err.detail, icon: TriangleAlert };
   }
-  return { title: 'That did not save', sub: String(err), icon: '⚠️' };
+  return { title: 'That did not save', sub: String(err), icon: TriangleAlert };
 }

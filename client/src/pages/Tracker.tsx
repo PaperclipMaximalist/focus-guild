@@ -29,6 +29,7 @@ import { ReviewBanner } from '../components/tracker/ReviewBanner';
 import { CasMatrix } from '../components/tracker/CasMatrix';
 import { CasBalance } from '../components/tracker/CasBalance';
 import { CasInterviews } from '../components/tracker/CasInterviews';
+import { ArrowDownUp, ChevronDown, ChevronRight, Drama, MapIcon, SlidersHorizontal, TriangleAlert } from 'lucide-react';
 
 type Tab = 'items' | 'lot' | 'log' | 'coverage' | 'balance' | 'interviews';
 
@@ -281,7 +282,7 @@ export default function Tracker() {
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
             style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
           >
-            ⇅
+            <ArrowDownUp size={18} aria-hidden />
           </Link>
           <Link
             to="/tracker/presets"
@@ -289,7 +290,7 @@ export default function Tracker() {
             className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
             style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
           >
-            ⚙
+            <SlidersHorizontal size={18} aria-hidden />
           </Link>
         </div>
 
@@ -323,7 +324,7 @@ export default function Tracker() {
           style={{ borderColor: 'rgba(239,68,68,0.45)', background: 'rgba(239,68,68,0.1)' }}
         >
           <span className="text-xs font-bold" style={{ color: '#fca5a5' }}>
-            ⚠ Counted as CAS and coursework
+            <span className="inline-flex items-center gap-1.5"><TriangleAlert size={13} aria-hidden /> Counted as CAS and coursework</span>
           </span>
           {conflicts.map((c) => (
             <button
@@ -367,7 +368,7 @@ export default function Tracker() {
               style={{ borderColor: 'var(--color-border)' }}
             >
               <span className="text-4xl" aria-hidden>
-                {casMode ? '🎭' : '🗺️'}
+                {casMode ? <Drama size={40} strokeWidth={1.5} aria-hidden /> : <MapIcon size={40} strokeWidth={1.5} aria-hidden />}
               </span>
               <div>
                 <p className="font-bold">{casMode ? 'No CAS experiences yet' : 'Chart your long quests'}</p>
@@ -434,7 +435,7 @@ export default function Tracker() {
                         <span style={{ color: group.color }}>{group.name}</span>
                         <span style={{ color: 'var(--color-muted)' }}>{group.items.length}</span>
                       </span>
-                      <span style={{ color: 'var(--color-muted)' }}>{isCollapsed ? '▸' : '▾'}</span>
+                      <span style={{ color: 'var(--color-muted)' }}>{isCollapsed ? <ChevronRight size={18} aria-hidden /> : <ChevronDown size={18} aria-hidden />}</span>
                     </button>
 
                     {!isCollapsed && (

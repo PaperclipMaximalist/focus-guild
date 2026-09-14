@@ -18,6 +18,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Keyboard } from 'lucide-react';
 
 function inEditable(): boolean {
   const el = document.activeElement as HTMLElement | null;
@@ -123,7 +124,7 @@ export function KeyboardShortcuts() {
               style={{ background: 'var(--color-surface2)', borderColor: 'var(--color-border)' }}
             >
               <h2 className="text-base font-bold mb-3" style={{ color: 'var(--color-text)' }}>
-                ⌨️ Keyboard shortcuts
+                <span className="inline-flex items-center gap-2"><Keyboard size={18} aria-hidden /> Keyboard shortcuts</span>
               </h2>
               <div className="space-y-1.5 text-sm" style={{ color: 'var(--color-text)' }}>
                 <Row k="⌘ K" desc="Command palette (jump anywhere)" />

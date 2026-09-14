@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { isSfxEnabled, setSfxEnabled, subscribeSfx } from '../lib/sfx';
+import { Volume2, VolumeX } from 'lucide-react';
 
 /** React hook that mirrors the sfx-enabled flag and re-renders on change. */
 export function useSfxEnabled(): boolean {
@@ -18,7 +19,7 @@ export function SoundToggle() {
       aria-label={on ? 'Mute sound effects' : 'Enable sound effects'}
       className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) bg-white/5 text-base transition hover:bg-white/15"
     >
-      {on ? '🔊' : '🔇'}
+      {on ? <Volume2 size={16} aria-hidden /> : <VolumeX size={16} aria-hidden />}
     </button>
   );
 }

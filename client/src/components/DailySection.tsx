@@ -4,15 +4,17 @@
  * Each row:
  *  - Title + preferredHour badge
  *  - Estimated minutes
- *  - ✅ button when not done; subtle "Done today" state once completed
+ *  - tick button when not done; subtle "Done today" state once completed
  */
 
+import { achievementIcon } from '../lib/achievementCatalog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from './Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { type Quest } from '../lib/api';
+import { Check, Pencil, Repeat, Trash2, TriangleAlert } from 'lucide-react';
 
 interface Props {
   onEdit: (q: Quest) => void;
@@ -34,7 +36,7 @@ export function DailySection({ onEdit }: Props) {
       const result = await completeDaily(id);
       applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
       pushToast({
-        icon: '🔁',
+        icon: Repeat,
         title: `+${result.xpAwarded} XP`,
         sub: 'Daily quest done',
         variant: 'xp',
@@ -46,7 +48,7 @@ export function DailySection({ onEdit }: Props) {
         result.newlyUnlocked.forEach((a, idx) => {
           setTimeout(() => {
             pushToast({
-              icon: a.icon,
+              icon: achievementIcon(a.slug),
               title: `Achievement unlocked: ${a.title}`,
               sub: `+${a.xpReward} XP — ${a.description}`,
               variant: 'badge',
@@ -56,7 +58,7 @@ export function DailySection({ onEdit }: Props) {
       }
     } catch (err) {
       pushToast({
-        icon: '⚠️',
+        icon: TriangleAlert,
         title: 'Could not complete',
         sub: String(err),
         variant: 'xp',
@@ -68,7 +70,7 @@ export function DailySection({ onEdit }: Props) {
     <div className="mt-5">
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-1.5 text-base font-bold">
-          🔁 Daily Quests
+          <Repeat size={16} strokeWidth={2} aria-hidden /> Daily Quests
           <span className="text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
             ({done.length}/{recurring.length})
           </span>
@@ -101,7 +103,7 @@ export function DailySection({ onEdit }: Props) {
                 }}
                 title={q.doneToday ? 'Done today' : 'Mark done'}
               >
-                {q.doneToday && <span className="text-xs text-white font-bold">✓</span>}
+                {q.doneToday && <Check size={14} strokeWidth={3} className="text-white" aria-hidden />}
               </button>
 
               <div className="flex-1 min-w-0">
@@ -126,8 +128,9 @@ export function DailySection({ onEdit }: Props) {
                   onClick={() => onEdit(q)}
                   className="text-base"
                   title="Edit"
+                  aria-label="Edit"
                 >
-                  ✏️
+                  <Pencil size={16} aria-hidden />
                 </button>
                 <button
                   onClick={() => {
@@ -135,8 +138,9 @@ export function DailySection({ onEdit }: Props) {
                   }}
                   className="text-base"
                   title="Delete"
+                  aria-label="Delete"
                 >
-                  🗑️
+                  <Trash2 size={16} aria-hidden />
                 </button>
               </div>
             </motion.div>

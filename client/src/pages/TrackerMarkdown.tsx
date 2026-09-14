@@ -20,6 +20,7 @@ import { useTrackerStore } from '../store/useTrackerStore';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
 import { sfxClick, sfxComplete } from '../lib/sfx';
+import { ArrowLeft, Clipboard, Download, Inbox, TriangleAlert, Upload } from 'lucide-react';
 
 const TIERS: Array<{ id: ExportTier; label: string; blurb: string }> = [
   { id: 'compact', label: 'Compact', blurb: 'Open items, one line each' },
@@ -52,7 +53,7 @@ export default function TrackerMarkdown() {
     api.tracker
       .exportSizes()
       .then((d) => setSizes(d.sizes))
-      .catch((err) => pushToast({ title: 'Could not size exports', sub: String(err), icon: '⚠️', variant: 'error' }));
+      .catch((err) => pushToast({ title: 'Could not size exports', sub: String(err), icon: TriangleAlert, variant: 'error' }));
   }, [pushToast]);
 
   useEffect(() => {
@@ -63,13 +64,13 @@ export default function TrackerMarkdown() {
     try {
       await navigator.clipboard.writeText(text);
       sfxClick();
-      pushToast({ title: 'Copied', sub: `${text.length} characters`, icon: '📋', variant: 'xp' });
+      pushToast({ title: 'Copied', sub: `${text.length} characters`, icon: Clipboard, variant: 'xp' });
     } catch {
       // Clipboard permission can be refused; the text is on screen regardless.
       pushToast({
         title: 'Clipboard blocked',
         sub: 'Select the text below and copy it manually',
-        icon: '⚠️',
+        icon: TriangleAlert,
         variant: 'error',
       });
     }
@@ -94,7 +95,7 @@ export default function TrackerMarkdown() {
       // Compact exists to be pasted straight into something else.
       if (tier === 'compact' && !sinceIso) await copy(data.markdown);
     } catch (err) {
-      pushToast({ title: 'Export failed', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Export failed', sub: String(err), icon: TriangleAlert, variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -106,7 +107,7 @@ export default function TrackerMarkdown() {
       const data = await api.tracker.importPreview(markdown);
       setDiff(data.diff);
     } catch (err) {
-      pushToast({ title: 'Could not read that', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Could not read that', sub: String(err), icon: TriangleAlert, variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -124,11 +125,11 @@ export default function TrackerMarkdown() {
       pushToast({
         title: 'Import applied',
         sub: `${res.created} created · ${res.updated} updated`,
-        icon: '📥',
+        icon: Inbox,
         variant: 'xp',
       });
     } catch (err) {
-      pushToast({ title: 'Import failed', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Import failed', sub: String(err), icon: TriangleAlert, variant: 'error' });
     } finally {
       setApplying(false);
     }
@@ -143,7 +144,7 @@ export default function TrackerMarkdown() {
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
           style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
         >
-          ←
+          <ArrowLeft size={18} aria-hidden />
         </Link>
         <h1 className="text-2xl font-extrabold">Markdown</h1>
       </header>
@@ -246,7 +247,7 @@ export default function TrackerMarkdown() {
                 className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
                 style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
               >
-                📋 Copy
+                <span className="inline-flex items-center gap-1.5"><Clipboard size={14} aria-hidden /> Copy</span>
               </button>
               <button
                 type="button"
@@ -256,7 +257,7 @@ export default function TrackerMarkdown() {
                 className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
                 style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
               >
-                ⬇ Download
+                <span className="inline-flex items-center gap-1.5"><Download size={14} aria-hidden /> Download</span>
               </button>
             </div>
           </div>
@@ -295,7 +296,7 @@ export default function TrackerMarkdown() {
             className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
             style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
           >
-            ⬆ Upload .md
+            <span className="inline-flex items-center gap-1.5"><Upload size={14} aria-hidden /> Upload .md</span>
           </button>
           <input
             ref={fileRef}

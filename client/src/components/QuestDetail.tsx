@@ -17,6 +17,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from './Toasts';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
+import { Check, Pencil, Star, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -26,10 +27,10 @@ interface Props {
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
-  deep_work: '🧠 Deep work',
-  comms: '💬 Comms',
-  admin: '📋 Admin',
-  creative: '🎨 Creative',
+  deep_work: 'Deep work',
+  comms: 'Comms',
+  admin: 'Admin',
+  creative: 'Creative',
 };
 
 export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
@@ -92,7 +93,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
       // Parent counts on the main quest list need to refresh.
       loadQuests();
     } catch (e) {
-      pushToast({ icon: '⚠️', title: 'Could not add', sub: String(e), variant: 'xp' });
+      pushToast({ icon: TriangleAlert, title: 'Could not add', sub: String(e), variant: 'xp' });
     } finally {
       setSavingSub(false);
     }
@@ -102,7 +103,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
     try {
       const result = await complete(id);
       applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-      pushToast({ icon: '⭐', title: `+${result.xpAwarded} XP`, sub: 'Sub-quest done', variant: 'xp' });
+      pushToast({ icon: Star, title: `+${result.xpAwarded} XP`, sub: 'Sub-quest done', variant: 'xp' });
       setSubs((prev) =>
         prev.map((s) =>
           s.id === id ? { ...s, status: 'COMPLETE', completedAt: new Date().toISOString() } : s,
@@ -112,7 +113,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
       api.quests.xpEvents(quest.id).then(setXpEvents).catch(() => {});
       loadQuests();
     } catch (e) {
-      pushToast({ icon: '⚠️', title: 'Could not complete', sub: String(e), variant: 'xp' });
+      pushToast({ icon: TriangleAlert, title: 'Could not complete', sub: String(e), variant: 'xp' });
     }
   };
 
@@ -162,7 +163,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
       setAiSuggestions([]);
       loadQuests();
       pushToast({
-        icon: '🪄',
+        icon: WandSparkles,
         title: `+${created.length} sub-quests`,
         sub: 'AI-decomposed',
         variant: 'xp',
@@ -231,7 +232,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 style={{ color: 'var(--color-muted)' }}
                 aria-label="Close"
               >
-                ✕
+                <X size={18} aria-hidden />
               </button>
             </div>
 
@@ -277,7 +278,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                     border: '1px solid rgba(245,158,11,0.4)',
                   }}
                 >
-                  {aiBusy ? '…' : '🪄 Break down'}
+                  {aiBusy ? '…' : <span className="inline-flex items-center gap-1.5"><WandSparkles size={12} aria-hidden /> Break down</span>}
                 </button>
               </div>
 
@@ -294,7 +295,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                     className="text-xs font-semibold mb-2"
                     style={{ color: 'var(--color-gold)' }}
                   >
-                    🪄 AI suggestions — uncheck any you don't want, then accept:
+                    <span className="inline-flex items-center gap-1.5"><WandSparkles size={12} aria-hidden /> AI suggestions — uncheck any you don't want, then accept:</span>
                   </p>
                   <div className="space-y-1.5">
                     {aiSuggestions.map((s, i) => (
@@ -489,7 +490,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 className="text-xs px-3 py-1.5 rounded-full"
                 style={{ color: 'var(--color-fire)' }}
               >
-                🗑 Delete
+                <span className="inline-flex items-center gap-1.5"><Trash2 size={12} aria-hidden /> Delete</span>
               </button>
               <div className="flex gap-2">
                 <button
@@ -497,7 +498,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                   className="text-xs rounded-full border px-3 py-1.5 font-semibold"
                   style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                 >
-                  ✏️ Edit
+                  <span className="inline-flex items-center gap-1.5"><Pencil size={12} aria-hidden /> Edit</span>
                 </button>
                 <button
                   onClick={async () => {
@@ -505,20 +506,20 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                       const result = await complete(quest.id);
                       applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
                       pushToast({
-                        icon: '⭐',
+                        icon: Star,
                         title: `+${result.xpAwarded} XP`,
                         sub: 'Quest complete',
                         variant: 'xp',
                       });
                       onClose();
                     } catch (e) {
-                      pushToast({ icon: '⚠️', title: 'Could not complete', sub: String(e), variant: 'xp' });
+                      pushToast({ icon: TriangleAlert, title: 'Could not complete', sub: String(e), variant: 'xp' });
                     }
                   }}
                   className="text-xs rounded-full px-3 py-1.5 font-semibold text-white"
                   style={{ background: 'var(--color-green)' }}
                 >
-                  ✓ Complete
+                  <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
                 </button>
               </div>
             </div>
@@ -556,7 +557,7 @@ function SubRow({
           background: done ? 'var(--color-green)' : 'transparent',
         }}
       >
-        {done && <span className="text-[10px] text-white font-bold">✓</span>}
+        {done && <Check size={10} strokeWidth={3.5} className="text-white" aria-hidden />}
       </button>
       <span
         className="text-sm flex-1 truncate"
@@ -572,8 +573,9 @@ function SubRow({
         onClick={onDelete}
         className="text-xs opacity-30 hover:opacity-100"
         title="Delete"
+        aria-label="Delete sub-quest"
       >
-        ✕
+        <X size={14} aria-hidden />
       </button>
     </div>
   );

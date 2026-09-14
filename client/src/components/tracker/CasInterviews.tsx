@@ -15,6 +15,7 @@ import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { fromDateInput, toDateInput } from '../../lib/tracker';
 import { fieldClass, fieldStyle } from './Sheet';
+import { Check, TriangleAlert } from 'lucide-react';
 
 const TITLES: Record<number, { name: string; when: string }> = {
   1: { name: 'First interview', when: 'Early — at the start of the programme' },
@@ -39,7 +40,7 @@ function InterviewCard({ interview }: { interview: CasInterview }) {
       await updateInterview(interview.ordinal as 1 | 2 | 3, fields);
       setSavedAt(Date.now());
     } catch (err) {
-      pushToast({ title: 'Could not save', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Could not save', sub: String(err), icon: TriangleAlert, variant: 'error' });
     }
   };
 
@@ -63,7 +64,7 @@ function InterviewCard({ interview }: { interview: CasInterview }) {
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="text-sm font-bold">{meta.name}</h3>
         <span className="text-xs font-semibold" style={{ color: done ? 'var(--color-green)' : 'var(--color-muted)' }}>
-          {done ? '✓ held' : 'not yet held'}
+          {done ? <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> held</span> : 'not yet held'}
         </span>
       </div>
       <p className="mt-0.5 text-xs" style={{ color: 'var(--color-muted)' }}>
@@ -92,7 +93,7 @@ function InterviewCard({ interview }: { interview: CasInterview }) {
         style={fieldStyle}
       />
       <p className="mt-1 h-4 text-right text-[11px]" style={{ color: 'var(--color-green)' }} aria-live="polite">
-        {savedAt !== null ? '✓ saved' : ''}
+        {savedAt !== null ? <span className="inline-flex items-center gap-1.5"><Check size={11} aria-hidden /> saved</span> : ''}
       </p>
     </div>
   );

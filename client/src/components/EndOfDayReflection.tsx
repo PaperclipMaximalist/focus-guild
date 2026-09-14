@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Annoyed, Frown, Laugh, Meh, Moon, Smile } from 'lucide-react';
 
 const STORAGE_KEY = 'focusGuild.reflections';
 const END_HOUR = 18; // matches default workingHours.endHour
@@ -71,13 +72,14 @@ export function EndOfDayReflection({ completionsToday }: Props) {
           color: 'var(--color-muted)',
         }}
       >
-        🌙 Reflection saved for today. Rest well.
+        <span className="inline-flex items-center gap-2"><Moon size={14} aria-hidden /> Reflection saved for today. Rest well.</span>
       </div>
     );
   }
   if (dismissed) return null;
 
-  const RATING_EMOJI = ['', '😞', '😕', '😐', '🙂', '🤩'];
+  // Faces from low to high; the label carries the meaning, not the drawing.
+  const RATINGS = [null, { Icon: Frown, label: 'Rough' }, { Icon: Annoyed, label: 'Meh' }, { Icon: Meh, label: 'Okay' }, { Icon: Smile, label: 'Good' }, { Icon: Laugh, label: 'Great' }] as const;
 
   const handleSave = () => {
     const t = text.trim();
@@ -98,7 +100,7 @@ export function EndOfDayReflection({ completionsToday }: Props) {
         }}
       >
         <div className="flex items-start gap-2.5">
-          <span className="text-xl">🌙</span>
+          <Moon size={20} className="mt-0.5 shrink-0" aria-hidden />
           <div className="flex-1">
             <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
               End-of-day reflection
@@ -133,9 +135,11 @@ export function EndOfDayReflection({ completionsToday }: Props) {
                     opacity: rating === n ? 1 : 0.4,
                     transform: rating === n ? 'scale(1.2)' : 'scale(1)',
                   }}
-                  aria-label={`Rating ${n}`}
+                  aria-label={`Rating ${n}: ${RATINGS[n]!.label}`}
+                  aria-pressed={rating === n}
+                  title={RATINGS[n]!.label}
                 >
-                  {RATING_EMOJI[n]}
+                  {(() => { const R = RATINGS[n]!.Icon; return <R size={22} aria-hidden />; })()}
                 </button>
               ))}
             </div>

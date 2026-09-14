@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
+import type { LucideIcon } from 'lucide-react';
 import { SignedIn, UserButton } from '@clerk/clerk-react';
 import { useUserStore } from '../store/useUserStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
 import { SoundToggle } from './SoundToggle';
+import { CircleCheck, Flame, SettingsIcon, Star, Trophy } from 'lucide-react';
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
@@ -18,7 +20,7 @@ export function Header() {
 
   const sub =
     user.currentStreak >= 3
-      ? `🔥 ${user.currentStreak}-day streak — you're on fire!`
+      ? `${user.currentStreak}-day streak. Keep it rolling.`
       : next
       ? `Next rank at ${next.xpRequired.toLocaleString()} XP. You've got this.`
       : `Highest rank reached. Keep questing.`;
@@ -35,7 +37,7 @@ export function Header() {
             className="flex h-14 w-14 items-center justify-center rounded-full text-2xl shadow-[0_0_0_3px_rgba(139,92,246,0.35),0_0_20px_rgba(139,92,246,0.25)]"
             style={{ background: `linear-gradient(135deg, ${level.accent}, #c084fc)` }}
           >
-            {level.emoji}
+            <level.icon size={26} strokeWidth={1.75} aria-hidden />
           </div>
           <div
             className="absolute -bottom-1 -right-1 flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 text-[0.65rem] font-extrabold text-black"
@@ -69,9 +71,9 @@ export function Header() {
 
         {/* Header stats */}
         <div className="flex flex-wrap items-center gap-2.5">
-          <HeaderStat icon="🔥" value={user.currentStreak} label="streak" />
-          <HeaderStat icon="⭐" value={user.totalXP.toLocaleString()} label="total XP" />
-          <HeaderStat icon="✅" value={completedCount} label="done" />
+          <HeaderStat icon={Flame} value={user.currentStreak} label="streak" />
+          <HeaderStat icon={Star} value={user.totalXP.toLocaleString()} label="total XP" />
+          <HeaderStat icon={CircleCheck} value={completedCount} label="done" />
           <SoundToggle />
           <Link
             to="/trophies"
@@ -79,7 +81,7 @@ export function Header() {
             title="Trophy Room"
             aria-label="Trophy Room"
           >
-            🏆
+            <Trophy size={16} aria-hidden />
           </Link>
           <Link
             to="/settings"
@@ -87,7 +89,7 @@ export function Header() {
             title="Settings"
             aria-label="Settings"
           >
-            ⚙️
+            <SettingsIcon size={16} aria-hidden />
           </Link>
           {CLERK_ENABLED && (
             <SignedIn>
@@ -107,10 +109,10 @@ export function Header() {
   );
 }
 
-function HeaderStat({ icon, value, label }: { icon: string; value: number | string; label: string }) {
+function HeaderStat({ icon: Icon, value, label }: { icon: LucideIcon; value: number | string; label: string }) {
   return (
     <div className="flex items-center gap-1.5 rounded-full border border-(--color-border) bg-white/5 px-3 py-1 text-sm">
-      <span>{icon}</span>
+      <Icon size={14} aria-hidden />
       <span className="font-bold">{value}</span>
       <span className="text-(--color-muted) max-sm:hidden">{label}</span>
     </div>

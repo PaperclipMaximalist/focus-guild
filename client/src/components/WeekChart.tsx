@@ -1,4 +1,5 @@
 import { useQuestStore } from '../store/useQuestStore';
+import { ChartColumn } from 'lucide-react';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -25,7 +26,7 @@ export function WeekChart() {
 
   return (
     <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4">
-      <div className="flex items-center gap-1.5 text-base font-bold">📊 Weekly Activity</div>
+      <div className="flex items-center gap-1.5 text-base font-bold"><ChartColumn size={16} aria-hidden /> Weekly Activity</div>
       <div className="mt-2.5 flex h-[60px] items-end gap-1">
         {days.map((day, i) => {
           const isToday = day === todayStr;

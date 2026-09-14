@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion';
 import { type Quest } from '../lib/api';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
+import { CalendarDays, ListChecks, Pencil, Timer, Trash2 } from 'lucide-react';
 
 interface Props {
   quest: Quest;
@@ -70,17 +71,25 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen }: Props
               kind={urgent ? 'deadline-urgent' : 'deadline'}
               className={urgent ? 'animate-pulse-red' : ''}
             >
-              📅 {deadline}
+              <CalendarDays size={12} aria-hidden /> {deadline}
             </Tag>
           )}
-          <Tag kind="time">⏱ {formatMinutes(quest.estimatedMinutes)}</Tag>
+          <Tag kind="time"><Timer size={12} aria-hidden /> {formatMinutes(quest.estimatedMinutes)}</Tag>
           <Tag kind="load">
-            {'●'.repeat(Math.round(quest.mentalLoad / 2))}
-            {'○'.repeat(5 - Math.round(quest.mentalLoad / 2))} {LOAD_LABEL[quest.mentalLoad]}
+            <span className="inline-flex items-end gap-px" aria-hidden>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <span
+                  key={n}
+                  className="w-[3px] rounded-[1px] bg-current"
+                  style={{ height: 3 + n * 1.4, opacity: n <= Math.round(quest.mentalLoad / 2) ? 1 : 0.3 }}
+                />
+              ))}
+            </span>
+            {LOAD_LABEL[quest.mentalLoad]}
           </Tag>
           {quest.subQuestTotal != null && quest.subQuestTotal > 0 && (
             <Tag kind="time">
-              ✓ {quest.subQuestDone ?? 0}/{quest.subQuestTotal}
+              <ListChecks size={12} aria-hidden /> {quest.subQuestDone ?? 0}/{quest.subQuestTotal}
             </Tag>
           )}
         </div>
@@ -96,8 +105,8 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen }: Props
           {score.toFixed(1)}
         </div>
         <div className="flex gap-1 opacity-70 transition group-hover:opacity-100">
-          <IconBtn onClick={onEdit} title="Edit">✏️</IconBtn>
-          <IconBtn onClick={onDelete} title="Delete">🗑️</IconBtn>
+          <IconBtn onClick={onEdit} title="Edit"><Pencil size={14} aria-hidden /></IconBtn>
+          <IconBtn onClick={onDelete} title="Delete"><Trash2 size={14} aria-hidden /></IconBtn>
         </div>
       </div>
     </motion.div>

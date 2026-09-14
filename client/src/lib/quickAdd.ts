@@ -13,8 +13,10 @@
  *
  * Pure + timezone-local; `now` injectable for tests.
  */
+import type { LucideIcon } from 'lucide-react';
 
 import type { PriorityTier } from './api';
+import { CalendarDays, Clock, Flame, Leaf, Tag } from 'lucide-react';
 
 export interface QuickAddParse {
   title: string;
@@ -24,7 +26,7 @@ export interface QuickAddParse {
   priorityTier?: PriorityTier;
   tags: string[];
   /** Human-readable chips describing what was recognized (for live preview). */
-  chips: Array<{ icon: string; label: string }>;
+  chips: Array<{ icon: LucideIcon; label: string }>;
 }
 
 const WEEKDAYS: Record<string, number> = {
@@ -58,7 +60,7 @@ export function parseQuickAdd(input: string, now: Date = new Date()): QuickAddPa
     out.estimatedMinutes = Math.max(5, parseInt(durM[1]!, 10));
     text = text.replace(durM[0], ' ');
   }
-  if (out.estimatedMinutes) chips.push({ icon: '🕐', label: fmtDuration(out.estimatedMinutes) });
+  if (out.estimatedMinutes) chips.push({ icon: Clock, label: fmtDuration(out.estimatedMinutes) });
 
   // ── deadline ──
   const dl = /\sby\s+(today|tonight|tomorrow|tmr|sun(?:day)?|mon(?:day)?|tue(?:s|sday)?|wed(?:nesday)?|thu(?:r|rs|rsday)?|fri(?:day)?|sat(?:urday)?)(?=[\s.,!?])/i.exec(text);
@@ -84,7 +86,7 @@ export function parseQuickAdd(input: string, now: Date = new Date()): QuickAddPa
     out.deadline = d.toISOString();
     text = text.replace(dl[0], ' ');
     chips.push({
-      icon: '📅',
+      icon: CalendarDays,
       label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
     });
   }
@@ -95,7 +97,7 @@ export function parseQuickAdd(input: string, now: Date = new Date()): QuickAddPa
     const p = pri[1]!.toLowerCase();
     out.priorityTier = p === 'high' || p === 'h' ? 'HIGH' : 'LOW';
     text = text.replace(pri[0], ' ');
-    chips.push({ icon: out.priorityTier === 'HIGH' ? '🔥' : '🌙', label: out.priorityTier.toLowerCase() });
+    chips.push({ icon: out.priorityTier === 'HIGH' ? Flame : Leaf, label: out.priorityTier.toLowerCase() });
   }
 
   // ── tags ──
@@ -106,7 +108,7 @@ export function parseQuickAdd(input: string, now: Date = new Date()): QuickAddPa
   }
   if (out.tags.length > 0) {
     text = text.replace(/\s#[\w-]+/g, ' ');
-    chips.push({ icon: '🏷️', label: out.tags.map((t) => `#${t}`).join(' ') });
+    chips.push({ icon: Tag, label: out.tags.map((t) => `#${t}`).join(' ') });
   }
 
   out.title = text.replace(/\s+/g, ' ').trim();

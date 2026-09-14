@@ -29,6 +29,7 @@ import { sfxClick } from '../lib/sfx';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, Inbox, SettingsIcon, TriangleAlert, Undo2, Upload, X } from 'lucide-react';
 
 const SWATCHES = ['#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6', '#ec4899', '#64748b'];
 
@@ -116,7 +117,7 @@ export default function TrackerPresets() {
       setDraft(structuredClone(cleaned));
       setPrefixText(cleaned.codePrefixes.join(', '));
       sfxClick();
-      pushToast({ title: 'Presets saved', sub: 'Applied everywhere', icon: '⚙️', variant: 'xp' });
+      pushToast({ title: 'Presets saved', sub: 'Applied everywhere', icon: SettingsIcon, variant: 'xp' });
     } catch (err) {
       fail(err);
     } finally {
@@ -129,7 +130,7 @@ export default function TrackerPresets() {
     try {
       await resetConfig();
       setDraft(null); // re-seeds from the fresh defaults
-      pushToast({ title: 'Back to defaults', sub: 'Your overrides were cleared', icon: '↩️', variant: 'xp' });
+      pushToast({ title: 'Back to defaults', sub: 'Your overrides were cleared', icon: Undo2, variant: 'xp' });
     } catch (err) {
       fail(err);
     } finally {
@@ -164,9 +165,9 @@ export default function TrackerPresets() {
       };
       setDraft(merged);
       if (Array.isArray(parsed.codePrefixes)) setPrefixText(parsed.codePrefixes.join(', '));
-      pushToast({ title: 'Presets loaded', sub: 'Review them, then Save to apply', icon: '📥', variant: 'xp' });
+      pushToast({ title: 'Presets loaded', sub: 'Review them, then Save to apply', icon: Inbox, variant: 'xp' });
     } catch (err) {
-      pushToast({ title: 'Could not read that file', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Could not read that file', sub: String(err), icon: TriangleAlert, variant: 'error' });
     }
   };
 
@@ -191,7 +192,7 @@ export default function TrackerPresets() {
           className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
           style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
         >
-          ←
+          <ArrowLeft size={18} aria-hidden />
         </Link>
         <div>
           <h1 className="text-2xl font-extrabold leading-tight">Presets</h1>
@@ -417,7 +418,7 @@ export default function TrackerPresets() {
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
                   style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5' }}
                 >
-                  ✕
+                  <X size={16} aria-hidden />
                 </button>
               </div>
             ))}
@@ -464,7 +465,7 @@ export default function TrackerPresets() {
             className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
             style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
           >
-            ⬇ Export JSON
+            <span className="inline-flex items-center gap-1.5"><Download size={14} aria-hidden /> Export JSON</span>
           </button>
           <button
             type="button"
@@ -472,7 +473,7 @@ export default function TrackerPresets() {
             className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
             style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
           >
-            ⬆ Import JSON
+            <span className="inline-flex items-center gap-1.5"><Upload size={14} aria-hidden /> Import JSON</span>
           </button>
           <input
             ref={fileRef}
@@ -511,7 +512,7 @@ export default function TrackerPresets() {
           Defaults
         </button>
         <span className="flex-1 px-1 text-xs" style={{ color: dirty ? 'var(--color-gold)' : 'var(--color-muted)' }}>
-          {prefixError ? 'Fix the prefixes first' : dirty ? '● Unsaved changes' : '✓ All saved'}
+          {prefixError ? 'Fix the prefixes first' : dirty ? 'Unsaved changes' : <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> All saved</span>}
         </span>
         <button
           type="button"
@@ -604,7 +605,7 @@ function DomainRow({
           className="grid h-10 w-10 shrink-0 place-items-center rounded-lg disabled:opacity-25"
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
-          ↑
+          <ArrowUp size={16} aria-hidden />
         </button>
         <button
           type="button"
@@ -614,7 +615,7 @@ function DomainRow({
           className="grid h-10 w-10 shrink-0 place-items-center rounded-lg disabled:opacity-25"
           style={{ background: 'rgba(255,255,255,0.06)' }}
         >
-          ↓
+          <ArrowDown size={16} aria-hidden />
         </button>
       </div>
 
@@ -635,7 +636,7 @@ function DomainRow({
                 outlineOffset: 2,
               }}
             >
-              {selected ? '✓' : ''}
+              {selected ? <Check size={14} strokeWidth={3} aria-hidden /> : null}
             </button>
           );
         })}

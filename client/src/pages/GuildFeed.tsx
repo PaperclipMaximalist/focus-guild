@@ -11,8 +11,11 @@ import { FocusTimer } from '../components/FocusTimer';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
+import { formatMinutes } from '../lib/formatters';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
 import { sfxComplete, sfxAchievement, sfxLevelUp, sfxStart } from '../lib/sfx';
+import { BatteryMedium, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock, Clock9, CloudSun, Coffee, Diamond, Lightbulb, Pin, Play, RefreshCw, RotateCw, Star, Timer, TriangleAlert, X } from 'lucide-react';
+import { achievementIcon } from '../lib/achievementCatalog';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -140,7 +143,7 @@ function BreakLine({ block }: { block: ScheduleBlock }) {
         className="px-2 text-[0.6rem] font-mono uppercase tracking-wide"
         style={{ color }}
       >
-        {isBuffer ? '◇' : '☕'} {label}
+        <span className="inline-flex items-center gap-1">{isBuffer ? <Diamond size={10} aria-hidden /> : <Coffee size={11} aria-hidden />} {label}</span>
       </span>
 
       {/* Right dashed line */}
@@ -177,7 +180,7 @@ function NowMarker({ time }: { time: number }) {
         animate={{ boxShadow: ['0 0 10px rgba(239,68,68,0.55)', '0 0 18px rgba(239,68,68,0.85)', '0 0 10px rgba(239,68,68,0.55)'] }}
         transition={{ repeat: Infinity, duration: 1.6 }}
       >
-        🕐 Now · {new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+        <span className="inline-flex items-center gap-1"><Clock size={11} aria-hidden /> Now · {new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
       </motion.span>
       <div className="flex-1 h-[2px] bg-(--color-fire) shadow-[0_0_8px_var(--color-fire)]" />
     </motion.div>
@@ -314,18 +317,19 @@ function BlockTile({
         {!isPast && !isActive && draggable && (
           <button
             onClick={(e) => { e.stopPropagation(); onQuickDelete(); }}
-            className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 rounded-full flex items-center justify-center text-xs"
+            className="absolute top-2 right-2 z-10 opacity-70 hover:opacity-100 transition-opacity w-7 h-7 rounded-full flex items-center justify-center text-xs"
             style={{ background: 'rgba(0,0,0,0.4)', color: '#fff', backdropFilter: 'blur(4px)' }}
             title="Remove this block"
+            aria-label="Remove this block"
           >
-            ✕
+            <X size={14} aria-hidden />
           </button>
         )}
 
         {/* Locked badge */}
         {block.locked && (
-          <span className="absolute top-2 right-2 text-xs" style={{ color: '#fff' }}>
-            📌
+          <span className="absolute top-2 right-2 text-xs" style={{ color: '#fff' }} aria-label="Pinned">
+            <Pin size={14} aria-hidden />
           </span>
         )}
 
@@ -382,7 +386,7 @@ function BlockTile({
                   </div>
                   {isActive && (
                     <div className="font-mono font-bold text-sm mt-1.5 inline-block px-2 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.25)', color: '#fff' }}>
-                      ⏱ {formatCountdown(msRemaining)}
+                      <span className="inline-flex items-center gap-1"><Timer size={13} aria-hidden /> {formatCountdown(msRemaining)}</span>
                     </div>
                   )}
                 </div>
@@ -437,7 +441,7 @@ function EnergyMeterStrip({ trace }: { trace: EnergyTracePoint[] }) {
     >
       <div className="flex items-center justify-between mb-1.5">
         <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
-          ⚡ Energy
+          <span className="inline-flex items-center gap-1.5"><BatteryMedium size={12} aria-hidden /> Energy</span>
         </span>
         <span className="text-xs font-mono font-bold" style={{ color: tint }}>
           {Math.round(lastMeter)}%
@@ -503,7 +507,7 @@ function FeedActionsMenu({
               className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
               style={{ color: 'var(--color-text)' }}
             >
-              ↻ Reflow day
+              <span className="inline-flex items-center gap-1.5"><RotateCw size={14} aria-hidden /> Reflow day</span>
               <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
                 Rebuild from scratch in priority order
               </div>
@@ -513,7 +517,7 @@ function FeedActionsMenu({
               className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 border-t"
               style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
             >
-              ⟳ Re-fit remaining
+              <span className="inline-flex items-center gap-1.5"><RefreshCw size={14} aria-hidden /> Re-fit remaining</span>
               <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
                 Keep pins + completed; re-flow the rest
               </div>
@@ -524,7 +528,7 @@ function FeedActionsMenu({
               className="block w-full text-left px-3 py-2 text-sm hover:bg-white/5 border-t"
               style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
             >
-              🕘 Working hours…
+              <span className="inline-flex items-center gap-1.5"><Clock9 size={14} aria-hidden /> Working hours…</span>
               <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
                 Set when the planner places blocks
               </div>
@@ -581,7 +585,7 @@ function FeasibilityBanner({
 }) {
   const [open, setOpen] = useState(false);
   const totalShortfall = issues.reduce((s, i) => s + i.shortfallMin, 0);
-  const headline = `⚠️ ${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline — short ${totalShortfall}m`;
+  const headline = `${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline — short ${formatMinutes(totalShortfall)}`;
   return (
     <div
       className="rounded-2xl p-3 mb-3"
@@ -591,10 +595,11 @@ function FeasibilityBanner({
       }}
     >
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 w-full text-left">
-        <span className="text-sm font-semibold" style={{ color: '#fbbf24' }}>
+        <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#fbbf24' }}>
+          <TriangleAlert size={16} className="shrink-0" aria-hidden />
           {headline}
         </span>
-        <span className="ml-auto text-xs" style={{ color: 'var(--color-muted)' }}>{open ? '▲' : '▼'}</span>
+        <span className="ml-auto" style={{ color: 'var(--color-muted)' }}>{open ? <ChevronUp size={16} aria-hidden /> : <ChevronDown size={16} aria-hidden />}</span>
       </button>
       <AnimatePresence>
         {open && (
@@ -666,7 +671,7 @@ function SelectedDrawer({
               {quest?.category && ` · ${quest.category.replace('_', ' ')}`}
             </p>
           </div>
-          <button onClick={onClose} className="text-lg opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }}>✕</button>
+          <button onClick={onClose} className="opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }} aria-label="Close"><X size={18} aria-hidden /></button>
         </div>
 
         {block.note && block.type === 'work' && (
@@ -675,7 +680,7 @@ function SelectedDrawer({
 
         {explanation && (
           <div className="rounded-lg p-2.5 mb-3 text-xs" style={{ background: 'rgba(255,255,255,0.04)', color: 'var(--color-text)' }}>
-            💡 {explanation}
+            <span className="flex gap-2"><Lightbulb size={14} className="mt-px shrink-0" aria-hidden /> <span>{explanation}</span></span>
           </div>
         )}
 
@@ -687,7 +692,7 @@ function SelectedDrawer({
                 className="text-sm px-4 py-1.5 rounded-full font-bold transition-transform hover:scale-105"
                 style={{ background: g1, color: '#fff' }}
               >
-                ▶ Start
+                <span className="inline-flex items-center gap-1.5"><Play size={14} aria-hidden /> Start</span>
               </button>
             )}
             <button
@@ -695,7 +700,7 @@ function SelectedDrawer({
               className="text-xs px-3 py-1.5 rounded-full border transition-colors"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
-              {block.locked ? 'Unpin' : '📌 Pin'}
+              {block.locked ? 'Unpin' : <span className="inline-flex items-center gap-1.5"><Pin size={12} aria-hidden /> Pin</span>}
             </button>
             <button
               onClick={onExplain}
@@ -703,7 +708,7 @@ function SelectedDrawer({
               className="text-xs px-3 py-1.5 rounded-full border disabled:opacity-50"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
-              {loadingExplanation ? '…' : '💡 Why this?'}
+              {loadingExplanation ? '…' : <span className="inline-flex items-center gap-1.5"><Lightbulb size={12} aria-hidden /> Why this?</span>}
             </button>
             <button
               onClick={onDelete}
@@ -941,7 +946,7 @@ export default function GuildFeed() {
               }}
               aria-label="Open month calendar"
             >
-              <span className="text-lg">📅</span>
+              <CalendarDays size={18} aria-hidden />
             </button>
             {calendarOpen && (
               <>
@@ -991,7 +996,7 @@ export default function GuildFeed() {
         {/* Empty state — no schedule at all */}
         {!loading && schedule.length === 0 && (
           <div className="flex flex-col items-center gap-4 pt-12 text-center">
-            <p className="text-5xl">📅</p>
+            <CalendarDays size={48} strokeWidth={1.5} className="opacity-60" aria-hidden />
             <p className="font-semibold" style={{ color: 'var(--color-text)' }}>No schedule yet</p>
             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
               Hit Regenerate to build today's plan from your quests.
@@ -1006,7 +1011,7 @@ export default function GuildFeed() {
                 boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
               }}
             >
-              ↻ Build my schedule
+              <span className="inline-flex items-center gap-1.5"><RotateCw size={14} aria-hidden /> Build my schedule</span>
             </button>
           </div>
         )}
@@ -1016,7 +1021,7 @@ export default function GuildFeed() {
             className="rounded-2xl p-8 text-center"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
-            <p className="text-3xl mb-2">🌤️</p>
+            <CloudSun size={32} strokeWidth={1.5} className="mx-auto mb-2 opacity-60" aria-hidden />
             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Nothing scheduled this day.</p>
           </div>
         )}
@@ -1132,7 +1137,7 @@ export default function GuildFeed() {
           applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
           sfxComplete();
           pushToast({
-            icon: '⭐',
+            icon: Star,
             title: `+${result.xpAwarded} XP`,
             sub: 'Focus block complete',
             variant: 'xp',
@@ -1145,7 +1150,7 @@ export default function GuildFeed() {
               setTimeout(() => {
                 sfxAchievement();
                 pushToast({
-                  icon: a.icon,
+                  icon: achievementIcon(a.slug),
                   title: `Achievement: ${a.title}`,
                   sub: `+${a.xpReward} XP`,
                   variant: 'badge',
@@ -1156,7 +1161,7 @@ export default function GuildFeed() {
           const newLevel = levelFromXP(result.totalXP).level;
           if (newLevel > prevLevel) {
             sfxLevelUp();
-            pushToast({ icon: '🆙', title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
+            pushToast({ icon: ChevronsUp, title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
           }
           replan();
         }}
@@ -1168,7 +1173,7 @@ export default function GuildFeed() {
           className="fixed bottom-20 right-4 z-50 rounded-full px-4 py-2 text-sm font-semibold shadow-lg"
           style={{ background: 'var(--color-primary)', color: '#fff' }}
         >
-          ⏱ Resume timer
+          <span className="inline-flex items-center gap-1.5"><Timer size={14} aria-hidden /> Resume timer</span>
         </button>
       )}
 

@@ -13,6 +13,7 @@ import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { fieldClass, fieldStyle } from './Sheet';
 import { sfxClick } from '../../lib/sfx';
+import { TriangleAlert } from 'lucide-react';
 
 function dayLabel(iso: string): string {
   const d = new Date(iso);
@@ -42,7 +43,7 @@ export function DecisionLog() {
       setText('');
       sfxClick();
     } catch (err) {
-      pushToast({ title: 'Could not record', sub: String(err), icon: '⚠️', variant: 'error' });
+      pushToast({ title: 'Could not record', sub: String(err), icon: TriangleAlert, variant: 'error' });
     } finally {
       setBusy(false);
     }

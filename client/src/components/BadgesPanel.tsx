@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { ACHIEVEMENT_CATALOG, TOTAL_ACHIEVEMENTS } from '../lib/achievementCatalog';
+import { Medal, Trophy } from 'lucide-react';
 
 export function BadgesPanel() {
   const { unlocked, loaded, load } = useAchievementsStore();
@@ -23,7 +24,7 @@ export function BadgesPanel() {
   return (
     <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4">
       <div className="flex items-center justify-between gap-1.5 text-base font-bold">
-        <span>🏅 Achievements</span>
+        <span className="flex items-center gap-1.5"><Medal size={16} strokeWidth={2} aria-hidden /> Achievements</span>
         <span className="text-xs font-normal text-(--color-muted)">
           {unlockedSlugs.size}/{TOTAL_ACHIEVEMENTS}
         </span>
@@ -41,7 +42,7 @@ export function BadgesPanel() {
                   : 'border-(--color-border) opacity-30 grayscale'
               }`}
             >
-              <span className="text-2xl leading-none">{b.icon}</span>
+              <b.icon size={24} strokeWidth={1.75} aria-hidden />
               <span
                 className={`text-[0.6rem] font-semibold leading-tight ${
                   isUnlocked ? 'text-(--color-gold)' : 'text-(--color-muted)'
@@ -58,7 +59,7 @@ export function BadgesPanel() {
         className="mt-3 block rounded-lg border py-2 text-center text-xs font-semibold transition hover:bg-white/5"
         style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
       >
-        🏆 Open Trophy Room →
+        <span className="inline-flex items-center gap-1.5"><Trophy size={14} strokeWidth={2} aria-hidden /> Open Trophy Room</span>
       </Link>
     </div>
   );

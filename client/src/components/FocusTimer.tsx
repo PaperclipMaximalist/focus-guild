@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTimerStore } from '../store/useTimerStore';
+import { Check, Pause, Play } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -139,7 +140,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
               className="rounded-full px-6 py-2.5 text-sm font-semibold text-white"
               style={{ background: 'var(--color-primary)' }}
             >
-              ▶ Resume
+              <span className="inline-flex items-center gap-2"><Play size={16} aria-hidden /> Resume</span>
             </button>
           ) : (
             <button
@@ -147,7 +148,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
               className="rounded-full border px-6 py-2.5 text-sm font-semibold"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
-              ❚❚ Pause
+              <span className="inline-flex items-center gap-2"><Pause size={16} aria-hidden /> Pause</span>
             </button>
           )}
           <button
@@ -156,7 +157,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
             className="rounded-full px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
             style={{ background: 'var(--color-green)' }}
           >
-            {completing ? '…' : '✓ Done'}
+            {completing ? '…' : <span className="inline-flex items-center gap-2"><Check size={16} strokeWidth={2.5} aria-hidden /> Done</span>}
           </button>
           <button
             onClick={handleDiscard}

@@ -16,12 +16,3 @@ export function formatDeadline(deadline: string | Date | null): string {
   if (days < 7) return `due in ${days}d`;
   return d.toLocaleDateString();
 }
-
-export function mentalLoadEmoji(load: number): string {
-  // 1 → 😴, 5 → 😐, 10 → 🤯
-  if (load <= 2) return '😴';
-  if (load <= 4) return '🙂';
-  if (load <= 6) return '😐';
-  if (load <= 8) return '😬';
-  return '🤯';
-}
