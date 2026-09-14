@@ -38,7 +38,7 @@ export function ReviewBanner({ config }: Props) {
   return (
     <section
       className="rounded-(--radius-card) border px-3.5 py-2.5"
-      style={{ borderColor: 'rgba(245,158,11,0.5)', background: 'rgba(245,158,11,0.12)' }}
+      style={{ borderColor: 'color-mix(in srgb, var(--color-gold) 50%, transparent)', background: 'color-mix(in srgb, var(--color-gold) 12%, transparent)' }}
     >
       <button
         type="button"
@@ -79,7 +79,7 @@ export function ReviewBanner({ config }: Props) {
               });
             }}
             className="mt-3 w-full rounded-lg py-2.5 text-sm font-bold"
-            style={{ background: 'var(--color-gold)', color: '#1a1205' }}
+            style={{ background: 'var(--color-gold)', color: 'var(--color-on-primary)' }}
           >
             Mark reviewed
           </button>

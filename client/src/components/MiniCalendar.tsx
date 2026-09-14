@@ -30,7 +30,7 @@ interface Props {
   minDate?: Date;
   /**
    * Per-day background tint for heatmap use. Return any valid CSS color
-   * (e.g. `rgba(168,85,247,0.5)`) to fill the cell, or null for none.
+   * (e.g. `color-mix(in srgb, var(--color-primary) 50%, transparent)`) to fill the cell, or null for none.
    */
   intensity?: (date: Date) => string | null;
   /**
@@ -149,11 +149,11 @@ export function MiniCalendar({ value, onChange, markers = [], minDate, intensity
           const cellBg = isSelected
             ? 'var(--color-primary)'
             : isToday
-              ? 'rgba(139,92,246,0.15)'
+              ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)'
               : intensityFill
                 ? intensityFill
                 : isBeforeToday && !isBlocked
-                  ? 'rgba(239,68,68,0.05)'
+                  ? 'color-mix(in srgb, var(--color-fire) 5%, transparent)'
                   : 'transparent';
 
           return (

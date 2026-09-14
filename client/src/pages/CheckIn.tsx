@@ -44,14 +44,14 @@ export default function CheckIn() {
   return (
     <div className="mx-auto max-w-xl px-4 py-8 flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold text-slate-100">Daily Check-In</h1>
-        <p className="mt-2 text-slate-400">
+        <h1 className="text-3xl font-bold text-(--color-text)">Daily Check-In</h1>
+        <p className="mt-2 text-(--color-muted)">
           How's your brain today? This shapes how the Guild orders your quests.
         </p>
       </header>
 
       <section className="flex flex-col gap-3">
-        <label className="text-sm text-slate-300">Energy level</label>
+        <label className="text-sm text-(--color-text)">Energy level</label>
         <div className="grid grid-cols-5 gap-2">
           {ENERGY_LABELS.map(({ label, Icon }, i) => {
             const v = i + 1;
@@ -62,8 +62,8 @@ export default function CheckIn() {
                 aria-pressed={energy === v}
                 className={`rounded-lg border p-3 text-sm transition-colors ${
                   energy === v
-                    ? 'border-violet-500 bg-violet-500/20 text-violet-100'
-                    : 'border-slate-700 text-slate-400 hover:border-slate-500'
+                    ? 'border-(--color-primary) bg-(--color-primary)/15 text-(--color-text)'
+                    : 'border-(--color-border) text-(--color-muted) hover:border-(--color-muted)'
                 }`}
               >
                 <span className="flex flex-col items-center gap-1"><Icon size={20} aria-hidden />{label}</span>
@@ -74,8 +74,8 @@ export default function CheckIn() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <label className="text-sm text-slate-300">
-          Available hours today: <span className="font-medium text-slate-100">{hours}h</span>
+        <label className="text-sm text-(--color-text)">
+          Available hours today: <span className="font-medium text-(--color-text)">{hours}h</span>
         </label>
         <input
           type="range"
@@ -90,7 +90,7 @@ export default function CheckIn() {
       <button
         onClick={save}
         disabled={saving}
-        className="rounded-lg bg-violet-600 px-4 py-3 font-medium text-white hover:bg-violet-500 disabled:opacity-40 transition-colors"
+        className="rounded-lg bg-(--color-primary) px-4 py-3 font-medium text-(--color-on-primary) hover:bg-(--color-primary-d) disabled:opacity-40 transition-colors"
       >
         {saving ? 'Saving…' : 'Save & view today'}
       </button>

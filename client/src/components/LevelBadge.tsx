@@ -13,17 +13,17 @@ export function LevelBadge({ totalXP, currentStreak, multiplier }: Props) {
   const progress = progressToNextLevel(totalXP);
 
   return (
-    <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-4">
+    <div className="rounded-xl border border-(--color-border) bg-(--color-surface) p-4">
       <div className="flex items-baseline justify-between">
         <div>
-          <div className="text-xs uppercase tracking-wide text-slate-400">Level {level.level}</div>
+          <div className="text-xs uppercase tracking-wide text-(--color-muted)">Level {level.level}</div>
           <div className="text-xl font-semibold" style={{ color: level.accent }}>
             {level.title}
           </div>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-slate-100">{totalXP.toLocaleString()} XP</div>
-          <div className="text-xs text-slate-400">
+          <div className="text-2xl font-bold text-(--color-text)">{totalXP.toLocaleString()} XP</div>
+          <div className="text-xs text-(--color-muted)">
             <span className="inline-flex items-center gap-1"><Flame size={12} aria-hidden /> {currentStreak}-day streak · {multiplier.toFixed(2)}×</span>
           </div>
         </div>
@@ -31,16 +31,16 @@ export function LevelBadge({ totalXP, currentStreak, multiplier }: Props) {
 
       {next && (
         <div className="mt-3">
-          <div className="h-2 w-full overflow-hidden rounded-full bg-slate-800">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface2)">
             <div
               className="h-full rounded-full transition-all"
               style={{
                 width: `${progress.pct}%`,
-                background: `linear-gradient(90deg, ${level.accent}, ${next.accent})`,
+                background: level.accent,
               }}
             />
           </div>
-          <div className="mt-1 flex justify-between text-xs text-slate-500">
+          <div className="mt-1 flex justify-between text-xs text-(--color-muted)">
             <span>{progress.earned} / {progress.needed} to {next.title}</span>
             <span>{Math.round(progress.pct)}%</span>
           </div>

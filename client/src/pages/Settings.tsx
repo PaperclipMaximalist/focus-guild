@@ -224,10 +224,10 @@ export default function Settings() {
       <ExperienceSection />
 
       {/* Action bar */}
-      <div className="sticky bottom-20 z-40 flex items-center justify-between gap-2 rounded-full border px-4 py-2.5 shadow-xl"
+      <div className="sticky bottom-20 z-40 flex items-center justify-between gap-2 rounded-md border px-4 py-2.5 shadow-xl"
         style={{
           background: 'var(--color-surface)',
-          borderColor: hasChanges ? 'rgba(245,158,11,0.5)' : 'var(--color-border)',
+          borderColor: hasChanges ? 'color-mix(in srgb, var(--color-gold) 50%, transparent)' : 'var(--color-border)',
         }}
       >
         <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
@@ -237,7 +237,7 @@ export default function Settings() {
           <button
             onClick={handleReset}
             disabled={resetting}
-            className="text-xs rounded-full border px-3 py-1.5 font-semibold disabled:opacity-40"
+            className="text-xs rounded-md border px-3 py-1.5 font-semibold disabled:opacity-40"
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
           >
             {resetting ? '…' : <span className="inline-flex items-center gap-1.5"><RotateCcw size={12} aria-hidden /> Reset all</span>}
@@ -245,7 +245,7 @@ export default function Settings() {
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="text-xs rounded-full px-4 py-1.5 font-semibold text-white disabled:opacity-40"
+            className="text-xs rounded-md px-4 py-1.5 font-semibold text-(--color-on-primary) disabled:opacity-40"
             style={{ background: 'var(--color-primary)' }}
           >
             {saving ? '…' : 'Save'}
@@ -296,7 +296,7 @@ function ExperienceSection() {
       />
       <Toggle
         label="Rank theming"
-        hint="Re-skins the app's accent color to match your guild rank. Leveling up changes the whole vibe."
+        hint="Colours your rank badge and XP bar by guild rank, so levelling up shows."
         on={rankTheme}
         onChange={(v) => setRankThemeEnabled(v)}
       />

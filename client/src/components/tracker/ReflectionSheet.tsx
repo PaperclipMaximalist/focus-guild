@@ -67,7 +67,7 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
           onClick={submit}
           disabled={busy || !text.trim()}
           className="w-full rounded-xl py-3 text-sm font-bold disabled:opacity-40"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           {busy ? 'Saving…' : 'Add reflection'}
         </button>
@@ -149,7 +149,7 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
                       <span
                         key={lo}
                         className="rounded px-1.5 py-0.5 text-[10px] font-bold"
-                        style={{ background: 'rgba(139,92,246,0.2)', color: 'var(--color-primary)' }}
+                        style={{ background: 'color-mix(in srgb, var(--color-primary) 20%, transparent)', color: 'var(--color-primary)' }}
                       >
                         LO{lo}
                       </span>

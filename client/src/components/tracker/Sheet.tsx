@@ -65,7 +65,7 @@ export function Sheet({ open, onClose, title, footer, children }: Props) {
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-lg"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-md text-lg"
                 style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-muted)' }}
               >
                 <X size={18} aria-hidden />

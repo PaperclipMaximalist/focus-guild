@@ -141,7 +141,7 @@ export default function TrackerMarkdown() {
         <Link
           to="/tracker"
           aria-label="Back to tracker"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-md border text-base"
           style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
         >
           <ArrowLeft size={18} aria-hidden />
@@ -214,7 +214,7 @@ export default function TrackerMarkdown() {
               disabled={busy || !since}
               onClick={() => doExport(deltaTier, new Date(`${since}T00:00:00`).toISOString())}
               className="rounded-lg px-4 py-2 text-sm font-bold disabled:opacity-40"
-              style={{ background: 'var(--color-primary)', color: '#fff' }}
+              style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
             >
               Export delta
             </button>
@@ -245,7 +245,7 @@ export default function TrackerMarkdown() {
                 type="button"
                 onClick={() => copy(result.markdown)}
                 className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
-                style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
+                style={{ background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><Clipboard size={14} aria-hidden /> Copy</span>
               </button>
@@ -318,7 +318,7 @@ export default function TrackerMarkdown() {
             disabled={busy || !paste.trim()}
             onClick={() => preview(paste)}
             className="flex-1 rounded-lg py-2.5 text-sm font-bold disabled:opacity-40"
-            style={{ background: 'var(--color-primary)', color: '#fff' }}
+            style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
             Preview changes
           </button>
@@ -358,7 +358,7 @@ function DiffPreview({
       {diff.warnings.length > 0 && (
         <div
           className="rounded-lg border p-2.5"
-          style={{ borderColor: 'rgba(245,158,11,0.4)', background: 'rgba(245,158,11,0.08)' }}
+          style={{ borderColor: 'color-mix(in srgb, var(--color-gold) 40%, transparent)', background: 'color-mix(in srgb, var(--color-gold) 8%, transparent)' }}
         >
           <p className="text-xs font-bold" style={{ color: 'var(--color-gold)' }}>
             {diff.warnings.length} line{diff.warnings.length > 1 ? 's' : ''} could not be read
@@ -438,7 +438,7 @@ function DiffPreview({
           onClick={onApply}
           disabled={applying || nothingToDo}
           className="flex-1 rounded-lg py-3 text-sm font-bold disabled:opacity-40"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           {applying
             ? 'Applying…'

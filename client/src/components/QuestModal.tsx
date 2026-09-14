@@ -279,7 +279,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             exit={{ scale: 0.95, y: 10 }}
             transition={{ duration: 0.22 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[560px] rounded-2xl border border-(--color-border) bg-(--color-surface2) p-6 shadow-[0_4px_32px_rgba(0,0,0,0.45)] max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-[560px] rounded-2xl border border-(--color-border) bg-(--color-surface2) p-6 max-h-[90vh] overflow-y-auto"
           >
             <div className="mb-4 flex items-center gap-2 text-lg font-bold">
               <Swords size={20} aria-hidden /> <span>{editing ? 'Edit Quest' : 'New Quest'}</span>
@@ -317,7 +317,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         if (r.tags !== undefined) setTags(r.tags);
                         if (r.preferredHour !== undefined) setPreferredHour(r.preferredHour);
                       }}
-                      className="inline-flex items-center gap-1.5 text-xs rounded-full border px-2.5 py-1 transition-colors hover:bg-white/5"
+                      className="inline-flex items-center gap-1.5 text-xs rounded-md border px-2.5 py-1 transition-colors hover:bg-white/5"
                       style={{
                         borderColor: 'var(--color-border)',
                         color: 'var(--color-text)',
@@ -333,7 +333,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             {/* Quick cheat-sheet so the four overlapping fields feel distinct */}
             <details
               className="mb-4 rounded-lg p-3 text-xs"
-              style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid var(--color-border)' }}
+              style={{ background: 'color-mix(in srgb, var(--color-primary) 6%, transparent)', border: '1px solid var(--color-border)' }}
             >
               <summary
                 className="cursor-pointer font-semibold"
@@ -368,8 +368,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
             <div
               className="mb-4 flex items-start gap-3 rounded-lg p-3"
               style={{
-                background: isRecurring ? 'rgba(245,158,11,0.10)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${isRecurring ? 'rgba(245,158,11,0.4)' : 'var(--color-border)'}`,
+                background: isRecurring ? 'color-mix(in srgb, var(--color-gold) 10%, transparent)' : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${isRecurring ? 'color-mix(in srgb, var(--color-gold) 40%, transparent)' : 'var(--color-border)'}`,
               }}
             >
               <input
@@ -478,7 +478,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                     onClick={() => setLoad5(v)}
                     className={`flex-1 rounded-lg border px-1 py-2 text-center text-xs font-semibold transition ${
                       load5 === v
-                        ? 'border-(--color-gold) bg-amber-500/15 text-(--color-gold)'
+                        ? 'border-(--color-gold) bg-(--color-gold)/15 text-(--color-gold)'
                         : 'border-(--color-border) bg-white/4 text-(--color-muted) hover:border-(--color-gold)'
                     }`}
                   >
@@ -512,7 +512,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                     onClick={() => setCategory(c.value)}
                     className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
                       category === c.value
-                        ? 'border-(--color-primary) bg-violet-500/15'
+                        ? 'border-(--color-primary) bg-(--color-primary)/15'
                         : 'border-(--color-border) bg-white/4 hover:border-(--color-primary)'
                     }`}
                   >
@@ -533,9 +533,9 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 {tags.map((t) => (
                   <span
                     key={t}
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
+                    className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold"
                     style={{
-                      background: 'rgba(139,92,246,0.18)',
+                      background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)',
                       color: 'var(--color-primary)',
                     }}
                   >
@@ -739,14 +739,14 @@ export function QuestModal({ open, onClose, editing }: Props) {
             <div className="mt-5 flex justify-end gap-2.5">
               <button
                 onClick={onClose}
-                className="rounded-full border border-(--color-border) bg-white/5 px-4 py-2 text-sm font-semibold transition hover:bg-white/15"
+                className="rounded-md border border-(--color-border) bg-white/5 px-4 py-2 text-sm font-semibold transition hover:bg-white/15"
               >
                 Cancel
               </button>
               <button
                 onClick={save}
                 disabled={!title.trim() || saving}
-                className="flex items-center gap-1 rounded-full bg-(--color-primary) px-4 py-2 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(139,92,246,0.4)] transition hover:bg-(--color-primary-d) disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex items-center gap-1 rounded-md bg-(--color-primary) px-4 py-2 text-sm font-semibold text-(--color-on-primary) transition hover:bg-(--color-primary-d) disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {editing ? 'Save Changes' : 'Save Quest'}
               </button>
@@ -767,7 +767,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
               }
               .form-input:focus {
                 border-color: var(--color-primary);
-                box-shadow: 0 0 0 3px rgba(139,92,246,.15);
+                box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
               }
               input[type="range"] {
                 accent-color: var(--color-primary);

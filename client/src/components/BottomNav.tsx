@@ -38,7 +38,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 h-16 flex items-center justify-around px-1 sm:px-4 z-40"
+      className="fixed bottom-0 left-0 right-0 h-16 flex items-stretch justify-around px-1 sm:px-4 z-40"
       style={{
         background: 'var(--color-surface)',
         borderTop: '1px solid var(--color-border)',
@@ -52,9 +52,13 @@ export function BottomNav() {
           <Link
             key={item.to}
             to={item.to}
-            className="flex flex-1 flex-col items-center gap-0.5 text-[11px] transition-colors sm:text-xs"
+            className="flex h-full flex-1 flex-col items-center justify-center gap-1 border-t-2 text-[11px] transition-colors sm:text-xs"
+            aria-current={active ? 'page' : undefined}
             style={{
-              color: active ? 'var(--color-primary)' : 'var(--color-muted)',
+              color: active ? 'var(--color-text)' : 'var(--color-muted)',
+              fontWeight: active ? 700 : 400,
+              // Active tab: an amber rule on top, like an editor's open-file tab.
+              borderTopColor: active ? 'var(--color-primary)' : 'transparent',
             }}
           >
             {(() => {

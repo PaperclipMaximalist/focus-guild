@@ -249,8 +249,8 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 {quest.tags.map((t) => (
                   <span
                     key={t}
-                    className="text-xs rounded-full px-2 py-0.5 font-semibold"
-                    style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
+                    className="text-xs rounded-md px-2 py-0.5 font-semibold"
+                    style={{ background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)' }}
                   >
                     #{t}
                   </span>
@@ -271,11 +271,11 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                   onClick={askAi}
                   disabled={aiBusy}
                   title="Break down with AI"
-                  className="text-xs rounded-full px-2.5 py-1 font-semibold transition-opacity disabled:opacity-40"
+                  className="text-xs rounded-md px-2.5 py-1 font-semibold transition-opacity disabled:opacity-40"
                   style={{
-                    background: 'rgba(245,158,11,0.15)',
+                    background: 'color-mix(in srgb, var(--color-gold) 15%, transparent)',
                     color: 'var(--color-gold)',
-                    border: '1px solid rgba(245,158,11,0.4)',
+                    border: '1px solid color-mix(in srgb, var(--color-gold) 40%, transparent)',
                   }}
                 >
                   {aiBusy ? '…' : <span className="inline-flex items-center gap-1.5"><WandSparkles size={12} aria-hidden /> Break down</span>}
@@ -287,8 +287,8 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 <div
                   className="mb-3 rounded-lg p-3"
                   style={{
-                    background: 'rgba(245,158,11,0.06)',
-                    border: '1px solid rgba(245,158,11,0.35)',
+                    background: 'color-mix(in srgb, var(--color-gold) 6%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--color-gold) 35%, transparent)',
                   }}
                 >
                   <p
@@ -340,7 +340,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                   <div className="mt-3 flex justify-end gap-2">
                     <button
                       onClick={() => setAiSuggestions([])}
-                      className="text-xs px-3 py-1 rounded-full"
+                      className="text-xs px-3 py-1 rounded-md"
                       style={{ color: 'var(--color-muted)' }}
                     >
                       Discard
@@ -348,7 +348,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                     <button
                       onClick={acceptAiSuggestions}
                       disabled={savingSub || aiSuggestions.every((s) => !s.keep)}
-                      className="text-xs rounded-full px-3 py-1 font-semibold text-white disabled:opacity-40"
+                      className="text-xs rounded-md px-3 py-1 font-semibold text-(--color-on-primary) disabled:opacity-40"
                       style={{ background: 'var(--color-primary)' }}
                     >
                       Accept ({aiSuggestions.filter((s) => s.keep).length})
@@ -361,8 +361,8 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 <div
                   className="mb-3 rounded-lg p-2 text-xs"
                   style={{
-                    background: 'rgba(239,68,68,0.08)',
-                    border: '1px solid rgba(239,68,68,0.35)',
+                    background: 'color-mix(in srgb, var(--color-fire) 8%, transparent)',
+                    border: '1px solid color-mix(in srgb, var(--color-fire) 35%, transparent)',
                     color: 'var(--color-fire)',
                   }}
                 >
@@ -434,7 +434,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 <button
                   onClick={addSubQuest}
                   disabled={!newSubTitle.trim() || savingSub}
-                  className="text-xs rounded-full px-3 py-1.5 font-semibold text-white disabled:opacity-40"
+                  className="text-xs rounded-md px-3 py-1.5 font-semibold text-(--color-on-primary) disabled:opacity-40"
                   style={{ background: 'var(--color-primary)' }}
                 >
                   Add
@@ -487,7 +487,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
             <div className="flex justify-between gap-2 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
               <button
                 onClick={handleDeleteParent}
-                className="text-xs px-3 py-1.5 rounded-full"
+                className="text-xs px-3 py-1.5 rounded-md"
                 style={{ color: 'var(--color-fire)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><Trash2 size={12} aria-hidden /> Delete</span>
@@ -495,7 +495,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
               <div className="flex gap-2">
                 <button
                   onClick={onEdit}
-                  className="text-xs rounded-full border px-3 py-1.5 font-semibold"
+                  className="text-xs rounded-md border px-3 py-1.5 font-semibold"
                   style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                 >
                   <span className="inline-flex items-center gap-1.5"><Pencil size={12} aria-hidden /> Edit</span>
@@ -516,7 +516,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                       pushToast({ icon: TriangleAlert, title: 'Could not complete', sub: String(e), variant: 'xp' });
                     }
                   }}
-                  className="text-xs rounded-full px-3 py-1.5 font-semibold text-white"
+                  className="text-xs rounded-md px-3 py-1.5 font-semibold text-(--color-on-primary)"
                   style={{ background: 'var(--color-green)' }}
                 >
                   <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
@@ -544,8 +544,8 @@ function SubRow({
     <div
       className="flex items-center gap-2 rounded-lg border px-3 py-1.5"
       style={{
-        borderColor: done ? 'rgba(34,197,94,0.3)' : 'var(--color-border)',
-        background: done ? 'rgba(34,197,94,0.05)' : 'var(--color-surface)',
+        borderColor: done ? 'color-mix(in srgb, var(--color-green) 30%, transparent)' : 'var(--color-border)',
+        background: done ? 'color-mix(in srgb, var(--color-green) 5%, transparent)' : 'var(--color-surface)',
       }}
     >
       <button
@@ -557,7 +557,7 @@ function SubRow({
           background: done ? 'var(--color-green)' : 'transparent',
         }}
       >
-        {done && <Check size={10} strokeWidth={3.5} className="text-white" aria-hidden />}
+        {done && <Check size={10} strokeWidth={3.5} className="text-(--color-on-primary)" aria-hidden />}
       </button>
       <span
         className="text-sm flex-1 truncate"

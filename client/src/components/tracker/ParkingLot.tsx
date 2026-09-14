@@ -76,7 +76,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
           onClick={capture}
           disabled={!text.trim()}
           className="shrink-0 rounded-lg px-4 text-sm font-bold disabled:opacity-40"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           Add
         </button>
@@ -120,7 +120,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
                         type="button"
                         disabled={busy}
                         onClick={() => promote(entry.id, null)}
-                        className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                        className="rounded-md px-3 py-1.5 text-xs font-semibold"
                         style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-text)' }}
                       >
                         Unsorted
@@ -131,7 +131,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
                           type="button"
                           disabled={busy}
                           onClick={() => promote(entry.id, d.id)}
-                          className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                          className="rounded-md px-3 py-1.5 text-xs font-semibold"
                           style={{ background: `${d.color}26`, color: d.color }}
                         >
                           {d.name}
@@ -140,7 +140,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
                       <button
                         type="button"
                         onClick={() => setPromoting(null)}
-                        className="rounded-full px-3 py-1.5 text-xs"
+                        className="rounded-md px-3 py-1.5 text-xs"
                         style={{ color: 'var(--color-muted)' }}
                       >
                         Cancel
@@ -153,8 +153,8 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
                       <button
                         type="button"
                         onClick={() => setPromoting(entry.id)}
-                        className="rounded-full px-3 py-1.5 text-xs font-semibold"
-                        style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
+                        className="rounded-md px-3 py-1.5 text-xs font-semibold"
+                        style={{ background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)' }}
                       >
                         <span className="inline-flex items-center gap-1.5"><ArrowUp size={12} aria-hidden /> Promote</span>
                       </button>
@@ -162,7 +162,7 @@ export function ParkingLot({ domains }: { domains: TrackerDomain[] }) {
                     <button
                       type="button"
                       onClick={() => deleteParkingLot(entry.id)}
-                      className="ml-auto rounded-full px-3 py-1.5 text-xs font-semibold"
+                      className="ml-auto rounded-md px-3 py-1.5 text-xs font-semibold"
                       style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-muted)' }}
                     >
                       Discard

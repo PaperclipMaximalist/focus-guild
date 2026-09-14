@@ -28,20 +28,22 @@ const DAY_TABS = 3;
 
 const COMPACT_THRESHOLD_PX = 84;
 
-// Bold per-category palette. Returned as start/end gradient stops for vibrancy.
-const CATEGORY_GRADIENT: Record<string, [string, string]> = {
-  deep_work: ['#a855f7', '#7c3aed'], // purple
-  comms:     ['#22d3ee', '#0e7490'], // cyan/teal
-  admin:     ['#fbbf24', '#d97706'], // amber/orange
-  creative:  ['#f472b6', '#db2777'], // pink/rose
+// One hue per category, validated as a set against the dark surface: the
+// best four-colour combination of the reference hues (colourblind separation
+// in the 6–8 band, which is allowed because every block also prints its
+// category as text). The hue is a stripe on the block, never the text colour.
+const CATEGORY_COLOR: Record<string, string> = {
+  deep_work: '#3987E5',
+  comms:     '#008300',
+  admin:     '#C98500',
+  creative:  '#D55181',
 };
-const FALLBACK_GRADIENT: [string, string] = ['#8b5cf6', '#6d28d9'];
+const FIXED_COLOR = '#8A8478';
 
-function blockGradient(b: ScheduleBlock, quest: Quest | null): [string, string] {
-  if (b.type !== 'work' && b.type !== 'fixed') return FALLBACK_GRADIENT;
-  if (b.type === 'fixed') return ['#fbbf24', '#d97706'];
-  const cat = quest?.category ?? 'deep_work';
-  return CATEGORY_GRADIENT[cat] ?? FALLBACK_GRADIENT;
+function blockColor(b: ScheduleBlock, quest: Quest | null): string {
+  if (b.type === 'fixed') return FIXED_COLOR;
+  if (b.type !== 'work') return FIXED_COLOR;
+  return CATEGORY_COLOR[quest?.category ?? 'deep_work'] ?? CATEGORY_COLOR.deep_work!;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -105,7 +107,7 @@ function blockHeight(b: ScheduleBlock): number {
 function BreakLine({ block }: { block: ScheduleBlock }) {
   const isBuffer = block.type === 'buffer';
   const label = isBuffer ? `${block.durationMin}m free` : `${block.durationMin}m breather`;
-  const color = isBuffer ? '#64748b' : '#38bdf8'; // slate or sky-blue
+  const color = isBuffer ? '#6B655B' : '#8A8478';
 
   const height = blockHeight(block);
 
@@ -123,19 +125,6 @@ function BreakLine({ block }: { block: ScheduleBlock }) {
             background: `repeating-linear-gradient(90deg, ${color}88 0 6px, transparent 6px 10px)`,
           }}
         />
-        {!isBuffer && (
-          <motion.div
-            className="absolute inset-0"
-            initial={{ x: '-100%' }}
-            animate={{ x: '100%' }}
-            transition={{ repeat: Infinity, duration: 2.8, ease: 'linear' }}
-            style={{
-              background: `linear-gradient(90deg, transparent 0%, ${color} 50%, transparent 100%)`,
-              filter: 'blur(2px)',
-              opacity: 0.6,
-            }}
-          />
-        )}
       </div>
 
       {/* Center label */}
@@ -159,7 +148,7 @@ function BreakLine({ block }: { block: ScheduleBlock }) {
   );
 }
 
-// ─── Now marker (glowing red pill inserted at current-time slot) ──────────────
+// ─── Now marker (red rule inserted at the current-time slot) ─────────────────
 
 function NowMarker({ time }: { time: number }) {
   return (
@@ -169,20 +158,14 @@ function NowMarker({ time }: { time: number }) {
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
     >
-      <div className="flex-1 h-[2px] bg-(--color-fire) shadow-[0_0_8px_var(--color-fire)]" />
+      <div className="flex-1 h-[2px] bg-(--color-fire)" />
       <motion.span
-        className="mx-2 px-3 py-1 rounded-full text-[0.65rem] font-bold uppercase tracking-wider"
-        style={{
-          background: 'var(--color-fire)',
-          color: '#fff',
-          boxShadow: '0 0 14px rgba(239,68,68,0.65)',
-        }}
-        animate={{ boxShadow: ['0 0 10px rgba(239,68,68,0.55)', '0 0 18px rgba(239,68,68,0.85)', '0 0 10px rgba(239,68,68,0.55)'] }}
-        transition={{ repeat: Infinity, duration: 1.6 }}
+        className="mx-2 px-3 py-1 rounded-md text-[0.65rem] font-bold uppercase tracking-wider"
+        style={{ background: 'var(--color-fire)', color: 'var(--color-on-primary)' }}
       >
         <span className="inline-flex items-center gap-1"><Clock size={11} aria-hidden /> Now · {new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
       </motion.span>
-      <div className="flex-1 h-[2px] bg-(--color-fire) shadow-[0_0_8px_var(--color-fire)]" />
+      <div className="flex-1 h-[2px] bg-(--color-fire)" />
     </motion.div>
   );
 }
@@ -224,7 +207,7 @@ function BlockTile({
   onDragLeave,
   onDrop,
 }: BlockTileProps) {
-  const [g1, g2] = blockGradient(block, quest);
+  const hue = blockColor(block, quest);
   const height = blockHeight(block);
   const isCompact = height < COMPACT_THRESHOLD_PX;
   const isActive = status === 'active' && (block.type === 'work' || block.type === 'fixed');
@@ -266,50 +249,27 @@ function BlockTile({
           y: 0,
           scale: 1,
         }}
-        whileHover={isPast ? undefined : { y: -2, scale: 1.005 }}
         transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="group relative w-full h-full rounded-2xl overflow-hidden text-left cursor-pointer"
+        className="group relative w-full h-full rounded-md overflow-hidden text-left cursor-pointer"
         style={{
-          background: `linear-gradient(135deg, ${g1} 0%, ${g2} 100%)`,
+          background: isPast ? 'var(--color-surface)' : 'var(--color-surface2)',
+          // The active block is the one lit in amber; selection is a plain outline.
           border: isDragOver
-            ? `2px dashed ${g1}`
-            : isActive || isSelected
-              ? `2px solid #fff`
-              : `1px solid ${g1}55`,
-          boxShadow: isActive
-            ? `0 0 30px ${g1}88, 0 8px 24px ${g2}55`
-            : isSelected
-              ? `0 0 18px ${g1}66, 0 6px 18px rgba(0,0,0,0.3)`
-              : `0 4px 14px rgba(0,0,0,0.35)`,
+            ? `2px dashed ${hue}`
+            : isActive
+              ? '2px solid var(--color-primary)'
+              : isSelected
+                ? '1.5px solid var(--color-text)'
+                : '1px solid var(--color-border)',
+          // Category stripe down the left edge.
+          boxShadow: `inset 4px 0 0 ${hue}`,
         }}
       >
-        {/* Sheen overlay for vibrancy */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-40"
-          style={{
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0) 40%, rgba(0,0,0,0.18) 100%)',
-          }}
-        />
-
-        {/* Active-block animated shimmer */}
-        {isActive && (
-          <motion.div
-            className="absolute inset-0 pointer-events-none"
-            initial={{ x: '-100%' }}
-            animate={{ x: '100%' }}
-            transition={{ repeat: Infinity, duration: 3, ease: 'linear' }}
-            style={{
-              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.25) 50%, transparent 100%)',
-              filter: 'blur(8px)',
-            }}
-          />
-        )}
-
         {/* Progress bar (active only) */}
         {isActive && (
           <div
             className="absolute bottom-0 left-0 h-1 transition-all duration-1000"
-            style={{ width: `${pctDone}%`, background: '#fff', opacity: 0.9, boxShadow: '0 0 10px rgba(255,255,255,0.7)' }}
+            style={{ width: `${pctDone}%`, background: 'var(--color-primary)' }}
           />
         )}
 
@@ -318,7 +278,7 @@ function BlockTile({
           <button
             onClick={(e) => { e.stopPropagation(); onQuickDelete(); }}
             className="absolute top-2 right-2 z-10 opacity-70 hover:opacity-100 transition-opacity w-7 h-7 rounded-full flex items-center justify-center text-xs"
-            style={{ background: 'rgba(0,0,0,0.4)', color: '#fff', backdropFilter: 'blur(4px)' }}
+            style={{ background: 'var(--color-surface)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}
             title="Remove this block"
             aria-label="Remove this block"
           >
@@ -328,7 +288,7 @@ function BlockTile({
 
         {/* Locked badge */}
         {block.locked && (
-          <span className="absolute top-2 right-2 text-xs" style={{ color: '#fff' }} aria-label="Pinned">
+          <span className="absolute top-2 right-2 text-xs" style={{ color: 'var(--color-muted)' }} aria-label="Pinned">
             <Pin size={14} aria-hidden />
           </span>
         )}
@@ -338,13 +298,13 @@ function BlockTile({
           {/* Start time gutter on the left edge */}
           <div
             className="shrink-0 flex flex-col items-center justify-center px-2"
-            style={{ minWidth: 52, borderRight: '1px solid rgba(255,255,255,0.18)' }}
+            style={{ minWidth: 58, paddingLeft: 12, borderRight: '1px solid var(--color-border)' }}
           >
-            <span className="text-[0.65rem] font-mono font-bold tracking-tight" style={{ color: '#fff' }}>
+            <span className="text-[0.65rem] font-mono font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
               {formatTime(startD)}
             </span>
             {!isCompact && (
-              <span className="text-[0.55rem] font-mono opacity-70 mt-0.5" style={{ color: '#fff' }}>
+              <span className="text-[0.55rem] font-mono opacity-70 mt-0.5" style={{ color: 'var(--color-text)' }}>
                 {block.durationMin}m
               </span>
             )}
@@ -354,16 +314,16 @@ function BlockTile({
           <div className={`flex-1 min-w-0 ${isCompact ? 'flex items-center gap-2 px-3' : 'flex flex-col justify-between p-3'}`}>
             {isCompact ? (
               <>
-                <span className="text-[0.62rem] font-bold uppercase tracking-wider opacity-90 shrink-0" style={{ color: '#fff' }}>
+                <span className="text-[0.62rem] font-bold uppercase tracking-wider opacity-90 shrink-0" style={{ color: 'var(--color-text)' }}>
                   {typeLabel(block)}
                 </span>
-                <span className="flex-1 min-w-0 truncate font-semibold text-[0.9rem]" style={{ color: '#fff' }}>
+                <span className="flex-1 min-w-0 truncate font-semibold text-[0.9rem]" style={{ color: 'var(--color-text)' }}>
                   {title}
                 </span>
                 {quest && (
                   <span className="flex gap-[3px] shrink-0">
                     {[1, 2, 3, 4, 5].map((i) => (
-                      <span key={i} className="w-1 h-1 rounded-full" style={{ background: i <= dots ? '#fff' : 'rgba(255,255,255,0.25)' }} />
+                      <span key={i} className="w-1 h-1 rounded-full" style={{ background: i <= dots ? 'var(--color-text)' : 'var(--color-border)' }} />
                     ))}
                   </span>
                 )}
@@ -372,20 +332,20 @@ function BlockTile({
               <>
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90" style={{ color: '#fff' }}>
+                    <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90" style={{ color: 'var(--color-text)' }}>
                       {typeLabel(block)}
                     </span>
                     {quest?.category && (
-                      <span className="text-[0.55rem] opacity-70 uppercase tracking-wider" style={{ color: '#fff' }}>
+                      <span className="text-[0.55rem] opacity-70 uppercase tracking-wider" style={{ color: 'var(--color-text)' }}>
                         · {quest.category.replace('_', ' ')}
                       </span>
                     )}
                   </div>
-                  <div className="font-bold text-base leading-tight line-clamp-2" style={{ color: '#fff' }}>
+                  <div className="font-bold text-base leading-tight line-clamp-2" style={{ color: 'var(--color-text)' }}>
                     {title}
                   </div>
                   {isActive && (
-                    <div className="font-mono font-bold text-sm mt-1.5 inline-block px-2 py-0.5 rounded" style={{ background: 'rgba(0,0,0,0.25)', color: '#fff' }}>
+                    <div className="font-mono font-bold text-sm mt-1.5 inline-block px-2 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)' }}>
                       <span className="inline-flex items-center gap-1"><Timer size={13} aria-hidden /> {formatCountdown(msRemaining)}</span>
                     </div>
                   )}
@@ -394,11 +354,11 @@ function BlockTile({
                   {quest && (
                     <span className="flex gap-[3px]">
                       {[1, 2, 3, 4, 5].map((i) => (
-                        <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= dots ? '#fff' : 'rgba(255,255,255,0.25)' }} />
+                        <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= dots ? 'var(--color-text)' : 'var(--color-border)' }} />
                       ))}
                     </span>
                   )}
-                  <span className="text-[0.65rem] font-mono opacity-75" style={{ color: '#fff' }}>
+                  <span className="text-[0.65rem] font-mono opacity-75" style={{ color: 'var(--color-text)' }}>
                     until {formatTime(endD)}
                   </span>
                 </div>
@@ -432,11 +392,11 @@ function EnergyMeterStrip({ trace }: { trace: EnergyTracePoint[] }) {
 
   // Color the line by current meter health.
   const lastMeter = trace[trace.length - 1]!.meter;
-  const tint = lastMeter > 60 ? '#22c55e' : lastMeter > 30 ? '#fbbf24' : '#ef4444';
+  const tint = lastMeter > 60 ? '#3FB950' : lastMeter > 30 ? '#EC835A' : '#EB6A61';
 
   return (
     <div
-      className="rounded-2xl mb-3 p-2.5"
+      className="rounded-md mb-3 p-2.5"
       style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
     >
       <div className="flex items-center justify-between mb-1.5">
@@ -448,20 +408,14 @@ function EnergyMeterStrip({ trace }: { trace: EnergyTracePoint[] }) {
         </span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: H }}>
-        <defs>
-          <linearGradient id="energy-fill" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={tint} stopOpacity="0.35" />
-            <stop offset="100%" stopColor={tint} stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <polyline points={areaPoints} fill="url(#energy-fill)" stroke="none" />
+        <polyline points={areaPoints} fill={tint} fillOpacity="0.14" stroke="none" />
         <polyline points={points} fill="none" stroke={tint} strokeWidth="1.5" strokeLinejoin="round" />
         {/* 25% threshold line */}
         <line
           x1="0" x2={W}
           y1={padY + (H - padY * 2) * (1 - 25 / maxM)}
           y2={padY + (H - padY * 2) * (1 - 25 / maxM)}
-          stroke="rgba(239,68,68,0.4)" strokeWidth="0.5" strokeDasharray="2 3"
+          stroke="color-mix(in srgb, var(--color-fire) 40%, transparent)" strokeWidth="0.5" strokeDasharray="2 3"
         />
       </svg>
     </div>
@@ -485,7 +439,7 @@ function FeedActionsMenu({
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={loading}
-        className="text-xs px-3 py-1.5 rounded-full font-semibold transition-opacity"
+        className="text-xs px-3 py-1.5 rounded-md font-semibold transition-opacity"
         style={{
           background: 'var(--color-surface2)',
           color: 'var(--color-text)',
@@ -552,22 +506,21 @@ function DayChip({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all shrink-0"
+      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-md transition-colors shrink-0"
       style={{
-        background: active ? 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)' : 'var(--color-surface)',
-        border: active ? '1.5px solid #a855f7' : '1px solid var(--color-border)',
-        boxShadow: active ? '0 4px 14px rgba(168, 85, 247, 0.4)' : 'none',
+        background: active ? 'var(--color-primary)' : 'var(--color-surface)',
+        border: active ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
         minWidth: 56,
       }}
     >
-      <span className="text-[0.65rem] font-bold uppercase tracking-wide" style={{ color: active ? '#fff' : 'var(--color-muted)' }}>
+      <span className="text-[0.65rem] font-bold uppercase tracking-wide" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
         {isToday ? 'Today' : wkday}
       </span>
-      <span className="text-lg font-bold leading-none" style={{ color: active ? '#fff' : 'var(--color-text)' }}>
+      <span className="text-lg font-bold leading-none" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-text)' }}>
         {day}
       </span>
       {workMin > 0 && (
-        <span className="text-[0.55rem] font-mono" style={{ color: active ? 'rgba(255,255,255,0.85)' : 'var(--color-muted)' }}>
+        <span className="text-[0.55rem] font-mono" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
           {Math.round(workMin / 60 * 10) / 10}h
         </span>
       )}
@@ -588,14 +541,14 @@ function FeasibilityBanner({
   const headline = `${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline — short ${formatMinutes(totalShortfall)}`;
   return (
     <div
-      className="rounded-2xl p-3 mb-3"
+      className="rounded-lg p-3 mb-3"
       style={{
-        background: 'rgba(245,158,11,0.10)',
-        border: '1px solid rgba(245,158,11,0.35)',
+        background: 'color-mix(in srgb, var(--color-gold) 10%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--color-gold) 35%, transparent)',
       }}
     >
       <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-2 w-full text-left">
-        <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: '#fbbf24' }}>
+        <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-gold)' }}>
           <TriangleAlert size={16} className="shrink-0" aria-hidden />
           {headline}
         </span>
@@ -639,7 +592,7 @@ function SelectedDrawer({
   onDelete: () => void;
   onExplain: () => void;
 }) {
-  const [g1] = blockGradient(block, quest);
+  const hue = blockColor(block, quest);
   const startD = new Date(block.start);
   const endD = new Date(block.end);
   return (
@@ -648,18 +601,17 @@ function SelectedDrawer({
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 320, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-      className="fixed inset-x-3 bottom-20 z-40 rounded-2xl shadow-2xl"
+      className="fixed inset-x-3 bottom-20 z-40 rounded-lg"
       style={{
         background: 'var(--color-surface2)',
-        border: `1.5px solid ${g1}`,
-        boxShadow: `0 0 30px ${g1}33`,
+        border: '1px solid var(--color-border)',
       }}
     >
-      <div className="h-1 rounded-t-2xl" style={{ background: g1 }} />
+      <div className="h-1 rounded-t-lg" style={{ background: hue }} />
 
       <div className="p-4">
         <div className="flex items-start gap-2 mb-2">
-          <span className="text-[0.62rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: `${g1}22`, color: g1 }}>
+          <span className="text-[0.62rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', boxShadow: `inset 3px 0 0 ${hue}` }}>
             {typeLabel(block)}
           </span>
           <div className="flex-1 min-w-0">
@@ -689,15 +641,15 @@ function SelectedDrawer({
             {status === 'upcoming' && (
               <button
                 onClick={onStart}
-                className="text-sm px-4 py-1.5 rounded-full font-bold transition-transform hover:scale-105"
-                style={{ background: g1, color: '#fff' }}
+                className="text-sm px-4 py-1.5 rounded-md font-bold transition-transform active:scale-95"
+                style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
               >
                 <span className="inline-flex items-center gap-1.5"><Play size={14} aria-hidden /> Start</span>
               </button>
             )}
             <button
               onClick={onPin}
-              className="text-xs px-3 py-1.5 rounded-full border transition-colors"
+              className="text-xs px-3 py-1.5 rounded-md border transition-colors"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
               {block.locked ? 'Unpin' : <span className="inline-flex items-center gap-1.5"><Pin size={12} aria-hidden /> Pin</span>}
@@ -705,15 +657,15 @@ function SelectedDrawer({
             <button
               onClick={onExplain}
               disabled={loadingExplanation || !!explanation}
-              className="text-xs px-3 py-1.5 rounded-full border disabled:opacity-50"
+              className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-50"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
               {loadingExplanation ? '…' : <span className="inline-flex items-center gap-1.5"><Lightbulb size={12} aria-hidden /> Why this?</span>}
             </button>
             <button
               onClick={onDelete}
-              className="text-xs px-3 py-1.5 rounded-full border ml-auto"
-              style={{ borderColor: 'rgba(239,68,68,0.4)', color: '#f87171' }}
+              className="text-xs px-3 py-1.5 rounded-md border ml-auto"
+              style={{ borderColor: 'color-mix(in srgb, var(--color-fire) 40%, transparent)', color: 'var(--color-fire)' }}
             >
               Remove
             </button>
@@ -882,10 +834,10 @@ export default function GuildFeed() {
       <Header />
 
       {/* Progress bar */}
-      <div className="sticky top-[56px] z-30 h-1 w-full" style={{ background: 'var(--color-surface)' }}>
+      <div className="sticky top-[67px] z-30 h-1 w-full" style={{ background: 'var(--color-surface)' }}>
         <motion.div
           className="h-full"
-          style={{ background: 'linear-gradient(90deg, #a855f7 0%, #ec4899 100%)' }}
+          style={{ background: 'var(--color-primary)' }}
           animate={{ width: `${pctDone}%` }}
           transition={{ duration: 0.6 }}
         />
@@ -894,7 +846,7 @@ export default function GuildFeed() {
       <div className="mx-auto max-w-2xl px-4 pt-4">
         {/* Header row */}
         <div className="flex items-center gap-3 mb-3">
-          <h1 className="flex-1 text-2xl font-extrabold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+          <h1 className="flex-1 text-2xl">
             Guild Feed
           </h1>
           <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
@@ -915,8 +867,8 @@ export default function GuildFeed() {
 
         {error && (
           <div
-            className="rounded-2xl p-4 mb-3 text-sm"
-            style={{ background: 'rgba(239,68,68,0.1)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' }}
+            className="rounded-lg p-4 mb-3 text-sm"
+            style={{ background: 'color-mix(in srgb, var(--color-fire) 10%, transparent)', color: 'var(--color-fire)', border: '1px solid color-mix(in srgb, var(--color-fire) 30%, transparent)' }}
           >
             {error}
           </div>
@@ -965,23 +917,23 @@ export default function GuildFeed() {
                     intensity={(d) => {
                       const mins = workMinByDay[dayKey(d)] ?? 0;
                       if (mins < 1) return null;
-                      if (mins < 60) return 'rgba(34,211,238,0.28)';
-                      if (mins < 180) return 'rgba(168,85,247,0.42)';
-                      return 'rgba(236,72,153,0.55)';
+                      if (mins < 60) return 'rgba(58,180,138,0.28)';
+                      if (mins < 180) return 'color-mix(in srgb, var(--color-primary) 42%, transparent)';
+                      return 'color-mix(in srgb, var(--color-primary) 55%, transparent)';
                     }}
                     footer={(
                       <div className="flex items-center gap-2 text-[0.6rem]" style={{ color: 'var(--color-muted)' }}>
                         <span>Load:</span>
                         <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(34,211,238,0.6)' }} />
+                          <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(58,180,138,0.6)' }} />
                           <span>&lt;1h</span>
                         </span>
                         <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(168,85,247,0.6)' }} />
+                          <span className="w-2 h-2 rounded-sm" style={{ background: 'color-mix(in srgb, var(--color-primary) 60%, transparent)' }} />
                           <span>1-3h</span>
                         </span>
                         <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(236,72,153,0.6)' }} />
+                          <span className="w-2 h-2 rounded-sm" style={{ background: 'color-mix(in srgb, var(--color-primary) 60%, transparent)' }} />
                           <span>3h+</span>
                         </span>
                       </div>
@@ -1004,11 +956,10 @@ export default function GuildFeed() {
             <button
               onClick={() => generate()}
               disabled={loading}
-              className="mt-2 px-6 py-2.5 rounded-full font-bold text-sm"
+              className="mt-2 px-6 py-2.5 rounded-md font-bold text-sm"
               style={{
-                background: 'linear-gradient(135deg, #a855f7 0%, #6d28d9 100%)',
-                color: '#fff',
-                boxShadow: '0 4px 14px rgba(139, 92, 246, 0.4)',
+                background: 'var(--color-primary)',
+                color: 'var(--color-on-primary)',
               }}
             >
               <span className="inline-flex items-center gap-1.5"><RotateCw size={14} aria-hidden /> Build my schedule</span>
@@ -1018,7 +969,7 @@ export default function GuildFeed() {
 
         {schedule.length > 0 && dayBlocks.length === 0 && (
           <div
-            className="rounded-2xl p-8 text-center"
+            className="rounded-lg p-8 text-center"
             style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
           >
             <CloudSun size={32} strokeWidth={1.5} className="mx-auto mb-2 opacity-60" aria-hidden />
@@ -1029,12 +980,8 @@ export default function GuildFeed() {
         {/* Stacked timeline */}
         {dayBlocks.length > 0 && (
           <div
-            className="rounded-2xl p-3 flex flex-col"
-            style={{
-              background: 'linear-gradient(180deg, var(--color-surface) 0%, rgba(22, 22, 42, 0.4) 100%)',
-              border: '1px solid var(--color-border)',
-              gap: 6,
-            }}
+            className="flex flex-col"
+            style={{ gap: 6 }}
           >
             <AnimatePresence initial={false}>
               {dayBlocks.map((block, i) => {
@@ -1170,8 +1117,8 @@ export default function GuildFeed() {
       {timerActive && !timerOpen && (
         <button
           onClick={() => setTimerOpen(true)}
-          className="fixed bottom-20 right-4 z-50 rounded-full px-4 py-2 text-sm font-semibold shadow-lg"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          className="fixed bottom-20 right-4 z-50 rounded-md px-4 py-2 text-sm font-semibold shadow-lg"
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           <span className="inline-flex items-center gap-1.5"><Timer size={14} aria-hidden /> Resume timer</span>
         </button>

@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useUserStore } from '../store/useUserStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { useAchievementsStore } from '../store/useAchievementsStore';
@@ -128,16 +127,13 @@ export default function Stats() {
   const last7DaysAvg = (last7DaysTotal / 7).toFixed(1);
 
   if (!user) {
-    return <div className="p-8 text-slate-400">Loading…</div>;
+    return <div className="p-8 text-(--color-muted)">Loading…</div>;
   }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-6 flex flex-col gap-5">
       <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold text-slate-100">Your Guild Stats</h1>
-        <Link to="/" className="text-sm text-violet-400 hover:text-violet-300">
-          ← Today
-        </Link>
+        <h1 className="text-2xl sm:text-3xl font-bold text-(--color-text)">Your Guild Stats</h1>
       </header>
 
       <LevelBadge
@@ -315,8 +311,8 @@ export default function Stats() {
               <span
                 key={a.slug}
                 title={`${a.title} — ${a.description}`}
-                className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold"
-                style={{ background: 'rgba(245,158,11,0.15)', color: 'var(--color-gold)' }}
+                className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-semibold"
+                style={{ background: 'color-mix(in srgb, var(--color-gold) 15%, transparent)', color: 'var(--color-gold)' }}
               >
                 {(() => { const I = achievementIcon(a.slug); return <I size={12} aria-hidden />; })()} {a.title}
               </span>

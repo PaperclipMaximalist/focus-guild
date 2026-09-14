@@ -39,13 +39,13 @@ export function CompletedSection() {
                   className="absolute left-0 top-0 bottom-0 w-1 rounded-l"
                   style={{ background: 'var(--color-teal)' }}
                 />
-                <div className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 border-(--color-green) bg-(--color-green) text-[0.75rem] font-extrabold text-white">
+                <div className="mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 border-(--color-green) bg-(--color-green) text-[0.75rem] font-extrabold text-(--color-on-primary)">
                   <Check size={14} strokeWidth={3} aria-hidden />
                 </div>
                 <div className="flex-1">
                   <div className="text-[0.92rem] font-semibold line-through opacity-60">{q.title}</div>
                   <div className="mt-1.5 flex flex-wrap gap-1.5">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5 text-[0.68rem] font-semibold text-green-300">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-(--color-green)/10 px-2 py-0.5 text-[0.68rem] font-semibold text-(--color-green)">
                       <CircleCheck size={12} strokeWidth={2.25} aria-hidden /> {when}
                     </span>
                   </div>

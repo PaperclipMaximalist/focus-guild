@@ -75,10 +75,10 @@ function AuthBridge({ children }: { children: React.ReactNode }) {
 function SignInLanding() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6"
-      style={{ background: 'linear-gradient(135deg, #1a0a3e 0%, #0d0d1a 60%, #0a1a2e 100%)' }}
+      style={{ background: 'var(--color-bg)' }}
     >
       <div className="text-center">
-        <h1 className="mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-4xl font-extrabold text-transparent">
+        <h1 className="mb-2 text-4xl" style={{ color: 'var(--color-primary)' }}>
           Focus Guild
         </h1>
         <p className="text-sm text-(--color-muted)">Sign in to enter the guild.</p>
@@ -108,9 +108,9 @@ function AuthenticatedApp() {
   if (error) {
     return (
       <div className="min-h-screen p-8">
-        <div className="mx-auto max-w-md rounded-lg border border-red-500/40 bg-red-500/10 p-6">
-          <h2 className="text-xl font-bold text-red-200">Cannot reach Focus Guild API</h2>
-          <p className="mt-2 text-sm text-red-300/80">{error}</p>
+        <div className="mx-auto max-w-md rounded-lg border border-(--color-fire)/40 bg-(--color-fire)/10 p-6">
+          <h2 className="text-xl font-bold text-(--color-fire)">Cannot reach Focus Guild API</h2>
+          <p className="mt-2 text-sm text-(--color-muted)">{error}</p>
           <p className="mt-4 text-sm text-(--color-muted)">
             Make sure the server is running: <code className="rounded bg-white/10 px-1.5 py-0.5">cd server &amp;&amp; npm run dev</code>
           </p>

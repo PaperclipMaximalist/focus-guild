@@ -129,7 +129,7 @@ export function CommandPalette() {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
           onClick={() => setOpen(false)}
-          className="fixed inset-0 z-[400] flex items-start justify-center bg-black/60 p-4 pt-[12vh] backdrop-blur-sm"
+          className="fixed inset-0 z-[400] flex items-start justify-center bg-black/60 p-4 pt-[12vh]"
         >
           <motion.div
             initial={{ scale: 0.97, y: -8 }}
@@ -167,7 +167,7 @@ export function CommandPalette() {
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(c)}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
-                  style={{ background: i === active ? 'rgba(139,92,246,0.16)' : 'transparent' }}
+                  style={{ background: i === active ? 'color-mix(in srgb, var(--color-primary) 16%, transparent)' : 'transparent' }}
                 >
                   <c.icon size={18} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{c.label}</span>

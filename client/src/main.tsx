@@ -14,7 +14,7 @@ const Root = PUBLISHABLE_KEY ? (
   <ClerkProvider
     publishableKey={PUBLISHABLE_KEY}
     afterSignOutUrl="/"
-    appearance={{ variables: { colorPrimary: '#8b5cf6' } }}
+    appearance={{ variables: { colorPrimary: '#F2B33D' } }}
   >
     <App />
   </ClerkProvider>

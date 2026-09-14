@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 interface Props {
   onClick: () => void;
 }
@@ -7,10 +8,11 @@ export function FAB({ onClick }: Props) {
     <button
       onClick={onClick}
       title="Add Quest"
-      className="fixed bottom-7 right-7 z-[150] flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-0 text-2xl text-white shadow-[0_4px_20px_rgba(139,92,246,0.5)] transition-all duration-200 hover:rotate-45 hover:scale-110 hover:shadow-[0_6px_28px_rgba(139,92,246,0.7)]"
-      style={{ background: 'linear-gradient(135deg, #8b5cf6, #c084fc)' }}
+      className="fixed bottom-20 right-4 z-[150] flex h-14 w-14 cursor-pointer items-center justify-center rounded-lg border-0 text-(--color-on-primary) transition-transform duration-150 active:scale-95 sm:bottom-7 sm:right-7"
+      aria-label="Add quest"
+      style={{ background: 'var(--color-primary)' }}
     >
-      +
+      <Plus size={26} strokeWidth={2.5} aria-hidden />
     </button>
   );
 }

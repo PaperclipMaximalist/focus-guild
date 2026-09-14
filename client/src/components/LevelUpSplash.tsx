@@ -28,17 +28,17 @@ export function LevelUpSplash({ newLevel, onDismiss }: Props) {
           >
             <level.icon size={72} strokeWidth={1.5} className="mx-auto mb-3" style={{ color: level.accent }} aria-hidden />
             <div
-              className="text-4xl font-black drop-shadow-[0_0_30px_rgba(245,158,11,0.6)]"
-              style={{ color: 'var(--color-gold)' }}
+              className="font-mono text-4xl font-black"
+              style={{ color: 'var(--color-primary)' }}
             >
-              LEVEL UP!
+              LEVEL UP
             </div>
             <div className="mt-2 text-lg text-(--color-muted)">
               You reached Level {level.level} — {level.title}!
             </div>
             <button
               onClick={onDismiss}
-              className="mt-7 rounded-full bg-(--color-primary) px-6 py-2.5 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(139,92,246,0.4)] transition hover:bg-(--color-primary-d)"
+              className="mt-7 rounded-md bg-(--color-primary) px-6 py-2.5 text-sm font-semibold text-(--color-on-primary) transition hover:bg-(--color-primary-d)"
             >
               Keep going
             </button>

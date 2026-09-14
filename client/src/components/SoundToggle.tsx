@@ -17,7 +17,7 @@ export function SoundToggle() {
       onClick={() => setSfxEnabled(!on)}
       title={on ? 'Mute sound effects' : 'Enable sound effects'}
       aria-label={on ? 'Mute sound effects' : 'Enable sound effects'}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-(--color-border) bg-white/5 text-base transition hover:bg-white/15"
+      className="flex h-9 w-9 items-center justify-center rounded-md border border-(--color-border) text-(--color-muted) transition-colors hover:border-(--color-muted) hover:text-(--color-text)"
     >
       {on ? <Volume2 size={16} aria-hidden /> : <VolumeX size={16} aria-hidden />}
     </button>

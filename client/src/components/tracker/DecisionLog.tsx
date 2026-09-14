@@ -75,7 +75,7 @@ export function DecisionLog() {
           onClick={record}
           disabled={busy || !text.trim()}
           className="self-end rounded-lg px-4 py-2 text-sm font-bold disabled:opacity-40"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           Record
         </button>

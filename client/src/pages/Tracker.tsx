@@ -118,7 +118,7 @@ export default function Tracker() {
     }));
     const unsorted = rest.filter((i) => i.domainId === null);
     if (unsorted.length > 0) {
-      groups.push({ key: 'unsorted', name: 'Unsorted', color: '#64748b', items: unsorted });
+      groups.push({ key: 'unsorted', name: 'Unsorted', color: '#8A8478', items: unsorted });
     }
     return groups.filter((g) => g.items.length > 0);
   }, [domains, rest]);
@@ -174,7 +174,7 @@ export default function Tracker() {
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.animate(
-      [{ outline: '2px solid rgba(239,68,68,0.9)' }, { outline: '2px solid rgba(239,68,68,0)' }],
+      [{ outline: '2px solid color-mix(in srgb, var(--color-fire) 90%, transparent)' }, { outline: '2px solid color-mix(in srgb, var(--color-fire) 0%, transparent)' }],
       { duration: 1400, easing: 'ease-out' },
     );
   }, [jumpTarget, collapsed, showTerminal, tab]);
@@ -192,14 +192,14 @@ export default function Tracker() {
   if (error) {
     return (
       <div className="mx-auto max-w-2xl p-5">
-        <div className="rounded-(--radius-card) border p-5" style={{ borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}>
-          <h2 className="font-bold text-red-200">Could not load the tracker</h2>
-          <p className="mt-1 text-sm text-red-300/80">{error}</p>
+        <div className="rounded-(--radius-card) border p-5" style={{ borderColor: 'color-mix(in srgb, var(--color-fire) 40%, transparent)', background: 'color-mix(in srgb, var(--color-fire) 8%, transparent)' }}>
+          <h2 className="font-bold text-(--color-fire)">Could not load the tracker</h2>
+          <p className="mt-1 text-sm text-(--color-muted)">{error}</p>
           <button
             type="button"
             onClick={() => load()}
             className="mt-3 rounded-lg px-4 py-2 text-sm font-bold"
-            style={{ background: 'var(--color-primary)', color: '#fff' }}
+            style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
             Retry
           </button>
@@ -256,10 +256,10 @@ export default function Tracker() {
             aria-checked={casMode}
             aria-label="CAS mode"
             onClick={() => setCasMode(!casMode)}
-            className="flex h-10 shrink-0 items-center gap-2 rounded-full border pl-3 pr-1.5 text-xs font-bold"
+            className="flex h-10 shrink-0 items-center gap-2 rounded-md border pl-3 pr-1.5 text-xs font-bold"
             style={{
-              borderColor: casMode ? 'rgba(34,197,94,0.5)' : 'var(--color-border)',
-              background: casMode ? 'rgba(34,197,94,0.12)' : 'rgba(255,255,255,0.04)',
+              borderColor: casMode ? 'color-mix(in srgb, var(--color-green) 50%, transparent)' : 'var(--color-border)',
+              background: casMode ? 'color-mix(in srgb, var(--color-green) 12%, transparent)' : 'rgba(255,255,255,0.04)',
               color: casMode ? 'var(--color-green)' : 'var(--color-muted)',
             }}
           >
@@ -279,7 +279,7 @@ export default function Tracker() {
           <Link
             to="/tracker/markdown"
             aria-label="Export and import markdown"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-md border text-base"
             style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
           >
             <ArrowDownUp size={18} aria-hidden />
@@ -287,7 +287,7 @@ export default function Tracker() {
           <Link
             to="/tracker/presets"
             aria-label="Presets"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-md border text-base"
             style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
           >
             <SlidersHorizontal size={18} aria-hidden />
@@ -321,9 +321,9 @@ export default function Tracker() {
       {conflicts.length > 0 && (
         <div
           className="flex flex-wrap items-center gap-x-2 gap-y-1.5 rounded-(--radius-card) border px-3.5 py-2.5"
-          style={{ borderColor: 'rgba(239,68,68,0.45)', background: 'rgba(239,68,68,0.1)' }}
+          style={{ borderColor: 'color-mix(in srgb, var(--color-fire) 45%, transparent)', background: 'color-mix(in srgb, var(--color-fire) 10%, transparent)' }}
         >
-          <span className="text-xs font-bold" style={{ color: '#fca5a5' }}>
+          <span className="text-xs font-bold" style={{ color: 'var(--color-fire)' }}>
             <span className="inline-flex items-center gap-1.5"><TriangleAlert size={13} aria-hidden /> Counted as CAS and coursework</span>
           </span>
           {conflicts.map((c) => (
@@ -331,8 +331,8 @@ export default function Tracker() {
               key={c.id}
               type="button"
               onClick={() => jumpTo(c)}
-              className="rounded-full px-2.5 py-1 font-mono text-xs font-bold"
-              style={{ background: 'rgba(239,68,68,0.2)', color: '#fecaca' }}
+              className="rounded-md px-2.5 py-1 font-mono text-xs font-bold"
+              style={{ background: 'color-mix(in srgb, var(--color-fire) 20%, transparent)', color: 'var(--color-fire)' }}
             >
               {c.code} →
             </button>
@@ -342,14 +342,14 @@ export default function Tracker() {
 
       {/* Tabs — equal-width segments, so four CAS tabs fit a phone without
           spilling into a scroll strip. */}
-      <nav className="flex gap-1 rounded-full p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
+      <nav className="flex gap-1 rounded-lg p-1" style={{ background: 'rgba(255,255,255,0.04)' }}>
         {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
             onClick={() => setTab(t.id)}
             aria-pressed={tab === t.id}
-            className="min-w-0 flex-1 truncate rounded-full px-2 py-2 text-[13px] font-semibold transition-colors"
+            className="min-w-0 flex-1 truncate rounded-md px-2 py-2 text-[13px] font-semibold transition-colors"
             style={{
               background: tab === t.id ? 'var(--color-primary)' : 'transparent',
               color: tab === t.id ? '#fff' : 'var(--color-muted)',
@@ -381,8 +381,8 @@ export default function Tracker() {
               <button
                 type="button"
                 onClick={openNew}
-                className="mt-1 rounded-full px-5 py-2.5 text-sm font-bold"
-                style={{ background: 'var(--color-primary)', color: '#fff' }}
+                className="mt-1 rounded-md px-5 py-2.5 text-sm font-bold"
+                style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
               >
                 + {casMode ? 'Add a CAS item' : 'Add your first item'}
               </button>
@@ -463,7 +463,7 @@ export default function Tracker() {
             <button
               type="button"
               onClick={() => setShowTerminal((v) => !v)}
-              className="self-center rounded-full px-4 py-2 text-xs font-semibold"
+              className="self-center rounded-md px-4 py-2 text-xs font-semibold"
               style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--color-muted)' }}
             >
               {showTerminal ? 'Hide' : 'Show'} {terminalCount} done & dropped
@@ -501,8 +501,8 @@ export default function Tracker() {
           type="button"
           onClick={openNew}
           aria-label="New item"
-          className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-full text-2xl font-bold shadow-[0_6px_24px_rgba(139,92,246,0.45)]"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-lg text-2xl font-bold transition-transform active:scale-95"
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           +
         </button>

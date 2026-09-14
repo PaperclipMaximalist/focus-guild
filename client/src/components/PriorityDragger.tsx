@@ -3,9 +3,9 @@ import { motion } from 'framer-motion';
 import type { PriorityTier } from '../lib/api';
 
 const TIERS: Array<{ value: PriorityTier; label: string; color: string; sub: string }> = [
-  { value: 'LOW', label: 'Low',  color: '#64748b', sub: 'If time' },
-  { value: 'MED', label: 'Med',  color: '#8b5cf6', sub: 'Default' },
-  { value: 'HIGH', label: 'High', color: '#ef4444', sub: 'Must do' },
+  { value: 'LOW', label: 'Low',  color: '#8A8478', sub: 'If time' },
+  { value: 'MED', label: 'Med',  color: '#F2B33D', sub: 'Default' },
+  { value: 'HIGH', label: 'High', color: '#EB6A61', sub: 'Must do' },
 ];
 
 interface Props {

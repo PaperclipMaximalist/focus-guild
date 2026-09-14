@@ -88,8 +88,8 @@ export function DailySection({ onEdit }: Props) {
               exit={{ opacity: 0, x: 20 }}
               className="flex items-center gap-3 rounded-(--radius-card) border px-4 py-2.5"
               style={{
-                background: q.doneToday ? 'rgba(34,197,94,0.06)' : 'var(--color-surface)',
-                borderColor: q.doneToday ? 'rgba(34,197,94,0.3)' : 'var(--color-border)',
+                background: q.doneToday ? 'color-mix(in srgb, var(--color-green) 6%, transparent)' : 'var(--color-surface)',
+                borderColor: q.doneToday ? 'color-mix(in srgb, var(--color-green) 30%, transparent)' : 'var(--color-border)',
               }}
             >
               <button
@@ -103,7 +103,7 @@ export function DailySection({ onEdit }: Props) {
                 }}
                 title={q.doneToday ? 'Done today' : 'Mark done'}
               >
-                {q.doneToday && <Check size={14} strokeWidth={3} className="text-white" aria-hidden />}
+                {q.doneToday && <Check size={14} strokeWidth={3} className="text-(--color-on-primary)" aria-hidden />}
               </button>
 
               <div className="flex-1 min-w-0">

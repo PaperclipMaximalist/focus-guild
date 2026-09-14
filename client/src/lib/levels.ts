@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { CloudFog, Crown, Flame, Gem, Shield, Star, Swords } from 'lucide-react';
 // Guild Levels & Titles — defined in FocusGuildInstructions.md.
-// Each level unlocks a visual theme via the accent color below.
+// Each rank has a colour; it tints the rank badge and XP bar (lib/theme.ts).
 
 export interface GuildLevel {
   level: number;
@@ -12,13 +12,13 @@ export interface GuildLevel {
 }
 
 export const LEVELS: GuildLevel[] = [
-  { level: 1, title: 'Foggy Brain',       xpRequired: 0,     accent: '#94a3b8', icon: CloudFog },
-  { level: 2, title: 'Task Apprentice',   xpRequired: 500,   accent: '#22d3ee', icon: Swords },
-  { level: 3, title: 'Focus Wielder',     xpRequired: 1500,  accent: '#3b82f6', icon: Shield },
-  { level: 4, title: 'Deadline Slayer',   xpRequired: 3500,  accent: '#a855f7', icon: Flame },
-  { level: 5, title: 'Flow Master',       xpRequired: 7000,  accent: '#ec4899', icon: Gem },
-  { level: 6, title: 'Guild Champion',    xpRequired: 13000, accent: '#f59e0b', icon: Crown },
-  { level: 7, title: 'Legendary Quester', xpRequired: 25000, accent: '#facc15', icon: Star },
+  { level: 1, title: 'Foggy Brain',       xpRequired: 0,     accent: '#8A8478', icon: CloudFog },
+  { level: 2, title: 'Task Apprentice',   xpRequired: 500,   accent: '#199E70', icon: Swords },
+  { level: 3, title: 'Focus Wielder',     xpRequired: 1500,  accent: '#3987E5', icon: Shield },
+  { level: 4, title: 'Deadline Slayer',   xpRequired: 3500,  accent: '#D95926', icon: Flame },
+  { level: 5, title: 'Flow Master',       xpRequired: 7000,  accent: '#9085E9', icon: Gem },
+  { level: 6, title: 'Guild Champion',    xpRequired: 13000, accent: '#D55181', icon: Crown },
+  { level: 7, title: 'Legendary Quester', xpRequired: 25000, accent: '#F2B33D', icon: Star },
 ];
 
 export function levelFromXP(totalXP: number): GuildLevel {

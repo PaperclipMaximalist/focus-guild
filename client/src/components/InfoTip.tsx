@@ -39,7 +39,7 @@ export function InfoTip({ children, trigger }: Props) {
         }}
         className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold transition-opacity"
         style={{
-          background: 'rgba(139,92,246,0.18)',
+          background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)',
           color: 'var(--color-primary)',
           opacity: open ? 1 : 0.7,
         }}

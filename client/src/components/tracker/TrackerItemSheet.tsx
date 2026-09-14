@@ -154,7 +154,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
             onClick={save}
             disabled={busy || Boolean(firstProblem)}
             className="w-full rounded-xl py-3 text-sm font-bold transition-opacity active:opacity-70 disabled:opacity-40"
-            style={{ background: 'var(--color-primary)', color: '#fff' }}
+            style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
             {busy ? 'Saving…' : editing ? 'Save changes' : 'Create item'}
           </button>
@@ -172,7 +172,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
             className={fieldClass}
             style={{
               ...fieldStyle,
-              borderColor: problems.nextAction ? 'rgba(245,158,11,0.6)' : fieldStyle.borderColor,
+              borderColor: problems.nextAction ? 'color-mix(in srgb, var(--color-gold) 60%, transparent)' : fieldStyle.borderColor,
             }}
           />
           {problems.nextAction && (
@@ -247,7 +247,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
                   key={p}
                   type="button"
                   onClick={() => setCodePrefix(p)}
-                  className="rounded-full px-3 py-1.5 font-mono text-xs font-bold"
+                  className="rounded-md px-3 py-1.5 font-mono text-xs font-bold"
                   style={{
                     background: codePrefix === p ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
                     color: codePrefix === p ? '#fff' : 'var(--color-muted)',
@@ -299,7 +299,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
                       key={s}
                       type="button"
                       onClick={() => setStrands((prev) => toggle(prev, s))}
-                      className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                      className="rounded-md px-3 py-1.5 text-xs font-semibold"
                       style={{
                         background: strands.includes(s) ? `${STRAND_COLOR[s]}33` : 'rgba(255,255,255,0.06)',
                         color: strands.includes(s) ? STRAND_COLOR[s] : 'var(--color-muted)',
@@ -391,7 +391,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
               </label>
 
               {courseworkLinked && strands.length > 0 && (
-                <p className="text-xs leading-snug" style={{ color: '#fca5a5' }}>
+                <p className="text-xs leading-snug" style={{ color: 'var(--color-fire)' }}>
                   CAS may not double-count with coursework. This saves fine, but the item will be
                   flagged until you resolve one side.
                 </p>

@@ -22,9 +22,9 @@ function dayKey(d: Date): string {
 // 5-stop intensity ramp from "nothing" to "max".
 const RAMP = [
   'rgba(255,255,255,0.05)',
-  'rgba(139,92,246,0.30)',
-  'rgba(139,92,246,0.52)',
-  'rgba(139,92,246,0.76)',
+  'color-mix(in srgb, var(--color-primary) 30%, transparent)',
+  'color-mix(in srgb, var(--color-primary) 52%, transparent)',
+  'color-mix(in srgb, var(--color-primary) 76%, transparent)',
   'var(--color-primary)',
 ];
 

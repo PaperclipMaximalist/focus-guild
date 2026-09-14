@@ -93,14 +93,14 @@ export function KeyboardShortcuts() {
         onClick={() => setHelpOpen(true)}
         title="Keyboard shortcuts (?)"
         className="fixed bottom-20 left-4 z-40 h-7 w-7 rounded-full text-xs font-bold transition-opacity opacity-50 hover:opacity-100 [@media(hover:none)]:hidden"
-        style={{ background: 'rgba(139,92,246,0.18)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
+        style={{ background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}
       >
         ?
       </button>
 
       {pendingG && (
         <div
-          className="fixed bottom-24 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-xs font-mono z-50"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 rounded-md px-3 py-1 text-xs font-mono z-50"
           style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-muted)' }}
         >
           g …
@@ -160,7 +160,7 @@ function Row({ k, desc }: { k: string; desc: string }) {
     <div className="flex items-center justify-between gap-3">
       <kbd
         className="px-2 py-0.5 rounded font-mono text-xs font-bold"
-        style={{ background: 'rgba(139,92,246,0.18)', color: 'var(--color-primary)' }}
+        style={{ background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: 'var(--color-primary)' }}
       >
         {k}
       </kbd>

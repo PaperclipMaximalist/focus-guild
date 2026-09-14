@@ -9,9 +9,11 @@ import { ApiRequestError, type CasStrand } from './api';
 import { BrickWall, Footprints, TriangleAlert } from 'lucide-react';
 
 export const STRAND_COLOR: Record<CasStrand, string> = {
-  creativity: '#a855f7',
-  activity: '#22c55e',
-  service: '#3b82f6',
+  // Validated as a set for the dark surface: all pairs clear the colourblind
+  // floors. Change them together, never one at a time.
+  creativity: '#D95926',
+  activity: '#199E70',
+  service: '#3987E5',
 };
 
 export const STRAND_LABEL: Record<CasStrand, string> = {

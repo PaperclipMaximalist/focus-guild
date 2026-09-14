@@ -86,7 +86,6 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
             style={{
               background: 'var(--color-surface2)',
               borderColor: 'var(--color-border)',
-              boxShadow: '0 4px 32px rgba(0,0,0,0.45)',
             }}
           >
             <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--color-text)' }}>
@@ -103,9 +102,9 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
               <motion.div
                 className="absolute inset-0 rounded-full"
                 style={{
+                  // Hard-stop segments: a dial, not a colour blur.
                   background:
-                    'conic-gradient(from 0deg, var(--color-primary), var(--color-gold), var(--color-fire), var(--color-teal), var(--color-primary))',
-                  filter: 'blur(1px)',
+                    'repeating-conic-gradient(from 0deg, var(--color-primary) 0deg 12deg, var(--color-surface2) 12deg 30deg)',
                 }}
                 animate={{ rotate: spinning ? 1080 : 0 }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
@@ -152,7 +151,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
                 <button
                   onClick={spin}
                   disabled={spinning}
-                  className="rounded-full px-5 py-2 text-sm font-semibold text-white shadow-[0_4px_16px_rgba(139,92,246,0.4)] transition disabled:opacity-40"
+                  className="rounded-md px-5 py-2 text-sm font-semibold text-(--color-on-primary) transition disabled:opacity-40"
                   style={{ background: 'var(--color-primary)' }}
                 >
                   {spinning ? 'Spinning…' : <span className="inline-flex items-center gap-1.5"><Dices size={14} aria-hidden /> Spin</span>}
@@ -165,7 +164,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
                       onAccept(picked.id);
                       close();
                     }}
-                    className="rounded-full px-5 py-2 text-sm font-semibold text-white"
+                    className="rounded-md px-5 py-2 text-sm font-semibold text-(--color-on-primary)"
                     style={{ background: 'var(--color-green)' }}
                   >
                     <span className="inline-flex items-center gap-1.5"><Check size={14} aria-hidden /> Do it</span>
@@ -175,7 +174,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
                       setPicked(null);
                       spin();
                     }}
-                    className="rounded-full border border-(--color-border) bg-white/5 px-5 py-2 text-sm font-semibold"
+                    className="rounded-md border border-(--color-border) bg-white/5 px-5 py-2 text-sm font-semibold"
                   >
                     Re-spin
                   </button>
@@ -183,7 +182,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
               )}
               <button
                 onClick={close}
-                className="rounded-full border border-(--color-border) bg-white/5 px-4 py-2 text-sm font-semibold"
+                className="rounded-md border border-(--color-border) bg-white/5 px-4 py-2 text-sm font-semibold"
               >
                 Close
               </button>

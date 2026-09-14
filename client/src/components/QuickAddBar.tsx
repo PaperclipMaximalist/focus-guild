@@ -71,7 +71,7 @@ export function QuickAddBar() {
         <button
           onClick={() => void submit()}
           disabled={!ready || busy}
-          className="shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold text-white transition disabled:opacity-30"
+          className="shrink-0 rounded-md px-3.5 py-1.5 text-xs font-bold text-(--color-on-primary) transition disabled:opacity-30"
           style={{ background: 'var(--color-primary)' }}
         >
           {busy ? '…' : <span className="inline-flex items-center gap-1">Add <CornerDownLeft size={12} aria-hidden /></span>}
@@ -94,8 +94,8 @@ export function QuickAddBar() {
               {parsed.chips.map((c, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold"
-                  style={{ background: 'rgba(139,92,246,0.14)', color: 'var(--color-primary)' }}
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[0.65rem] font-semibold"
+                  style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, transparent)', color: 'var(--color-primary)' }}
                 >
                   <c.icon size={11} aria-hidden /> {c.label}
                 </span>

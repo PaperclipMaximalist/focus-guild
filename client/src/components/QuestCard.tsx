@@ -45,7 +45,7 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen }: Props
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.2 }}
-      className="group relative flex items-start gap-3 overflow-hidden rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4 transition hover:translate-x-0.5 hover:border-[rgba(139,92,246,0.4)]"
+      className="group relative flex items-start gap-3 overflow-hidden rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4 transition hover:border-(--color-muted)"
     >
       {/* Priority-colored left border */}
       <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l" style={{ background: color }} />
@@ -53,7 +53,7 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen }: Props
       {/* Complete checkbox */}
       <button
         onClick={onComplete}
-        className="mt-0.5 flex h-[22px] w-[22px] shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-(--color-border) bg-transparent transition hover:border-(--color-green) hover:bg-[rgba(34,197,94,0.12)]"
+        className="mt-0.5 flex h-[22px] w-[22px] shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-(--color-border) bg-transparent transition hover:border-(--color-green) hover:bg-(--color-green)/10"
         title="Complete"
         aria-label="Complete quest"
       />
@@ -123,14 +123,14 @@ function Tag({
   children: React.ReactNode;
 }) {
   const styles: Record<typeof kind, string> = {
-    'deadline':         'bg-red-500/15 text-red-300',
-    'deadline-urgent':  'bg-red-500/30 text-red-400',
-    'time':             'bg-blue-500/15 text-blue-300',
-    'load':             'bg-amber-500/15 text-amber-300',
-    'xp':               'bg-violet-500/15 text-violet-300',
+    'deadline':         'bg-(--color-fire)/15 text-(--color-fire)',
+    'deadline-urgent':  'bg-(--color-fire)/25 text-(--color-fire)',
+    'time':             'bg-(--color-blue)/15 text-(--color-blue)',
+    'load':             'bg-(--color-gold)/15 text-(--color-gold)',
+    'xp':               'bg-(--color-primary)/15 text-(--color-primary)',
   };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[0.68rem] font-semibold ${styles[kind]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[0.68rem] font-semibold ${styles[kind]} ${className}`}>
       {children}
     </span>
   );

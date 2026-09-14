@@ -1,4 +1,4 @@
-const CONFETTI_COLORS = ['#8b5cf6', '#f59e0b', '#3b82f6', '#22c55e', '#ef4444', '#c084fc'];
+const CONFETTI_COLORS = ['#F2B33D', '#3987E5', '#199E70', '#D55181', '#D95926', '#E8E3D8'];
 
 /** Spawns a burst of confetti pieces from the top of the viewport. */
 export function spawnConfetti(count = 60) {

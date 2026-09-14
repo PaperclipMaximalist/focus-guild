@@ -37,8 +37,8 @@ export function WeekChart() {
                 className="w-full rounded-t transition-all duration-500"
                 style={{
                   height: `${h}px`,
-                  background: isToday ? 'var(--color-primary)' : 'rgba(139,92,246,0.3)',
-                  boxShadow: isToday ? '0 0 8px rgba(139,92,246,0.5)' : 'none',
+                  background: isToday ? 'var(--color-primary)' : 'color-mix(in srgb, var(--color-primary) 30%, transparent)',
+                  boxShadow: isToday ? '0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent)' : 'none',
                   minHeight: 4,
                 }}
                 title={`${counts[i]} quests`}

@@ -156,7 +156,7 @@ export default function Today() {
         {!checkIn && (
           <Link
             to="/checkin"
-            className="mt-5 block rounded-(--radius-card) border border-amber-500/30 bg-amber-500/10 p-3 text-amber-200 transition hover:bg-amber-500/15"
+            className="mt-5 block rounded-(--radius-card) border border-(--color-gold)/40 bg-(--color-gold)/10 p-3 text-(--color-gold) transition hover:bg-(--color-gold)/15"
           >
             <span className="flex items-center gap-2"><BatteryMedium size={16} className="shrink-0" aria-hidden /> Daily check-in not done yet — tell the Guild your energy level →</span>
           </Link>
@@ -195,8 +195,8 @@ export default function Today() {
             to="/rescue"
             className="flex items-center gap-3 rounded-(--radius-card) border px-4 py-3 transition hover:bg-(--color-surface2)"
             style={{
-              background: overdueCount > 0 ? 'rgba(239,68,68,0.06)' : 'var(--color-surface)',
-              borderColor: overdueCount > 0 ? 'rgba(239,68,68,0.35)' : 'var(--color-border)',
+              background: overdueCount > 0 ? 'color-mix(in srgb, var(--color-fire) 6%, transparent)' : 'var(--color-surface)',
+              borderColor: overdueCount > 0 ? 'color-mix(in srgb, var(--color-fire) 35%, transparent)' : 'var(--color-border)',
             }}
           >
             <LifeBuoy size={22} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />

@@ -67,8 +67,8 @@ export function EndOfDayReflection({ completionsToday }: Props) {
       <div
         className="mt-3 rounded-(--radius-card) border px-4 py-2.5 text-sm"
         style={{
-          background: 'rgba(34,197,94,0.06)',
-          borderColor: 'rgba(34,197,94,0.3)',
+          background: 'color-mix(in srgb, var(--color-green) 6%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--color-green) 30%, transparent)',
           color: 'var(--color-muted)',
         }}
       >
@@ -95,8 +95,8 @@ export function EndOfDayReflection({ completionsToday }: Props) {
         animate={{ opacity: 1, y: 0 }}
         className="mt-3 rounded-(--radius-card) border p-4"
         style={{
-          background: 'linear-gradient(135deg, rgba(245,158,11,0.08), rgba(139,92,246,0.08))',
-          borderColor: 'rgba(245,158,11,0.4)',
+          background: 'var(--color-surface)',
+          borderColor: 'var(--color-border)',
         }}
       >
         <div className="flex items-start gap-2.5">
@@ -147,7 +147,7 @@ export function EndOfDayReflection({ completionsToday }: Props) {
             <div className="mt-3 flex justify-end gap-2">
               <button
                 onClick={() => setDismissed(true)}
-                className="text-xs px-3 py-1 rounded-full"
+                className="text-xs px-3 py-1 rounded-md"
                 style={{ color: 'var(--color-muted)' }}
               >
                 Maybe later
@@ -155,7 +155,7 @@ export function EndOfDayReflection({ completionsToday }: Props) {
               <button
                 onClick={handleSave}
                 disabled={!text.trim()}
-                className="text-xs px-3 py-1 rounded-full font-semibold text-white disabled:opacity-40"
+                className="text-xs px-3 py-1 rounded-md font-semibold text-(--color-on-primary) disabled:opacity-40"
                 style={{ background: 'var(--color-primary)' }}
               >
                 Save

@@ -13,7 +13,6 @@
 import { achievementIcon } from '../lib/achievementCatalog';
 import { useEffect, useState } from 'react';
 import { duckReact } from '../store/useMascotStore';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Header } from '../components/Header';
 import { api, type Quest } from '../lib/api';
@@ -138,13 +137,6 @@ export default function Rescue() {
           <h1 className="flex-1 text-xl font-bold" style={{ color: 'var(--color-text)' }}>
             <span className="inline-flex items-center gap-1.5"><LifeBuoy size={20} aria-hidden /> Rescue Mode</span>
           </h1>
-          <Link
-            to="/"
-            className="text-xs"
-            style={{ color: 'var(--color-muted)' }}
-          >
-            ← Today
-          </Link>
         </div>
 
         <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>
@@ -156,8 +148,8 @@ export default function Rescue() {
             <button
               onClick={handleBulkExtend}
               disabled={busyId === 'bulk'}
-              className="text-sm rounded-full px-4 py-1.5 font-semibold transition disabled:opacity-50"
-              style={{ background: 'var(--color-gold)', color: '#0d0d1a' }}
+              className="text-sm rounded-md px-4 py-1.5 font-semibold transition disabled:opacity-50"
+              style={{ background: 'var(--color-gold)', color: 'var(--color-on-primary)' }}
             >
               {busyId === 'bulk' ? '…' : <span className="inline-flex items-center gap-1.5"><Sparkles size={14} aria-hidden /> Rescue all {rescue.length} (+7d)</span>}
             </button>
@@ -193,8 +185,8 @@ export default function Rescue() {
                 exit={{ opacity: 0, x: 8 }}
                 className="rounded-(--radius-card) border p-3"
                 style={{
-                  background: 'rgba(239,68,68,0.06)',
-                  borderColor: 'rgba(239,68,68,0.35)',
+                  background: 'color-mix(in srgb, var(--color-fire) 6%, transparent)',
+                  borderColor: 'color-mix(in srgb, var(--color-fire) 35%, transparent)',
                 }}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -220,7 +212,7 @@ export default function Rescue() {
                   <button
                     onClick={() => handleComplete(q.id)}
                     disabled={busyId === q.id}
-                    className="text-xs rounded-full px-3 py-1 font-semibold text-white disabled:opacity-50"
+                    className="text-xs rounded-md px-3 py-1 font-semibold text-(--color-on-primary) disabled:opacity-50"
                     style={{ background: 'var(--color-green)' }}
                   >
                     <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
@@ -228,7 +220,7 @@ export default function Rescue() {
                   <button
                     onClick={() => handleExtend(q.id, 1)}
                     disabled={busyId === q.id}
-                    className="text-xs rounded-full border px-3 py-1 font-semibold disabled:opacity-50"
+                    className="text-xs rounded-md border px-3 py-1 font-semibold disabled:opacity-50"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                   >
                     +1d
@@ -236,7 +228,7 @@ export default function Rescue() {
                   <button
                     onClick={() => handleExtend(q.id, 3)}
                     disabled={busyId === q.id}
-                    className="text-xs rounded-full border px-3 py-1 font-semibold disabled:opacity-50"
+                    className="text-xs rounded-md border px-3 py-1 font-semibold disabled:opacity-50"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                   >
                     +3d
@@ -244,7 +236,7 @@ export default function Rescue() {
                   <button
                     onClick={() => handleExtend(q.id, 7)}
                     disabled={busyId === q.id}
-                    className="text-xs rounded-full border px-3 py-1 font-semibold disabled:opacity-50"
+                    className="text-xs rounded-md border px-3 py-1 font-semibold disabled:opacity-50"
                     style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
                   >
                     +7d

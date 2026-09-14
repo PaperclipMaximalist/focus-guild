@@ -72,7 +72,9 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
         style={{
-          background: `radial-gradient(circle at center, ${overrun ? 'rgba(239,68,68,0.18)' : 'rgba(139,92,246,0.18)'}, var(--color-bg) 70%)`,
+          background: 'var(--color-bg)',
+          // Overrun is signalled by a border and the red clock, not a glow.
+          boxShadow: overrun ? 'inset 0 0 0 3px var(--color-fire)' : 'none',
         }}
       >
         {/* Minimal close (keeps session alive in background) */}
@@ -137,7 +139,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
           {paused ? (
             <button
               onClick={resume}
-              className="rounded-full px-6 py-2.5 text-sm font-semibold text-white"
+              className="rounded-md px-6 py-2.5 text-sm font-semibold text-(--color-on-primary)"
               style={{ background: 'var(--color-primary)' }}
             >
               <span className="inline-flex items-center gap-2"><Play size={16} aria-hidden /> Resume</span>
@@ -145,7 +147,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
           ) : (
             <button
               onClick={pause}
-              className="rounded-full border px-6 py-2.5 text-sm font-semibold"
+              className="rounded-md border px-6 py-2.5 text-sm font-semibold"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
             >
               <span className="inline-flex items-center gap-2"><Pause size={16} aria-hidden /> Pause</span>
@@ -154,16 +156,16 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
           <button
             onClick={handleDone}
             disabled={completing}
-            className="rounded-full px-6 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            className="rounded-md px-6 py-2.5 text-sm font-semibold text-(--color-on-primary) disabled:opacity-50"
             style={{ background: 'var(--color-green)' }}
           >
             {completing ? '…' : <span className="inline-flex items-center gap-2"><Check size={16} strokeWidth={2.5} aria-hidden /> Done</span>}
           </button>
           <button
             onClick={handleDiscard}
-            className="rounded-full border px-6 py-2.5 text-sm font-semibold"
+            className="rounded-md border px-6 py-2.5 text-sm font-semibold"
             style={{
-              borderColor: 'rgba(239,68,68,0.4)',
+              borderColor: 'color-mix(in srgb, var(--color-fire) 40%, transparent)',
               color: 'var(--color-fire)',
             }}
           >

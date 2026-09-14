@@ -38,7 +38,7 @@ export function BadgesPanel() {
               title={b.desc}
               className={`flex flex-col items-center gap-1 rounded-[10px] border p-2.5 text-center transition ${
                 isUnlocked
-                  ? 'border-(--color-gold) bg-amber-500/6 hover:scale-105'
+                  ? 'border-(--color-gold) bg-(--color-gold)/5 hover:scale-105'
                   : 'border-(--color-border) opacity-30 grayscale'
               }`}
             >

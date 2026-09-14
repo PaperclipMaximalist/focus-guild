@@ -57,7 +57,7 @@ function InterviewCard({ interview }: { interview: CasInterview }) {
     <div
       className="rounded-(--radius-card) border p-3.5"
       style={{
-        borderColor: done ? 'rgba(34,197,94,0.4)' : 'var(--color-border)',
+        borderColor: done ? 'color-mix(in srgb, var(--color-green) 40%, transparent)' : 'var(--color-border)',
         background: 'var(--color-surface)',
       }}
     >

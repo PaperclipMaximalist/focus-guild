@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from '../components/Toasts';
@@ -169,9 +168,6 @@ export default function Quests() {
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
       <header className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold">All Quests</h1>
-        <Link to="/" className="text-sm text-(--color-primary) hover:opacity-80">
-          ← Today
-        </Link>
       </header>
 
       {/* Search + sort */}
@@ -183,7 +179,7 @@ export default function Quests() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search quests…  (press / to focus)"
-            className="w-full rounded-full border px-4 py-2 text-sm outline-none transition-colors"
+            className="w-full rounded-md border px-4 py-2 text-sm outline-none transition-colors"
             style={{
               borderColor: 'var(--color-border)',
               background: 'rgba(255,255,255,0.04)',
@@ -194,7 +190,7 @@ export default function Quests() {
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
-          className="rounded-full border px-3 py-2 text-sm outline-none"
+          className="rounded-md border px-3 py-2 text-sm outline-none"
           style={{
             borderColor: 'var(--color-border)',
             background: 'rgba(255,255,255,0.04)',
@@ -226,11 +222,11 @@ export default function Quests() {
               <button
                 key={t}
                 onClick={() => toggleTag(t)}
-                className="text-xs rounded-full px-2.5 py-1 font-semibold transition-colors"
+                className="text-xs rounded-md px-2.5 py-1 font-semibold transition-colors"
                 style={{
-                  background: active ? 'var(--color-primary)' : 'rgba(139,92,246,0.10)',
+                  background: active ? 'var(--color-primary)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
                   color: active ? '#fff' : 'var(--color-primary)',
-                  border: '1px solid rgba(139,92,246,0.4)',
+                  border: '1px solid color-mix(in srgb, var(--color-primary) 40%, transparent)',
                 }}
               >
                 #{t} <span className="opacity-60">{count}</span>
@@ -292,9 +288,9 @@ export default function Quests() {
                     {quest.tags.map((t) => (
                       <span
                         key={t}
-                        className="text-[0.65rem] rounded-full px-1.5 py-0.5"
+                        className="text-[0.65rem] rounded-md px-1.5 py-0.5"
                         style={{
-                          background: 'rgba(139,92,246,0.10)',
+                          background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
                           color: 'var(--color-primary)',
                         }}
                       >
@@ -335,7 +331,7 @@ export default function Quests() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-2 rounded-full border px-3 py-2 shadow-xl"
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 shadow-xl"
             style={{
               background: 'var(--color-surface)',
               borderColor: 'var(--color-border)',
@@ -348,7 +344,7 @@ export default function Quests() {
             <button
               onClick={bulkComplete}
               disabled={bulkBusy}
-              className="text-xs rounded-full px-3 py-1.5 font-semibold text-white disabled:opacity-40"
+              className="text-xs rounded-md px-3 py-1.5 font-semibold text-(--color-on-primary) disabled:opacity-40"
               style={{ background: 'var(--color-green)' }}
             >
               <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
@@ -356,16 +352,16 @@ export default function Quests() {
             <button
               onClick={() => bulkExtend(7)}
               disabled={bulkBusy}
-              className="text-xs rounded-full px-3 py-1.5 font-semibold disabled:opacity-40"
-              style={{ background: 'var(--color-gold)', color: '#0d0d1a' }}
+              className="text-xs rounded-md px-3 py-1.5 font-semibold disabled:opacity-40"
+              style={{ background: 'var(--color-gold)', color: 'var(--color-on-primary)' }}
             >
               +7d
             </button>
             <button
               onClick={bulkDelete}
               disabled={bulkBusy}
-              className="text-xs rounded-full border px-3 py-1.5 font-semibold disabled:opacity-40"
-              style={{ borderColor: 'rgba(239,68,68,0.5)', color: 'var(--color-fire)' }}
+              className="text-xs rounded-md border px-3 py-1.5 font-semibold disabled:opacity-40"
+              style={{ borderColor: 'color-mix(in srgb, var(--color-fire) 50%, transparent)', color: 'var(--color-fire)' }}
             >
               <span className="inline-flex items-center gap-1.5"><Trash2 size={12} aria-hidden /> Delete</span>
             </button>

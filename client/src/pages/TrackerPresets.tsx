@@ -31,7 +31,9 @@ import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
 import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, Inbox, SettingsIcon, TriangleAlert, Undo2, Upload, X } from 'lucide-react';
 
-const SWATCHES = ['#8b5cf6', '#22c55e', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6', '#ec4899', '#64748b'];
+// The eight validated dark-surface hues, in their tested order. A domain's
+// colour always appears next to its name, so colour is never the only cue.
+const SWATCHES = ['#3987E5', '#D95926', '#199E70', '#C98500', '#D55181', '#008300', '#9085E9', '#E66767'];
 
 /** Codes are matched by `<letters><digits>`, so a prefix must be letters only. */
 const PREFIX_RE = /^[A-Za-z]{1,6}$/;
@@ -189,7 +191,7 @@ export default function TrackerPresets() {
         <Link
           to="/tracker"
           aria-label="Back to tracker"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border text-base"
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-md border text-base"
           style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
         >
           <ArrowLeft size={18} aria-hidden />
@@ -236,7 +238,7 @@ export default function TrackerPresets() {
             onClick={addDomain}
             disabled={!newDomain.trim()}
             className="shrink-0 rounded-lg px-4 text-sm font-bold disabled:opacity-40"
-            style={{ background: 'var(--color-primary)', color: '#fff' }}
+            style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
             Add
           </button>
@@ -307,10 +309,10 @@ export default function TrackerPresets() {
           onChange={(e) => setPrefixText(e.target.value)}
           aria-label="Code prefixes"
           className={fieldClass}
-          style={{ ...fieldStyle, borderColor: prefixError ? 'rgba(239,68,68,0.6)' : fieldStyle.borderColor }}
+          style={{ ...fieldStyle, borderColor: prefixError ? 'color-mix(in srgb, var(--color-fire) 60%, transparent)' : fieldStyle.borderColor }}
         />
         {prefixError ? (
-          <p className="mt-1 text-xs" style={{ color: '#fca5a5' }}>
+          <p className="mt-1 text-xs" style={{ color: 'var(--color-fire)' }}>
             {prefixError}
           </p>
         ) : (
@@ -320,7 +322,7 @@ export default function TrackerPresets() {
                 key={p}
                 className="rounded px-2 py-1 font-mono text-xs font-bold"
                 style={{
-                  background: i === 0 ? 'rgba(139,92,246,0.22)' : 'rgba(255,255,255,0.06)',
+                  background: i === 0 ? 'color-mix(in srgb, var(--color-primary) 22%, transparent)' : 'rgba(255,255,255,0.06)',
                   color: i === 0 ? 'var(--color-primary)' : 'var(--color-muted)',
                 }}
               >
@@ -374,10 +376,10 @@ export default function TrackerPresets() {
                 key={n}
                 type="button"
                 onClick={() => patch({ reviewCadenceDays: n })}
-                className="rounded-full px-3.5 py-2 text-xs font-semibold"
+                className="rounded-md px-3.5 py-2 text-xs font-semibold"
                 style={{
                   background: draft.reviewCadenceDays === n ? 'var(--color-gold)' : 'rgba(255,255,255,0.06)',
-                  color: draft.reviewCadenceDays === n ? '#1a1205' : 'var(--color-muted)',
+                  color: draft.reviewCadenceDays === n ? 'var(--color-on-primary)' : 'var(--color-muted)',
                 }}
               >
                 {n === 1 ? 'Daily' : n === 7 ? 'Weekly' : n === 14 ? 'Fortnightly' : 'Monthly'}
@@ -416,7 +418,7 @@ export default function TrackerPresets() {
                   onClick={() => patch({ reviewPrompts: draft.reviewPrompts.filter((_, j) => j !== i) })}
                   aria-label={`Remove prompt ${i + 1}`}
                   className="grid h-10 w-10 shrink-0 place-items-center rounded-lg"
-                  style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5' }}
+                  style={{ background: 'color-mix(in srgb, var(--color-fire) 12%, transparent)', color: 'var(--color-fire)' }}
                 >
                   <X size={16} aria-hidden />
                 </button>
@@ -425,8 +427,8 @@ export default function TrackerPresets() {
             <button
               type="button"
               onClick={() => patch({ reviewPrompts: [...draft.reviewPrompts, ''] })}
-              className="self-start rounded-full px-3.5 py-2 text-xs font-semibold"
-              style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
+              className="self-start rounded-md px-3.5 py-2 text-xs font-semibold"
+              style={{ background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)' }}
             >
               + Add prompt
             </button>
@@ -495,10 +497,10 @@ export default function TrackerPresets() {
         className={`flex items-center gap-2 rounded-xl border p-2 ${
           // Only float over the content when there's something to save; a
           // sticky "All saved" bar just covers the fields beneath it.
-          dirty ? 'sticky bottom-20 shadow-[0_8px_30px_rgba(0,0,0,0.45)]' : ''
+          dirty ? 'sticky bottom-20' : ''
         }`}
         style={{
-          borderColor: dirty ? 'rgba(139,92,246,0.55)' : 'var(--color-border)',
+          borderColor: dirty ? 'color-mix(in srgb, var(--color-primary) 55%, transparent)' : 'var(--color-border)',
           background: 'var(--color-surface2)',
         }}
       >
@@ -519,7 +521,7 @@ export default function TrackerPresets() {
           onClick={save}
           disabled={busy || !dirty || Boolean(prefixError)}
           className="rounded-lg px-5 py-3 text-sm font-bold transition-opacity active:opacity-70 disabled:opacity-40"
-          style={{ background: 'var(--color-primary)', color: '#fff' }}
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           {busy ? 'Saving…' : 'Save'}
         </button>
@@ -629,7 +631,7 @@ function DomainRow({
               onClick={() => !selected && updateDomain(domain.id, { color: c }).catch(onError)}
               aria-label={`Colour ${domain.name} ${c}`}
               aria-pressed={selected}
-              className="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-white"
+              className="grid h-8 w-8 place-items-center rounded-full text-xs font-bold text-(--color-on-primary)"
               style={{
                 background: c,
                 outline: selected ? '2px solid var(--color-text)' : 'none',
@@ -652,10 +654,10 @@ function DomainRow({
             if (!confirming) return setConfirming(true);
             deleteDomain(domain.id).catch(onError);
           }}
-          className="rounded-full px-3 py-2 text-xs font-semibold"
+          className="rounded-md px-3 py-2 text-xs font-semibold"
           style={{
-            background: confirming ? 'var(--color-fire)' : 'rgba(239,68,68,0.12)',
-            color: confirming ? '#fff' : '#fca5a5',
+            background: confirming ? 'var(--color-fire)' : 'color-mix(in srgb, var(--color-fire) 12%, transparent)',
+            color: confirming ? 'var(--color-on-primary)' : 'var(--color-fire)',
           }}
         >
           {confirming

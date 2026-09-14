@@ -110,10 +110,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
         className="mt-3 rounded-(--radius-card) border p-4"
         style={{
           borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
-          background: isActive
-            ? 'linear-gradient(135deg, rgba(139,92,246,0.16), rgba(139,92,246,0.04))'
-            : 'var(--color-surface)',
-          boxShadow: isActive ? '0 0 18px rgba(139,92,246,0.18)' : 'none',
+          background: isActive ? 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))' : 'var(--color-surface)',
         }}
       >
         <div className="flex items-center gap-3">
@@ -132,7 +129,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
           {timerActive?.questId === quest.id ? (
             <button
               onClick={() => setTimerOpen(true)}
-              className="shrink-0 rounded-full px-4 py-2 text-xs font-bold text-white"
+              className="shrink-0 rounded-md px-4 py-2 text-xs font-bold text-(--color-on-primary)"
               style={{ background: 'var(--color-primary)' }}
             >
               <span className="inline-flex items-center gap-1.5"><Timer size={12} aria-hidden /> Resume</span>
@@ -140,7 +137,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
           ) : (
             <button
               onClick={handleStart}
-              className="shrink-0 rounded-full px-4 py-2 text-xs font-bold text-white transition hover:scale-105"
+              className="shrink-0 rounded-md px-4 py-2 text-xs font-bold text-(--color-on-primary) transition-transform active:scale-95"
               style={{ background: isActive ? 'var(--color-green)' : 'var(--color-primary)' }}
             >
               <span className="inline-flex items-center gap-1.5"><Play size={12} aria-hidden /> Start</span>

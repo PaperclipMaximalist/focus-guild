@@ -141,7 +141,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
       animate={{ opacity: 1, y: 0 }}
       className="rounded-(--radius-card) border p-3.5"
       style={{
-        borderColor: conflict ? 'rgba(239,68,68,0.45)' : 'var(--color-border)',
+        borderColor: conflict ? 'color-mix(in srgb, var(--color-fire) 45%, transparent)' : 'var(--color-border)',
         background: 'var(--color-surface)',
         opacity: terminal ? 0.6 : 1,
         // A left rail in the status colour makes a scrolled list scannable.
@@ -164,8 +164,8 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
         )}
         {item.isCasProject && (
           <span
-            className="rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase"
-            style={{ background: 'rgba(139,92,246,0.18)', color: 'var(--color-primary)' }}
+            className="rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase"
+            style={{ background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: 'var(--color-primary)' }}
           >
             project
           </span>
@@ -192,8 +192,8 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
             <button
               type="button"
               onClick={() => onEdit(item)}
-              className="mt-1.5 rounded-full px-2.5 py-1 text-xs font-semibold"
-              style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--color-gold)' }}
+              className="mt-1.5 rounded-md px-2.5 py-1 text-xs font-semibold"
+              style={{ background: 'color-mix(in srgb, var(--color-gold) 12%, transparent)', color: 'var(--color-gold)' }}
             >
               <span className="inline-flex items-center gap-1.5"><Footprints size={12} aria-hidden /> Add a next step</span>
             </button>
@@ -207,7 +207,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
           {item.casStrands.map((s) => (
             <span
               key={s}
-              className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
               style={{ background: `${STRAND_COLOR[s]}22`, color: STRAND_COLOR[s] }}
             >
               {s}
@@ -229,9 +229,9 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
       {conflict && (
         <div
           className="mt-2.5 rounded-lg border p-2.5"
-          style={{ borderColor: 'rgba(239,68,68,0.4)', background: 'rgba(239,68,68,0.08)' }}
+          style={{ borderColor: 'color-mix(in srgb, var(--color-fire) 40%, transparent)', background: 'color-mix(in srgb, var(--color-fire) 8%, transparent)' }}
         >
-          <p className="text-xs leading-snug" style={{ color: '#fca5a5' }}>
+          <p className="text-xs leading-snug" style={{ color: 'var(--color-fire)' }}>
             Counted as both CAS and DP coursework. CAS may not double-count — resolve one side.
           </p>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -290,7 +290,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
           disabled={busy}
           aria-label={`Status of ${item.code}`}
           onChange={(e) => changeStatus(e.target.value as TrackerStatus)}
-          className="rounded-full border px-2.5 py-2 text-xs font-semibold outline-none"
+          className="rounded-md border px-2.5 py-2 text-xs font-semibold outline-none"
           style={{
             borderColor: 'var(--color-border)',
             background: 'rgba(255,255,255,0.04)',
@@ -310,7 +310,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
             disabled={busy}
             onClick={schedule}
             className={pill}
-            style={{ background: 'rgba(20,184,166,0.15)', color: 'var(--color-teal)' }}
+            style={{ background: 'color-mix(in srgb, var(--color-teal) 15%, transparent)', color: 'var(--color-teal)' }}
           >
             <span className="inline-flex items-center gap-1.5"><CalendarPlus size={13} aria-hidden /> Schedule</span>
           </button>
@@ -321,7 +321,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
             type="button"
             onClick={() => onReflect(item)}
             className={pill}
-            style={{ background: 'rgba(139,92,246,0.15)', color: 'var(--color-primary)' }}
+            style={{ background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)' }}
           >
             <span className="inline-flex items-center gap-1.5"><PenLine size={13} aria-hidden /> Reflect{item.reflections.length > 0 ? ` · ${item.reflections.length}` : ''}</span>
           </button>
@@ -343,7 +343,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
               disabled={busy}
               onClick={drop}
               className={pill}
-              style={{ background: 'rgba(239,68,68,0.12)', color: '#fca5a5' }}
+              style={{ background: 'color-mix(in srgb, var(--color-fire) 12%, transparent)', color: 'var(--color-fire)' }}
             >
               Drop
             </button>

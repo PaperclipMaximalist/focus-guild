@@ -45,7 +45,7 @@ export function CasMatrix({ matrix }: { matrix: CoverageMatrix }) {
       {matrix.uncoveredOutcomes.length > 0 && (
         <div
           className="rounded-(--radius-card) border p-3"
-          style={{ borderColor: 'rgba(245,158,11,0.45)', background: 'rgba(245,158,11,0.08)' }}
+          style={{ borderColor: 'color-mix(in srgb, var(--color-gold) 45%, transparent)', background: 'color-mix(in srgb, var(--color-gold) 8%, transparent)' }}
         >
           <p className="text-xs font-bold" style={{ color: 'var(--color-gold)' }}>
             No evidence at all for {matrix.uncoveredOutcomes.length} outcome
@@ -56,7 +56,7 @@ export function CasMatrix({ matrix }: { matrix: CoverageMatrix }) {
               <span
                 key={lo}
                 className="rounded px-2 py-1 text-xs font-bold"
-                style={{ background: 'rgba(245,158,11,0.2)', color: 'var(--color-gold)' }}
+                style={{ background: 'color-mix(in srgb, var(--color-gold) 20%, transparent)', color: 'var(--color-gold)' }}
               >
                 LO{lo}
               </span>
@@ -139,7 +139,7 @@ export function CasMatrix({ matrix }: { matrix: CoverageMatrix }) {
               <span
                 key={code}
                 className="rounded px-2 py-1 font-mono text-xs font-bold"
-                style={{ background: 'rgba(139,92,246,0.18)', color: 'var(--color-primary)' }}
+                style={{ background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: 'var(--color-primary)' }}
               >
                 {code}
               </span>
