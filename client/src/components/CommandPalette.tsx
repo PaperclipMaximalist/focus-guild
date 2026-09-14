@@ -16,7 +16,7 @@ import type { LucideIcon } from 'lucide-react';
 import { isSfxEnabled, setSfxEnabled, sfxClick } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { ArrowDownUp, BatteryMedium, Bird, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, Palette, Plus, ScrollText, SettingsIcon, SlidersHorizontal, Sparkles, Swords, Trophy, Volume2 } from 'lucide-react';
+import { ArrowDownUp, BatteryMedium, Bird, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, Palette, Plug, Plus, ScrollText, SettingsIcon, SlidersHorizontal, Sparkles, Swords, Trophy, Volume2 } from 'lucide-react';
 
 interface Command {
   id: string;
@@ -64,6 +64,7 @@ export function CommandPalette() {
       { id: 'go-tracker-markdown', label: 'Tracker markdown export / import', icon: ArrowDownUp, keywords: 'export import download markdown backup', run: go('/tracker/markdown') },
       { id: 'go-chronicle', label: 'Chronicle: log & permafile', icon: ScrollText, keywords: 'activity log journal history permafile ai bundle context', run: go('/chronicle') },
       { id: 'go-ai-bundle', label: 'Copy AI context bundle', icon: Sparkles, keywords: 'claude ai bundle context export permafile log', run: go('/chronicle?tab=bundle') },
+      { id: 'go-connections', label: 'Connections: calendars & inbox', icon: Plug, keywords: 'google calendar outlook teams ics webhook power automate shortcut integrations', run: go('/connections') },
       { id: 'go-trophies', label: 'Open Trophy Room', icon: Trophy, keywords: 'achievements badges awards', run: go('/trophies') },
       { id: 'go-settings', label: 'Open Settings', icon: SettingsIcon, keywords: 'config tune preferences', run: go('/settings') },
       { id: 'go-checkin', label: 'Daily check-in', icon: BatteryMedium, keywords: 'energy mood available', run: go('/checkin') },

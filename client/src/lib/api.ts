@@ -30,7 +30,7 @@ export function getCurrentClerkId(): string {
   return _currentClerkId;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 /**
  * Minutes to add to the user's local time to reach UTC (PDT → +420, UTC → 0).
@@ -420,6 +420,18 @@ export const api = {
       }),
   },
 
+  /** Calendar feeds and the personal inbox token. */
+  integrations: {
+    get: () => request<IntegrationsState>('/integrations'),
+    addCalendar: (name: string, url: string) =>
+      request<CalendarSyncResult>('/integrations/calendars', { method: 'POST', body: JSON.stringify({ name, url }) }),
+    syncCalendar: (id: string) =>
+      request<CalendarSyncResult>(`/integrations/calendars/${id}/sync`, { method: 'POST', body: '{}' }),
+    removeCalendar: (id: string) => request<{ id: string }>(`/integrations/calendars/${id}`, { method: 'DELETE' }),
+    createInboxToken: () => request<{ token: string }>('/integrations/inbox-token', { method: 'POST', body: '{}' }),
+    revokeInboxToken: () => request<{ revoked: boolean }>('/integrations/inbox-token', { method: 'DELETE' }),
+  },
+
   /** Activity log, permafile and AI bundle. `tz` is getTimezoneOffset(). */
   chronicle: {
     log: (days = 7) => request<ActivityEntry[]>(`/chronicle/log?days=${days}`),
@@ -436,6 +448,25 @@ export const api = {
       ),
   },
 };
+
+// ─── Integration types ────────────────────────────────────────────────────────
+
+export interface CalendarSourceInfo {
+  id: string;
+  name: string;
+  /** Masked: host plus the tail of the path, never the secret URL. */
+  host: string;
+  lastSyncAt: string | null;
+  lastError: string | null;
+  eventCount: number;
+}
+
+export interface IntegrationsState {
+  calendars: CalendarSourceInfo[];
+  inboxEnabled: boolean;
+}
+
+export type CalendarSyncResult = { calendar: CalendarSourceInfo; count?: number; error?: string };
 
 // ─── Chronicle types ──────────────────────────────────────────────────────────
 

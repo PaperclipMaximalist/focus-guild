@@ -28,6 +28,8 @@ model User {
   /// Bumped on delete so freed codes are never reissued. Not in trackerSettings
   /// because a presets save/reset replaces that JSON wholesale.
   trackerCodeHighWater Json?
+  /// SHA-256 of the personal inbox token (the token itself is shown once).
+  inboxTokenHash       String?  @unique
 
   quests         Quest[]
   checkIns       DailyCheckIn[]
@@ -42,6 +44,8 @@ model User {
   casInterviews  CasInterview[]
   activity       ActivityEntry[]
   permafile      PermafileVersion[]
+  calendarSources CalendarSource[]
+  externalEvents  ExternalEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -396,4 +400,43 @@ model PermafileVersion {
 
   @@index([userId, createdAt])
   @@map("permafile_versions")
+}
+
+/// A subscribed ICS feed (Google "secret address", Outlook published link).
+model CalendarSource {
+  id         String    @id @default(cuid())
+  userId     String
+  name       String
+  /// Secret-bearing URL; never returned to the client in full.
+  url        String
+  lastSyncAt DateTime?
+  lastError  String?
+  eventCount Int       @default(0)
+
+  user   User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events ExternalEvent[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("calendar_sources")
+}
+
+/// Busy, timed event instances from a feed, within the sync window. Replaced
+/// wholesale on every sync, so no update logic is needed.
+model ExternalEvent {
+  id       String   @id @default(cuid())
+  userId   String
+  sourceId String
+  uid      String
+  title    String
+  start    DateTime
+  end      DateTime
+
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source CalendarSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceId, uid])
+  @@index([userId, start])
+  @@map("external_events")
 }

@@ -10,6 +10,9 @@ import { schedule } from './routes/schedule.js';
 import { settings } from './routes/settings.js';
 import { tracker } from './routes/tracker.js';
 import { chronicle } from './routes/chronicle.js';
+import { integrations } from './routes/integrations.js';
+import { inbox } from './routes/inbox.js';
+import { startCalendarSyncLoop } from './lib/calendar/sync.js';
 import { requireUser } from './lib/auth.js';
 
 const app = new Hono();
@@ -40,6 +43,9 @@ app.use(
 
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
+// Token-authenticated capture endpoint; skipped by requireUser.
+app.route('/inbox', inbox);
+
 // Resolves the user (or 401s) for everything except /health and POST /users.
 app.use('*', requireUser);
 
@@ -50,6 +56,9 @@ app.route('/schedule', schedule);
 app.route('/settings', settings);
 app.route('/tracker', tracker);
 app.route('/chronicle', chronicle);
+app.route('/integrations', integrations);
+
+startCalendarSyncLoop();
 
 // 404 catch-all
 app.notFound((c) =>

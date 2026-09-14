@@ -34,6 +34,8 @@ import {
 import { computeEnergyTrace } from '../lib/scheduler/planner.js';
 import { getUserConfig } from '../lib/userConfig.js';
 import { blockToRow, rowToBlock } from '../lib/scheduler/persistence.js';
+import { eventsToFixedBlocks, isCalendarBlock } from '../lib/calendar/ics.js';
+import { syncStaleForUser, upcomingEvents } from '../lib/calendar/sync.js';
 
 export const schedule = new Hono();
 
@@ -133,10 +135,24 @@ function recurringToFillers(
   }));
 }
 
+/**
+ * Calendar busy time as fixed blocks. Refreshes stale feeds first, but never
+ * waits long: a slow calendar server must not stall planning.
+ */
+async function calendarBlocksFor(userId: string, horizonDays: number): Promise<Block[]> {
+  try {
+    await syncStaleForUser(userId);
+    return eventsToFixedBlocks(await upcomingEvents(userId, horizonDays), Date.now());
+  } catch {
+    return [];
+  }
+}
+
 function regenerate(
   state: UserScheduleState,
   loaded: Awaited<ReturnType<typeof loadQuestsForUser>> & { user: { id: string } },
   cfg: ReturnType<typeof getUserConfig>,
+  calendarBlocks: Block[] = [],
 ) {
   if (!loaded) return;
   const now = Date.now();
@@ -150,11 +166,11 @@ function regenerate(
     now,
     horizonDays: cfg.horizonDays,
     workingHours: cfg.workingHours,
-    existingFixed: [],
+    existingFixed: calendarBlocks,
     tzOffsetMin: cfg.tzOffsetMin,
   });
 
-  const { schedule, feasibilityReport } = generateSchedule(tasks, fillerBlocks, cfg, now);
+  const { schedule, feasibilityReport } = generateSchedule(tasks, [...calendarBlocks, ...fillerBlocks], cfg, now);
   state.schedule = schedule;
   state.feasibilityReport = feasibilityReport;
   state.lastGeneratedAt = now;
@@ -275,7 +291,7 @@ schedule.post('/generate', async (c) => {
 
   const state = getState(user.id);
   const cfg = await configForUser(user, tzOffsetMin);
-  regenerate(state, { ...loaded, user }, cfg);
+  regenerate(state, { ...loaded, user }, cfg, await calendarBlocksFor(user.id, cfg.horizonDays));
 
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
   await persistSchedule(user.id, state.schedule, questIdSet, Date.now());
@@ -327,7 +343,9 @@ schedule.post('/:clerkId/replan', async (c) => {
   const now = Date.now();
   const cfg = await configForUser(user, tzOffsetMin);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
-  const result = replan(state.schedule, tasks, cfg, now);
+  // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
+  const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
+  const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;
@@ -366,7 +384,9 @@ schedule.post('/:clerkId/edit', async (c) => {
   const now = Date.now();
   const cfg = await configForUser(user, parsed.data.tzOffsetMin);
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
-  const result = replan(state.schedule, tasks, cfg, now);
+  // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
+  const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
+  const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;
@@ -435,7 +455,9 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   // Only the requested quest is "new" — pass everything to replan, which
   // re-flows unlocked future blocks. Locked + past are preserved.
   const tasks = questsToTasks(loaded.regular, state.overrides, now);
-  const result = replan(state.schedule, tasks, cfg, now);
+  // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
+  const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
+  const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;

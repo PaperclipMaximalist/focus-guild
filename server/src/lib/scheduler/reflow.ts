@@ -65,10 +65,17 @@ export function reflow(
   // unlockedFuture-non-stable = dropped silently (they're invalidated)
 
   for (const b of currentSchedule) {
+    if (b.end > now && b.type === 'fixed') fixedFuture.push(b);
+  }
+  // A fixed block can arrive after the plan was made (a meeting synced from a
+  // calendar). Unpinned work sitting on top of it is no longer stable.
+  const clashesWithFixed = (b: Block) => fixedFuture.some((f) => b.start < f.end && f.start < b.end);
+
+  for (const b of currentSchedule) {
     if (b.end <= now) { past.push(b); continue; }
-    if (b.type === 'fixed') { fixedFuture.push(b); continue; }
+    if (b.type === 'fixed') continue; // collected above
     if (b.locked) { userLockedFuture.push(b); continue; }
-    if (isStable(b, taskMap, now)) stableFuture.push(b);
+    if (isStable(b, taskMap, now) && !clashesWithFixed(b)) stableFuture.push(b);
     // else: dropped (invalidated unlocked block — its time becomes free)
   }
 

@@ -27,7 +27,7 @@ import {
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
+import { Plug, RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -182,6 +182,21 @@ export default function Settings() {
         Tune the scheduler. Changes apply on the next <b>Reflow day</b> on the Guild Feed.
         Every knob has an ⓘ explaining its effect — the defaults are good; only move what bothers you.
       </p>
+
+      <Link
+        to="/connections"
+        className="flex items-center gap-3 rounded-xl border px-4 py-3"
+        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+      >
+        <Plug size={18} aria-hidden style={{ color: 'var(--color-primary)' }} />
+        <span className="flex-1">
+          <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Connections</span>
+          <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+            Calendars the planner works around, and an inbox for Teams, phone shortcuts and more
+          </span>
+        </span>
+        <span aria-hidden style={{ color: 'var(--color-muted)' }}>›</span>
+      </Link>
 
       {/* Working hours */}
       <Section title="Working hours">

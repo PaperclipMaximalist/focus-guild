@@ -64,6 +64,9 @@ export function explainBlock(blockId: string, schedule: Schedule, tasks: Task[] 
   const b = schedule.find((x) => x.id === blockId);
   if (!b) return `Block ${blockId} not found.`;
   if (b.type === 'break') return 'Break — natural gap between work blocks.';
+  if (b.type === 'fixed' && b.note?.startsWith('Calendar: ')) {
+    return `From your calendar: ${b.note.slice('Calendar: '.length)}. That time is busy, so nothing is planned over it.`;
+  }
   if (b.type === 'fixed') return b.note?.startsWith('Daily:')
     ? `Recurring: ${b.note.slice('Daily:'.length).trim()}`
     : 'Fixed block (meeting, recurring task, or external commitment).';
