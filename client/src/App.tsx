@@ -16,6 +16,7 @@ import Trophies from './pages/Trophies';
 const Tracker = lazy(() => import('./pages/Tracker'));
 const TrackerPresets = lazy(() => import('./pages/TrackerPresets'));
 const TrackerMarkdown = lazy(() => import('./pages/TrackerMarkdown'));
+const Chronicle = lazy(() => import('./pages/Chronicle'));
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
@@ -143,6 +144,7 @@ function AuthenticatedApp() {
           <Route path="/tracker" element={<TrackerRoute><Tracker /></TrackerRoute>} />
           <Route path="/tracker/presets" element={<TrackerRoute><TrackerPresets /></TrackerRoute>} />
           <Route path="/tracker/markdown" element={<TrackerRoute><TrackerMarkdown /></TrackerRoute>} />
+          <Route path="/chronicle" element={<TrackerRoute><Chronicle /></TrackerRoute>} />
         </Routes>
         <ToastContainer />
         <KeyboardShortcuts />

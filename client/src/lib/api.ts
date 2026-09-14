@@ -419,7 +419,40 @@ export const api = {
         body: JSON.stringify({ markdown }),
       }),
   },
+
+  /** Activity log, permafile and AI bundle. `tz` is getTimezoneOffset(). */
+  chronicle: {
+    log: (days = 7) => request<ActivityEntry[]>(`/chronicle/log?days=${days}`),
+    journal: (text: string, rating?: number) =>
+      request<ActivityEntry>('/chronicle/journal', { method: 'POST', body: JSON.stringify({ text, rating }) }),
+    permafile: () => request<PermafileState>('/chronicle/permafile'),
+    savePermafile: (body: string) =>
+      request<{ changed: boolean; id?: string }>('/chronicle/permafile', { method: 'PUT', body: JSON.stringify({ body }) }),
+    restorePermafile: (id: string) =>
+      request<{ id: string }>(`/chronicle/permafile/restore/${id}`, { method: 'POST', body: '{}' }),
+    bundle: (days = 7) =>
+      request<{ markdown: string; chars: number; entries: number }>(
+        `/chronicle/bundle?days=${days}&tz=${new Date().getTimezoneOffset()}`,
+      ),
+  },
 };
+
+// ─── Chronicle types ──────────────────────────────────────────────────────────
+
+export interface ActivityEntry {
+  id: string;
+  at: string;
+  kind: string;
+  line: string;
+  subjectId: string | null;
+}
+
+export interface PermafileState {
+  body: string;
+  /** True when nothing has been saved yet and `body` is the starter template. */
+  isTemplate: boolean;
+  versions: Array<{ id: string; source: string; createdAt: string; chars: number }>;
+}
 
 // ─── Settings types ───────────────────────────────────────────────────────────
 

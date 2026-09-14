@@ -12,7 +12,7 @@
 
 import { Link } from 'react-router-dom';
 import { SignedIn, UserButton } from '@clerk/clerk-react';
-import { SettingsIcon, Trophy } from 'lucide-react';
+import { ScrollText, SettingsIcon, Trophy } from 'lucide-react';
 import { useUserStore } from '../store/useUserStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
@@ -83,6 +83,9 @@ export function Header() {
           {/* Hidden on phones to give the stats line room; Stats and the command palette still reach it. */}
           <Link to="/trophies" className={`${iconButton} max-sm:hidden`} title="Trophy Room" aria-label="Trophy Room">
             <Trophy size={16} aria-hidden />
+          </Link>
+          <Link to="/chronicle" className={iconButton} title="Chronicle" aria-label="Chronicle">
+            <ScrollText size={16} aria-hidden />
           </Link>
           <Link to="/settings" className={iconButton} title="Settings" aria-label="Settings">
             <SettingsIcon size={16} aria-hidden />

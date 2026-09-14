@@ -7,6 +7,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { api } from '../lib/api';
 import { Annoyed, Frown, Laugh, Meh, Moon, Smile } from 'lucide-react';
 
 const STORAGE_KEY = 'focusGuild.reflections';
@@ -85,6 +86,9 @@ export function EndOfDayReflection({ completionsToday }: Props) {
     const t = text.trim();
     if (!t) return;
     saveOne({ date: key, text: t, rating, savedAt: new Date().toISOString() });
+    // Also into the Chronicle, so reflections sync and reach the AI bundle.
+    // localStorage stays the source for the once-a-day gate.
+    api.chronicle.journal(t || 'End-of-day reflection', rating).catch(() => {});
     setSaved(true);
   };
 

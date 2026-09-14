@@ -5,6 +5,7 @@ import { computePriorityScore } from '../lib/priority.js';
 import { computeXP } from '../lib/xp.js';
 import { updateStreak, computeMultiplier } from '../lib/streak.js';
 import { AI_ENABLED, AI_MODEL, getClient } from '../lib/ai.js';
+import { logActivity } from '../lib/activity.js';
 import { evalAndUnlockAchievements } from '../lib/evalAndUnlock.js';
 
 export const quests = new Hono();
@@ -285,6 +286,7 @@ quests.post('/:id/extend-deadline', async (c) => {
     where: { id },
     data: { deadline: newDeadline, status: 'ACTIVE' },
   });
+  void logActivity(user.id, 'quest.extended', `Pushed the deadline of quest "${quest.title}" back ${days} day${days === 1 ? '' : 's'}`, { subjectId: id });
   return c.json({ success: true, data: updated });
 });
 
@@ -339,12 +341,18 @@ quests.post('/', async (c) => {
     },
   });
 
+  void logActivity(user.id, 'quest.created', `Added quest "${quest.title}" (${quest.estimatedMinutes} min)`, { subjectId: quest.id });
   return c.json({ success: true, data: quest }, 201);
 });
 
 // PATCH /quests/:id — edit quest fields
 quests.patch('/:id', async (c) => {
+  const user = c.get('user');
   const id = c.req.param('id');
+  const existing = await db.quest.findUnique({ where: { id }, select: { userId: true } });
+  if (!existing || existing.userId !== user.id) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
+  }
   const body = await c.req.json();
   const parsed = UpdateQuestSchema.safeParse(body);
   if (!parsed.success) {
@@ -461,6 +469,15 @@ quests.post('/:id/complete', async (c) => {
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
   const finalTotalXP = updatedUser.totalXP + bonusXP;
+  void logActivity(
+    user.id,
+    'quest.completed',
+    `Completed quest "${updatedQuest.title}"` +
+      (updatedQuest.actualMinutes ? ` in ${updatedQuest.actualMinutes} min` : '') +
+      ` (+${xp} XP${streakResult.newStreak ? `, streak ${streakResult.newStreak}` : ''})` +
+      (newlyUnlocked.length ? `. Unlocked ${newlyUnlocked.map((a) => a.title).join(', ')}` : ''),
+    { subjectId: updatedQuest.id, data: { xp, estimatedMinutes: updatedQuest.estimatedMinutes, actualMinutes: updatedQuest.actualMinutes } },
+  );
 
   return c.json({
     success: true,
@@ -657,6 +674,7 @@ quests.post('/:id/complete-daily', async (c) => {
     status: 'COMPLETE',
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
+  void logActivity(user.id, 'quest.daily', `Did daily quest "${quest.title}" (+${xp} XP)`, { subjectId: quest.id });
 
   return c.json({
     success: true,
@@ -680,17 +698,29 @@ quests.post('/:id/complete-daily', async (c) => {
 
 // POST /quests/:id/not-today — defer a quest to tomorrow
 quests.post('/:id/not-today', async (c) => {
+  const user = c.get('user');
   const id = c.req.param('id');
+  const existing = await db.quest.findUnique({ where: { id } });
+  if (!existing || existing.userId !== user.id) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
+  }
   const quest = await db.quest.update({
     where: { id },
     data: { status: 'NOT_TODAY' },
   });
+  void logActivity(user.id, 'quest.not_today', `Deferred quest "${quest.title}" to tomorrow`, { subjectId: id });
   return c.json({ success: true, data: quest });
 });
 
 // DELETE /quests/:id
 quests.delete('/:id', async (c) => {
+  const user = c.get('user');
   const id = c.req.param('id');
+  const existing = await db.quest.findUnique({ where: { id } });
+  if (!existing || existing.userId !== user.id) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
+  }
   await db.quest.delete({ where: { id } });
+  void logActivity(user.id, 'quest.deleted', `Deleted quest "${existing.title}"`);
   return c.json({ success: true, data: null });
 });

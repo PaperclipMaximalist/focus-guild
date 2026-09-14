@@ -30,6 +30,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { Prisma } from '../../generated/prisma/client.js';
 import { db } from '../db/client.js';
+import { logActivity } from '../lib/activity.js';
 import {
   CAS_STRANDS,
   STARTER_DOMAINS,
@@ -294,6 +295,7 @@ tracker.post('/items', async (c) => {
     include: ITEM_INCLUDE,
   });
 
+  void logActivity(user.id, 'tracker.created', `Added tracker item ${item.code} "${item.title}" as ${config.statusLabels[item.status]}`, { subjectId: item.id });
   return c.json({ success: true, data: item }, 201);
 });
 
@@ -374,6 +376,14 @@ tracker.patch('/items/:id', async (c) => {
   }
 
   const item = await db.trackerItem.update({ where: { id }, data, include: ITEM_INCLUDE });
+  if (input.status !== undefined && input.status !== current.status) {
+    void logActivity(
+      user.id,
+      'tracker.status',
+      `Moved ${item.code} "${item.title}" from ${config.statusLabels[current.status]} to ${config.statusLabels[item.status]}`,
+      { subjectId: item.id, data: { from: current.status, to: item.status } },
+    );
+  }
   return c.json({ success: true, data: item });
 });
 
@@ -389,6 +399,10 @@ tracker.post('/items/:id/drop', async (c) => {
     data: { status: 'DROPPED', droppedAt: current.droppedAt ?? new Date(), completedAt: null },
     include: ITEM_INCLUDE,
   });
+  if (current.status !== 'DROPPED') {
+    const labels = getTrackerConfig(user).statusLabels;
+    void logActivity(user.id, 'tracker.dropped', `${labels.DROPPED}: ${item.code} "${item.title}" (was ${labels[current.status]})`, { subjectId: item.id });
+  }
   return c.json({ success: true, data: item });
 });
 
@@ -407,6 +421,7 @@ tracker.delete('/items/:id', async (c) => {
       },
     }),
   ]);
+  void logActivity(user.id, 'tracker.deleted', `Deleted tracker item ${current.code} "${current.title}"`);
   return c.json({ success: true, data: { id } });
 });
 
@@ -468,6 +483,7 @@ tracker.post('/items/:id/schedule', async (c) => {
     include: ITEM_INCLUDE,
   });
 
+  void logActivity(user.id, 'tracker.scheduled', `Scheduled ${item.code}'s next action as a quest: "${quest.title}"`, { subjectId: item.id });
   return c.json({ success: true, data: { item: updated, quest } }, 201);
 });
 
@@ -619,6 +635,7 @@ tracker.post('/parking-lot', async (c) => {
   const entry = await db.parkingLotEntry.create({
     data: { userId: user.id, text: parsed.data.text },
   });
+  void logActivity(user.id, 'parking.added', `Parked an idea: ${parsed.data.text}`, { subjectId: entry.id });
   return c.json({ success: true, data: entry }, 201);
 });
 
@@ -668,6 +685,7 @@ tracker.post('/parking-lot/:id/promote', async (c) => {
     }),
     db.parkingLotEntry.update({ where: { id }, data: { promotedToCode: code } }),
   ]);
+  void logActivity(user.id, 'parking.promoted', `Promoted a parked idea to ${code} "${item.title}"`, { subjectId: item.id });
   return c.json({ success: true, data: item }, 201);
 });
 
@@ -690,6 +708,7 @@ tracker.post('/decisions', async (c) => {
       ...(parsed.data.decidedAt ? { decidedAt: new Date(parsed.data.decidedAt) } : {}),
     },
   });
+  void logActivity(user.id, 'decision', `Decided: ${parsed.data.text}`, { subjectId: entry.id });
   return c.json({ success: true, data: entry }, 201);
 });
 
@@ -787,7 +806,7 @@ tracker.delete('/config', async (c) => {
 
 // ─── Markdown export / import ─────────────────────────────────────────────────
 
-async function loadDoc(userId: string) {
+export async function loadDoc(userId: string) {
   const [rows, parkingLot, decisions] = await Promise.all([
     db.trackerItem.findMany({ where: { userId }, include: ITEM_INCLUDE, orderBy: { code: 'asc' } }),
     db.parkingLotEntry.findMany({ where: { userId }, orderBy: { createdAt: 'desc' } }),

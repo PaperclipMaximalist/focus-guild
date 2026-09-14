@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { logActivity } from '../lib/activity.js';
 import { db } from '../db/client.js';
 
 export const checkin = new Hono();
@@ -32,6 +33,7 @@ checkin.post('/', async (c) => {
     create: { userId: user.id, date: today, energyLevel, availableMinutes },
     update: { energyLevel, availableMinutes },
   });
+  void logActivity(user.id, 'checkin', `Checked in: energy ${energyLevel}` + (availableMinutes != null ? `, ${availableMinutes} min available` : ''));
 
   return c.json({ success: true, data: record });
 });

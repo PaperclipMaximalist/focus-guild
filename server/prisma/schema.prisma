@@ -40,6 +40,8 @@ model User {
   parkingLot     ParkingLotEntry[]
   decisions      DecisionLogEntry[]
   casInterviews  CasInterview[]
+  activity       ActivityEntry[]
+  permafile      PermafileVersion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -360,4 +362,38 @@ model CasInterview {
 
   @@unique([userId, ordinal])
   @@map("cas_interviews")
+}
+
+/// Append-only record of what happened (the Chronicle). `line` is a finished
+/// human sentence so exports and AI bundles need no rendering logic.
+model ActivityEntry {
+  id        String   @id @default(cuid())
+  userId    String
+  at        DateTime @default(now())
+  /// e.g. quest.completed, tracker.status, checkin, journal
+  kind      String
+  line      String
+  subjectId String?
+  data      Json?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, at])
+  @@map("activity_log")
+}
+
+/// Every save of the permafile is a new row; the latest is current. Keeps
+/// any edit, including one an AI proposed, reversible.
+model PermafileVersion {
+  id        String   @id @default(cuid())
+  userId    String
+  body      String
+  /// user | restore
+  source    String   @default("user")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("permafile_versions")
 }
