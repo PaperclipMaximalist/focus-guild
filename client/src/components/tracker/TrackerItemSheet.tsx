@@ -9,7 +9,7 @@
  * create only — the number after it is still the server's to hand out.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   CAS_STRANDS,
   LEARNING_OUTCOMES,
@@ -22,6 +22,7 @@ import {
 } from '../../lib/api';
 import { STRAND_COLOR, STRAND_LABEL, fromDateInput, toDateInput, trackerErrorToast } from '../../lib/tracker';
 import { sfxClick } from '../../lib/sfx';
+import { ITEM_TEMPLATES, type ItemTemplate } from '../../lib/trackerPacks';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { useToastStore } from '../Toasts';
 import { Sheet, Label, fieldClass, fieldStyle } from './Sheet';
@@ -36,6 +37,17 @@ interface Props {
   domains: TrackerDomain[];
   /** Pre-tag a new item with a strand when created from the CAS lens. */
   defaultCas?: boolean;
+}
+
+/** Last domain used on create, so a run of similar items needs no re-picking. */
+const LAST_DOMAIN_KEY = 'fg.tracker.lastDomainId';
+
+function readLastDomain(): string {
+  try {
+    return localStorage.getItem(LAST_DOMAIN_KEY) ?? '';
+  } catch {
+    return '';
+  }
 }
 
 export function TrackerItemSheet({ open, onClose, editing, config, domains, defaultCas }: Props) {
@@ -60,13 +72,17 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
 
   const [casOpen, setCasOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [templateId, setTemplateId] = useState<string | null>(null);
+  const dueRef = useRef<HTMLInputElement>(null);
 
   // Reset the form each time the sheet opens, from the item being edited.
   useEffect(() => {
     if (!open) return;
     setTitle(editing?.title ?? '');
     setNextAction(editing?.nextAction ?? '');
-    setDomainId(editing?.domainId ?? '');
+    const last = readLastDomain();
+    setDomainId(editing ? (editing.domainId ?? '') : domains.some((d) => d.id === last) ? last : '');
+    setTemplateId(null);
     setStatus(editing?.status ?? 'TODO');
     setDueDate(toDateInput(editing?.dueDate ?? null));
     setNotes(editing?.notes ?? '');
@@ -79,7 +95,28 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
     setIsProject(editing?.isCasProject ?? false);
     setHours(editing?.hours != null ? String(editing.hours) : '');
     setCasOpen(Boolean(defaultCas) || (editing?.casStrands.length ?? 0) > 0);
+    // `domains` deliberately omitted: it only seeds the default on open.
   }, [open, editing, config.codePrefixes, defaultCas]);
+
+  /** Prefill from a template, keeping whatever the user already typed in a field it doesn't set. */
+  const applyTemplate = (t: ItemTemplate) => {
+    setTemplateId(t.id);
+    if (t.nextAction) setNextAction(t.nextAction);
+    if (t.title !== undefined) setTitle(t.title);
+    setStatus(t.status ?? 'TODO');
+    const byName = new Map(domains.map((d) => [d.name.toLowerCase(), d.id]));
+    const match = t.domains.map((n) => byName.get(n.toLowerCase())).find(Boolean);
+    if (match) setDomainId(match);
+    if (t.prefix && config.codePrefixes.includes(t.prefix)) setCodePrefix(t.prefix);
+    setCourseworkLinked(Boolean(t.courseworkLinked));
+    setIsProject(Boolean(t.isCasProject));
+    if (t.casStrands) {
+      setCasOpen(true);
+      if (t.casStartToday && !casStart) setCasStart(toDateInput(new Date().toISOString()));
+    }
+    if (t.focusDue) setTimeout(() => dueRef.current?.focus(), 50);
+    sfxClick();
+  };
 
   const toggle = <T,>(list: T[], value: T): T[] =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -126,6 +163,11 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
         await updateItem(editing.id, payload);
       } else {
         const created = await createItem({ ...payload, codePrefix });
+        try {
+          if (payload.domainId) localStorage.setItem(LAST_DOMAIN_KEY, payload.domainId);
+        } catch {
+          /* storage blocked: the default just won't stick */
+        }
         pushToast({ title: `${created.code} added`, sub: created.nextAction ?? created.title, icon: MapIcon, variant: 'xp' });
       }
       sfxClick();
@@ -162,6 +204,29 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
       }
     >
       <div className="flex flex-col gap-4">
+        {!editing && (
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            {ITEM_TEMPLATES.map((t) => {
+              const on = templateId === t.id;
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => applyTemplate(t)}
+                  aria-pressed={on}
+                  className="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors"
+                  style={{
+                    borderColor: on ? 'var(--color-primary)' : 'var(--color-border)',
+                    background: on ? 'color-mix(in srgb, var(--color-primary) 18%, transparent)' : 'rgba(255,255,255,0.04)',
+                    color: on ? 'var(--color-text)' : 'var(--color-muted)',
+                  }}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div>
           <Label hint="A physical first step, not a topic.">Next action</Label>
           <input
@@ -213,6 +278,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
             <Label>Due</Label>
             <input
               type="date"
+              ref={dueRef}
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               className={fieldClass}

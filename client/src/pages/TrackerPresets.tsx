@@ -25,11 +25,12 @@ import {
   type TrackerOverrides,
 } from '../lib/api';
 import { trackerErrorToast } from '../lib/tracker';
+import { PRESET_PACKS, type PresetPack } from '../lib/trackerPacks';
 import { sfxClick } from '../lib/sfx';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
-import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, Inbox, SettingsIcon, TriangleAlert, Undo2, Upload, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, Inbox, Package, SettingsIcon, TriangleAlert, Undo2, Upload, X } from 'lucide-react';
 
 // The eight validated dark-surface hues, in their tested order. A domain's
 // colour always appears next to its name, so colour is never the only cue.
@@ -173,6 +174,34 @@ export default function TrackerPresets() {
     }
   };
 
+  /**
+   * Load a pack into the draft for review and add the domains it expects.
+   * Domains save immediately (they are rows); the settings wait for Save.
+   */
+  const applyPack = async (pack: PresetPack) => {
+    setBusy(true);
+    try {
+      const have = new Set(domains.map((d) => d.name.trim().toLowerCase()));
+      const missing = pack.domains.filter((d) => !have.has(d.name.toLowerCase()));
+      for (const d of missing) await createDomain(d);
+      setDraft(structuredClone(pack.config));
+      setPrefixText(pack.config.codePrefixes.join(', '));
+      sfxClick();
+      pushToast({
+        title: `${pack.name} loaded`,
+        sub: missing.length
+          ? `Added ${missing.length} domain${missing.length === 1 ? '' : 's'}. Review the settings, then Save`
+          : 'Review the settings, then Save',
+        icon: Package,
+        variant: 'xp',
+      });
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const addDomain = async () => {
     const name = newDomain.trim();
     if (!name) return;
@@ -203,6 +232,47 @@ export default function TrackerPresets() {
           </p>
         </div>
       </header>
+
+      {/* ── Packs ───────────────────────────────────────────────────────── */}
+      <section className="flex flex-col gap-3">
+        <SectionHead
+          title="Start from a pack"
+          hint="Loads a full set of settings to review, and adds any domains it needs. Nothing is deleted."
+        />
+        <ul className="flex flex-col gap-2">
+          {PRESET_PACKS.map((pack) => (
+            <li key={pack.id}>
+              <button
+                type="button"
+                onClick={() => applyPack(pack)}
+                disabled={busy}
+                className="flex w-full flex-col gap-1.5 rounded-(--radius-card) border p-3 text-left transition-opacity active:opacity-70 disabled:opacity-40"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+              >
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-bold">{pack.name}</span>
+                  <span className="shrink-0 font-mono text-[11px]" style={{ color: 'var(--color-muted)' }}>
+                    cap {pack.config.activeCap} · {pack.config.codePrefixes.join(' ')}
+                  </span>
+                </span>
+                <span className="text-xs leading-snug" style={{ color: 'var(--color-muted)' }}>
+                  {pack.blurb}
+                </span>
+                <span className="flex flex-wrap gap-1.5 pt-0.5">
+                  {pack.domains.map((d) => (
+                    <span key={d.name} className="flex items-center gap-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>
+                      <span className="h-2 w-2 rounded-full" style={{ background: d.color }} aria-hidden />
+                      {d.name}
+                    </span>
+                  ))}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <Divider />
 
       {/* ── Domains ─────────────────────────────────────────────────────── */}
       <section className="flex flex-col gap-3">
