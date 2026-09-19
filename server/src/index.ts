@@ -12,6 +12,7 @@ import { tracker } from './routes/tracker.js';
 import { chronicle } from './routes/chronicle.js';
 import { integrations } from './routes/integrations.js';
 import { inbox } from './routes/inbox.js';
+import { calendarFeed } from './routes/calendarFeed.js';
 import { startCalendarSyncLoop } from './lib/calendar/sync.js';
 import { requireUser } from './lib/auth.js';
 
@@ -45,6 +46,8 @@ app.get('/health', (c) => c.json({ status: 'ok' }));
 
 // Token-authenticated capture endpoint; skipped by requireUser.
 app.route('/inbox', inbox);
+// Published plan feed; calendar apps can only pass a token in the URL.
+app.route('/calendar', calendarFeed);
 
 // Resolves the user (or 401s) for everything except /health and POST /users.
 app.use('*', requireUser);

@@ -345,8 +345,8 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
         </h2>
         <p className="mt-1 text-xs leading-snug" style={muted}>
           A private address other apps can send items to. They land in your Parking Lot, not your active list, so
-          capturing something never commits you to it. The same token also lets the Claude Desktop connector read
-          your Guild.
+          capturing something never commits you to it. The same token publishes your plan as a calendar feed and
+          lets the Claude Desktop connector read your Guild.
         </p>
       </div>
 
@@ -363,6 +363,11 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
             </p>
             <CopyRow label="Address" value={endpoint} onCopy={() => copy(endpoint, 'Address')} />
             <CopyRow label="Token" value={token} onCopy={() => copy(token, 'Token')} />
+            <CopyRow
+              label="Plan feed"
+              value={`${API_URL}/calendar/${token}.ics`}
+              onCopy={() => copy(`${API_URL}/calendar/${token}.ics`, 'Plan feed link')}
+            />
             <details className="text-xs">
               <summary className="cursor-pointer font-semibold">Test it from a terminal</summary>
               <pre className="mt-2 overflow-x-auto whitespace-pre rounded-md p-2 font-mono text-[11px]" style={{ background: 'rgba(0,0,0,0.3)' }}>
@@ -400,6 +405,13 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
         <HelpItem title="iPhone Shortcuts / Android">
           Shortcut: Ask for Input → Get Contents of URL (POST, JSON body <code>text</code> = the input, header
           Authorization = Bearer + token). Add it to your home screen or share sheet.
+        </HelpItem>
+        <HelpItem title="See your plan in your own calendar">
+          Subscribe to the <b>plan feed</b> link above from Google Calendar (Other calendars → From URL), Outlook
+          (Add calendar → Subscribe from web) or iPhone (Settings → Calendar → Accounts → Add Subscribed Calendar).
+          Your quest blocks then appear alongside everything else, with that app's reminders. It is one-way: editing
+          an event there changes nothing in the Guild. Google refreshes subscribed feeds slowly, often only every few
+          hours.
         </HelpItem>
         <HelpItem title="Anything else">
           Zapier, Make, IFTTT or a script: POST <code>{'{"text": "…"}'}</code> or plain text to the address with the token.

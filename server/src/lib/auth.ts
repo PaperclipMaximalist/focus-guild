@@ -83,8 +83,13 @@ async function resolveClerkId(c: Context): Promise<string | null> {
 export const requireUser: MiddlewareHandler = async (c, next) => {
   // Skip the health check and the user-upsert endpoint itself.
   const path = c.req.path;
-  // /inbox authenticates with its own personal token (routes/inbox.ts).
-  if (path === '/health' || path === '/inbox' || (path === '/users' && c.req.method === 'POST')) {
+  // /inbox and /calendar/<token>.ics carry their own personal token.
+  if (
+    path === '/health' ||
+    path === '/inbox' ||
+    path.startsWith('/calendar/') ||
+    (path === '/users' && c.req.method === 'POST')
+  ) {
     return next();
   }
 
