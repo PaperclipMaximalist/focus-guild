@@ -28,8 +28,9 @@ model User {
   /// Bumped on delete so freed codes are never reissued. Not in trackerSettings
   /// because a presets save/reset replaces that JSON wholesale.
   trackerCodeHighWater Json?
-  /// SHA-256 of the personal inbox token (the token itself is shown once).
-  inboxTokenHash       String?  @unique
+  /// SHA-256 of the personal access token (shown once). Authenticates the
+  /// inbox endpoint, the REST API and the MCP connector.
+  personalTokenHash    String?  @unique
 
   quests         Quest[]
   checkIns       DailyCheckIn[]

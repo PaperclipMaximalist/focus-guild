@@ -11,18 +11,27 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, type ActivityEntry, type PermafileState } from '../lib/api';
+import {
+  WEEKLY_REVIEW_QUESTION,
+  api,
+  type ActivityEntry,
+  type GuildAction,
+  type GuildReply,
+  type PermafileState,
+} from '../lib/api';
+import { useTrackerStore } from '../store/useTrackerStore';
 import { sfxClick } from '../lib/sfx';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle } from '../components/tracker/Sheet';
-import { Clipboard, Download, History, PenLine, RotateCcw, Save, ScrollText, Sparkles, TriangleAlert } from 'lucide-react';
+import { Check, Clipboard, Download, History, PenLine, RotateCcw, Save, ScrollText, Send, Sparkles, TriangleAlert } from 'lucide-react';
 
-type Tab = 'log' | 'permafile' | 'bundle';
+type Tab = 'log' | 'permafile' | 'ask' | 'bundle';
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'log', label: 'Log' },
   { id: 'permafile', label: 'Permafile' },
-  { id: 'bundle', label: 'AI bundle' },
+  { id: 'ask', label: 'Ask' },
+  { id: 'bundle', label: 'Bundle' },
 ];
 
 const RANGES = [7, 30, 90] as const;
@@ -67,7 +76,7 @@ export default function Chronicle() {
         </p>
       </header>
 
-      <div role="tablist" className="grid grid-cols-3 gap-1 rounded-xl border p-1" style={card}>
+      <div role="tablist" className="grid grid-cols-4 gap-1 rounded-xl border p-1" style={card}>
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -89,6 +98,7 @@ export default function Chronicle() {
 
       {tab === 'log' && <LogTab />}
       {tab === 'permafile' && <PermafileTab />}
+      {tab === 'ask' && <AskTab />}
       {tab === 'bundle' && <BundleTab />}
     </div>
   );
@@ -348,6 +358,181 @@ function PermafileTab() {
         </div>
       )}
     </section>
+  );
+}
+
+// ─── Ask the Guild ────────────────────────────────────────────────────────────
+
+const SUGGESTED = [
+  'Why did I fall behind this week?',
+  'What do I keep dropping, and what does that say?',
+  'What should I do first tomorrow morning?',
+];
+
+function AskTab() {
+  const pushToast = useToastStore((s) => s.push);
+  const [question, setQuestion] = useState('');
+  const [reply, setReply] = useState<GuildReply | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const ask = async (q: string) => {
+    const text = q.trim();
+    if (!text || busy) return;
+    setBusy(true);
+    setError(null);
+    setReply(null);
+    try {
+      setReply(await api.chronicle.ask(text));
+      sfxClick();
+    } catch (err) {
+      setError(String(err).replace(/^ApiRequestError:\s*/, '').replace(/^Error:\s*/, ''));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-3">
+      <p className="text-xs leading-snug" style={muted}>
+        Asks Claude about your own permafile, tracker and recent log. It answers only from those, and anything it
+        wants changed comes back as a button you tap.
+      </p>
+
+      <div className="flex gap-2">
+        <input
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && ask(question)}
+          placeholder="Ask about your week…"
+          maxLength={1000}
+          className={fieldClass}
+          style={fieldStyle}
+        />
+        <button
+          type="button"
+          onClick={() => ask(question)}
+          disabled={busy || !question.trim()}
+          aria-label="Ask"
+          className="grid w-12 shrink-0 place-items-center rounded-lg disabled:opacity-40"
+          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
+        >
+          <Send size={18} aria-hidden />
+        </button>
+      </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => ask(WEEKLY_REVIEW_QUESTION)}
+          disabled={busy}
+          className="rounded-full border px-3 py-1 text-xs font-bold disabled:opacity-40"
+          style={{ borderColor: 'var(--color-primary)', color: 'var(--color-text)' }}
+        >
+          Weekly review
+        </button>
+        {SUGGESTED.map((q) => (
+          <button
+            key={q}
+            type="button"
+            onClick={() => ask(q)}
+            disabled={busy}
+            className="rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-40"
+            style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
+          >
+            {q}
+          </button>
+        ))}
+      </div>
+
+      {busy && (
+        <div className="flex flex-col gap-2" aria-busy="true">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-5 animate-pulse rounded" style={{ background: 'var(--color-surface)' }} />
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-(--radius-card) border p-3 text-sm" style={card}>
+          <p>{error}</p>
+          {error.includes('ANTHROPIC_API_KEY') && (
+            <p className="mt-1 text-xs" style={muted}>
+              Until a key is set on the server, use the Bundle tab: copy it and paste it into Claude yourself.
+            </p>
+          )}
+        </div>
+      )}
+
+      {reply && (
+        <div className="flex flex-col gap-3 rounded-(--radius-card) border p-3" style={card}>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{reply.answer}</p>
+          {reply.actions.length > 0 && (
+            <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={muted}>
+                Suggested — nothing happens until you tap
+              </p>
+              {reply.actions.map((a, i) => (
+                <ActionButton key={i} action={a} onDone={pushToast} />
+              ))}
+            </div>
+          )}
+          <p className="font-mono text-[11px]" style={muted}>
+            {reply.days} days of context · ~{Math.ceil(reply.contextChars / 4).toLocaleString()} tokens
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** One suggested action. Applies through the same endpoints the UI uses. */
+function ActionButton({ action, onDone }: { action: GuildAction; onDone: ReturnType<typeof useToastStore.getState>['push'] }) {
+  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const { items, loaded, load, dropItem, scheduleItem, addParkingLot, addDecision } = useTrackerStore();
+
+  useEffect(() => {
+    if (!loaded && (action.kind === 'drop' || action.kind === 'schedule')) load();
+  }, [loaded, load, action.kind]);
+
+  const apply = async () => {
+    setState('busy');
+    try {
+      const byCode = () => {
+        const item = items.find((i) => i.code.toUpperCase() === (action.code ?? '').toUpperCase());
+        if (!item) throw new Error(`No item ${action.code} — it may have been deleted.`);
+        return item.id;
+      };
+      if (action.kind === 'park') await addParkingLot(action.text ?? '');
+      else if (action.kind === 'decision') await addDecision(action.text ?? '');
+      else if (action.kind === 'journal') await api.chronicle.journal(action.text ?? '');
+      else if (action.kind === 'drop') await dropItem(byCode());
+      else await scheduleItem(byCode());
+      setState('done');
+      sfxClick();
+      onDone({ title: 'Done', sub: action.label, icon: Check, variant: 'xp' });
+    } catch (err) {
+      setState('idle');
+      onDone({ title: 'Could not do that', sub: String(err), icon: TriangleAlert, variant: 'error' });
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={apply}
+      disabled={state !== 'idle'}
+      className="flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm font-semibold disabled:opacity-60"
+      style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
+    >
+      {state === 'done' ? <Check size={15} aria-hidden style={{ color: 'var(--color-green)' }} /> : <Sparkles size={15} aria-hidden />}
+      <span className="min-w-0 flex-1">{action.label}</span>
+      {action.text && (
+        <span className="hidden shrink-0 truncate text-xs sm:block" style={muted}>
+          {action.text.slice(0, 40)}
+        </span>
+      )}
+    </button>
   );
 }
 

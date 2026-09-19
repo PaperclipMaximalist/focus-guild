@@ -18,6 +18,7 @@
  */
 
 import type { Context, MiddlewareHandler } from 'hono';
+import { PAT_PREFIX, hashPersonalToken } from './tokens.js';
 import { verifyToken } from '@clerk/backend';
 import { db } from '../db/client.js';
 import type { User } from '../../generated/prisma/client.js';
@@ -84,6 +85,22 @@ export const requireUser: MiddlewareHandler = async (c, next) => {
   const path = c.req.path;
   // /inbox authenticates with its own personal token (routes/inbox.ts).
   if (path === '/health' || path === '/inbox' || (path === '/users' && c.req.method === 'POST')) {
+    return next();
+  }
+
+  // A personal access token identifies the user directly — no Clerk involved.
+  // Used by the MCP connector and any script the user points at the API.
+  const auth = c.req.header('Authorization');
+  const pat = auth?.startsWith(`Bearer ${PAT_PREFIX}`) ? auth.slice('Bearer '.length) : null;
+  if (pat) {
+    const byToken = await db.user.findUnique({ where: { personalTokenHash: hashPersonalToken(pat) } });
+    if (!byToken) {
+      return c.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'Invalid personal access token' } },
+        401,
+      );
+    }
+    c.set('user', byToken);
     return next();
   }
 

@@ -91,7 +91,7 @@ export default function Connections() {
       {state && (
         <>
           <CalendarsSection calendars={state.calendars} onChange={load} fail={fail} />
-          <InboxSection enabled={state.inboxEnabled} onChange={load} fail={fail} />
+          <InboxSection enabled={state.tokenEnabled} onChange={load} fail={fail} />
         </>
       )}
     </div>
@@ -309,7 +309,7 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
   const create = async () => {
     setBusy(true);
     try {
-      const res = await api.integrations.createInboxToken();
+      const res = await api.integrations.createToken();
       setToken(res.token);
       onChange();
     } catch (err) {
@@ -322,10 +322,10 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
   const revoke = async () => {
     setBusy(true);
     try {
-      await api.integrations.revokeInboxToken();
+      await api.integrations.revokeToken();
       setToken(null);
       onChange();
-      pushToast({ title: 'Inbox turned off', sub: 'The old token no longer works', icon: Inbox, variant: 'xp' });
+      pushToast({ title: 'Token revoked', sub: 'The inbox and the connector stop working', icon: Inbox, variant: 'xp' });
     } catch (err) {
       fail('Could not turn it off')(err);
     } finally {
@@ -345,7 +345,8 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
         </h2>
         <p className="mt-1 text-xs leading-snug" style={muted}>
           A private address other apps can send items to. They land in your Parking Lot, not your active list, so
-          capturing something never commits you to it.
+          capturing something never commits you to it. The same token also lets the Claude Desktop connector read
+          your Guild.
         </p>
       </div>
 

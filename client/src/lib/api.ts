@@ -428,8 +428,8 @@ export const api = {
     syncCalendar: (id: string) =>
       request<CalendarSyncResult>(`/integrations/calendars/${id}/sync`, { method: 'POST', body: '{}' }),
     removeCalendar: (id: string) => request<{ id: string }>(`/integrations/calendars/${id}`, { method: 'DELETE' }),
-    createInboxToken: () => request<{ token: string }>('/integrations/inbox-token', { method: 'POST', body: '{}' }),
-    revokeInboxToken: () => request<{ revoked: boolean }>('/integrations/inbox-token', { method: 'DELETE' }),
+    createToken: () => request<{ token: string }>('/integrations/token', { method: 'POST', body: '{}' }),
+    revokeToken: () => request<{ revoked: boolean }>('/integrations/token', { method: 'DELETE' }),
   },
 
   /** Activity log, permafile and AI bundle. `tz` is getTimezoneOffset(). */
@@ -442,12 +442,40 @@ export const api = {
       request<{ changed: boolean; id?: string }>('/chronicle/permafile', { method: 'PUT', body: JSON.stringify({ body }) }),
     restorePermafile: (id: string) =>
       request<{ id: string }>(`/chronicle/permafile/restore/${id}`, { method: 'POST', body: '{}' }),
+    ask: (question: string, days = 14) =>
+      request<GuildReply>('/chronicle/ask', {
+        method: 'POST',
+        body: JSON.stringify({ question, days, tz: new Date().getTimezoneOffset() }),
+      }),
     bundle: (days = 7) =>
       request<{ markdown: string; chars: number; entries: number }>(
         `/chronicle/bundle?days=${days}&tz=${new Date().getTimezoneOffset()}`,
       ),
   },
 };
+
+// ─── Ask the Guild types ──────────────────────────────────────────────────────
+
+/** Mirrors server lib/chronicle.ts. Actions are suggestions, never applied for you. */
+export type GuildActionKind = 'park' | 'journal' | 'decision' | 'drop' | 'schedule';
+
+export interface GuildAction {
+  kind: GuildActionKind;
+  label: string;
+  text?: string;
+  code?: string;
+}
+
+export interface GuildReply {
+  answer: string;
+  actions: GuildAction[];
+  contextChars: number;
+  days: number;
+}
+
+export const WEEKLY_REVIEW_QUESTION =
+  'Write my weekly review. What actually moved, what stalled and why, what I should let go of, ' +
+  'and the three things that matter most next week. Be concrete and use my item codes.';
 
 // ─── Integration types ────────────────────────────────────────────────────────
 
@@ -463,7 +491,8 @@ export interface CalendarSourceInfo {
 
 export interface IntegrationsState {
   calendars: CalendarSourceInfo[];
-  inboxEnabled: boolean;
+  /** One personal access token powers the inbox, the API and the connector. */
+  tokenEnabled: boolean;
 }
 
 export type CalendarSyncResult = { calendar: CalendarSourceInfo; count?: number; error?: string };

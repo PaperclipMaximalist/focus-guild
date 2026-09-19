@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PERMAFILE_TEMPLATE, buildAiBundle, localDayKey, renderLogMarkdown } from './chronicle.js';
+import { PERMAFILE_TEMPLATE, buildAiBundle, localDayKey, parseGuildReply, renderLogMarkdown } from './chronicle.js';
 
 // Vancouver in September: getTimezoneOffset() === 420 (UTC-7).
 const PDT = 420;
@@ -74,5 +74,52 @@ describe('buildAiBundle', () => {
   it('marks an empty permafile instead of leaving a blank section', () => {
     const empty = buildAiBundle({ permafile: '', trackerMarkdown: '', logMarkdown: '_Nothing._', days: 1, generatedAt: new Date(0) });
     expect(empty).toContain('## 1. Permafile\n\n_Empty._');
+  });
+});
+
+describe('parseGuildReply', () => {
+  const ok = (raw: string) => {
+    const r = parseGuildReply(raw);
+    if ('error' in r) throw new Error(`unexpected error: ${r.error}`);
+    return r;
+  };
+
+  it('reads answer and actions out of fenced JSON', () => {
+    const r = ok('```json\n{"answer":"You stalled on A12.","actions":[{"kind":"drop","label":"Let go of A12","code":"a12"}]}\n```');
+    expect(r.answer).toBe('You stalled on A12.');
+    expect(r.actions).toEqual([{ kind: 'drop', label: 'Let go of A12', code: 'A12' }]);
+  });
+
+  it('keeps plain prose when the model ignores the format', () => {
+    const r = ok('Nothing moved this week, and that is fine.');
+    expect(r.answer).toBe('Nothing moved this week, and that is fine.');
+    expect(r.actions).toEqual([]);
+  });
+
+  it('drops actions that could not be carried out', () => {
+    const r = ok(
+      JSON.stringify({
+        answer: 'Here.',
+        actions: [
+          { kind: 'drop', label: 'no code' },
+          { kind: 'park', label: 'no text' },
+          { kind: 'nuke', label: 'not a kind', text: 'x' },
+          { kind: 'park', label: '', text: 'no label' },
+          { kind: 'journal', label: 'Log it', text: 'Felt slow today' },
+        ],
+      }),
+    );
+    expect(r.actions).toEqual([{ kind: 'journal', label: 'Log it', text: 'Felt slow today' }]);
+  });
+
+  it('never returns more than three actions', () => {
+    const many = Array.from({ length: 6 }, (_, i) => ({ kind: 'park', label: `p${i}`, text: `t${i}` }));
+    expect(ok(JSON.stringify({ answer: 'a', actions: many })).actions).toHaveLength(3);
+  });
+
+  it('reports unusable replies instead of inventing an answer', () => {
+    expect(parseGuildReply('')).toEqual({ error: 'The AI returned nothing.' });
+    expect(parseGuildReply('{"actions":[]}')).toEqual({ error: 'The AI returned no answer.' });
+    expect(parseGuildReply('[1,2]')).toHaveProperty('error');
   });
 });

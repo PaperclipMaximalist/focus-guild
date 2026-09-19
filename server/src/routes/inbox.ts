@@ -6,8 +6,8 @@
  * the parking lot, never the active list, because capture shouldn't commit you.
  *
  * Auth is a personal token, not a Clerk session:
- *   Authorization: Bearer fgi_…      (preferred)
- *   ?token=fgi_…                     (for tools that can't set headers)
+ *   Authorization: Bearer fgpat_…    (preferred)
+ *   ?token=fgpat_…                   (for tools that can't set headers)
  *
  * Body: JSON { text } or { title, body } (Power Automate / email shapes),
  * or plain text.
@@ -16,7 +16,7 @@
 import { Hono } from 'hono';
 import { db } from '../db/client.js';
 import { logActivity } from '../lib/activity.js';
-import { hashInboxToken } from './integrations.js';
+import { PAT_PREFIX, hashPersonalToken } from '../lib/tokens.js';
 
 export const inbox = new Hono();
 
@@ -47,9 +47,9 @@ inbox.post('/', async (c) => {
   const header = c.req.header('Authorization') ?? '';
   const token = header.startsWith('Bearer ') ? header.slice(7).trim() : (c.req.query('token') ?? '');
   const unauthorized = c.json({ success: false, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid inbox token' } }, 401);
-  if (!token.startsWith('fgi_')) return unauthorized;
+  if (!token.startsWith(PAT_PREFIX)) return unauthorized;
 
-  const user = await db.user.findUnique({ where: { inboxTokenHash: hashInboxToken(token) }, select: { id: true } });
+  const user = await db.user.findUnique({ where: { personalTokenHash: hashPersonalToken(token) }, select: { id: true } });
   if (!user) return unauthorized;
   if (rateLimited(user.id)) {
     return c.json({ success: false, error: { code: 'RATE_LIMITED', message: 'Too many inbox items this hour' } }, 429);

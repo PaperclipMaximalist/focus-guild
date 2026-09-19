@@ -117,3 +117,86 @@ export function buildAiBundle(input: BundleInput): string {
     '',
   ].join('\n');
 }
+
+// ─── Ask the Guild ────────────────────────────────────────────────────────────
+
+/**
+ * What the model may propose. Every action is a suggestion the user taps, not
+ * something the AI performs: the same rule as the tracker's explicit
+ * "Schedule as quest" button. `park`, `journal` and `decision` carry text;
+ * `drop` and `schedule` name an existing item by its code.
+ */
+export const GUILD_ACTION_KINDS = ['park', 'journal', 'decision', 'drop', 'schedule'] as const;
+export type GuildActionKind = (typeof GUILD_ACTION_KINDS)[number];
+
+export interface GuildAction {
+  kind: GuildActionKind;
+  /** Button text, e.g. "Drop A12 - it hasn't moved in three weeks". */
+  label: string;
+  /** Free text for park/journal/decision. */
+  text?: string;
+  /** Item code for drop/schedule. */
+  code?: string;
+}
+
+export interface GuildReply {
+  answer: string;
+  actions: GuildAction[];
+}
+
+export const GUILD_SYSTEM_PROMPT = `You are the Guild Master in Focus Guild, a quest-framed task app used by one person with ADHD.
+
+You are given their permafile (who they are and the rules they set), their tracker (what they are committed to) and their chronicle (what actually happened recently). Answer only from those; say plainly when something is not in them.
+
+How to answer:
+- Follow any "Rules for the AI" in the permafile; they override these.
+- Be plain, warm and short. No guilt, no lectures, no motivational filler.
+- Prefer specifics from the data (item codes, quest names, dates) over generalities.
+- At most three suggested actions, only when they clearly follow from the data.
+- A next action is always a physical first step, never a topic.
+
+Reply with JSON only, no prose outside it, in exactly this shape:
+{"answer": "markdown string", "actions": [{"kind": "park|journal|decision|drop|schedule", "label": "short button text", "text": "for park/journal/decision", "code": "A12 for drop/schedule"}]}`;
+
+/** Strip code fences and parse the model's JSON, tolerating small deviations. */
+export function parseGuildReply(raw: string): GuildReply | { error: string } {
+  const cleaned = raw.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(cleaned);
+  } catch {
+    // A model that ignored the format still said something useful.
+    return cleaned ? { answer: cleaned, actions: [] } : { error: 'The AI returned nothing.' };
+  }
+  if (typeof parsed !== 'object' || parsed === null) return { error: 'The AI returned an unexpected shape.' };
+  const o = parsed as Record<string, unknown>;
+  const answer = typeof o['answer'] === 'string' ? o['answer'].trim() : '';
+  if (!answer) return { error: 'The AI returned no answer.' };
+
+  const actions: GuildAction[] = [];
+  for (const item of Array.isArray(o['actions']) ? o['actions'] : []) {
+    if (typeof item !== 'object' || item === null) continue;
+    const a = item as Record<string, unknown>;
+    const kind = a['kind'];
+    const label = typeof a['label'] === 'string' ? a['label'].trim() : '';
+    if (!GUILD_ACTION_KINDS.includes(kind as GuildActionKind) || !label) continue;
+    const text = typeof a['text'] === 'string' ? a['text'].trim() : '';
+    const code = typeof a['code'] === 'string' ? a['code'].trim().toUpperCase() : '';
+    // Drop the ones that cannot be carried out rather than showing a dead button.
+    if ((kind === 'drop' || kind === 'schedule') && !code) continue;
+    if ((kind === 'park' || kind === 'journal' || kind === 'decision') && !text) continue;
+    actions.push({
+      kind: kind as GuildActionKind,
+      label: label.slice(0, 120),
+      ...(text ? { text: text.slice(0, 2000) } : {}),
+      ...(code ? { code: code.slice(0, 12) } : {}),
+    });
+    if (actions.length === 3) break;
+  }
+  return { answer, actions };
+}
+
+/** The canned weekly-review question, so client and connector ask the same one. */
+export const WEEKLY_REVIEW_QUESTION =
+  'Write my weekly review. What actually moved, what stalled and why, what I should let go of, ' +
+  'and the three things that matter most next week. Be concrete and use my item codes.';

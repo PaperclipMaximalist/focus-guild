@@ -8,6 +8,7 @@
  *   PUT  /chronicle/permafile               save (new version if changed)
  *   POST /chronicle/permafile/restore/:id   make an old version current
  *   GET  /chronicle/bundle?days=&tz=        permafile + tracker + log, one doc
+ *   POST /chronicle/ask                     ask Claude about all three (needs a key)
  *
  * `tz` is `Date.prototype.getTimezoneOffset()` in minutes, the same
  * convention the scheduler uses.
@@ -17,7 +18,14 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { logActivity } from '../lib/activity.js';
-import { PERMAFILE_TEMPLATE, buildAiBundle, renderLogMarkdown } from '../lib/chronicle.js';
+import {
+  GUILD_SYSTEM_PROMPT,
+  PERMAFILE_TEMPLATE,
+  buildAiBundle,
+  parseGuildReply,
+  renderLogMarkdown,
+} from '../lib/chronicle.js';
+import { AI_ENABLED, AI_MODEL, getClient } from '../lib/ai.js';
 import { getTrackerConfig } from '../lib/tracker/config.js';
 import { serialize } from '../lib/tracker/markdown.js';
 import { loadDoc } from './tracker.js';
@@ -137,12 +145,8 @@ chronicle.post('/permafile/restore/:id', async (c) => {
 
 // ─── AI bundle ────────────────────────────────────────────────────────────────
 
-chronicle.get('/bundle', async (c) => {
-  const user = c.get('user');
-  const days = readDays(c.req.query('days'));
-  const tz = readTz(c.req.query('tz'));
+async function buildBundle(user: { id: string; trackerSettings?: unknown }, days: number, tz: number) {
   const now = new Date();
-
   const [{ body }, { doc }, entries] = await Promise.all([
     currentPermafile(user.id),
     loadDoc(user.id),
@@ -161,5 +165,73 @@ chronicle.get('/bundle', async (c) => {
     days,
     generatedAt: now,
   });
-  return c.json({ success: true, data: { markdown, chars: markdown.length, entries: entries.length } });
+  return { markdown, chars: markdown.length, entries: entries.length };
+}
+
+chronicle.get('/bundle', async (c) => {
+  const bundle = await buildBundle(c.get('user'), readDays(c.req.query('days')), readTz(c.req.query('tz')));
+  return c.json({ success: true, data: bundle });
+});
+
+// ─── Ask the Guild ────────────────────────────────────────────────────────────
+
+const AskSchema = z.object({
+  question: z.string().trim().min(3).max(1000),
+  days: z.number().int().min(1).max(90).optional(),
+  tz: z.number().int().min(-720).max(840).optional(),
+});
+
+/**
+ * Answer a question about the user's own data. The bundle is the whole
+ * context; the model gets no tools, and anything it wants changed comes back
+ * as a suggestion the user taps.
+ */
+chronicle.post('/ask', async (c) => {
+  const user = c.get('user');
+  if (!AI_ENABLED) {
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'AI_NOT_CONFIGURED',
+          message: 'Add ANTHROPIC_API_KEY to the server to enable Ask the Guild.',
+        },
+      },
+      503,
+    );
+  }
+  const parsed = AskSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json(bad(parsed.error.message), 400);
+
+  const days = readDays(String(parsed.data.days ?? 14));
+  const bundle = await buildBundle(user, days, readTz(String(parsed.data.tz ?? 0)));
+
+  try {
+    const response = await getClient().messages.create({
+      model: AI_MODEL,
+      max_tokens: 16000,
+      system: GUILD_SYSTEM_PROMPT,
+      messages: [
+        { role: 'user', content: bundle.markdown + '\n\n---\n\nMy question: ' + parsed.data.question },
+      ],
+    });
+    if (response.stop_reason === 'refusal') {
+      return c.json({ success: false, error: { code: 'AI_REFUSED', message: 'The AI declined to answer that.' } }, 502);
+    }
+    const textBlock = response.content.find((b) => b.type === 'text');
+    const reply = parseGuildReply(textBlock && textBlock.type === 'text' ? textBlock.text : '');
+    if ('error' in reply) {
+      return c.json({ success: false, error: { code: 'AI_PARSE_ERROR', message: reply.error } }, 502);
+    }
+
+    void logActivity(user.id, 'ask', 'Asked the Guild: ' + parsed.data.question, {
+      data: { days, chars: bundle.chars },
+    });
+    return c.json({ success: true, data: { ...reply, contextChars: bundle.chars, days } });
+  } catch (e: unknown) {
+    return c.json(
+      { success: false, error: { code: 'AI_ERROR', message: e instanceof Error ? e.message : String(e) } },
+      502,
+    );
+  }
 });

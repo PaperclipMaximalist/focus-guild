@@ -1,9 +1,9 @@
 -- ICS calendar feeds, their busy events, and the personal inbox token.
 -- Idempotent and additive only, like the migrations before it.
 
-ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "inboxTokenHash" TEXT;
+ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "personalTokenHash" TEXT;
 
-CREATE UNIQUE INDEX IF NOT EXISTS "users_inboxTokenHash_key" ON "users"("inboxTokenHash");
+CREATE UNIQUE INDEX IF NOT EXISTS "users_personalTokenHash_key" ON "users"("personalTokenHash");
 
 CREATE TABLE IF NOT EXISTS "calendar_sources" (
     "id" TEXT NOT NULL,

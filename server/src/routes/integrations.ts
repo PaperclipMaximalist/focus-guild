@@ -5,26 +5,24 @@
  *   POST   /integrations/calendars            { name, url } → add + first sync
  *   POST   /integrations/calendars/:id/sync   sync now
  *   DELETE /integrations/calendars/:id
- *   POST   /integrations/inbox-token          create or rotate; token shown once
- *   DELETE /integrations/inbox-token          revoke
+ *   POST   /integrations/token                create or rotate; shown once
+ *   DELETE /integrations/token                revoke
  *
  * The public, token-authenticated `POST /inbox` lives in routes/inbox.ts.
  */
 
-import { createHash, randomBytes } from 'node:crypto';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { logActivity } from '../lib/activity.js';
 import { normaliseFeedUrl } from '../lib/calendar/ics.js';
 import { syncSource } from '../lib/calendar/sync.js';
+import { hashPersonalToken, newPersonalToken } from '../lib/tokens.js';
 
 export const integrations = new Hono();
 
 const bad = (message: string) => ({ success: false as const, error: { code: 'BAD_REQUEST', message } });
 const notFound = { success: false as const, error: { code: 'NOT_FOUND', message: 'Calendar not found' } };
-
-export const hashInboxToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 /** Show enough of a secret URL to recognise it, never enough to reuse it. */
 function maskUrl(url: string): string {
@@ -45,7 +43,7 @@ integrations.get('/', async (c) => {
   const sources = await db.calendarSource.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'asc' } });
   return c.json({
     success: true,
-    data: { calendars: sources.map(publicSource), inboxEnabled: Boolean(user.inboxTokenHash) },
+    data: { calendars: sources.map(publicSource), tokenEnabled: Boolean(user.personalTokenHash) },
   });
 });
 
@@ -89,15 +87,20 @@ integrations.delete('/calendars/:id', async (c) => {
   return c.json({ success: true, data: { id: source.id } });
 });
 
-integrations.post('/inbox-token', async (c) => {
+/**
+ * One personal access token per user. It authenticates the inbox endpoint,
+ * the REST API (Authorization: Bearer) and the MCP connector, so creating a
+ * new one replaces the old everywhere.
+ */
+integrations.post('/token', async (c) => {
   const user = c.get('user');
-  const token = `fgi_${randomBytes(24).toString('base64url')}`;
-  await db.user.update({ where: { id: user.id }, data: { inboxTokenHash: hashInboxToken(token) } });
+  const token = newPersonalToken();
+  await db.user.update({ where: { id: user.id }, data: { personalTokenHash: hashPersonalToken(token) } });
   return c.json({ success: true, data: { token } });
 });
 
-integrations.delete('/inbox-token', async (c) => {
+integrations.delete('/token', async (c) => {
   const user = c.get('user');
-  await db.user.update({ where: { id: user.id }, data: { inboxTokenHash: null } });
+  await db.user.update({ where: { id: user.id }, data: { personalTokenHash: null } });
   return c.json({ success: true, data: { revoked: true } });
 });
