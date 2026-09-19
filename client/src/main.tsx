@@ -23,3 +23,14 @@ const Root = PUBLISHABLE_KEY ? (
 )
 
 createRoot(document.getElementById('root')!).render(<StrictMode>{Root}</StrictMode>)
+
+// Service worker: offline shell + cached build assets (public/sw.js).
+// Production only — in dev it would serve stale modules and confuse HMR.
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {
+      // No offline support then; the app works exactly as before.
+    })
+  })
+}
+

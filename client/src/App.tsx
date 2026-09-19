@@ -18,6 +18,7 @@ const TrackerPresets = lazy(() => import('./pages/TrackerPresets'));
 const TrackerMarkdown = lazy(() => import('./pages/TrackerMarkdown'));
 const Chronicle = lazy(() => import('./pages/Chronicle'));
 const Connections = lazy(() => import('./pages/Connections'));
+const Share = lazy(() => import('./pages/Share'));
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
@@ -147,6 +148,8 @@ function AuthenticatedApp() {
           <Route path="/tracker/markdown" element={<TrackerRoute><TrackerMarkdown /></TrackerRoute>} />
           <Route path="/chronicle" element={<TrackerRoute><Chronicle /></TrackerRoute>} />
           <Route path="/connections" element={<TrackerRoute><Connections /></TrackerRoute>} />
+          {/* Android share-sheet target; see share_target in the manifest. */}
+          <Route path="/share" element={<TrackerRoute><Share /></TrackerRoute>} />
         </Routes>
         <ToastContainer />
         <KeyboardShortcuts />

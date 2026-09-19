@@ -1,0 +1,27 @@
+{
+  "name": "Focus Guild",
+  "short_name": "Guild",
+  "description": "A gamified quest tracker and energy-aware day planner.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#121110",
+  "theme_color": "#121110",
+  "categories": ["productivity"],
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Guild Feed", "url": "/feed" },
+    { "name": "Tracker", "url": "/tracker" },
+    { "name": "Daily check-in", "url": "/checkin" }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  }
+}
