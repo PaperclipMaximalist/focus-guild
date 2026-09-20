@@ -27,6 +27,11 @@ const hits = new Map<string, number[]>();
 /** In-memory, per-user: enough to stop a looping automation, not an attacker. */
 function rateLimited(userId: string): boolean {
   const now = Date.now();
+  // Drop users whose window has expired, or the map grows forever in a
+  // long-lived process.
+  for (const [id, times] of hits) {
+    if (times.every((t) => now - t >= WINDOW_MS)) hits.delete(id);
+  }
   const recent = (hits.get(userId) ?? []).filter((t) => now - t < WINDOW_MS);
   recent.push(now);
   hits.set(userId, recent);
