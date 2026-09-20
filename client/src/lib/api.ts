@@ -226,6 +226,21 @@ export const api = {
         `/quests/${id}/decompose`,
         { method: 'POST', body: '{}' },
       ),
+    /** Bulk import; the server writes them in one transaction. */
+    import: (
+      quests: Array<{
+        title: string;
+        estimatedMinutes?: number;
+        deadline?: string;
+        priorityTier?: PriorityTier;
+        tags?: string[];
+      }>,
+    ) =>
+      request<{ created: number; quests: Quest[] }>('/quests/import', {
+        method: 'POST',
+        body: JSON.stringify({ quests }),
+      }),
+
     create: (
       input: {
         title: string;

@@ -7,7 +7,8 @@ import { QuestCard } from '../components/QuestCard';
 import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
 import { api, type Quest } from '../lib/api';
-import { Check, Hourglass, MapIcon, Search, Star, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Check, Hourglass, ListPlus, MapIcon, Search, Star, Trash2 } from 'lucide-react';
 
 type Sort = 'priority' | 'deadline' | 'created' | 'title';
 
@@ -168,6 +169,13 @@ export default function Quests() {
     <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
       <header className="flex items-baseline justify-between gap-3">
         <h1 className="text-2xl sm:text-3xl font-bold">All Quests</h1>
+        <Link
+          to="/quests/import"
+          className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold"
+          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+        >
+          <ListPlus size={15} aria-hidden /> Import
+        </Link>
       </header>
 
       {/* Search + sort */}

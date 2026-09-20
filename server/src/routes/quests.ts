@@ -37,6 +37,30 @@ const CreateQuestSchema = z.object({
   ...SchedulerHintsSchema,
 });
 
+/**
+ * Bulk import. The client parses each pasted line with the same quick-add
+ * grammar the Today bar uses and sends the result here, so the preview it
+ * showed and what gets created cannot disagree.
+ *
+ * Capped, and written in one transaction: a half-finished import of 40
+ * quests would be worse than a clean failure. (A bulk import shipped in May
+ * once wedged production; this one is all-or-nothing and covered by tests.)
+ */
+const ImportQuestsSchema = z.object({
+  quests: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(280),
+        estimatedMinutes: z.number().int().min(1).max(1440).optional(),
+        deadline: z.string().datetime({ offset: true }).nullable().optional(),
+        priorityTier: z.enum(['LOW', 'MED', 'HIGH']).optional(),
+        tags: z.array(z.string().trim().min(1).max(40)).max(10).optional(),
+      }),
+    )
+    .min(1)
+    .max(100),
+});
+
 const UpdateQuestSchema = z.object({
   title: z.string().min(1).max(280).optional(),
   estimatedMinutes: z.number().int().min(1).optional(),
@@ -343,6 +367,36 @@ quests.post('/', async (c) => {
 
   void logActivity(user.id, 'quest.created', `Added quest "${quest.title}" (${quest.estimatedMinutes} min)`, { subjectId: quest.id });
   return c.json({ success: true, data: quest }, 201);
+});
+
+// POST /quests/import — create many quests from parsed lines
+quests.post('/import', async (c) => {
+  const user = c.get('user');
+  const parsed = ImportQuestsSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return c.json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.message } }, 400);
+  }
+
+  const rows = parsed.data.quests.map((q) => ({
+    userId: user.id,
+    title: q.title,
+    estimatedMinutes: q.estimatedMinutes ?? 30,
+    deadline: q.deadline ? new Date(q.deadline) : null,
+    ...(q.priorityTier ? { priorityTier: q.priorityTier } : {}),
+    tags: q.tags ?? [],
+    status: 'ACTIVE' as const,
+  }));
+
+  const created = await db.$transaction(rows.map((data) => db.quest.create({ data })));
+
+  void logActivity(
+    user.id,
+    'quest.imported',
+    `Imported ${created.length} quest${created.length === 1 ? '' : 's'}: ` +
+      created.slice(0, 5).map((q) => `"${q.title}"`).join(', ') +
+      (created.length > 5 ? `, and ${created.length - 5} more` : ''),
+  );
+  return c.json({ success: true, data: { created: created.length, quests: created } }, 201);
 });
 
 // PATCH /quests/:id — edit quest fields
