@@ -755,6 +755,32 @@ quests.post('/:id/complete-daily', async (c) => {
   });
 });
 
+// POST /quests/:id/focus — log a focus session's minutes against a quest.
+// This is the only place real time enters the app: it lets the planner
+// subtract progress on multi-session quests (actualMinutes is already read
+// as "done so far"), and finished quests with logged time calibrate future
+// estimates (insights.calibrateEstimates).
+quests.post('/:id/focus', async (c) => {
+  const user = c.get('user');
+  const id = c.req.param('id');
+  const parsed = z
+    .object({ minutes: z.number().int().min(1).max(600) })
+    .safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) {
+    return c.json({ success: false, error: { code: 'VALIDATION_ERROR', message: parsed.error.message } }, 400);
+  }
+  const existing = await db.quest.findUnique({ where: { id } });
+  if (!existing || existing.userId !== user.id) {
+    return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
+  }
+  const quest = await db.quest.update({
+    where: { id },
+    data: { actualMinutes: { increment: parsed.data.minutes } },
+  });
+  void logActivity(user.id, 'focus', `Focused ${parsed.data.minutes} min on "${quest.title}"`, { subjectId: id });
+  return c.json({ success: true, data: quest });
+});
+
 // POST /quests/:id/not-today — defer a quest to tomorrow
 quests.post('/:id/not-today', async (c) => {
   const user = c.get('user');

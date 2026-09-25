@@ -441,9 +441,9 @@ function HourInput({ value, onChange }: { value: number; onChange: (v: number) =
       className="rounded-md border bg-white/5 px-2 py-1 text-sm outline-none"
       style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
     >
-      {Array.from({ length: 25 }, (_, i) => (
-        <option key={i} value={i}>
-          {String(i).padStart(2, '0')}:00
+      {Array.from({ length: 49 }, (_, i) => i / 2).map((h) => (
+        <option key={h} value={h}>
+          {String(Math.floor(h)).padStart(2, '0')}:{h % 1 ? '30' : '00'}
         </option>
       ))}
     </select>

@@ -264,6 +264,9 @@ export const api = {
       request<CompleteQuestResult>(`/quests/${id}/complete`, { method: 'POST' }),
     completeDaily: (id: string) =>
       request<CompleteQuestResult>(`/quests/${id}/complete-daily`, { method: 'POST' }),
+    /** Log focused minutes against a quest (feeds progress and estimate calibration). */
+    focus: (id: string, minutes: number) =>
+      request<Quest>(`/quests/${id}/focus`, { method: 'POST', body: JSON.stringify({ minutes }) }),
     notToday: (id: string) =>
       request<Quest>(`/quests/${id}/not-today`, { method: 'POST' }),
     delete: (id: string) =>
@@ -585,6 +588,17 @@ export interface ScheduleResponse {
   schedule: ScheduleBlock[];
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   generatedAt: string | null;
+  insights?: PlanInsights | null;
+}
+
+/** Mirrors server lib/scheduler/insights.ts: what the plan can't say by itself. */
+export interface PlanInsights {
+  overdue: Array<{ id: string; title: string; daysOverdue: number }>;
+  capacity: { working: number; routines: number; calendar: number; quests: number };
+  backlog: { undatedMin: number; plannedThisWeekMin: number; weeksToClear: number | null } | null;
+  hoursSuggestion: { startHour: number; endHour: number; reason: string } | null;
+  calibration: { global: number; byCategory: Record<string, number>; sample: number } | null;
+  notes: string[];
 }
 
 export interface EnergyTracePoint {

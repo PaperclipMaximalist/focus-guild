@@ -59,8 +59,9 @@ const BreakPolicySchema = z
 
 const WorkingHoursSchema = z
   .object({
-    startHour: z.number().int().min(0).max(23).optional(),
-    endHour: z.number().int().min(1).max(24).optional(),
+    // Half hours allowed: school ends at 15:10, so 15:30 is a real start.
+    startHour: z.number().min(0).max(23.5).multipleOf(0.5).optional(),
+    endHour: z.number().min(1).max(24).multipleOf(0.5).optional(),
   })
   .strict();
 

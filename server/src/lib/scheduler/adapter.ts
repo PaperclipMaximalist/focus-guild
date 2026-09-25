@@ -8,6 +8,7 @@
  */
 
 import { userMidnightUtc } from './tz.js';
+import { multiplierFor, type Calibration } from './insights.js';
 import type { Task, TaskStatus } from './types.js';
 
 export type PriorityTier = 'HIGH' | 'MED' | 'LOW';
@@ -97,8 +98,11 @@ export function questToTask(
   overrides: QuestSchedulerOverrides = {},
   now: number = Date.now(),
   tzOffsetMin = 0,
+  calibration: Calibration | null = null,
 ): Task {
-  const total = Math.max(1, q.estimatedMinutes);
+  // Plan with what quests like this actually take, once there's evidence.
+  const mult = multiplierFor(calibration, overrides.category ?? q.category ?? ADAPTER_DEFAULTS.category);
+  const total = Math.max(1, Math.round(q.estimatedMinutes * mult));
   const remaining = Math.max(0, total - (q.actualMinutes ?? 0));
   const deadline = q.deadline
     ? q.deadline.getTime()
@@ -159,8 +163,9 @@ export function questsToTasks(
   overridesById: Record<string, QuestSchedulerOverrides> = {},
   now: number = Date.now(),
   tzOffsetMin = 0,
+  calibration: Calibration | null = null,
 ): Task[] {
   return quests
     .filter((q) => q.status !== 'COMPLETE')
-    .map((q) => questToTask(q, overridesById[q.id] ?? {}, now, tzOffsetMin));
+    .map((q) => questToTask(q, overridesById[q.id] ?? {}, now, tzOffsetMin, calibration));
 }

@@ -5,11 +5,13 @@ import {
   type ScheduleResponse,
   type ScheduleEdit,
   type FeasibilityIssue,
+  type PlanInsights,
 } from '../lib/api';
 
 interface ScheduleState {
   schedule: ScheduleBlock[];
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
+  insights: PlanInsights | null;
   generatedAt: string | null;
   loading: boolean;
   error: string | null;
@@ -29,6 +31,8 @@ function applyResponse(state: Partial<ScheduleState>, r: ScheduleResponse): Part
     ...state,
     schedule: r.schedule,
     feasibilityReport: r.feasibilityReport,
+    // Absent from responses that don't replan; keep what we had then.
+    ...(r.insights !== undefined ? { insights: r.insights } : {}),
     generatedAt: r.generatedAt,
     loading: false,
     error: null,
@@ -38,6 +42,7 @@ function applyResponse(state: Partial<ScheduleState>, r: ScheduleResponse): Part
 export const useScheduleStore = create<ScheduleState>((set) => ({
   schedule: [],
   feasibilityReport: { ok: true, issues: [] },
+  insights: null,
   generatedAt: null,
   loading: false,
   error: null,

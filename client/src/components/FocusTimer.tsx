@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { api } from '../lib/api';
 import { useTimerStore } from '../store/useTimerStore';
 import { Check, Pause, Play } from 'lucide-react';
 
@@ -45,10 +46,39 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
   const pctDone = Math.min(100, Math.max(0, ((totalMs - ms) / totalMs) * 100));
   const paused = active.pausedAt !== null;
 
+  /** Minutes actually focused: wall time minus pauses (including a live one). */
+  const focusedMin = () => {
+    const pausedNow = active.pausedAt !== null ? Date.now() - active.pausedAt : 0;
+    return Math.round((Date.now() - active.startedAt - active.pausedTotalMs - pausedNow) / 60_000);
+  };
+
+  /**
+   * Real time is what teaches the planner: it subtracts progress on
+   * multi-session quests and calibrates future estimates. Never blocks the
+   * session ending if the request fails.
+   */
+  const logFocus = async () => {
+    const minutes = Math.min(600, focusedMin());
+    if (minutes >= 1) await api.quests.focus(active.questId, minutes).catch(() => {});
+  };
+
+  const handleKeepProgress = async () => {
+    if (completing) return;
+    setCompleting(true);
+    try {
+      await logFocus();
+      stop();
+      onClose();
+    } finally {
+      setCompleting(false);
+    }
+  };
+
   const handleDone = async () => {
     if (completing) return;
     setCompleting(true);
     try {
+      await logFocus();
       await onComplete(active.questId);
       stop();
       onClose();
@@ -172,6 +202,14 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
             Drop
           </button>
         </div>
+        <button
+          onClick={handleKeepProgress}
+          disabled={completing}
+          className="mt-3 text-xs font-semibold underline-offset-2 hover:underline disabled:opacity-50"
+          style={{ color: 'var(--color-muted)' }}
+        >
+          Stop for now, keep progress
+        </button>
       </motion.div>
     </AnimatePresence>
   );

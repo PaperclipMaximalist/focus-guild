@@ -8,6 +8,7 @@ import { useAchievementsStore } from '../store/useAchievementsStore';
 import { useToastStore } from '../components/Toasts';
 import { Header } from '../components/Header';
 import { FocusTimer } from '../components/FocusTimer';
+import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
@@ -686,7 +687,7 @@ function SelectedDrawer({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function GuildFeed() {
-  const { schedule, feasibilityReport, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
+  const { schedule, feasibilityReport, insights, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
     useScheduleStore();
   const [energyTrace, setEnergyTrace] = useState<EnergyTracePoint[]>([]);
   const { quests, load: loadQuests, complete: completeQuest, completeDaily } = useQuestStore();
@@ -871,6 +872,8 @@ export default function GuildFeed() {
         {!feasibilityReport.ok && (
           <FeasibilityBanner issues={feasibilityReport.issues} questById={questById} />
         )}
+
+        <PlanInsights insights={insights} onChanged={generate} />
 
         {error && (
           <div

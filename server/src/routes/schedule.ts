@@ -37,6 +37,7 @@ import { getUserConfig } from '../lib/userConfig.js';
 import { blockToRow, rowToBlock } from '../lib/scheduler/persistence.js';
 import { eventsToFixedBlocks, isCalendarBlock } from '../lib/calendar/ics.js';
 import { reviveDeferred } from '../lib/deferral.js';
+import { calibrateEstimates, computeInsights, type PlanInsights } from '../lib/scheduler/insights.js';
 import { syncStaleForUser, upcomingEvents } from '../lib/calendar/sync.js';
 
 export const schedule = new Hono();
@@ -49,6 +50,8 @@ interface UserScheduleState {
   fillers: DailyFiller[];
   overrides: Record<string, QuestSchedulerOverrides>;
   lastGeneratedAt: number;
+  /** What the plan can't say by itself; recomputed with every plan. */
+  insights?: PlanInsights;
 }
 
 const stateByUserId = new Map<string, UserScheduleState>();
@@ -102,6 +105,29 @@ async function configForUser(
   };
 }
 
+/** How far back finished quests count toward estimate calibration. */
+const CALIBRATION_WINDOW_MS = 90 * 24 * 60 * 60_000;
+
+/** Recompute the plan's insights from the schedule as it now stands. */
+function refreshInsights(
+  state: UserScheduleState,
+  loaded: Awaited<ReturnType<typeof loadQuestsForUser>>,
+  tasks: ReturnType<typeof questsToTasks>,
+  cfg: ReturnType<typeof getUserConfig>,
+  now: number,
+) {
+  state.insights = computeInsights({
+    schedule: state.schedule,
+    tasks,
+    quests: loaded.regular.map((q) => ({ id: q.id, title: q.title, deadline: q.deadline })),
+    routineBlocks: state.schedule.filter((b) => b.type === 'fixed' && b.note?.startsWith('Daily:')),
+    calendarBlocks: state.schedule.filter(isCalendarBlock),
+    config: cfg,
+    now,
+    calibration: loaded.calibration,
+  });
+}
+
 async function loadQuestsForUser(user: { id: string }) {
   await reviveDeferred(user.id);
   // NOT_TODAY quests stay in the plan; the adapter holds them to tomorrow.
@@ -118,7 +144,22 @@ async function loadQuestsForUser(user: { id: string }) {
   const completedSet = new Set(completionsToday.map((r) => r.questId));
   const regular = all.filter((q) => !q.isRecurring);
   const recurring = all.filter((q) => q.isRecurring && !completedSet.has(q.id));
-  return { user, regular, recurring };
+  // Finished quests with logged focus time teach the planner how long
+  // things really take (see insights.calibrateEstimates).
+  const finished = await db.quest.findMany({
+    where: {
+      userId: user.id,
+      status: 'COMPLETE',
+      actualMinutes: { gt: 0 },
+      completedAt: { gte: new Date(Date.now() - CALIBRATION_WINDOW_MS) },
+    },
+    select: { category: true, estimatedMinutes: true, actualMinutes: true },
+    take: 200,
+  });
+  const calibration = calibrateEstimates(
+    finished.map((q) => ({ category: q.category, estimatedMinutes: q.estimatedMinutes, actualMinutes: q.actualMinutes ?? 0 })),
+  );
+  return { user, regular, recurring, calibration };
 }
 
 /**
@@ -160,7 +201,7 @@ function regenerate(
 ) {
   if (!loaded) return;
   const now = Date.now();
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
 
   const recurringFillers = recurringToFillers(loaded.recurring);
   const allFillers = [...recurringFillers, ...state.fillers];
@@ -178,6 +219,7 @@ function regenerate(
   state.schedule = schedule;
   state.feasibilityReport = feasibilityReport;
   state.lastGeneratedAt = now;
+  refreshInsights(state, loaded, tasks, cfg, now);
 }
 
 // ─── Persistence helpers ──────────────────────────────────────────────────────
@@ -306,6 +348,7 @@ schedule.post('/generate', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
+    insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
   });
 });
@@ -332,6 +375,7 @@ schedule.get('/:clerkId', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
+    insights: state.insights ?? null,
     generatedAt: state.lastGeneratedAt
       ? new Date(state.lastGeneratedAt).toISOString()
       : null,
@@ -349,13 +393,14 @@ schedule.post('/:clerkId/replan', async (c) => {
   const state = getState(user.id);
   const now = Date.now();
   const cfg = await configForUser(user, tzOffsetMin);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;
+  refreshInsights(state, loaded, tasks, cfg, now);
 
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
   await persistSchedule(user.id, state.schedule, questIdSet, now);
@@ -363,6 +408,7 @@ schedule.post('/:clerkId/replan', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
+    insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
   });
 });
@@ -390,13 +436,14 @@ schedule.post('/:clerkId/edit', async (c) => {
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
   const cfg = await configForUser(user, parsed.data.tzOffsetMin);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;
+  refreshInsights(state, loaded, tasks, cfg, now);
 
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
   await persistSchedule(user.id, state.schedule, questIdSet, now);
@@ -404,6 +451,7 @@ schedule.post('/:clerkId/edit', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
+    insights: state.insights ?? null,
   });
 });
 
@@ -429,7 +477,7 @@ schedule.get('/:clerkId/explain', async (c) => {
   const state = getState(user.id);
   // Hydrate task names so the explanation can reference the quest by title.
   const loaded = await loadQuestsForUser(user);
-  const tasks = questsToTasks(loaded.regular, state.overrides, Date.now());
+  const tasks = questsToTasks(loaded.regular, state.overrides, Date.now(), 0, loaded.calibration);
   return ok(c, { explanation: explainBlock(blockId, state.schedule, tasks) });
 });
 
@@ -461,13 +509,14 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   const cfg = await configForUser(user, tzOffsetMin);
   // Only the requested quest is "new" — pass everything to replan, which
   // re-flows unlocked future blocks. Locked + past are preserved.
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;
+  refreshInsights(state, loaded, tasks, cfg, now);
 
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
   await persistSchedule(user.id, state.schedule, questIdSet, now);
@@ -475,6 +524,7 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     feasibilityReport: state.feasibilityReport,
+    insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
   });
 });
@@ -496,7 +546,7 @@ schedule.get('/:clerkId/energy', async (c) => {
   const cfg = getUserConfig(user, tzOffsetMin);
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
   const tz = cfg.tzOffsetMin ?? 0;
   // Midnight in the user's local time as UTC ms.
   const todayLocalView = new Date(Date.now() - tz * 60_000);
