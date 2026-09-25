@@ -27,6 +27,8 @@ const MIN_BLOCK_PX = 64;
 const DAY_TABS = 3;
 
 const COMPACT_THRESHOLD_PX = 84;
+/** Tall enough to fit the one-line "why now" under the title. */
+const REASON_MIN_HEIGHT_PX = 104;
 
 // One hue per category, validated as a set against the dark surface: the
 // best four-colour combination of the reference hues (colourblind separation
@@ -344,6 +346,11 @@ function BlockTile({
                   <div className="font-bold text-base leading-tight line-clamp-2" style={{ color: 'var(--color-text)' }}>
                     {title}
                   </div>
+                  {block.reason && !isActive && !isPast && height >= REASON_MIN_HEIGHT_PX && (
+                    <div className="mt-0.5 truncate text-[0.72rem] opacity-80" style={{ color: 'var(--color-text)' }}>
+                      {block.reason}
+                    </div>
+                  )}
                   {isActive && (
                     <div className="font-mono font-bold text-sm mt-1.5 inline-block px-2 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)' }}>
                       <span className="inline-flex items-center gap-1"><Timer size={13} aria-hidden /> {formatCountdown(msRemaining)}</span>
@@ -626,8 +633,8 @@ function SelectedDrawer({
           <button onClick={onClose} className="opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }} aria-label="Close"><X size={18} aria-hidden /></button>
         </div>
 
-        {block.note && block.type === 'work' && (
-          <p className="text-xs italic mt-2 mb-3" style={{ color: 'var(--color-muted)' }}>{block.note}</p>
+        {block.reason && block.type === 'work' && (
+          <p className="text-xs italic mt-2 mb-3" style={{ color: 'var(--color-muted)' }}>{block.reason}</p>
         )}
 
         {explanation && (

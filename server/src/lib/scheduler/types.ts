@@ -41,6 +41,12 @@ export interface Task {
    * replan with nothing changed doesn't grant it a fresh share each time.
    */
   committedMin?: number;
+  /**
+   * Earliest instant work may be placed (UTC ms). Set for quests the user
+   * hit "Not Today" on: the planner keeps them, from tomorrow on, instead
+   * of losing them.
+   */
+  notBefore?: number;
 }
 
 export interface Block {

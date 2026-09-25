@@ -22,6 +22,7 @@ import {
   replan,
   applyEdit,
   explainBlock,
+  whyFromNote,
   questsToTasks,
   placeDailyFillers,
   type Schedule,
@@ -35,6 +36,7 @@ import { computeEnergyTrace } from '../lib/scheduler/planner.js';
 import { getUserConfig } from '../lib/userConfig.js';
 import { blockToRow, rowToBlock } from '../lib/scheduler/persistence.js';
 import { eventsToFixedBlocks, isCalendarBlock } from '../lib/calendar/ics.js';
+import { reviveDeferred } from '../lib/deferral.js';
 import { syncStaleForUser, upcomingEvents } from '../lib/calendar/sync.js';
 
 export const schedule = new Hono();
@@ -101,8 +103,10 @@ async function configForUser(
 }
 
 async function loadQuestsForUser(user: { id: string }) {
+  await reviveDeferred(user.id);
+  // NOT_TODAY quests stay in the plan; the adapter holds them to tomorrow.
   const all = await db.quest.findMany({
-    where: { userId: user.id, status: { in: ['ACTIVE', 'RESCUE'] } },
+    where: { userId: user.id, status: { in: ['ACTIVE', 'RESCUE', 'NOT_TODAY'] } },
   });
   // Split: planner consumes non-recurring; recurring become daily fillers.
   const today = new Date();
@@ -156,7 +160,7 @@ function regenerate(
 ) {
   if (!loaded) return;
   const now = Date.now();
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
 
   const recurringFillers = recurringToFillers(loaded.recurring);
   const allFillers = [...recurringFillers, ...state.fillers];
@@ -231,6 +235,9 @@ function serializeBlock(b: Block) {
     taskId: b.taskId,
     locked: b.locked,
     note: b.note,
+    // Plain-language "why now" for work blocks (the note itself is the
+    // planner's JSON scoring stash and was being shown raw in the Feed).
+    reason: b.type === 'work' ? whyFromNote(b.note) : null,
   };
 }
 
@@ -342,7 +349,7 @@ schedule.post('/:clerkId/replan', async (c) => {
   const state = getState(user.id);
   const now = Date.now();
   const cfg = await configForUser(user, tzOffsetMin);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
@@ -383,7 +390,7 @@ schedule.post('/:clerkId/edit', async (c) => {
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
   const cfg = await configForUser(user, parsed.data.tzOffsetMin);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
@@ -454,7 +461,7 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   const cfg = await configForUser(user, tzOffsetMin);
   // Only the requested quest is "new" — pass everything to replan, which
   // re-flows unlocked future blocks. Locked + past are preserved.
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
@@ -482,15 +489,14 @@ schedule.get('/:clerkId/energy', async (c) => {
     const persisted = await hydrateSchedule(user.id);
     if (persisted.length > 0) state.schedule = persisted;
   }
-  const loaded = await loadQuestsForUser(user);
-  const now = Date.now();
-  const tasks = questsToTasks(loaded.regular, state.overrides, now);
-
   // Use the client's tz hint (query param) so the sparkline range matches
   // the user's local working day rather than the server's UTC day.
   const tzQuery = c.req.query('tzOffsetMin');
   const tzOffsetMin = tzQuery !== undefined ? Number(tzQuery) : undefined;
   const cfg = getUserConfig(user, tzOffsetMin);
+  const loaded = await loadQuestsForUser(user);
+  const now = Date.now();
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin);
   const tz = cfg.tzOffsetMin ?? 0;
   // Midnight in the user's local time as UTC ms.
   const todayLocalView = new Date(Date.now() - tz * 60_000);

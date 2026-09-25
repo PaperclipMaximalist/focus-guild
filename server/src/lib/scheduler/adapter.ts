@@ -7,6 +7,7 @@
  * is where the impedance mismatch lives.
  */
 
+import { userMidnightUtc } from './tz.js';
 import type { Task, TaskStatus } from './types.js';
 
 export type PriorityTier = 'HIGH' | 'MED' | 'LOW';
@@ -95,6 +96,7 @@ export function questToTask(
   q: QuestLike,
   overrides: QuestSchedulerOverrides = {},
   now: number = Date.now(),
+  tzOffsetMin = 0,
 ): Task {
   const total = Math.max(1, q.estimatedMinutes);
   const remaining = Math.max(0, total - (q.actualMinutes ?? 0));
@@ -125,6 +127,8 @@ export function questToTask(
   return {
     id: q.id,
     name: q.title,
+    // "Not Today": still owed, just not before tomorrow (user-local).
+    ...(q.status === 'NOT_TODAY' ? { notBefore: userMidnightUtc(now, tzOffsetMin) + 24 * 60 * 60_000 } : {}),
     remainingMin: remaining,
     totalMin: total,
     deadline,
@@ -154,8 +158,9 @@ export function questsToTasks(
   quests: QuestLike[],
   overridesById: Record<string, QuestSchedulerOverrides> = {},
   now: number = Date.now(),
+  tzOffsetMin = 0,
 ): Task[] {
   return quests
     .filter((q) => q.status !== 'COMPLETE')
-    .map((q) => questToTask(q, overridesById[q.id] ?? {}, now));
+    .map((q) => questToTask(q, overridesById[q.id] ?? {}, now, tzOffsetMin));
 }

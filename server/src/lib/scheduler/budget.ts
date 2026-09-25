@@ -122,6 +122,9 @@ function softMaxPerDay(t: Task): number {
   return Math.max(hi * 3, hi);
 }
 
+/** Below this many minutes a day, nobody's day is crowded enough to level. */
+const LEVEL_FLOOR_MIN = 120;
+
 /** Smallest piece the permissive deadline repair will hand out. */
 const REPAIR_MIN_GRAB = 10;
 
@@ -269,13 +272,29 @@ export function allocateBudgets(
     return r;
   });
 
+  // Level target: the work this plan owes, spread evenly over its days.
+  // Small tasks go in whole, and used to land on the first day with room,
+  // so a Monday collected every chore due that week (276 min against 28 on
+  // Sunday) and the heavy work spilled into the evening low.
+  let owed = 0;
+  for (const t of tasks) owed += paceLeft.get(t.id) ?? t.remainingMin;
+  // Floored, so levelling only acts when days are genuinely crowded: with a
+  // light week, doing a lone chore today beats deferring it for balance.
+  const levelTarget = days.length ? Math.max(LEVEL_FLOOR_MIN, Math.ceil(owed / days.length)) : Infinity;
+
   // ── PASS 1: fair spread ──
   for (let dayIdx = 0; dayIdx < days.length; dayIdx += 1) {
     const day = days[dayIdx]!;
     if (residuals[dayIdx]! < EPSILON_MIN) continue;
+    let grantedToday = 0;
 
     const eligible = tasks
-      .filter((t) => (remaining.get(t.id) ?? 0) > EPSILON_MIN && t.deadline > day.workStart)
+      .filter(
+        (t) =>
+          (remaining.get(t.id) ?? 0) > EPSILON_MIN &&
+          t.deadline > day.workStart &&
+          (t.notBefore ?? 0) < day.workEnd,
+      )
       .sort((a, b) => {
         const diff = (priority.get(b.id) ?? 0) - (priority.get(a.id) ?? 0);
         if (Math.abs(diff) > 1e-6) return diff;
@@ -315,10 +334,15 @@ export function allocateBudgets(
       // Too little room today for a real sitting: leave it for a later day
       // (or the deadline-safety pass), instead of placing a crumb.
       if (grant < sitting && grant < left) continue;
+      // A small task with days to spare waits for a lighter day. It still
+      // lands in time: once its deadline is two days out it goes in
+      // regardless, and pass 2 guarantees it after that.
+      if (left <= WHOLE_TASK_MAX_MIN && daysAvailable > 2 && grantedToday + grant > levelTarget) continue;
       if (grant < 1) continue;
 
       addQuota(budgets[dayIdx]!, task, grant);
       residuals[dayIdx]! -= grant;
+      grantedToday += grant;
       remaining.set(task.id, left - grant);
       if (paceLeft.has(task.id)) paceLeft.set(task.id, pace - grant);
     }
@@ -341,6 +365,7 @@ export function allocateBudgets(
     for (let dayIdx = 0; dayIdx < days.length && left > EPSILON_MIN; dayIdx += 1) {
       const day = days[dayIdx]!;
       if (day.workStart >= task.deadline) break;
+      if ((task.notBefore ?? 0) >= day.workEnd) continue;
       if (residuals[dayIdx]! < EPSILON_MIN) continue;
       const placeable = usable(day, task.deadline) - grantedOnDay(budgets[dayIdx]!, task.id);
       const grab = Math.floor(Math.min(residuals[dayIdx]!, Math.max(0, placeable), left));
@@ -369,6 +394,7 @@ export function allocateBudgets(
     for (let dayIdx = 0; dayIdx < days.length && left > EPSILON_MIN; dayIdx += 1) {
       const day = days[dayIdx]!;
       if (day.workStart >= task.deadline) break;
+      if ((task.notBefore ?? 0) >= day.workEnd) continue;
       const budget = budgets[dayIdx]!;
       let room = usable(day, task.deadline) - grantedOnDay(budget, task.id);
       const donors = budget.quotas

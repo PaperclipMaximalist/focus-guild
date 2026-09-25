@@ -8,7 +8,7 @@
 export { generateSchedule, replan } from './replan.js';
 export { reflow } from './reflow.js';
 export { applyEdit } from './edits.js';
-export { explainBlock } from './explain.js';
+export { explainBlock, whyFromNote, composeWhy } from './explain.js';
 export { priorityScore, computeEnergyTrace, taskMode, placementScore } from './planner.js';
 export type { ScoreBreakdown, PlacedRef } from './planner.js';
 export { suggestPreferredHour, recordMove } from './preferences.js';

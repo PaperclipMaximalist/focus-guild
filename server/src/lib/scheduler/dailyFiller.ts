@@ -54,6 +54,25 @@ function overlapsAny(s: number, e: number, blocks: Block[]): boolean {
   return blocks.some((b) => b.start < e && s < b.end);
 }
 
+/** Space left after a daily when the day has room, so dailies don't wall up. */
+const FILLER_GAP_MIN = 10;
+
+/**
+ * A time of day implied by the name, for fillers with no preferredHour.
+ * "End of day gym walkthrough" was being placed at 11:00 and "Bake morning
+ * sourdough" at 12:30, because nothing read the words the user wrote.
+ * Deliberately few, unambiguous patterns; an explicit preferredHour wins.
+ */
+export function inferPreferredHour(name: string, workingHours: { startHour: number; endHour: number }): number | null {
+  const n = name.toLowerCase();
+  const clamp = (h: number) => Math.min(Math.max(h, workingHours.startHour), workingHours.endHour - 1);
+  if (/\b(end of (the )?day|eod|evening|tonight|night|bedtime)\b/.test(n)) return clamp(workingHours.endHour - 1);
+  if (/\bafternoon\b/.test(n)) return clamp(14);
+  if (/\b(lunch|midday|noon)\b/.test(n)) return clamp(12);
+  if (/\b(morning|breakfast|first thing)\b/.test(n)) return clamp(workingHours.startHour);
+  return null;
+}
+
 /**
  * Place each filler once per day across the horizon as a `fixed` block.
  * Returns the new placements (does not include existingFixed).
@@ -78,24 +97,29 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
     // For each filler, find a slot for the day. We spread fillers by
     // their order in the array: first → near startHour, then linearly
     // distributed across the working window unless they have a preferredHour.
+    const routineMin = enabled.reduce((a, f) => a + f.durationMin, 0);
+    const roomy = routineMin * MS_PER_MIN <= (wEnd - wStart) / 2;
     const spreadStep = enabled.length > 0
       ? (wEnd - wStart) / Math.max(1, enabled.length)
       : 0;
 
     enabled.forEach((f, idx) => {
       const durMs = f.durationMin * MS_PER_MIN;
+      const hour = f.preferredHour ?? inferPreferredHour(f.name, workingHours);
       const preferredStart =
-        f.preferredHour !== null
-          ? userHourUtc(midnight, f.preferredHour)
+        hour !== null
+          ? userHourUtc(midnight, hour)
           : wStart + idx * spreadStep;
 
-      const slot = findNonOverlappingSlot(
-        preferredStart,
-        durMs,
-        wStart,
-        wEnd,
-        allFixed,
-      );
+      // Try with breathing room around what's already placed; if the day is
+      // too full for that, fall back to packing.
+      // Only while routines leave room: when they fill most of the day,
+      // spacing them out would just take the last minutes from real work.
+      const gapMs = roomy ? FILLER_GAP_MIN * MS_PER_MIN : 0;
+      const padded = allFixed.map((b) => ({ ...b, start: b.start - gapMs, end: b.end + gapMs }));
+      const slot =
+        findNonOverlappingSlot(preferredStart, durMs, wStart, wEnd, padded) ??
+        findNonOverlappingSlot(preferredStart, durMs, wStart, wEnd, allFixed);
       if (slot == null) return; // skip this day for this filler
 
       counter += 1;

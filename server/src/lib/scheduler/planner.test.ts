@@ -220,3 +220,18 @@ describe('generateSchedule — dependencies', () => {
     expect(childPlaced).toBe(false);
   });
 });
+
+describe('generateSchedule — Not Today', () => {
+  it('holds a deferred task to tomorrow instead of dropping it', () => {
+    // Regression: "Not Today" used to remove the quest from planning for good.
+    const cfg = { ...defaultConfig(), horizonDays: 3 };
+    const now = nowAt9am();
+    const tomorrow = now + MS_PER_DAY - 9 * MS_PER_HOUR; // next UTC midnight
+    const t = task('later', { remainingMin: 60, deadline: now + 3 * MS_PER_DAY, notBefore: tomorrow });
+    const { schedule, feasibilityReport } = generateSchedule([t], [], cfg, now);
+    const work = schedule.filter((b) => b.type === 'work' && b.taskId === 'later');
+    expect(work.length).toBeGreaterThan(0);
+    for (const w of work) expect(w.start).toBeGreaterThanOrEqual(tomorrow);
+    expect(feasibilityReport.ok).toBe(true);
+  });
+});

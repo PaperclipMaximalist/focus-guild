@@ -32,7 +32,9 @@ import {
   totalFromBreakdown,
   type PlacedRef,
 } from './planner.js';
-import { minSitting } from './budget.js';
+import { MIN_SITTING_MIN, minSitting } from './budget.js';
+import { userHourOf } from './tz.js';
+import { composeWhy } from './explain.js';
 import type { DayBudget, FreeInterval } from './budget.js';
 import type { Block, Task, UserConfig } from './types.js';
 
@@ -49,6 +51,16 @@ const DEFAULT_BEAM_WIDTH = 3;
  * the planner's constant runs before it is initialised.
  */
 const varietyResetMin = () => ADJACENT_GAP_MAX_MIN + 1;
+
+/** Load at or above which a quest counts as heavy (a brain-killer). */
+const HEAVY_LOAD = 0.7;
+/** Load at or below which a quest counts as light. */
+const LIGHT_LOAD = 0.5;
+/** Length of the day's opening push on a heavy quest. */
+const STARTER_MIN = 25;
+
+/** Strength of the peak guard, on the same scale as the score weights. */
+const PEAK_GUARD_WEIGHT = 1.2;
 
 /** How far past the ideal ceiling a block may run to finish a task's quota. */
 const TAIL_ABSORB_MIN = 20;
@@ -81,11 +93,14 @@ function clamp(v: number, lo: number, hi: number): number {
 }
 
 function shrinkFromStart(iv: FreeInterval, minutes: number): FreeInterval | null {
-  const consumedMs = minutes * MS_PER_MIN;
-  const remainingMs = iv.end - iv.start - consumedMs;
-  if (remainingMs < EPSILON_MIN * MS_PER_MIN) return null;
-  return { ...iv, start: iv.start + consumedMs };
+  // Next start snaps up to a 5-minute mark: "14:01" reads like a machine
+  // made it, "14:05" like a plan. Costs at most four minutes of slack.
+  const start = Math.ceil((iv.start + minutes * MS_PER_MIN) / SNAP_MS) * SNAP_MS;
+  if (iv.end - start < EPSILON_MIN * MS_PER_MIN) return null;
+  return { ...iv, start };
 }
+
+const SNAP_MS = 5 * MS_PER_MIN;
 
 /** Build PlacedRef list from a state's placed blocks + immovable backdrop. */
 function refsForState(
@@ -170,11 +185,20 @@ function enumerateCandidates(
       const whole = Math.floor(Math.min(left, usableMin, cap + TAIL_ABSORB_MIN));
       chunkMin = whole >= left ? left : Math.max(0, left - sitting);
     }
+    // Momentum first: the day's opening block on a heavy quest is a short
+    // starter push. Starting is the hard part with ADHD; 25 minutes on the
+    // essay is easy to begin and still uses the morning peak for it.
+    const firstOfDay = !state.blocks.some((b) => b.type === 'work');
+    if (firstOfDay && q.task.cognitiveLoad >= HEAVY_LOAD && chunkMin > STARTER_MIN && left - STARTER_MIN >= sitting) {
+      chunkMin = STARTER_MIN;
+    }
     // And don't open a sliver at the end of an interval.
     if (chunkMin < sitting && chunkMin < left) continue;
     if (chunkMin < 1) continue;
 
-    const score = placementScore(q.task, chunkMin, iv.start, refs, weights, config);
+    const score =
+      placementScore(q.task, chunkMin, iv.start, refs, weights, config) +
+      peakGuard(q.task, iv.start, state, budget, config);
     out.push({ task: q.task, chunkMin, start: iv.start, score });
   }
 
@@ -185,6 +209,37 @@ function enumerateCandidates(
       : a.task.id < b.task.id ? -1 : 1,
   );
   return out;
+}
+
+/**
+ * Keep the day's best hours for the work that needs them.
+ *
+ * energyFit only scores the slot being filled, so the beam, walking the day
+ * from its first free minute, happily spent a 16:00 peak on a light
+ * reflection and pushed two load-8 quests to 20:00 — then explained them as
+ * "the sharper hours were full". This term looks at what is still owed
+ * today: light work in a high-energy slot costs more while heavy work is
+ * waiting, and heavy work in a low slot costs more while light work could
+ * take it instead.
+ */
+function peakGuard(task: Task, start: number, state: BeamState, budget: DayBudget, config: UserConfig): number {
+  const energy = config.energyCurve(userHourOf(start, config.tzOffsetMin ?? 0));
+  let heavyLeft = 0;
+  let lightLeft = 0;
+  for (const q of budget.quotas) {
+    if (q.task.id === task.id) continue;
+    const left = state.remaining.get(q.task.id) ?? 0;
+    if (left <= 0) continue;
+    if (q.task.cognitiveLoad >= HEAVY_LOAD) heavyLeft += left;
+    else if (q.task.cognitiveLoad <= LIGHT_LOAD) lightLeft += left;
+  }
+  if (task.cognitiveLoad <= LIGHT_LOAD && heavyLeft >= MIN_SITTING_MIN && energy >= 0.65) {
+    return -PEAK_GUARD_WEIGHT * (energy - 0.5) * 2;
+  }
+  if (task.cognitiveLoad >= HEAVY_LOAD && lightLeft >= 15 && energy < 0.55) {
+    return -PEAK_GUARD_WEIGHT * (0.55 - energy) * 2;
+  }
+  return 0;
 }
 
 /**
@@ -251,11 +306,14 @@ function runsEndingAt(
  * edge to edge, so the "gaps are the breaks" design never produced a gap
  * and four straight hours of work was normal.
  */
-function restAfter(blocks: BeamState['blocks'], end: number, config: UserConfig): number {
+function restAfter(blocks: BeamState['blocks'], end: number, config: UserConfig, task: Task, chunkMin: number): number {
   const p = config.breakPolicy;
   const { run, sinceLong } = runsEndingAt(blocks, end, config);
   if (sinceLong >= p.longBreakAfterMin) return p.longBreakDurationMin;
   if (run >= p.shortBreakAfterMin) return p.shortBreakDurationMin;
+  // "No back-to-back brain-killers": a heavy sitting always earns a breather,
+  // even when it was too short to trip the run threshold.
+  if (task.cognitiveLoad >= HEAVY_LOAD && chunkMin >= MIN_SITTING_MIN) return p.shortBreakDurationMin;
   return 0;
 }
 
@@ -275,7 +333,7 @@ function applyCandidate(state: BeamState, c: Candidate, config: UserConfig): Bea
       note: null,
     },
   ];
-  const rest = restAfter(blocks, c.start + c.chunkMin * MS_PER_MIN, config);
+  const rest = restAfter(blocks, c.start + c.chunkMin * MS_PER_MIN, config, c.task, c.chunkMin);
   const leftoverIv = shrinkFromStart(iv, c.chunkMin + rest);
   const freeIntervals = leftoverIv === null
     ? state.freeIntervals.slice(1)
@@ -414,11 +472,25 @@ export function constructDay(
     const breakdown = placementBreakdown(t, chunkMin, blk.start, replayRefs, weights, config);
     const total = totalFromBreakdown(breakdown);
     const dom = dominantTerm(breakdown);
-    // Compact JSON: explain.ts reads `term` + `sign` to phrase the reason;
+    const prevBlk = i > 0 ? annotated[i - 1] : null;
+    const prevTask = prevBlk?.taskId ? taskMap.get(prevBlk.taskId) : undefined;
+    const why = composeWhy({
+      task: t,
+      start: blk.start,
+      end: blk.end,
+      prev: prevBlk && prevTask ? { task: prevTask, end: prevBlk.end } : null,
+      config,
+    });
+    // Compact JSON: explain.ts shows `why`, falling back to `term` + `sign`;
     // `total` is handy for debugging.
     annotated[i] = {
       ...blk,
-      note: JSON.stringify({ term: dom.term, sign: dom.sign, total: Number(total.toFixed(2)) }),
+      note: JSON.stringify({
+        term: dom.term,
+        sign: dom.sign,
+        total: Number(total.toFixed(2)),
+        ...(why ? { why } : {}),
+      }),
     };
     replayRefs.push({ block: { ...blk, id: 'tmp' } as Block, task: t });
   }

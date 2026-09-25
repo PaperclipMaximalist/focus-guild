@@ -200,7 +200,8 @@ export const api = {
   },
   quests: {
     list: (clerkId = getCurrentClerkId()) =>
-      request<Quest[]>(`/quests?clerkId=${clerkId}`),
+      // tz lets the server end a "Not Today" at the user's own midnight.
+      request<Quest[]>(`/quests?clerkId=${clerkId}&tz=${new Date().getTimezoneOffset()}`),
     completed: (clerkId = getCurrentClerkId()) =>
       request<Quest[]>(`/quests/completed?clerkId=${clerkId}`),
     recurring: (clerkId = getCurrentClerkId()) =>
@@ -570,6 +571,8 @@ export interface ScheduleBlock {
   taskId: string | null;
   locked: boolean;
   note: string | null;
+  /** Plain-language "why now" for work blocks, e.g. "Due tomorrow · heavy work in your sharpest hours." */
+  reason?: string | null;
 }
 
 export interface FeasibilityIssue {

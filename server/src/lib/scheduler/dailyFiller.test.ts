@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { placeDailyFillers } from './dailyFiller.js';
+import { inferPreferredHour, placeDailyFillers } from './dailyFiller.js';
 import type { Block } from './types.js';
 
 const MS_PER_MIN = 60_000;
@@ -78,5 +78,42 @@ describe('placeDailyFillers', () => {
     // No two of them at the same time.
     const starts = placed.map((b) => b.start).sort();
     expect(new Set(starts).size).toBe(3);
+  });
+});
+
+describe('daily fillers — time hints and breathing room', () => {
+  const hours = { startHour: 9, endHour: 18 };
+
+  it('reads unambiguous time words from the name', () => {
+    expect(inferPreferredHour('Bake morning sourdough', hours)).toBe(9);
+    expect(inferPreferredHour('End of day gym walkthrough', hours)).toBe(17);
+    expect(inferPreferredHour('Evening walk', hours)).toBe(17);
+    expect(inferPreferredHour('Lunch stretch', hours)).toBe(12);
+    expect(inferPreferredHour('Afternoon email sweep', hours)).toBe(14);
+    expect(inferPreferredHour('Duolingo', hours)).toBeNull();
+    // Words inside other words don't count.
+    expect(inferPreferredHour('Mornington report', hours)).toBeNull();
+  });
+
+  it('places fillers by their hint and leaves gaps between them', () => {
+    const now = Date.UTC(2026, 4, 18, 8, 0);
+    const blocks = placeDailyFillers({
+      fillers: [
+        { id: 'a', name: 'Morning meds', durationMin: 10, preferredHour: null, enabled: true },
+        { id: 'b', name: 'Evening walk', durationMin: 30, preferredHour: null, enabled: true },
+        { id: 'c', name: 'Duolingo', durationMin: 15, preferredHour: null, enabled: true },
+      ],
+      now,
+      horizonDays: 1,
+      workingHours: hours,
+      existingFixed: [],
+      tzOffsetMin: 0,
+    }).sort((x, y) => x.start - y.start);
+    const hourOf = (t: number) => new Date(t).getUTCHours();
+    expect(hourOf(blocks.find((b) => b.note === 'Daily: Morning meds')!.start)).toBe(9);
+    expect(hourOf(blocks.find((b) => b.note === 'Daily: Evening walk')!.start)).toBe(17);
+    for (let i = 1; i < blocks.length; i++) {
+      expect(blocks[i]!.start - blocks[i - 1]!.end).toBeGreaterThanOrEqual(10 * 60_000);
+    }
   });
 });

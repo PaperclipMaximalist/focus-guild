@@ -19,6 +19,7 @@ import { explainBlock } from '../src/lib/scheduler/explain.js';
 import { questsToTasks, type QuestLike } from '../src/lib/scheduler/adapter.js';
 import { defaultConfig } from '../src/lib/scheduler/config.js';
 import { eventsToFixedBlocks } from '../src/lib/calendar/ics.js';
+import { placeDailyFillers, type DailyFiller } from '../src/lib/scheduler/dailyFiller.js';
 import type { Block, Task, UserConfig } from '../src/lib/scheduler/types.js';
 
 const MIN = 60_000;
@@ -90,6 +91,8 @@ interface Scenario {
   cfg: UserConfig;
   now: number;
   calendar: ReturnType<typeof schoolWeek>;
+  /** Recurring dailies, placed the way the /schedule route places them. */
+  dailies?: DailyFiller[];
   /** Anything this scenario specifically must get right. */
   expect?: (r: Report) => string[];
 }
@@ -169,6 +172,30 @@ function scenarios(): Scenario[] {
       expect: (r) => {
         const got = r.minutesByTaskBefore('Submit TOK essay outline', local(2026, 9, 29, 10, 0));
         return got < 90 ? [`TOK outline (due Tue 10:00) only got ${got}/90 min before its deadline`] : [];
+      },
+    },
+    {
+      id: 'routine',
+      title: 'Normal week plus three dailies (meds, Duolingo, evening walk) on a free Saturday',
+      quests: [
+        quest('Extended essay: draft section 2', 240, 8, null, { impact: 9, deadline: new Date(local(2026, 10, 6, 23, 59)) }),
+        quest('History: read two sources', 120, 5, null, { deadline: new Date(local(2026, 10, 5, 23, 59)) }),
+        quest('Email the CAS coordinator', 15, 2, null, { category: 'admin', deadline: new Date(local(2026, 10, 4, 23, 59)) }),
+      ],
+      cfg: cfgWith({ workingHours: { startHour: 9, endHour: 21 } }),
+      now: local(2026, 10, 3, 8, 0),
+      calendar: [],
+      dailies: [
+        { id: 'meds', name: 'Morning meds', durationMin: 10, preferredHour: null, enabled: true },
+        { id: 'duo', name: 'Duolingo', durationMin: 15, preferredHour: null, enabled: true },
+        { id: 'walk', name: 'Evening walk', durationMin: 30, preferredHour: null, enabled: true },
+      ],
+      expect: (r) => {
+        const out: string[] = [];
+        const hourOf = (note: string) => r.schedule.filter((b) => b.note === note).map((b) => localHour(b.start));
+        if (hourOf('Daily: Morning meds').some((h) => h > 10)) out.push('Morning meds placed after 10:00');
+        if (hourOf('Daily: Evening walk').some((h) => h < 18)) out.push('Evening walk placed before 18:00');
+        return out;
       },
     },
     {
@@ -286,7 +313,14 @@ function grade(s: Scenario, schedule: Block[], tasks: Task[], feasibility: Repor
   const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : NaN);
   const eHard = avg(hard.map(eAt));
   const eEasy = avg(easy.map(eAt));
-  if (hard.length && easy.length && eHard + 0.02 < eEasy) findings.push(`Energy fit inverted: hard work avg energy ${eHard.toFixed(2)} < easy work ${eEasy.toFixed(2)}`);
+  // Judge energy fit within each day that has both kinds of work: a chore
+  // alone on a Saturday afternoon says nothing about ordering.
+  const inverted = [...new Set(work.map((b) => dayKey(b.start)))].filter((d) => {
+    const h = hard.filter((b) => dayKey(b.start) === d);
+    const e = easy.filter((b) => dayKey(b.start) === d);
+    return h.length && e.length && avg(h.map(eAt)) + 0.05 < avg(e.map(eAt));
+  });
+  if (inverted.length) findings.push(`Energy fit inverted on ${inverted.length} day(s): easy work got better hours than hard work (${inverted.join(', ')})`);
   const lateHard = hard.filter((b) => localHour(b.start) >= 20);
   if (lateHard.length) findings.push(`${lateHard.length} high-load block(s) starting at/after 20:00 (e.g. "${byId.get(lateHard[0]!.taskId!)!.name}" ${weekday(lateHard[0]!.start)} ${fmt(lateHard[0]!.start)})`);
 
@@ -385,12 +419,16 @@ function liveChecks(): string[] {
   const moved = same.filter((b) => !w.some((o) => o.taskId === b.taskId && o.start === b.start && o.end === b.end)).length;
   out.push(`Replan with no changes moved ${moved}/${same.length} work blocks${moved ? '  ← should be 0' : ''}`);
 
-  // "Not today" on the maths revision: it must leave today and still make its deadline.
-  const mathsId = tasks.find((t) => t.name === 'Maths test revision')!.id;
-  const todayEnd = local(2026, 9, 28, 23, 59);
-  const notToday = tasks.map((t) => (t.id === mathsId ? { ...t, notBefore: todayEnd } : t)) as Task[];
-  void notToday; // The Task model has no "not before" — see findings.
-  out.push('Not Today: Task has no earliest-start field, so the scheduler cannot honour "not today" by itself (the route only flips status to NOT_TODAY, which drops the quest from planning entirely)');
+  // "Not Today" on the maths revision: it must leave today and still be done by its test.
+  const deferred = sc.quests.map((q) => (q.title === 'Maths test revision' ? { ...q, status: 'NOT_TODAY' as const } : q));
+  const dTasks = questsToTasks(deferred, {}, sc.now, TZ);
+  const dPlan = generateSchedule(dTasks, fixed, sc.cfg, sc.now).schedule.filter(isWork);
+  const mathsId = dTasks.find((t) => t.name === 'Maths test revision')!.id;
+  const mBlocks = dPlan.filter((b) => b.taskId === mathsId);
+  const today = dayKey(sc.now);
+  const onToday = mBlocks.filter((b) => dayKey(b.start) === today).length;
+  const beforeTest = mBlocks.filter((b) => b.end <= local(2026, 9, 30, 23, 59)).reduce((a, b) => a + mins(b), 0);
+  out.push(`Not Today on "Maths test revision": ${onToday} block(s) today${onToday ? '  ← should be 0' : ''}, ${beforeTest}/180 min still planned before the test`);
   return out;
 }
 
@@ -400,8 +438,17 @@ const only = process.argv[2];
 let total = 0;
 for (const s of scenarios()) {
   if (only && s.id !== only) continue;
-  const fixed = eventsToFixedBlocks(s.calendar, s.now);
-  const tasks = questsToTasks(s.quests, {}, s.now);
+  const cal = eventsToFixedBlocks(s.calendar, s.now);
+  const fillers = placeDailyFillers({
+    fillers: s.dailies ?? [],
+    now: s.now,
+    horizonDays: s.cfg.horizonDays,
+    workingHours: s.cfg.workingHours,
+    existingFixed: cal,
+    tzOffsetMin: s.cfg.tzOffsetMin,
+  });
+  const fixed = [...cal, ...fillers];
+  const tasks = questsToTasks(s.quests, {}, s.now, TZ);
   const t0 = performance.now();
   const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, s.cfg, s.now);
   const ms = performance.now() - t0;

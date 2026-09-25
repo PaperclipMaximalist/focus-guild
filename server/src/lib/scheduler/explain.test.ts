@@ -46,15 +46,17 @@ describe('explainBlock', () => {
     expect(msg).not.toBe('Working on this quest.');
   });
 
-  it('references the task name when one is available', () => {
+  it('gives a specific reason, not stock copy', () => {
+    // The Feed shows the quest name right above the reason, so reasons
+    // composed from facts leave it out; what matters is that they say
+    // something true and particular about this block.
     const now = nowAt9amUtc();
-    const tasks = [task('a', { name: 'Ship the PR' })];
+    const tasks = [task('a', { name: 'Ship the PR', deadline: now + 26 * 60 * 60_000 })];
     const { schedule } = generateSchedule(tasks, [], cfg(), now);
     const blk = schedule.find((b) => b.type === 'work' && b.taskId === 'a')!;
     const msg = explainBlock(blk.id, schedule, tasks);
-    // Most term sentences mention the task by name; energy/urgency definitely do.
-    // We don't pin the exact wording, but the name should appear in most cases.
-    expect(msg.includes('Ship the PR') || msg.startsWith('Best fit')).toBe(true);
+    expect(msg).not.toMatch(/^Best fit for this slot|^Working on/);
+    expect(msg).toMatch(/due tomorrow|due today|start|hours|pace|subject|energy|asked/i);
   });
 
   it('returns the not-found message for an unknown id', () => {
