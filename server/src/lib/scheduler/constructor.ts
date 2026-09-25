@@ -32,6 +32,7 @@ import {
   totalFromBreakdown,
   type PlacedRef,
 } from './planner.js';
+import { minSitting } from './budget.js';
 import type { DayBudget, FreeInterval } from './budget.js';
 import type { Block, Task, UserConfig } from './types.js';
 
@@ -40,6 +41,17 @@ const EPSILON_MIN = 0.5;
 
 /** Number of partial-day states kept alive during construction. */
 const DEFAULT_BEAM_WIDTH = 3;
+
+/**
+ * A break long enough to end a same-mode run (the run logic resets after
+ * ADJACENT_GAP_MAX_MIN of daylight between blocks). A function, not a const:
+ * planner.ts and this module import each other, so a module-level read of
+ * the planner's constant runs before it is initialised.
+ */
+const varietyResetMin = () => ADJACENT_GAP_MAX_MIN + 1;
+
+/** How far past the ideal ceiling a block may run to finish a task's quota. */
+const TAIL_ABSORB_MIN = 20;
 /**
  * Variety floor: reject a candidate that would make the same-mode run
  * length (including the candidate) exceed this. Default 2 = "no more
@@ -148,7 +160,18 @@ function enumerateCandidates(
     const usableEnd = Math.min(iv.end, q.task.deadline);
     const usableMin = (usableEnd - iv.start) / MS_PER_MIN;
     const target = clamp(left, idealLo, idealHi);
-    const chunkMin = Math.floor(Math.min(target, usableMin, cap, left));
+    let chunkMin = Math.floor(Math.min(target, usableMin, cap, left));
+    // Never leave a tail shorter than a real sitting: a 60-min quota placed
+    // as 50 + 10 gives a 10-minute block nobody will start. Either finish it
+    // in this block (small overshoot of the ideal) or leave a proper sitting.
+    const sitting = minSitting(q.task, left);
+    const tail = left - chunkMin;
+    if (tail > 0 && tail < sitting) {
+      const whole = Math.floor(Math.min(left, usableMin, cap + TAIL_ABSORB_MIN));
+      chunkMin = whole >= left ? left : Math.max(0, left - sitting);
+    }
+    // And don't open a sliver at the end of an interval.
+    if (chunkMin < sitting && chunkMin < left) continue;
     if (chunkMin < 1) continue;
 
     const score = placementScore(q.task, chunkMin, iv.start, refs, weights, config);
@@ -192,8 +215,52 @@ function countSameModeRun(
   return n;
 }
 
+/**
+ * Work minutes in the unbroken run that ends at `end` (this block included),
+ * plus the minutes worked since the last LONG rest. A gap of at least
+ * `shortBreakDurationMin` ends a run; one of `longBreakDurationMin` resets the
+ * long counter.
+ */
+function runsEndingAt(
+  blocks: BeamState['blocks'],
+  end: number,
+  config: UserConfig,
+): { run: number; sinceLong: number } {
+  const shortGap = config.breakPolicy.shortBreakDurationMin * MS_PER_MIN;
+  const longGap = config.breakPolicy.longBreakDurationMin * MS_PER_MIN;
+  const work = blocks.filter((b) => b.type === 'work' && b.end <= end).sort((a, b) => b.end - a.end);
+  let run = 0;
+  let sinceLong = 0;
+  let cursor = end;
+  let inRun = true;
+  for (const b of work) {
+    const gap = cursor - b.end;
+    if (gap >= longGap) break;
+    if (gap >= shortGap) inRun = false;
+    const m = (b.end - b.start) / MS_PER_MIN;
+    if (inRun) run += m;
+    sinceLong += m;
+    cursor = b.start;
+  }
+  return { run, sinceLong };
+}
+
+/**
+ * Rest owed after a block ending at `end`, per the user's break policy.
+ * This is what makes `breakPolicy` real: the old planner packed intervals
+ * edge to edge, so the "gaps are the breaks" design never produced a gap
+ * and four straight hours of work was normal.
+ */
+function restAfter(blocks: BeamState['blocks'], end: number, config: UserConfig): number {
+  const p = config.breakPolicy;
+  const { run, sinceLong } = runsEndingAt(blocks, end, config);
+  if (sinceLong >= p.longBreakAfterMin) return p.longBreakDurationMin;
+  if (run >= p.shortBreakAfterMin) return p.shortBreakDurationMin;
+  return 0;
+}
+
 /** Apply a candidate to a state, returning the successor state. */
-function applyCandidate(state: BeamState, c: Candidate): BeamState {
+function applyCandidate(state: BeamState, c: Candidate, config: UserConfig): BeamState {
   const iv = state.freeIntervals[0]!;
   // Note: we don't compute the explain-note here — that's only worth doing
   // for the WINNING candidate, so we defer it until after beam selection.
@@ -208,7 +275,8 @@ function applyCandidate(state: BeamState, c: Candidate): BeamState {
       note: null,
     },
   ];
-  const leftoverIv = shrinkFromStart(iv, c.chunkMin);
+  const rest = restAfter(blocks, c.start + c.chunkMin * MS_PER_MIN, config);
+  const leftoverIv = shrinkFromStart(iv, c.chunkMin + rest);
   const freeIntervals = leftoverIv === null
     ? state.freeIntervals.slice(1)
     : [leftoverIv, ...state.freeIntervals.slice(1)];
@@ -220,6 +288,21 @@ function applyCandidate(state: BeamState, c: Candidate): BeamState {
     remaining,
     totalScore: state.totalScore + c.score,
   };
+}
+
+/** Free minutes left today beyond what the remaining quotas need. */
+function slackMin(state: BeamState): number {
+  const free = state.freeIntervals.reduce((s, iv) => s + (iv.end - iv.start) / MS_PER_MIN, 0);
+  let need = 0;
+  for (const v of state.remaining.values()) need += Math.max(0, v);
+  return free - need;
+}
+
+/** Leave `minutes` of the current interval empty: a rest, not a skip. */
+function restFor(state: BeamState, minutes: number): BeamState {
+  const iv = state.freeIntervals[0]!;
+  const rest = shrinkFromStart(iv, minutes);
+  return { ...state, freeIntervals: rest ? [rest, ...state.freeIntervals.slice(1)] : state.freeIntervals.slice(1) };
 }
 
 /** Drop the current free interval (skip-the-rest-of-this-gap). */
@@ -268,6 +351,15 @@ export function constructDay(
       // Variety floor falls back to relaxed if it would leave the slot empty.
       if (candidates.length === 0) {
         candidates = enumerateCandidates(state, budget, immovable, taskMap, config, false, floorN);
+        // Everything left would extend a same-mode run. If the day has room,
+        // step away long enough for the run to end (a walk between two
+        // essays) rather than chaining a fourth heavy block. On a tight day
+        // the work goes in anyway: finishing beats variety.
+        if (candidates.length > 0 && slackMin(state) >= varietyResetMin()) {
+          next.push(restFor(state, varietyResetMin()));
+          progressed = true;
+          continue;
+        }
       }
 
       if (candidates.length === 0) {
@@ -277,10 +369,13 @@ export function constructDay(
         continue;
       }
 
-      // Branch: each candidate forks the state. Also include "skip this
-      // interval" so the beam can prefer a small gap over a bad fit.
-      for (const c of candidates) next.push(applyCandidate(state, c));
-      next.push(skipInterval(state));
+      // Branch on the candidates only. There used to be a "skip the rest of
+      // this interval" branch too; it scored 0 while a tedious chore scored
+      // below 0, so the beam preferred an empty evening to doing the chores
+      // and reported them as infeasible. The budget already decided how much
+      // work today holds; here we only decide its order. Rest comes from the
+      // break policy in applyCandidate, not from abandoning free time.
+      for (const c of candidates) next.push(applyCandidate(state, c, config));
       progressed = true;
     }
 

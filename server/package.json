@@ -9,6 +9,7 @@
     "start": "prisma migrate deploy && node dist/src/index.js",
     "postinstall": "prisma generate",
     "test": "vitest run",
+    "lab": "tsx scripts/scenario-lab.ts",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

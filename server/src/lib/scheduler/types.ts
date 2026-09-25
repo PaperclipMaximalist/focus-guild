@@ -34,6 +34,13 @@ export interface Task {
   status: TaskStatus;
   /** Multiplier on urgency contribution. 1.0 = default. >1 boosts, <1 dampens. */
   urgencyMultiplier: number;
+  /**
+   * Minutes of this task already sitting in immovable blocks inside the
+   * horizon (set by reflow for stable/locked work). Lets the budget pace a
+   * task due after the horizon against its whole remaining work, so a
+   * replan with nothing changed doesn't grant it a fresh share each time.
+   */
+  committedMin?: number;
 }
 
 export interface Block {

@@ -26,7 +26,7 @@
  * Pure: same inputs → same outputs. Deterministic tie-break on equal score.
  */
 
-import { allocateBudgets, buildDayInfo } from './budget.js';
+import { allocateBudgets, buildDayInfo, dueWithinPlan } from './budget.js';
 import { DEFAULT_SCORE_WEIGHTS } from './config.js';
 import { constructDay } from './constructor.js';
 import { userHourOf, userMidnightUtc } from './tz.js';
@@ -580,7 +580,7 @@ export function plan(inputs: PlanInputs): SchedulerResult {
 
   // ── 2/3. Build per-day capacity + allocate budgets ───────────────────
   const days = buildDayInfo(config, now, immovable);
-  const budgets = allocateBudgets(sorted, days, now, config.todayCapMin);
+  const budgets = allocateBudgets(sorted, days, now, config.todayCapMin, config.breakPolicy);
 
   // ── 4. Construct each day ────────────────────────────────────────────
   const allWorkBlocks: Block[] = [];
@@ -600,9 +600,15 @@ export function plan(inputs: PlanInputs): SchedulerResult {
     }
   }
 
-  // ── 5. Feasibility — anything not placed before deadline counts ──────
+  // ── 5. Feasibility — anything due in the plan that didn't fit ────────
+  // A task due after the horizon isn't short just because the whole of it
+  // isn't in this week's plan; it gets its fair share now and the rest on
+  // later replans. Flagging it filled the Feed's banner with false alarms
+  // about essays due in a fortnight (and every undated quest, which gets a
+  // soft 14-day deadline).
   const issues: FeasibilityIssue[] = [];
   for (const task of sorted) {
+    if (!dueWithinPlan(task, days)) continue;
     const placed = placedByTask.get(task.id) ?? 0;
     const short = task.remainingMin - placed;
     if (short > EPSILON_MIN) {

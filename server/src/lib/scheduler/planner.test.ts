@@ -8,9 +8,11 @@ const MS_PER_HOUR = 60 * MS_PER_MIN;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 
 /** Pin "now" to 9am local on a known date so working hours line up. */
+// UTC, to match the configs here (no tzOffsetMin = UTC). This used to be
+// local 9am, which put the working day at 16:00–18:00 on a Pacific laptop
+// and 09:00–18:00 on a UTC server, so results depended on the machine.
 function nowAt9am(): number {
-  const d = new Date(2026, 4, 18, 9, 0, 0, 0);
-  return d.getTime();
+  return Date.UTC(2026, 4, 18, 9, 0, 0, 0);
 }
 
 function task(id: string, overrides: Partial<Task> = {}): Task {
@@ -48,10 +50,11 @@ describe('generateSchedule — basic placement', () => {
     const now = nowAt9am();
     const { schedule } = generateSchedule([task('t1')], [], cfg, now);
 
+    // The config has no tzOffsetMin, so working hours are UTC hours.
     const dayStart = new Date(now);
-    dayStart.setHours(cfg.workingHours.startHour, 0, 0, 0);
+    dayStart.setUTCHours(cfg.workingHours.startHour, 0, 0, 0);
     const dayEnd = new Date(now);
-    dayEnd.setHours(cfg.workingHours.endHour, 0, 0, 0);
+    dayEnd.setUTCHours(cfg.workingHours.endHour, 0, 0, 0);
 
     for (const b of schedule) {
       expect(b.start).toBeGreaterThanOrEqual(dayStart.getTime());
@@ -99,7 +102,8 @@ describe('generateSchedule — chunking', () => {
   it('splits a task across multiple chunks when remaining > maxChunk', () => {
     const cfg = shortHorizon();
     const now = nowAt9am();
-    const t = task('t1', { remainingMin: 150, maxChunkMin: 50 });
+    // Due inside the 1-day plan: a task due later only gets its paced share.
+    const t = task('t1', { remainingMin: 150, maxChunkMin: 50, deadline: now + 8 * MS_PER_HOUR });
     const { schedule } = generateSchedule([t], [], cfg, now);
     const work = schedule.filter((b) => b.type === 'work' && b.taskId === 't1');
     expect(work.length).toBeGreaterThanOrEqual(3);

@@ -8,7 +8,7 @@
 import { describe, it, expect } from 'vitest';
 import { generateSchedule } from './replan.js';
 import { defaultConfig } from './config.js';
-import { taskMode } from './planner.js';
+import { ADJACENT_GAP_MAX_MIN, taskMode } from './planner.js';
 import { userHourOf } from './tz.js';
 import type { Task, UserConfig } from './types.js';
 
@@ -64,16 +64,20 @@ describe('variety by construction', () => {
     const work = schedule.filter((b) => b.type === 'work' && b.taskId);
     const taskMap = new Map(tasks.map((t) => [t.id, t]));
 
-    // For each consecutive triple, modes must not all be identical.
+    // Same-mode run length within a continuous stretch. A real break
+    // (> ADJACENT_GAP_MAX_MIN, e.g. overnight or a reset walk) ends a run,
+    // exactly as the engine's own adjacency logic defines it.
+    const sorted = [...work].sort((a, b) => a.start - b.start);
     let maxRun = 1;
     let run = 1;
-    for (let i = 1; i < work.length; i += 1) {
-      const prev = taskMap.get(work[i - 1]!.taskId!)!;
-      const here = taskMap.get(work[i]!.taskId!)!;
+    for (let i = 1; i < sorted.length; i += 1) {
+      const prev = taskMap.get(sorted[i - 1]!.taskId!)!;
+      const here = taskMap.get(sorted[i]!.taskId!)!;
       const pm = taskMode(prev);
       const hm = taskMode(here);
-      if (pm.category === hm.category && pm.load === hm.load && pm.tedium === hm.tedium) run += 1;
-      else run = 1;
+      const gapMin = (sorted[i]!.start - sorted[i - 1]!.end) / 60_000;
+      const sameMode = pm.category === hm.category && pm.load === hm.load && pm.tedium === hm.tedium;
+      run = sameMode && gapMin <= ADJACENT_GAP_MAX_MIN ? run + 1 : 1;
       if (run > maxRun) maxRun = run;
     }
     expect(maxRun).toBeLessThanOrEqual(2);

@@ -90,7 +90,7 @@ export function reflow(
   const adjusted = tasks.map((t) => {
     const used = consumed.get(t.id) ?? 0;
     if (used <= 0) return t;
-    return { ...t, remainingMin: Math.max(0, t.remainingMin - used) };
+    return { ...t, remainingMin: Math.max(0, t.remainingMin - used), committedMin: used };
   });
 
   // Run the full planner over the remaining work. Treat stable blocks as
