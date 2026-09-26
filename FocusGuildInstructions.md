@@ -31,12 +31,12 @@ surfacing easier wins first. Logic lives in server/src/lib/priority.ts
 alongside the base formula.
 
 ## Tech Stack
-- Frontend:  React 18 + TypeScript + Tailwind CSS + Framer Motion + Zustand
-- Backend:   Node.js + Hono + Prisma ORM + PostgreSQL (Neon serverless)
+- Frontend:  React 19 + TypeScript + Vite + Tailwind v4 + Framer Motion + Zustand + Lucide icons
+- Backend:   Node 22 + Hono + Prisma 7 (Neon adapter) + PostgreSQL (Neon serverless)
 - Auth:      Clerk
-- AI:        Anthropic Claude API (task decomposer + "what next" advisor)
+- AI:        Anthropic Claude API (Quest Decomposer, Ask the Guild) + an MCP connector in mcp/
 - Deploy:    Vercel (client) + Railway (server)
-- Mobile:    PWA wrapper of the React app
+- Mobile:    installable PWA (manifest + service worker + share target)
 
 ## File Structure
 focus-guild/
@@ -52,7 +52,14 @@ focus-guild/
 │       ├── routes/         ← Hono route handlers
 │       ├── lib/            ← business logic (priority.ts, xp.ts, streak.ts)
 │       └── db/             ← Prisma client + seed script
-├── CLAUDE.md               ← this file
+│       lib/scheduler/      ← the planner (see its README + SCHEDULER_PSEUDOCODE.md)
+│       lib/tracker/, lib/calendar/ ← tracker + CAS, ICS in/out
+├── server/scripts/         ← scenario-lab.ts (npm run lab), migration helpers
+├── mcp/                    ← Claude Desktop / Code connector
+├── FocusGuildInstructions.md ← this file (the Project Bible)
+├── PLAN.md                 ← roadmap: what's done, what's open
+├── WORKLOG.md              ← day-by-day history with hours
+├── DEPLOY.md               ← Railway + Vercel setup and gotchas
 └── .env files              ← never committed
 
 ## Database Models (Prisma)
@@ -63,6 +70,13 @@ focus-guild/
 - XPEvent           — userId, questId, amount, reason, createdAt
 - Achievement       — slug, title, description, icon, xpReward
 - UserAchievement   — userId, achievementId, unlockedAt
+- ScheduleBlock, RecurringCompletion — persisted plan + daily completions
+- TrackerDomain, TrackerItem, Reflection, ParkingLotEntry, DecisionLogEntry,
+  CasInterview      — the tracker + CAS lens
+- ActivityEntry (activity_log), PermafileVersion — Chronicle + permafile
+- CalendarSource, ExternalEvent — ICS feeds and their busy events
+- User also carries schedulerSettings / trackerSettings (JSON overrides),
+  trackerCodeHighWater and personalTokenHash (SHA-256 of the fgpat_ token)
 
 ## XP Rules
 - Base XP per quest = estimatedMinutes / 5 (rounded)
@@ -94,7 +108,9 @@ Each level unlocks a visual theme. Defined in client/src/lib/levels.ts.
 - time-whisperer      Estimated time within 15% of actual on 5 quests in a row
 - chaos-agent         Use Spin the Wheel 10 times
 - rescue-ranger       Clear all Rescue Mode quests in a single session
-Defined in server/src/db/seed.ts and seeded on first run.
+Defined in server/src/db/seed.ts and seeded on first run. The live catalog is
+14 achievements (server/src/lib/achievements.ts adds first-blood, dedicated,
+centurion, week-warrior, unbreakable, night-owl, marathon, flow-state).
 
 ## AI Integration (Anthropic API)
 Two features powered by Claude:
@@ -103,9 +119,12 @@ Two features powered by Claude:
 2. What Next Advisor — given current energy, available time, and top quests,
    Claude returns a single recommended quest slug + one-sentence reason.
 
-Both are thin POST endpoints in server/src/routes/ai.ts using structured
-JSON output. System prompts live in server/src/lib/prompts.ts.
-Model: claude-sonnet-4-20250514. Never hardcode API keys.
+As built: the Quest Decomposer is POST /quests/:id/decompose; the "what
+next" role became **Ask the Guild** (POST /chronicle/ask), which answers from
+the user's permafile + tracker + activity log and returns at most three
+tap-to-apply suggestions. The client lib is server/src/lib/ai.ts, model in
+`AI_MODEL` (claude-opus-5). Both 503 cleanly without ANTHROPIC_API_KEY.
+Never hardcode API keys.
 
 ## Terminology (use consistently everywhere — UI, code, comments)
 - Quest      not Task
@@ -136,354 +155,58 @@ Model: claude-sonnet-4-20250514. Never hardcode API keys.
 - Zustand stores:  camelCase with `use` prefix (useQuestStore.ts)
 
 ## Environment Variables
-server/.env  →  DATABASE_URL, ANTHROPIC_API_KEY, CLERK_SECRET_KEY, PORT
+server/.env  →  DATABASE_URL, CLERK_SECRET_KEY, CLIENT_URL (CORS, comma-separated), ANTHROPIC_API_KEY (optional), PORT
 client/.env  →  VITE_API_URL, VITE_CLERK_PUBLISHABLE_KEY
+*.env.local  →  gitignored overrides for account-free local runs (blank Clerk keys, local API URL)
 Never commit .env files. Never log API keys.
 
 ## Current Build Phase
-[Update this at the end of every session]
-Phase: 11 — Long-horizon Tracker + CAS lens (server AND client done)
+[Update this at the end of every session. History lives in WORKLOG.md and git; this section is the current state only.]
 
-Session (2026-09-12 — migration applied, tracker/CAS client built):
-  - ✅ BLOCKER CLEARED: the tracker migration is APPLIED. Ran the
-    idempotent SQL statement-by-statement through the Neon HTTP driver
-    (@neondatabase/serverless works from this machine; the Prisma schema
-    engine still does not). All six tables + users.trackerSettings exist
-    and GET /tracker returns 200. `prisma migrate deploy` will re-run and
-    checksum it harmlessly on the next Linux deploy.
-  - SERVER GAP CLOSED — scheduler hand-off:
-    - POST /tracker/items/:id/schedule creates a Quest from the item's
-      nextAction (deadline from its due date, tagged with its domain) and
-      links questId. Explicit, not automatic on activation — silent quest
-      creation would surprise. Re-scheduling while the quest is still open
-      returns the existing one, so a double tap can't duplicate.
-    - DELETE /tracker/items/:id/schedule unlinks; the quest survives.
-    - GET /tracker now returns linkedQuests (questId has no FK, so the
-      client needs this to spot a link whose quest was deleted).
-  - CLIENT, all four areas built and verified at 375px:
-    - lib/api.ts — api.tracker.* over every endpoint; request() now throws
-      ApiRequestError carrying the server's error code (message keeps the
-      old `CODE: message` shape, so String(err) call sites are unchanged).
-    - store/useTrackerStore.ts — bootstrap + in-place array patches;
-      cappedActive() mirrors the server rule exactly. CAS mode persisted
-      to localStorage; it is a lens and gates no write.
-    - pages/Tracker.tsx — active pinned above collapsible domain sections,
-      next action as the headline with the title beneath, cap segment bar,
-      one-tap drop, parking lot, append-only decision log, review banner.
-    - components/tracker/Cas*.tsx — 7x3 matrix (outcomes as rows so three
-      columns fit a phone), strand balance by recency/duration,
-      reflections with LO tags that feed the matrix, three interviews.
-    - pages/TrackerPresets.tsx — domains (add/rename/reorder via buttons,
-      not drag/recolor/delete), cap, status labels, prefixes, required
-      fields, review cadence + prompts, hours toggle, JSON preset
-      export/import.
-    - pages/TrackerMarkdown.tsx — four tier buttons with real char counts
-      from /export/sizes, compact auto-copies, delta export with a date
-      picker, import via paste or .md upload with a mandatory diff preview.
-    - Routes /tracker, /tracker/presets, /tracker/markdown; Tracker tab in
-      BottomNav that switches to 🎭 CAS when the lens is on; three command
-      palette entries. Toasts lifted clear of the bottom nav.
-  - VERIFIED in-browser at 375px (no horizontal overflow anywhere): item
-    create, cap 409 and next-action 400 both surfacing as toasts, one-tap
-    drop, schedule → quest really lands in the feed, CAS lens narrowing +
-    strand grouping + cap hidden, matrix cell drill-down, a reflection's
-    LO tag closing a coverage gap, interview save-on-blur, parking-lot
-    promote, decision append, domain reorder/rename/delete (items survive
-    into Unsorted), and a compact-export round-trip that left unmentioned
-    notes intact and never deleted absent items.
-  - 192 server tests pass; client typecheck clean; build ~198 kB gzipped.
-  - Still queued: db:seed (DB has 6 of 14 achievements), merge
-    scheduler-revamp -> main (16 commits ahead).
+**As of 2026-09-26: everything below is built, deployed and live.** Production is `main` @ `5688211`, auto-deployed from `main` (Railway server + Vercel client). The open work is in `PLAN.md`.
 
-Previous phase-11 session (2026-09-12 — server side):
+### Live
+- Client: https://focus-guild-ten.vercel.app · Server: https://focus-guild-production.up.railway.app (`/health`)
+- GitHub: PaperclipMaximalist/focus-guild (private). Working branch `presets-and-chronicle` is level with `main`, apart from this docs update.
+- Real Clerk auth in production (still on Clerk's *development* keys: the sign-in shows "Development mode").
+- DB: Neon Postgres. **Local dev uses the same database as production** (no dev branch yet), so local testing writes real rows.
 
-Session (2026-09-12 — tracker/CAS server side + Railway restore):
-  - RAILWAY: free trial had expired and taken the server down (404
-    "Application not found"). Upgraded to Hobby; server live again.
-    Note the client bundle has VITE_API_URL baked in at build time, so a
-    recreated service with a new subdomain would need a Vercel redeploy.
-  - LOCAL NO-ACCOUNT MODE (new, permanent): server/src/env.ts loads .env
-    then .env.local with override:true, imported FIRST in index.ts
-    (auth.ts reads CLERK_SECRET_KEY at module top level). Gitignored
-    server/.env.local blanks CLERK_SECRET_KEY -> dev auth fallback;
-    the real .env is never edited. Vite now binds 127.0.0.1 (was
-    IPv6-only). Open http://127.0.0.1:5173.
-  - FIXES: invalid nested <button> in GuildFeed BlockTile (quick-delete
-    was inside the tile's own button); `tags` added to the quest
-    add/update client types (server already accepted it).
-  - TRACKER + CAS, server side complete, client NOT started:
-    - schema: tracker_items (flat, no priority field — the scheduler owns
-      weighting; questId reserved for materialising nextAction as a Quest,
-      not yet wired), tracker_domains as rows, reflections, parking lot,
-      decision log, 3 CAS interviews, TrackerStatus enum, and
-      User.trackerSettings for presets.
-    - server/src/lib/tracker/config.ts — presets, mirrors userConfig.ts.
-    - server/src/lib/tracker/markdown.ts — 4 export tiers + delta, YAML
-      frontmatter, `[ ] [~] [x] [-] [!]` marks, code-matched import where
-      an absent field means "not asserted" and nothing is ever deleted.
-    - server/src/lib/tracker/cas.ts — 7x3 LO-by-strand coverage matrix,
-      strand balance by recency/duration (hours optional, off by default),
-      coursework-conflict detection.
-    - server/src/routes/tracker.ts — mounted at /tracker. Active cap
-      enforced server-side; CAS-tagged items are exempt as a property of
-      the data, not of whether the CAS lens is toggled on.
-    - 192 server tests pass (was 136).
-  - ⚠️ BLOCKER (RESOLVED in the session above): the migration was
-    committed but NOT APPLIED, so /tracker 500s with ColumnNotFound. The
-    Prisma schema engine cannot reach Neon from this Windows machine
-    (migrate diff against the live DB silently returns an empty
-    datamodel). SQL is idempotent and additive, so it is safe to re-run;
-    let `prisma migrate deploy` apply it on a Linux host, or apply it via
-    the Neon HTTP driver. Note `start` is `migrate deploy && node …`, so
-    a bad migration blocks boot.
-  - (At the time: 10 commits ahead of main.)
+### What exists (feature map → where it lives)
+| Area | What | Where |
+|---|---|---|
+| Quests | CRUD, quick-add grammar (`2h by fri #tag !high`), sub-quests, Not Today (held to tomorrow, revived at the user's midnight), Rescue for overdue, bulk text import (`/quests/import`) | `routes/quests.ts`, `lib/deferral.ts`, `client/src/lib/quickAdd.ts`, `pages/{Today,Quests,QuestImport,Rescue}.tsx` |
+| XP & ranks | XP, streaks, 7 ranks, 14 achievements, Trophy Room, rank theming, SFX/haptics, duck mascot, Lucide icons, "devcave" theme | `lib/{xp,streak,achievements,evalAndUnlock}.ts`, `pages/Trophies.tsx`, `components/mascot` |
+| Guild Feed | Timeline with live countdown, drag/pin/delete, "why now" reason per block, plan insights (overdue, routines crowding, backlog pace, working-hours suggestion, estimate calibration), energy sparkline | `pages/GuildFeed.tsx`, `components/PlanInsights.tsx`, `routes/schedule.ts` |
+| Scheduler | budget → construct → reflow; real sittings, breaks, peak hours for heavy work, pacing, deadline preemption, calendar + routine fixed blocks, self-correcting estimates | `server/src/lib/scheduler/` (see its README + SCHEDULER_PSEUDOCODE.md), `scripts/scenario-lab.ts` |
+| Focus timer | Persists across refresh; logs focused minutes (pauses excluded) on Done / "Stop for now, keep progress" → `actualMinutes` | `components/FocusTimer.tsx`, `POST /quests/:id/focus` |
+| Tracker + CAS | Long-horizon items with codes, 5 statuses (editable labels), active cap, domains, parking lot, decision log, CAS lens (7×3 matrix, strands, interviews), presets + preset packs (IB Guild / Bad-week minimal / Projects & work), add templates, markdown export/import, "Schedule as quest" | `routes/tracker.ts`, `lib/tracker/*`, `pages/Tracker*.tsx`, `client/src/lib/trackerPacks.ts` |
+| Chronicle | Activity log (written as a side effect of real actions), journal, versioned permafile, AI context bundle, Ask the Guild (Claude, tap-to-apply suggestions) | `routes/chronicle.ts`, `lib/{activity,chronicle}.ts`, `pages/Chronicle.tsx` |
+| Connections | ICS calendar import (Google / Outlook-Teams / iCloud) the planner routes around; personal access token (`fgpat_…`) for the inbox, REST API and MCP; `POST /inbox` → Parking Lot; plan published as `/calendar/<token>.ics` | `routes/{integrations,inbox,calendarFeed}.ts`, `lib/calendar/*`, `lib/tokens.ts`, `pages/Connections.tsx` |
+| PWA | Installable, offline shell, shortcuts, Android share target → Parking Lot (`/share`) | `client/public/{manifest.webmanifest,sw.js}`, `client/scripts/generate-icons.mjs` |
+| MCP | Claude Desktop / Code connector: 6 reads + additive writes | `mcp/` (see its README) |
+| Settings | Scheduler weights, working hours (half hours allowed), experience toggles, Connections link | `pages/Settings.tsx`, `routes/settings.ts` |
 
-Phase: 9 — Auth backend + Focus Timer + Spin the Wheel + Rescue Mode
+Client routes: `/ /feed /rescue /checkin /quests /quests/import /stats /settings /trophies /tracker /tracker/presets /tracker/markdown /chronicle /connections /share`.
+Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle /integrations` (Clerk or `fgpat_` token), plus token-in-URL `/inbox` and `/calendar/<token>.ics`.
 
-Session add-ons (2026-05-31 — XP-over-time chart):
-  - GET /users/:clerkId/xp-events — returns full XP history (id, amount,
-    reason, createdAt) ascending, capped at 1000, for charting.
-  - client api.ts: api.users.xpEvents().
-  - Stats.tsx: new "⚡ XP over time" section — hand-rolled SVG, last 14
-    days of daily-XP bars + cumulative-total line (dual scale), with
-    period-total and start→now totals header. No new deps.
-  - 112 server tests still pass; client builds clean (~146 kB gzipped).
+### How to run, test, ship
+- Local: two terminals. `cd server && npm run dev` (port 3000), `cd client && npm run dev` (open **http://127.0.0.1:5173**, not localhost). No Clerk needed: `server/.env.local` and `client/.env.local` switch to dev auth (`dev-member-001`).
+- Tests: `cd server && npm test` (242) · `cd client && npm test` (10) · **`cd server && npm run lab`** for the scheduler (grade whole plans; run before and after any scheduler change).
+- Ship: merge to `main` and push; Railway runs `prisma migrate deploy` on boot. Migrations must be **idempotent** (a failing one takes the server down). The Prisma schema engine can't reach Neon from this Windows machine; the Neon HTTP driver works for reads.
+- AI features (Quest Decomposer, Ask the Guild) need `ANTHROPIC_API_KEY` on the server; without it they return 503 with a clear message. Model: `AI_MODEL` in `server/src/lib/ai.ts` (`claude-opus-5`).
 
-Phase 9 done (2026-05-18 — auth + new features):
-  - AUTH:
-    - server/src/lib/auth.ts — middleware that verifies Clerk Bearer
-      tokens via @clerk/backend if CLERK_SECRET_KEY is set; falls back
-      to X-Dev-Clerk-Id header / ?clerkId= / DEV_FALLBACK_CLERK_ID.
-    - Mounted as `app.use('*', requireUser)` after CORS in index.ts.
-    - All routes now read user from `c.get('user')` — clerkId stripped
-      from request bodies/queries (kept as optional for back-compat).
-    - Client api.ts sends `X-Dev-Clerk-Id: dev-member-001` header on every
-      request; flip to real Clerk by adding @clerk/clerk-react, wrapping
-      ClerkProvider, and swapping the header for `Authorization: Bearer
-      <session token>` from `useAuth().getToken()`.
-  - SPIN THE WHEEL:
-    - User.spinCount column + migration.
-    - POST /quests/spin-wheel picks a random ACTIVE quest weighted by
-      priority^1.5; increments spinCount; runs evalAndUnlock so Chaos
-      Agent fires at 10 spins.
-    - client/src/components/SpinWheel.tsx — animated wheel modal,
-      "Do it" (scrolls to quest + flashes gold border) / Re-spin / Close.
-    - Surfaced from Today.tsx in the action-card row.
-  - FOCUS TIMER:
-    - client/src/store/useTimerStore.ts — single active session, persists
-      to localStorage (survives refresh), pause/resume with accumulated
-      pausedTotalMs offset.
-    - client/src/components/FocusTimer.tsx — full-bleed countdown overlay,
-      pause/resume/done/drop buttons, overrun mode (turns red when ms<0).
-    - GuildFeed "Start" button now launches the timer for that block's
-      quest. "Done" fires the standard complete/completeDaily pipeline
-      → XP toast, achievement toast, level-up. Timer minimizes to a
-      floating "Resume timer" pill.
-  - RESCUE MODE:
-    - GET /quests/rescue returns overdue quests, auto-flips them to
-      RESCUE status as a side-effect.
-    - POST /quests/:id/extend-deadline { days } bumps deadline forward.
-    - client/src/pages/Rescue.tsx — per-quest +1d / +3d / +7d / complete /
-      delete; bulk "Rescue all (+7d)" action.
-    - Reachable at /rescue; surfaced as an action-card on Today.tsx with
-      a red overdue counter badge.
-  - 112 server tests passing; client builds in ~430ms (431 kB).
+### Gotchas worth knowing
+- `PUT /settings` **replaces** the whole override set: merge before saving (PlanInsights does).
+- `GET /quests` lists ACTIVE only; RESCUE quests (overdue) show on Rescue.
+- The in-app browser can't register service workers; test the PWA on a real phone.
+- The dev account has every recurring quest duplicated (test data), which is why its routines take ~7 h/day.
+- Python heredocs turn `\b` into a backspace in regexes; use the Edit tool or `chr(92)` for regex edits.
+- More in the Claude Code memory file for this project and in `DEPLOY.md`.
 
-Phase 8 done (2026-05-18 — persistence + achievements):
-  - SCHEMA: ScheduleBlock gained `locked Boolean` and `note String?`; BlockType
-    enum extended with WORK / BREAK / FIXED (legacy values kept for back-compat).
-    Migration applied to Neon.
-  - server/src/lib/scheduler/persistence.ts: blockToRow / rowToBlock mapping
-    layer + Prisma enum mapping with legacy fallthroughs (FOCUS→work,
-    DEADLINE_ANCHOR→work, CALENDAR→fixed). 9 unit tests.
-  - server/src/routes/schedule.ts:
-    - POST /generate, POST /:clerkId/replan, POST /:clerkId/edit all persist
-      the resulting schedule (deletes future blocks for that user, inserts
-      new ones in a transaction).
-    - GET /:clerkId now hydrates from DB on cold-cache. Restarts no longer
-      drop the schedule.
-    - Synthetic taskIds (recurring:cuid…, filler-…) are stripped to
-      questId=null so the FK doesn't fail.
-  - server/src/lib/evalAndUnlock.ts: new glue between achievements.ts and
-    Prisma — gathers recent-completion context, evaluates all 6 checkers,
-    inserts UserAchievement rows + bonus XPEvents in one transaction.
-    Called from POST /quests/:id/complete AND /complete-daily.
-  - server/src/routes/users.ts: new GET /users/:clerkId/achievements
-    returning unlocked Achievement details for the BadgesPanel.
-  - client/src/store/useAchievementsStore.ts: Zustand store with `load`
-    and optimistic `addUnlocked`.
-  - client/src/components/BadgesPanel.tsx: now loads real unlocks; shows
-    "N/6" counter; updates instantly via addUnlocked optimistic merge.
-  - client/src/pages/Today.tsx + components/DailySection.tsx: surface
-    `newlyUnlocked` as cascading 'badge'-variant toasts with the icon,
-    title, XP reward, and description.
-  - client/src/lib/api.ts: CompleteQuestResult gained optional
-    newlyUnlocked field; AchievementSummary type + /users/.../achievements
-    endpoint.
-  - BUG FIXES from audit:
-    1. MiniCalendar didn't sync its `anchor` when `value` prop jumped to a
-       different month (e.g. editing two quests in succession with different
-       deadlines). Added useEffect.
-    2. Recurring quest filler ids collided with state.fillers ids; now
-       prefixed with "recurring:".
-  - TESTS: 112 server tests passing (9 new persistence helpers). Client
-    builds in ~700ms (416 kB).
+### Open work
+See `PLAN.md` → "Still open": personal energy curve, dailies clipped to 60 min, duplicate detection, replan on focus overrun, plus ops (Neon password rotation, Neon dev branch, Clerk production keys, `ANTHROPIC_API_KEY`).
 
-Phase 7 done (2026-05-18 — full integration):
-  - SCHEMA: Quest gained tediousness, category, preferredHour, minChunkMin,
-    maxChunkMin, setupCost, urgencyMult, isRecurring; new RecurringCompletion
-    table tracks daily check-offs. Migration applied to Neon.
-  - SCORING:
-    - New `urgencyMultiplier` (per quest) amplifies the urgency sub-score.
-    - New `softMaxBlockMin` config knob (default 90 = 1.5h) + `oversize`
-      sub-score penalizing blocks above the cap. Mitigated by high
-      `setupCost` (≥ 0.7) or high `urgencyMultiplier` (≥ 1.5).
-    - Planner-side clamp on chunk size respects `softMaxBlockMin` unless
-      those same special circumstances apply.
-    - `fragmentationPenalty` now uses a **dynamic per-day chunk target**:
-      target = clamp(round(needPerDay / 60min), 2, 6). Steady cadence
-      by default; ramps up when many hours remain and deadline is close.
-  - ROUTES: Quest CRUD accepts all new scheduler hints. New
-    GET /quests/recurring + POST /quests/:id/complete-daily (logs
-    RecurringCompletion + fires XP via standard pipeline). Schedule
-    generation auto-injects active recurring quests as fixed filler blocks.
-  - CLIENT:
-    - api.ts + useQuestStore.ts: Quest type extended, completeDaily +
-      recurring list added.
-    - MiniCalendar.tsx: month-grid date picker with markers for
-      other deadlines.
-    - QuestModal.tsx: full rewrite — basic fields + category picker +
-      mental load + impact + recurring toggle, with an "Advanced" section
-      for preferredHour, urgencyMultiplier slider, tediousness slider,
-      setupCost slider, min/max chunk.
-    - DailySection.tsx: shows recurring quests on Today.tsx with
-      one-click check-off; fires XP toast + streak update.
-    - GuildFeed.tsx: drag-and-drop reordering on work blocks (native
-      HTML5; swap_blocks edit dispatched to server which reflows the
-      schedule). Drag hint banner; drag-over visual feedback.
-  - DOCS: SCHEDULER_PSEUDOCODE.md updated with §3.1 urgency multiplier,
-    §3.8 dynamic fragmentation, §3.9 oversize penalty, new tuning recipes.
-  - TESTS: 103 server tests passing (urgency multiplier, dynamic frag,
-    oversize all covered). Client builds in ~600ms.
-
-Phase 6 done (2026-05-17 — scheduler MVP):
-  - SCHEDULER_PSEUDOCODE.md — full pseudocode, every weight/threshold,
-    anti-burnout design notes, tuning recipes; lives alongside the module
-  - server/src/lib/scheduler/adapter.ts — Quest→Task mapping
-    (mentalLoad/10→cognitiveLoad, impact/10→importance, actualMinutes subtracted,
-     fallback 14-day deadline, QuestSchedulerOverrides for per-quest tuning)
-  - server/src/lib/scheduler/dailyFiller.ts — recurring short tasks pre-placed
-    as `fixed` blocks before the main scheduler runs; routes around existing blocks
-  - server/src/routes/schedule.ts — REST API with in-memory store (per-clerkId):
-      POST /schedule/generate  — build from DB quests
-      GET  /schedule/:clerkId  — current schedule
-      POST /schedule/:clerkId/replan  — re-flow around locked blocks
-      POST /schedule/:clerkId/edit    — applyEdit + replan
-      POST /schedule/:clerkId/fillers — configure daily fillers
-      GET  /schedule/:clerkId/explain?blockId=...
-  - client/src/lib/api.ts — schedule.* API methods + ScheduleBlock/ScheduleEdit/
-    DailyFiller types
-  - client/src/store/useScheduleStore.ts — Zustand store (generate/fetch/replan/edit)
-  - client/src/pages/GuildFeed.tsx — live timeline: per-second countdown on
-    active block, progress bar, pin/unpin/delete per block, 💡 explain overlay,
-    feasibility warning banner, regenerate + replan buttons
-  - App.tsx: /feed route added; Today.tsx: Feed card link added
-  - 97 server tests passing; client builds in ~580ms
-  - Schedule stored in-memory (not yet Prisma-persisted — restarts reset it)
-  - NOT YET: DB persistence for schedule, daily-filler UI config, calendar
-    integration, WebSocket live push, Quest→Task override UI
-
-Phase 5 done (2026-05-17 — auto-scheduler module):
-  - server/src/lib/scheduler/ — pure, deterministic, self-contained
-    - types.ts (Task, Block, Schedule, UserConfig, Edit, FeasibilityReport)
-    - config.ts (default weights, two-peak energy curve, break policy)
-    - scoring.ts (all 8 sub-scores + scoreTask composite)
-    - planner.ts (4-phase: skeleton, fill, swap, feasibility)
-    - edits.ts (move/swap/delete/pin/unpin → pure applyEdit)
-    - replan.ts (preserves locked, never touches past, idempotent)
-    - explain.ts, preferences.ts (soft-learning stub, K=3)
-    - README.md (formula reference + weight tuning guide)
-    - 37 new unit tests; all 85 server tests passing; build clean
-  - Replaces the older greedy-priority sketch in the schedule-engine
-    section of this doc with the new spec (Task/Block model, 8-factor
-    scoring, locked-block discipline). Old shape kept as the on-disk
-    Prisma ScheduleBlock mapping target.
-  - NOT YET WIRED: Quest→Task adapter, route/REST exposure, Prisma
-    persistence, GuildFeed UI, calendar integration, daily-recurring
-    pre-placement module.
-
-Phase 4 done (UI port from FocusQuest.html):
-
-Phase 4 done (UI port from FocusQuest.html):
-  - Theme tokens defined in @theme block matching prototype palette
-  - Header (avatar w/ level emoji, XP bar, streak/XP/done pills) — sticky w/ gradient bg
-  - StatsRow (5 quick-stat cards)
-  - QuestCard rewritten: priority-colored left border, priority badge (0–10),
-    deadline/time/load tag pills, hover-revealed edit/delete icons
-  - QuestModal (replaces inline QuickAdd, opened by FAB; Esc to close)
-  - FAB floating + button bottom-right
-  - Sidebar: BadgesPanel (3-col grid of 6 achievements, locked state),
-    WeekChart (7-day completed bars), DeepStatsPanel (6 stat rows)
-  - CompletedSection (collapsible)
-  - LevelUpSplash + confetti utility (fires on level transition)
-  - Multi-variant Toasts (xp/streak/badge/levelup) with Zustand-backed queue
-  - New GET /quests/completed endpoint on server
-  - useQuestStore now tracks completed[] alongside active quests[]
-  - Removed orphaned components (old QuickAdd, MentalLoadSlider, XPToast)
-  - vitest config added to scope tests to src/ (was double-counting from dist/)
-  - Server build output is now dist/src/index.js (tsconfig include changed)
-
-DEV NOTES (important for the next session):
-- Prisma 7 changes: DATABASE_URL is in prisma.config.ts (not schema), and PrismaClient
-  needs `{ adapter: new PrismaNeon({ connectionString }) }` (NOT a Pool instance).
-  Generated client is at `generated/prisma/client.ts` (no index.js).
-- Model "XPEvent" becomes `db.xPEvent` (Prisma camelCase quirk for adjacent caps).
-- tsconfig: `exactOptionalPropertyTypes` removed because Prisma input types use null,
-  not `| undefined` — re-enabling will break every `parentQuestId?: string` field.
-- Until Clerk is wired, the client uses a hardcoded clerkId `dev-member-001` (see
-  client/src/lib/api.ts → DEV_CLERK_ID). Replace with `useAuth()` from Clerk.
-
-Phase 2 done (server):
-  - Prisma schema (User, Quest, DailyCheckIn, XPEvent, Achievement, UserAchievement, ScheduleBlock)
-  - server/src/lib/priority.ts — priority score + mood modifier (18 tests)
-  - server/src/lib/xp.ts — XP formula (15 tests)
-  - server/src/lib/streak.ts — streak + multiplier + midnight rollover (15 tests)
-  - server/src/lib/achievements.ts — 6 achievements with check fns
-  - server/src/db/client.ts — Prisma + Neon adapter
-  - server/src/db/seed.ts — seeds 6 achievements (already run against Neon)
-  - server/src/index.ts — Hono app, CORS, logger, /health
-  - server/src/routes/{users,quests,checkin}.ts — full CRUD + completion flow
-  - 48 unit tests passing; server builds and boots cleanly
-
-Phase 3 done (client):
-  - client/src/lib/api.ts — typed fetch wrapper with DEV_CLERK_ID fallback
-  - client/src/lib/levels.ts — 7 guild levels with accent colors
-  - client/src/lib/formatters.ts — time/deadline/emoji helpers
-  - client/src/store/{useUserStore,useQuestStore,useCheckInStore}.ts — Zustand stores
-  - client/src/components/{QuestCard,XPToast,QuickAdd,MentalLoadSlider,LevelBadge}.tsx
-  - client/src/pages/{Today,CheckIn,Quests,Stats}.tsx
-  - client/src/App.tsx — BrowserRouter with all 4 routes
-  - Tailwind v4 wired, dark theme, client builds in 392ms (118 kB gzipped)
-
-Next phase candidates (pick based on user priority):
-  1. Manual end-to-end test: dev both servers, complete a quest, watch XP toast fire
-  2. Clerk integration (need user to provide CLERK_SECRET_KEY + VITE_CLERK_PUBLISHABLE_KEY)
-  3. Schedule engine (server/src/lib/scheduler.ts) + Guild Feed UI
-  4. AI features (Quest Decomposer, What Next Advisor — needs ANTHROPIC_API_KEY)
-  5. Achievement unlock evaluator wired into quest-complete flow + notification UI
-Done:
-  - Prisma schema (User, Quest, DailyCheckIn, XPEvent, Achievement, UserAchievement, ScheduleBlock)
-  - server/src/lib/priority.ts — priority score formula + mood modifier (48 unit tests passing)
-  - server/src/lib/xp.ts — XP formula (base × mentalBonus × timePressureBonus × streakMultiplier)
-  - server/src/lib/streak.ts — streak counter + 0.75× pause multiplier + midnight rollover
-  - server/src/db/client.ts — Prisma singleton with dev hot-reload safety
-  - server/src/index.ts — Hono app with CORS, logger, health check, error handlers
-  - server/src/routes/users.ts — GET /users/:clerkId, POST /users, GET /users/:clerkId/stats
-  - server/src/routes/quests.ts — GET, POST, PATCH, DELETE, POST .../complete, POST .../not-today
-  - server/src/routes/checkin.ts — POST /checkin, GET /checkin/today/:clerkId
-Next:  Migrate DB (need DATABASE_URL) → seed achievements → client API layer → UI pages
-
-markdown## Live Daily Schedule Engine ("The Guild Feed")
+## Live Daily Schedule Engine ("The Guild Feed")
 
 The crown feature of Focus Guild. A real-time, auto-updating feed that
 tells the member exactly what to work on right now and for how long —
@@ -499,6 +222,13 @@ and a start/end time. The feed updates live — complete a block early
 and the rest of the day reshuffles instantly.
 
 ### The Scheduling Algorithm
+> **Original vision, kept for intent.** The implementation has moved on: the
+> single-pass scorer below became budget → construct → reflow, calendars come
+> in as ICS links rather than OAuth, and there is no WebSocket (the client
+> refetches). The source of truth is `server/src/lib/scheduler/README.md` and
+> `SCHEDULER_PSEUDOCODE.md`; `npm run lab` checks plans against the promises in
+> "What Makes It Novel" below.
+
 Lives in server/src/lib/scheduler/ — pure, deterministic module (no DB,
 no I/O). See server/src/lib/scheduler/README.md for the full formula
 reference and weight-tuning guide.

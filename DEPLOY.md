@@ -107,26 +107,31 @@ The server middleware already verifies Clerk Bearer tokens when `CLERK_SECRET_KE
 
 ---
 
-## 5. (Optional) AI Quest Decomposer
+## 5. (Optional) AI features: Quest Decomposer + Ask the Guild
 
 1. Get an API key at [console.anthropic.com](https://console.anthropic.com) → API Keys.
 2. Paste it into Railway as `ANTHROPIC_API_KEY`.
-3. Railway redeploys. The 🪄 "Break down" button on any Quest Detail modal will now work.
+3. Railway redeploys. "Break down" on a quest and Chronicle → **Ask** now work.
 
-Without the key, the button shows a friendly "AI features are off" message instead of crashing.
+Without the key both return 503 with a clear message (Ask points at the Bundle tab instead). The model is `AI_MODEL` in `server/src/lib/ai.ts`.
 
 ---
 
 ## 6. Updating
 
-Each push to `main` triggers both Railway and Vercel to redeploy. If you change the Prisma schema:
+Each push to `main` triggers both Railway and Vercel to redeploy. Railway's `/health` healthcheck keeps the old deployment serving until the new one is healthy.
 
-```bash
-cd server && npx prisma migrate dev --name describe_the_change
-# commit + push the new migration folder under server/prisma/migrations/
-```
+**Schema changes.** Railway runs `prisma migrate deploy` before the server starts, so a failing migration takes the server down. Rules that have held so far:
 
-Railway runs `prisma migrate deploy` on every start, so the schema stays in sync.
+- Write migrations **idempotently** (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `DO $$ … EXCEPTION WHEN duplicate_object …`), additive only.
+- `prisma migrate dev` can't reach Neon from the Windows dev machine. Write the SQL by hand under `server/prisma/migrations/<timestamp>_<name>/`, run `npx prisma generate` locally, and let the deploy apply it.
+- Local dev shares the production database, so **the local server errors after a schema change until the deploy applies the migration** (Prisma selects every column). Deploy promptly, or give local its own Neon branch.
+
+**Checking a deploy landed:**
+- Client: fetch the Vercel page, find the `assets/index-*.js` name, and grep that bundle for a string new in the release.
+- Server: query `_prisma_migrations` for the new rows (via the Neon HTTP driver) when there's a migration; otherwise `/health` plus a new route answering 401 (auth runs before routing, so unauthenticated calls can't reveal the version).
+
+**What's live and needs no setup:** the PWA (`client/public/manifest.webmanifest`, `sw.js`), token-authed `/inbox` and `/calendar/<token>.ics` (skipped by `requireUser`), and the 15-minute calendar sync loop in the server process.
 
 ---
 
