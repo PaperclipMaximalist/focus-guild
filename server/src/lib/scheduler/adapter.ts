@@ -103,7 +103,7 @@ export function questToTask(
   // Plan with what quests like this actually take, once there's evidence.
   const mult = multiplierFor(calibration, overrides.category ?? q.category ?? ADAPTER_DEFAULTS.category);
   const total = Math.max(1, Math.round(q.estimatedMinutes * mult));
-  const remaining = Math.max(0, total - (q.actualMinutes ?? 0));
+  const remaining = remainingFor(total, q.actualMinutes ?? 0);
   const deadline = q.deadline
     ? q.deadline.getTime()
     : now + ADAPTER_DEFAULTS.fallbackDeadlineDays * 24 * 60 * 60_000;
@@ -150,6 +150,24 @@ export function questToTask(
     status: statusToTaskStatus(q.status),
     urgencyMultiplier: tierUrgencyMult,
   };
+}
+
+/** Share of the estimate planned again once a quest has run past it. */
+const OVERRUN_SHARE = 0.25;
+const OVERRUN_MIN = 15;
+const OVERRUN_MAX = 120;
+
+/**
+ * Minutes still to plan. A quest still open after its logged focus time has
+ * used up the estimate isn't done; it used to drop out of the plan for good
+ * (remaining 0) until someone edited the estimate, which the population lab
+ * saw in most simulated weeks. It now keeps a quarter of its estimate
+ * (15 min to 2 h) in the plan until it's marked complete.
+ */
+export function remainingFor(totalMin: number, loggedMin: number): number {
+  const left = totalMin - loggedMin;
+  if (left > 0) return left;
+  return Math.min(OVERRUN_MAX, Math.max(OVERRUN_MIN, Math.round(totalMin * OVERRUN_SHARE)));
 }
 
 function clamp01(v: number): number {

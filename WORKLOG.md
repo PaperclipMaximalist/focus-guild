@@ -53,6 +53,7 @@ All times are Pacific (Vancouver).
 | 2026-09-24 | Thu | ~20:30 – 22:45 | ~2.3 | commit times | Scenario lab; scheduler overhaul; Not Today fix |
 | 2026-09-25 | Fri | ~12:00 – 13:35 | ~1.5 | commit times | Plan insights, self-correcting estimates; third deploy |
 | 2026-09-26 | Sat | short | ~0.3 | — | Docs brought up to date for a new chat |
+| 2026-09-26 | Sat | ~12:15 – 14:30 | ~2.2 | tool timestamps | Population lab; scheduler deadline-safety fixes |
 
 **By month (in-session):** May ≈ 17.7 h · June ≈ 2.7 h · July ≈ 1.2 h · August ≈ 0.7 h · September ≈ 2.0 h.
 Most of the hours went into May, the "build it" month. After that the pattern changes to short, high-leverage sessions: a big spec gets pasted, Claude builds, you review and test.
@@ -191,6 +192,12 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 ### Sat 2026-09-26 — Handover
 - Bible "Current Build Phase" rewritten as a current-state page; PLAN.md rewritten as the living roadmap; scheduler README and design doc updated to the overhaul; DEPLOY.md and memory refreshed.
 
+### Sat 2026-09-26 (afternoon) — Population lab (~2.2 h)
+- "Stress test the algorithm with many simulated people and their lives." Built `server/scripts/population-lab.ts`: seeded people across 11 archetypes and 15 timezones, each plan graded against an EDF / Moore–Hodgson oracle, then each person lives a week with skips, overruns and surprise quests; a perfect-follower run separates planner misses from human ones.
+- Found (old code, 2 000 people): free time left idle while a deadline was short for 35% of people; a hopeless quest taking a finishable one's slot; replans unable to move later work after a skip; quests that overran their estimate vanishing from the plan; the check-in cap landing on tomorrow when opened after hours; routines clipped to 60 min, forced into quest hours ("morning meds" at 15:20) and lost when their slot was taken; HIGH quests lending their time and never getting it back; light days always starting at the first free minute (night owls working at 13:30); the Feed never replanning on a new day.
+- Fixed: triage, reconcile (swap / fill / payback), replan deadline release, overrun floor, today-only check-in cap, long breaks in capacity, sliver folding, EDF guard for intra-day deadlines, focus window, chronotype setting (Settings), routines at their own hour and full length with nearest-slot placement, routine top-up on replan, Feed replans on the first open of a day.
+- Result: deadlines met 43.0% → 57.4%; a perfect follower gets 89.3% of the best possible (was 68.4%; 97.5% with exact estimates). 256 server + 10 client tests (11 new, 5 of which fail on the old code). Not deployed yet.
+
 ## Phases, as named in the project's own log
 
 | Phase | What | When |
@@ -212,6 +219,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 11 | Long-horizon Tracker + CAS lens | Sep 12 – Sep 13 |
 | 12 | Launch + presets, Chronicle, calendars/inbox, Ask the Guild, MCP, PWA | Sep 13 – Sep 19 |
 | 13 | Scenario lab, scheduler overhaul, insights, self-correcting estimates | Sep 24 – Sep 25 |
+| 14 | Population lab; triage, reconcile, focus window, chronotypes | Sep 26 |
 
 ---
 

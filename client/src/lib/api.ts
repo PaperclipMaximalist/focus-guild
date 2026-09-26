@@ -556,11 +556,15 @@ export interface WorkingHours {
   endHour: number;
 }
 
+/** When in the day the user is sharpest; picks the planner's energy curve. */
+export type Chronotype = 'standard' | 'lark' | 'afternoon' | 'owl';
+
 export interface SchedulerConfigShape {
   scoreWeights: ScoreWeights;
   workingHours: WorkingHours;
   horizonDays: number;
   softMaxBlockMin: number;
+  chronotype: Chronotype;
 }
 
 // ─── Schedule types ───────────────────────────────────────────────────────────

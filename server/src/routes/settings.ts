@@ -73,6 +73,7 @@ const OverridesSchema = z
     workingHours: WorkingHoursSchema.optional(),
     horizonDays: z.number().int().min(1).max(30).optional(),
     softMaxBlockMin: z.number().int().min(15).max(480).optional(),
+    chronotype: z.enum(['standard', 'lark', 'afternoon', 'owl']).optional(),
   })
   .strict();
 
@@ -87,6 +88,7 @@ settings.get('/', (c) => {
         workingHours: defaults.workingHours,
         horizonDays: defaults.horizonDays,
         softMaxBlockMin: defaults.softMaxBlockMin,
+        chronotype: 'standard',
       },
       overrides: getOverrides(user),
     },

@@ -7,11 +7,13 @@ global state. All knobs live on `UserConfig`.
 
 If a value disagrees with the code, **the code is the source of truth** —
 update this doc. Last rewritten 2026-09-26 after the scenario-lab overhaul
-(commits `4e7de29`, `d3f3e50`, `5688211`).
+(commits `4e7de29`, `d3f3e50`, `5688211`), then extended the same day after
+the population lab (triage, reconcile, focus window, chronotypes).
 
-**Before and after any change here, run `npm run lab`** (see the end of
-this doc). It plans realistic weeks and grades them against the Project
-Bible; it found far more than the unit tests did.
+**Before and after any change here, run `npm run lab` and `npm run lab:pop`**
+(see the end of this doc). The first plans hand-written weeks; the second
+plans and lives weeks for thousands of generated people and compares against
+the best any plan could do. Both found far more than the unit tests did.
 
 ## Pipeline (high level)
 
@@ -26,12 +28,18 @@ Bible; it found far more than the unit tests did.
                   ┌────────▼────────┐
                   │  budget.ts      │  Phase 0 — how much of each task per day
                   │  buildDayInfo   │  free time per day (minus fixed, + transitions)
+                  │  triage         │  which deadlines to give up on if not all fit
                   │  allocateBudgets│  whole sittings, pacing, levelling, repair
                   └────────┬────────┘
                            │ DayBudget[]
                   ┌────────▼────────┐
                   │ constructor.ts  │  Phase 1 — in what ORDER within the day
-                  │  constructDay   │  beam search, breaks, variety, peak guard
+                  │  buildDay       │  focus window on light future days, then
+                  │  constructDay   │  beam search, breaks, variety, peak/EDF guards
+                  └────────┬────────┘
+                  ┌────────▼────────┐
+                  │ reconcile.ts    │  Phase 1b — deadline work gets what really
+                  │                 │  fit: swap from later work, fill gaps, pay back
                   └────────┬────────┘
                   ┌────────▼────────┐
                   │ planner.ts plan │  Phase 2 — collect + feasibility report
@@ -42,8 +50,11 @@ Bible; it found far more than the unit tests did.
 ```
 
 One job per layer: **the budget decides how much** work each day holds, **the
-constructor decides the order**, **the break policy decides rest**. Most of
-the bugs the lab found came from those jobs leaking into each other.
+constructor decides the order**, **the break policy decides rest**, and
+**reconcile settles the difference** between what the budget promised and
+what the constructor could really fit. Most of the bugs the labs found came
+from those jobs leaking into each other, or from nobody owning the gap
+between them.
 
 For edits/inserts, the route layer calls `replan()` (= `reflow()`) which
 preserves every still-valid existing block and only fills gaps. This is
@@ -54,11 +65,12 @@ the "minimal perturbation" path — see `reflow.ts`.
 | File              | Purpose |
 |-------------------|---------|
 | `types.ts`        | `Task`, `Block`, `Mode`, `ScoreWeights`, `UserConfig`, etc. |
-| `config.ts`       | Defaults: working hours, energy curve, break policy, score weights, horizon |
+| `config.ts`       | Defaults: working hours, energy curve, `CHRONOTYPE_CURVES`, break policy, score weights, horizon |
 | `tz.ts`           | User-local day boundaries (`userMidnightUtc`, `userHourUtc`, …) |
 | `adapter.ts`      | Prisma `Quest` → `Task`; applies estimate calibration; NOT_TODAY → `notBefore` |
-| `budget.ts`       | `buildDayInfo`, `allocateBudgets`, `minSitting`, `dueWithinPlan` — Phase 0 |
-| `constructor.ts`  | `constructDay` — beam search within a day, breaks, peak guard — Phase 1 |
+| `budget.ts`       | `buildDayInfo`, `triage`, `allocateBudgets`, `canDonate`, `todayCap`, `minSitting`, `dueWithinPlan` — Phase 0 |
+| `constructor.ts`  | `buildDay` / `focusWindow`, `constructDay` — beam search, breaks, peak and EDF guards — Phase 1 |
+| `reconcile.ts`    | Swap + fill + payback after construction — Phase 1b |
 | `planner.ts`      | `plan` entry point + all per-decision scoring primitives |
 | `reflow.ts`       | Minimal-perturbation reflow for edits — drives `replan()` |
 | `replan.ts`       | Public entrypoints: `generateSchedule()`, `replan()` |
@@ -116,8 +128,22 @@ buildDayInfo:
       (TRANSITION — nobody walks out of school straight into an essay)
 
 capacity per interval = workableMin(length, breakPolicy)
-  = length − floor(length / (on + off)) × off       # per interval, not a flat %
-  (a lone 30-min gap needs no break and keeps all 30)
+  work  = length − floor(length / (on + off)) × off  # per interval, not a flat %
+  work −= floor(work / (longAfter + extra)) × extra  # extra = long − short break
+  (a lone 30-min gap needs no break and keeps all 30; a 510-min Sunday holds
+   390 with its long breaks, which is what the constructor really fits)
+
+todayCap = the check-in's minutes, only if the plan's first day IS today
+  (opened after hours, the first day is tomorrow and stays uncapped; the
+   cap used to land on it and leave Tuesday idle)
+
+triage (Moore–Hodgson over tasks dueWithinPlan):
+  walk deadlines in order, summing remainingMin
+  while the sum > capacity before this deadline, drop one kept task:
+    lowest tier first (LOW < MED < HIGH; tier from urgencyMultiplier),
+    then the most remainingMin / (0.5 + importance)
+  → `dropped`: quests that can't all make it. They still get leftover time;
+    they just stop outranking quests that can finish.
 
 paceLeft (tasks due AFTER the horizon only):
   share = ceil((remaining + committedMin) × daysInPlan / (daysInPlan + daysBeyond))
@@ -138,11 +164,21 @@ PASS 1 — fair spread, day by day, tasks in priorityScore order:
   skip if small task, > 2 days to spare, and today is over levelTarget
                                                      # small tasks wait for a lighter day
 
-PASS 2 — deadline-safety repair (only tasks dueWithinPlan):
+PASS 2 — deadline-safety repair (only tasks dueWithinPlan), non-dropped first:
   fill from residual: whole sittings first, then any size ≥ 10 min
-  still short → PREEMPT: take minutes back from grants of tasks due LATER,
-    loosest first, never leaving the donor a crumb
-  donors (due within plan) refill from what's left, same rules
+  still short → PREEMPT from donors where canDonate(donor, task):
+      dropped donor → non-dropped task: always, whatever the dates
+      non-dropped donor due in plan → dropped task: never
+      otherwise: the donor must be due LATER
+    dropped donors first, then loosest; never leave the donor a crumb
+  donors are paid back from what's left: due in plan → all they need;
+    due after the plan → up to what they gave (it used to be nothing, so a
+    HIGH quest due in two weeks lent Monday and then sat out a week of
+    empty days)
+
+SLIVERS — a grant under 15 min for a quest that isn't small folds into a day
+  that already has a sitting of it, if that day has room; if not and the
+  quest is due after the plan, it's left for a later week
 ```
 
 `dueWithinPlan(task, days)` = no working day after the horizon before its
@@ -153,6 +189,23 @@ definition** (they used to disagree by hours at the end of the week).
 (`planner.ts::priorityScore`), used here and as a tie-break.
 
 ## Phase 1 — within-day construction (`constructor.ts`)
+
+```
+buildDay(budget):
+  window = focusWindow(budget)
+  if window: build inside it, and keep that if every quota fit
+  otherwise build across the whole day
+
+focusWindow — only on a future day (today starts now, for momentum), with
+some heavy work (load ≥ 0.6), no preferred-hour quest, and work plus rests
+under 80% of the free time:
+  span = need × 1.3 + 20 min
+  slide a span-long window in 15-min steps; it must hold ≥ need × 1.15 free
+  take the best average energyCurve, only if it beats the earliest window by
+    ≥ 0.05; free time becomes window start .. window end + 60 min
+  (without it, two hours of work always sat at the start of the day: 13:30
+   for a night owl whose hours run to midnight)
+```
 
 Bounded beam search (width 3) over the day's free intervals. **There is no
 "skip the rest of this interval" branch**: it used to score 0 while a tedious
@@ -176,7 +229,11 @@ enumerate(candidate task at cursor):
   tail rule: never leave a tail < sitting (finish it, ≤ cap + 20, or leave a full sitting)
   starter push: first work block of the day on a heavy task (load ≥ 0.7) → 25 min
   skip if chunk < sitting and chunk < left       # no sliver at an interval end
+  skip if chunk < 15 on a quest of ≥ 30 min with more left than this chunk
   score = placementScore + peakGuard
+  EDF guard: drop candidates that would leave a quest due earlier INSIDE the
+    working day (deadline < workEnd) without enough free time before it;
+    use all candidates if that empties the list
 
 peakGuard:
   light task (≤ 0.5) in a slot with energy ≥ 0.65 while ≥ 25 min of heavy work
@@ -195,6 +252,29 @@ after placing a block, rest before the next (restAfter):
 were packed edge to edge, so four straight hours was normal). Breaks are now
 real, and Phase 0 reserves their time.
 
+## Phase 1b — reconcile (`reconcile.ts`)
+
+The constructor is the truth about what fits. Only quests dueWithinPlan that
+came up short, non-dropped first, then by deadline:
+
+```
+SWAP (up to 4 rounds):
+  for each short task T, on days before its deadline (and after notBefore):
+    donors = tasks with blocks here that end before T.deadline and
+             canDonate(donor, T); dropped first, then loosest
+    skip a day if T needs < 15 min and has no sitting there to grow
+    first touch of a day: settle every quota at what was really placed
+    move donor minutes to T (no crumbs left to donors)
+  rebuild the touched days (buildDay); roll a day back if T gained nothing
+  remember what each donor lost ("lent")
+
+FILL, in gaps between placed blocks (10-min break margin beside work),
+within today's check-in cap:
+  candidates: still-short tasks, then donors for what they lent
+  a quest that can FINISH in the gap goes first (not a < 15-min shard of a
+  big one); otherwise a real sitting (≥ 25 min) on one that can't
+```
+
 ## Reflow (`reflow.ts`) — the edit path
 
 A block is "stable" (kept exactly in place) if it is future + unlocked, its
@@ -204,18 +284,36 @@ plan was made invalidates the work under it). Stable blocks go to `plan()` as
 extra locked blocks; consumed minutes are subtracted from `remainingMin` and
 recorded as `committedMin`. Replanning with nothing changed moves 0 blocks.
 
+**Deadline safety outranks stability.** If the result still has short
+quests that triage keeps, stable blocks of work due later that sit before
+their deadline are released (latest-due first, then earliest) and the plan
+reruns, up to 3 times, kept only if the shortfall drops. After a skipped
+block, the work due tonight used to get only the gaps.
+
 Calendar blocks are swapped for fresh ones on every replan (the route filters
-`isCalendarBlock` out of the old schedule and adds the current events).
+`isCalendarBlock` out of the old schedule and adds the current events). The
+replan route also tops up routines on days that don't have them yet
+(`topUpRoutines`); only generate used to place them.
 
 ## Around the planner
 
 - **Daily routines** (`dailyFiller.ts`): recurring quests become `fixed`
-  blocks noted `Daily: <title>`, placed before quest work. With no
-  `preferredHour`, time words in the title set one (`inferPreferredHour`:
-  morning/breakfast → start, lunch/midday/noon → 12, afternoon → 14,
-  evening/end of day/tonight/night/bedtime → last hour). When routines take
-  at most half the day, each gets 10 min of space around it. Recurring quests
-  longer than 60 min are clipped to 60 (known issue, see PLAN.md).
+  blocks noted `Daily: <title>`, placed before quest work, at their real
+  length (up to 240 min; they used to be clipped to 60). With no
+  `preferredHour`, time words in the title set one (`inferPreferredHour`):
+  morning/breakfast → min(start, 8), lunch → 12, afternoon → 14,
+  evening/tonight → max(end − 1, 19), night/bedtime/before bed →
+  max(end − 1, 21), end of day → end − 1. Routines are personal time, so one
+  with an hour outside quest hours keeps that hour. Placement takes the
+  **nearest** free slot, earlier or later. A routine whose hour passed more
+  than 2 h ago is skipped for today rather than run late. When routines take
+  at most half the day, each gets 10 min of space around it.
+- **Chronotype** (`config.CHRONOTYPE_CURVES`, Settings → "Sharpest time of
+  day"): standard (the office curve), lark (peak 7–11), afternoon (13–17),
+  owl (19–24). `userConfig.ts` picks it from `schedulerSettings.chronotype`.
+- **Overrun** (`adapter.remainingFor`): a quest still open after its logged
+  time used up the estimate keeps 25% of the estimate (15–120 min) in the
+  plan until it's marked done. It used to drop to 0 and vanish.
 - **Calendar** (`../calendar`): busy, timed, non-cancelled ICS events become
   `fixed` blocks noted `Calendar: <title>`; synced every 15 min and before
   generate/replan when stale (4 s cap).
@@ -266,7 +364,8 @@ above the timeline (`PlanInsights.tsx`):
 2. Placed minutes == `remainingMin` for work due within the plan, OR the
    difference is in the feasibility report. Work due after the plan gets its
    paced share and is never reported short.
-3. Never schedule past a deadline, or before `notBefore`.
+3. Never schedule past a deadline, or before `notBefore`. Today's check-in
+   cap applies to today only.
 4. Past + fixed + locked blocks preserved across `replan()`.
 5. Work in the user's timezone (`tzOffsetMin`).
 6. Feasibility output shape: `{ taskId, shortfallMin, suggestions[] }`.
@@ -299,6 +398,46 @@ nothing, Not Today holds the quest to tomorrow but still before its test.
 Scenarios: `week` (school on the calendar, student hours), `default-hours`,
 `crunch` (16 h in 48 h), `one-giant`, `deadline-morning`, `routine`
 (dailies), `many-small`, `live`. `npm run lab -- <id>` runs one and prints
-its first day. As of 2026-09-25: 4 findings, all defensible (a 15-min email
+its first day. As of 2026-09-26: 4 findings, all defensible (a 15-min email
 at 15:55 tipping one day's energy average; crunch weeks with more heavy work
 than peak hours).
+
+## Population lab (`server/scripts/population-lab.ts`, `npm run lab:pop`)
+
+Generates people from a seed: IB and uni students, office workers,
+freelancers, parents, night owls, shift workers, overcommitters, minimalists,
+procrastinators, newbies, in 15 timezones (half and quarter hours included),
+with a calendar, routines, check-ins, Not Today, overdue and partly done
+quests, and a true energy curve that may not match the configured one.
+
+- **Static grading** of each first plan: invariants; an EDF oracle for how
+  much deadline work could fit (`deadline-loss`); Moore–Hodgson for how many
+  quests could be on time (`fewer-on-time`); `idle-while-short`;
+  `false-infeasible`; empty or idle today; crowded and overloaded days;
+  interleaving; tiny and huge blocks; breaks; energy against the person's
+  real curve; routines clipped, dropped or misplaced; HIGH quests left out.
+- **`--week`**: each person lives seven days the way the app works (the Feed
+  replans on the first open of a day and after every focus session; routines
+  are topped up; Not Today ends at midnight). People skip blocks, overrun
+  estimates, finish when nearly there, and get surprise quests. A second,
+  perfect-follower run, plus the best possible count for the week's starting
+  deadlines, separates the planner's misses from the person's.
+- Flags: `--n`, `--seed`, `--exact` (estimates are right), `--history`
+  (12 finished quests calibrate estimates), `--show <i>` (one person, plan
+  and week), `--debug` (triage and budgets), `--flag <name>`,
+  `--examples <k>`. Old behaviour for A/B: `--clip`, `--no-morning-refresh`,
+  `--no-chronotype`. New scheduler exports are imported optionally, so
+  `git stash` the scheduler to measure a before on the same people.
+
+Result on 2 000 people it was never tuned on (seed 7, `--week --history`),
+before → after the 2026-09-26 changes: deadlines met 43.0% → 57.4%; perfect
+follower 56.5% → 72.5%, or 68.4% → 89.3% of the best any plan could do
+(97.5% with exact estimates, so the rest is estimation error); idle time
+while a deadline was short 34.5% → 1.1% of people; fewer quests on time than
+possible 46.6% → 14.8%; false "infeasible" 12.6% → 1.8%; mornings with
+nothing planned today 20.7% → 4.5%. Plan time p50 1.2 ms, p95 6.4 ms.
+
+Known and accepted: overcommitters see a heavy quest interleaved with lighter
+ones (the variety rules); larks at school all day get heavy work in the
+afternoon (there are no better hours); owls who don't set a chronotype still
+get the office curve (learning it is on PLAN.md).

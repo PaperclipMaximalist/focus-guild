@@ -39,6 +39,7 @@ import { eventsToFixedBlocks, isCalendarBlock } from '../lib/calendar/ics.js';
 import { reviveDeferred } from '../lib/deferral.js';
 import { calibrateEstimates, computeInsights, type PlanInsights } from '../lib/scheduler/insights.js';
 import { syncStaleForUser, upcomingEvents } from '../lib/calendar/sync.js';
+import { dayKey } from '../lib/scheduler/tz.js';
 
 export const schedule = new Hono();
 
@@ -163,10 +164,14 @@ async function loadQuestsForUser(user: { id: string }) {
 }
 
 /**
- * Convert recurring quests into DailyFillers. estimatedMinutes ≤ 60 stays as
- * a single fixed block; longer recurring quests still go in but get clipped
- * to a max 60-minute filler block so they don't crowd the day.
+ * Convert recurring quests into DailyFillers, at their real length. They
+ * used to be clipped to 60 minutes, so a 90-minute workout was planned as
+ * an hour and the other half hour came out of whatever followed it; a
+ * routine that crowds the day is reported by the insights instead.
  */
+/** Longest routine block: past this it's a shift, not a routine. */
+const ROUTINE_MAX_MIN = 240;
+
 function recurringToFillers(
   recurring: Array<{ id: string; title: string; estimatedMinutes: number; preferredHour: number | null }>,
 ): DailyFiller[] {
@@ -174,7 +179,7 @@ function recurringToFillers(
     // Prefix to namespace away from user-configured state.fillers ids.
     id: `recurring:${q.id}`,
     name: q.title,
-    durationMin: Math.min(60, Math.max(5, q.estimatedMinutes)),
+    durationMin: Math.min(ROUTINE_MAX_MIN, Math.max(5, q.estimatedMinutes)),
     preferredHour: q.preferredHour,
     enabled: true,
   }));
@@ -191,6 +196,33 @@ async function calendarBlocksFor(userId: string, horizonDays: number): Promise<B
   } catch {
     return [];
   }
+}
+
+/**
+ * Routines for the days the stored plan doesn't have them on yet. Only a
+ * full generate placed routines, and the Feed replans far more often than it
+ * regenerates, so a week after the last generate the plan ran out of them.
+ * New ones route around everything already in the plan, work included.
+ */
+function topUpRoutines(
+  schedule: Block[],
+  fillers: DailyFiller[],
+  cfg: ReturnType<typeof getUserConfig>,
+  now: number,
+): Block[] {
+  const tz = cfg.tzOffsetMin ?? 0;
+  const have = new Set(
+    schedule.filter((b) => b.note?.startsWith('Daily:')).map((b) => `${b.note}|${dayKey(b.start, tz)}`),
+  );
+  return placeDailyFillers({
+    fillers,
+    now,
+    horizonDays: cfg.horizonDays,
+    workingHours: cfg.workingHours,
+    existingFixed: schedule.filter((b) => b.end > now),
+    tzOffsetMin: tz,
+    idPrefix: `filler-${now}`,
+  }).filter((b) => !have.has(`${b.note}|${dayKey(b.start, tz)}`));
 }
 
 function regenerate(
@@ -396,7 +428,9 @@ schedule.post('/:clerkId/replan', async (c) => {
   const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
-  const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
+  const current = [...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar];
+  const routines = topUpRoutines(current, [...recurringToFillers(loaded.recurring), ...state.fillers], cfg, now);
+  const result = replan([...current, ...routines], tasks, cfg, now);
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;

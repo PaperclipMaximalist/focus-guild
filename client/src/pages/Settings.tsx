@@ -16,6 +16,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   api,
+  type Chronotype,
   type SchedulerConfigShape,
   type ScoreWeights,
   type WorkingHours,
@@ -64,6 +65,13 @@ const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> =
   },
 };
 
+const CHRONOTYPES: Array<{ id: Chronotype; label: string; peak: string }> = [
+  { id: 'lark', label: 'Morning', peak: '7–11' },
+  { id: 'standard', label: 'Standard', peak: '9–11, 16–17' },
+  { id: 'afternoon', label: 'Afternoon', peak: '13–17' },
+  { id: 'owl', label: 'Night owl', peak: '19–24' },
+];
+
 // Display order: the two main forces, then variety, then the fine-tuners.
 const WEIGHT_ORDER: Array<keyof ScoreWeights> = [
   'energy', 'urgency', 'monotony', 'prefHour', 'batch', 'tedium', 'cooldown', 'session',
@@ -84,13 +92,14 @@ export default function Settings() {
         setDefaults(defaults);
         // Old persisted overrides may carry legacy keys (weights, breakPolicy)
         // — keep only the fields this UI knows so we never re-save dead knobs.
-        const { scoreWeights, workingHours, horizonDays, softMaxBlockMin } =
+        const { scoreWeights, workingHours, horizonDays, softMaxBlockMin, chronotype } =
           (overrides ?? {}) as Partial<SchedulerConfigShape>;
         setOverrides({
           ...(scoreWeights ? { scoreWeights } : {}),
           ...(workingHours ? { workingHours } : {}),
           ...(horizonDays !== undefined ? { horizonDays } : {}),
           ...(softMaxBlockMin !== undefined ? { softMaxBlockMin } : {}),
+          ...(chronotype ? { chronotype } : {}),
         });
       })
       .finally(() => setLoaded(true));
@@ -104,6 +113,7 @@ export default function Settings() {
       workingHours: { ...defaults.workingHours, ...(overrides.workingHours ?? {}) },
       horizonDays: overrides.horizonDays ?? defaults.horizonDays,
       softMaxBlockMin: overrides.softMaxBlockMin ?? defaults.softMaxBlockMin,
+      chronotype: overrides.chronotype ?? defaults.chronotype ?? 'standard',
     };
   }, [defaults, overrides]);
 
@@ -126,6 +136,7 @@ export default function Settings() {
 
     if (current.horizonDays !== defaults.horizonDays) out.horizonDays = current.horizonDays;
     if (current.softMaxBlockMin !== defaults.softMaxBlockMin) out.softMaxBlockMin = current.softMaxBlockMin;
+    if (current.chronotype !== (defaults.chronotype ?? 'standard')) out.chronotype = current.chronotype;
     return out;
   };
 
@@ -206,6 +217,33 @@ export default function Settings() {
         <Row label="Day ends at" hint="When the scheduler stops placing work blocks (your local time).">
           <HourInput value={current.workingHours.endHour} onChange={(v) => updateHours('endHour', v)} />
         </Row>
+        <div>
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-sm" style={{ color: 'var(--color-text)' }}>Sharpest time of day</span>
+            <InfoTip>Where the planner puts your heaviest quests. Standard is an office day (peak mid-morning, second wind late afternoon); pick the one that matches when hard thinking actually works for you.</InfoTip>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-label="Sharpest time of day">
+            {CHRONOTYPES.map((c) => {
+              const on = current.chronotype === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setOverrides((p) => ({ ...p, chronotype: c.id }))}
+                  className={`rounded-lg border px-3 py-2 text-left transition-colors ${
+                    on
+                      ? 'border-(--color-primary) bg-(--color-primary)/15 text-(--color-text)'
+                      : 'border-(--color-border) text-(--color-muted) hover:border-(--color-muted)'
+                  }`}
+                >
+                  <span className="block text-sm font-semibold">{c.label}</span>
+                  <span className="block text-xs font-mono" style={{ color: 'var(--color-muted)' }}>{c.peak}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
         <Row label="Planning horizon" hint="How many days the scheduler plans ahead. Big tasks spread toward their deadline across this window.">
           <NumberInput min={1} max={30} value={current.horizonDays} onChange={(v) => setOverrides((p) => ({ ...p, horizonDays: v }))} suffix="days" />
         </Row>

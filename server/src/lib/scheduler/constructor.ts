@@ -33,7 +33,7 @@ import {
   type PlacedRef,
 } from './planner.js';
 import { MIN_SITTING_MIN, minSitting } from './budget.js';
-import { userHourOf } from './tz.js';
+import { userHourOf, userMidnightUtc } from './tz.js';
 import { composeWhy } from './explain.js';
 import type { DayBudget, FreeInterval } from './budget.js';
 import type { Block, Task, UserConfig } from './types.js';
@@ -56,6 +56,8 @@ const varietyResetMin = () => ADJACENT_GAP_MAX_MIN + 1;
 const HEAVY_LOAD = 0.7;
 /** Load at or below which a quest counts as light. */
 const LIGHT_LOAD = 0.5;
+/** Shortest block for a quest that isn't small itself. */
+const SLIVER_MIN = 15;
 /** Length of the day's opening push on a heavy quest. */
 const STARTER_MIN = 25;
 
@@ -194,6 +196,9 @@ function enumerateCandidates(
     }
     // And don't open a sliver at the end of an interval.
     if (chunkMin < sitting && chunkMin < left) continue;
+    // Nor a last few minutes of a real quest on their own: ten minutes of a
+    // three-hour chapter edit is a block nobody starts. They wait for a sitting.
+    if (chunkMin < SLIVER_MIN && q.task.totalMin >= 2 * SLIVER_MIN && q.task.remainingMin > chunkMin) continue;
     if (chunkMin < 1) continue;
 
     const score =
@@ -208,7 +213,44 @@ function enumerateCandidates(
       ? b.score - a.score
       : a.task.id < b.task.id ? -1 : 1,
   );
-  return out;
+  const safe = out.filter((c) => keepsDeadlines(c, state, budget, config));
+  return safe.length ? safe : out;
+}
+
+/**
+ * Earliest-deadline feasibility: would placing `c` leave a quest due later
+ * today without enough free time before its deadline? The beam orders the
+ * day by score, and a 10-minute task due at 17:00 watched a two-week-away
+ * errand take 16:55, then couldn't be placed at all (3% of simulated people
+ * had a quest flagged short with the time sitting right there).
+ */
+function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, config: UserConfig): boolean {
+  const after = c.start + (c.chunkMin + config.breakPolicy.shortBreakDurationMin) * MS_PER_MIN;
+  // Only deadlines inside the working day: one at the end of it (or tonight)
+  // is the budget's and reconcile's business, and guarding it here too turned
+  // the whole day into strict deadline order, starving paced work.
+  const checkpoints = new Set<number>();
+  for (const q of budget.quotas) {
+    const left = state.remaining.get(q.task.id) ?? 0;
+    const d = q.task.deadline;
+    if (left > EPSILON_MIN && q.task.id !== c.task.id && d < c.task.deadline && d > c.start && d < budget.day.workEnd)
+      checkpoints.add(d);
+  }
+  for (const d of checkpoints) {
+    let need = 0;
+    for (const q of budget.quotas) {
+      if (q.task.id === c.task.id || q.task.deadline > d) continue;
+      need += Math.max(0, state.remaining.get(q.task.id) ?? 0);
+    }
+    let free = 0;
+    for (const iv of state.freeIntervals) {
+      const a = Math.max(iv.start, after);
+      const b = Math.min(iv.end, d);
+      if (b > a) free += (b - a) / MS_PER_MIN;
+    }
+    if (free < need) return false;
+  }
+  return true;
 }
 
 /**
@@ -366,6 +408,86 @@ function restFor(state: BeamState, minutes: number): BeamState {
 /** Drop the current free interval (skip-the-rest-of-this-gap). */
 function skipInterval(state: BeamState): BeamState {
   return { ...state, freeIntervals: state.freeIntervals.slice(1) };
+}
+
+/** Load at which a day's work is worth moving to its best hours. */
+const WINDOW_LOAD = 0.6;
+/** Minutes of rest and slack the window allows per minute of work. */
+const WINDOW_SLACK = 1.3;
+/** A later window must be at least this much better on the energy curve to be worth it. */
+const WINDOW_MIN_GAIN = 0.05;
+
+/**
+ * On a light day, where the work should go. The constructor walks the day
+ * from its first free minute, so two hours of work always landed at the
+ * start of the window: 13:30 for a night owl with hours until midnight,
+ * whose sharp hours are 20–23 (the population lab had two thirds of owls'
+ * heavy work in their slump). The energy curve only ordered work inside
+ * that opening stretch. This picks the stretch of the day, long enough for
+ * the work and its rests, with the best energy for it.
+ *
+ * Not today: opening the app to "start at 8pm" kills momentum, so today's
+ * work still starts now. Not for a full day, a day with a preferred-hour
+ * quest, or a light-work-only day, where it doesn't matter.
+ */
+export function focusWindow(budget: DayBudget, config: UserConfig, now: number): FreeInterval[] | null {
+  const day = budget.day;
+  if (day.midnightUtc === userMidnightUtc(now, config.tzOffsetMin ?? 0)) return null;
+  const need = budget.quotas.reduce((m, q) => m + q.targetMin, 0);
+  if (need <= 0) return null;
+  if (!budget.quotas.some((q) => q.task.cognitiveLoad >= WINDOW_LOAD)) return null;
+  if (budget.quotas.some((q) => q.task.preferredHour !== null)) return null;
+  const span = Math.ceil((need * WINDOW_SLACK + 20) / 5) * 5;
+  if (span >= day.freeMinutes * 0.8) return null;
+
+  const hourAt = (t: number) => (t - day.midnightUtc) / (60 * MS_PER_MIN);
+  const score = (s: number, e: number): { free: number; energy: number } => {
+    let free = 0;
+    let sum = 0;
+    let n = 0;
+    for (const iv of day.freeIntervals) {
+      const a = Math.max(iv.start, s);
+      const b = Math.min(iv.end, e);
+      if (b <= a) continue;
+      free += (b - a) / MS_PER_MIN;
+      for (let t = a; t < b; t += 15 * MS_PER_MIN) { sum += config.energyCurve(hourAt(t)); n += 1; }
+    }
+    return { free, energy: n ? sum / n : 0 };
+  };
+
+  let first: number | null = null;
+  let best: number | null = null;
+  let bestEnergy = -Infinity;
+  for (let s = day.workStart; s + span * MS_PER_MIN <= day.workEnd; s += 15 * MS_PER_MIN) {
+    const { free, energy } = score(s, s + span * MS_PER_MIN);
+    if (free < need * 1.15) continue;
+    if (first === null) first = energy;
+    if (energy > bestEnergy + 1e-9) { best = s; bestEnergy = energy; }
+  }
+  if (best === null || first === null || bestEnergy < first + WINDOW_MIN_GAIN) return null;
+  const until = Math.min(day.workEnd, best + (span + 60) * MS_PER_MIN);
+  return day.freeIntervals
+    .map((iv) => ({ ...iv, start: Math.max(iv.start, best!), end: Math.min(iv.end, until) }))
+    .filter((iv) => iv.end - iv.start >= MS_PER_MIN);
+}
+
+/**
+ * Build a day: in its best window when it has room to spare (focusWindow),
+ * across the whole day otherwise, or when the window couldn't hold it all.
+ */
+export function buildDay(
+  budget: DayBudget,
+  taskMap: Map<string, Task>,
+  config: UserConfig,
+  now: number,
+): ConstructedDay {
+  const window = focusWindow(budget, config, now);
+  if (window) {
+    const freeMinutes = window.reduce((m, iv) => m + (iv.end - iv.start) / MS_PER_MIN, 0);
+    const focused = constructDay({ ...budget, day: { ...budget.day, freeIntervals: window, freeMinutes } }, taskMap, config);
+    if (focused.unfulfilledByTaskId.size === 0) return focused;
+  }
+  return constructDay(budget, taskMap, config);
 }
 
 /**

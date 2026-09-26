@@ -38,8 +38,9 @@ import {
 ## Architecture (budget → construct → reflow)
 
 ```
-plan():   eligibility → budget.ts (per-day quotas, cross-day spread)
-                      → constructor.ts (per-day timeline beam search)
+plan():   eligibility → budget.ts (triage, per-day quotas, cross-day spread)
+                      → constructor.ts (focus window, per-day beam search)
+                      → reconcile.ts (deadline work gets what really fit)
                       → feasibility report
 replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
 ```
@@ -57,8 +58,13 @@ replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
   only same-mode work is left and the day has slack, it takes a reset
   break instead. It also rests per the break policy, keeps peak hours for
   heavy work (peak guard), and opens a heavy day with a 25-min starter push.
+- **`reconcile.ts`** settles the gap between the budget's arithmetic and
+  what the constructor could fit: short deadline work takes placed time from
+  work due later (or from quests triage gave up on), fills leftover gaps,
+  and pays back what it borrowed.
 - **`reflow.ts`** handles edits with minimal perturbation: adding one
-  quest never shuffles the rest of your day.
+  quest never shuffles the rest of your day. The exception is deadline
+  safety: a quest that would miss can move stable work due later.
 
 ## Key concepts
 
@@ -72,7 +78,11 @@ replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
   50, 30 after 3 h, a breather after any heavy sitting) and the budget
   reserves that time. Breaks are gaps, not blocks.
 - **One job per layer** — the budget decides how much, the constructor
-  decides order, the break policy decides rest.
+  decides order, the break policy decides rest, reconcile settles the gap.
+- **Triage** — when deadlines can't all be met, keep as many on time as
+  possible (Moore–Hodgson), giving up LOW before MED before HIGH.
+- **Chronotype** — `CHRONOTYPE_CURVES` (standard, lark, afternoon, owl),
+  chosen in Settings; light future days are built in their best window.
 
 ## Quality guarantees
 
@@ -92,8 +102,10 @@ replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
 ## Test it like a user would
 
 `npm run lab` (in `server/`) plans realistic weeks through the real pipeline
-and grades them against the Project Bible. Run it before and after any change
-here — see the end of SCHEDULER_PSEUDOCODE.md.
+and grades them against the Project Bible. `npm run lab:pop` generates
+thousands of people, grades their plans against an optimal oracle and lives
+their weeks (`-- --week`). Run both before and after any change here — see
+the end of SCHEDULER_PSEUDOCODE.md.
 
 ## Tuning
 

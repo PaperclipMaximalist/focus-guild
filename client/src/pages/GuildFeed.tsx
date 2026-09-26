@@ -716,9 +716,17 @@ export default function GuildFeed() {
   useEffect(() => {
     loadQuests();
     useScheduleStore.getState().fetch().then(() => {
-      if (useScheduleStore.getState().schedule.length === 0) {
-        useScheduleStore.getState().generate();
+      const { schedule: blocks, generatedAt, generate, replan } = useScheduleStore.getState();
+      if (blocks.length === 0) {
+        generate();
+        return;
       }
+      // First look of a new day: yesterday's skipped blocks are gone and
+      // today may have nothing left in it. Replan (it keeps every block that
+      // still stands) so the day opens with work in it.
+      const midnight = new Date();
+      midnight.setHours(0, 0, 0, 0);
+      if (!generatedAt || new Date(generatedAt).getTime() < midnight.getTime()) replan();
     });
   }, [loadQuests]);
 

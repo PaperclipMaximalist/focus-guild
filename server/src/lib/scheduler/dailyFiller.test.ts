@@ -5,8 +5,9 @@ import type { Block } from './types.js';
 const MS_PER_MIN = 60_000;
 const MS_PER_HOUR = 60 * MS_PER_MIN;
 
+/** 09:00 UTC: these tests place in UTC (no tzOffsetMin), whatever the machine's zone. */
 function nowAt9am(): number {
-  return new Date(2026, 4, 18, 9, 0, 0, 0).getTime();
+  return Date.UTC(2026, 4, 18, 9, 0, 0, 0);
 }
 
 describe('placeDailyFillers', () => {
@@ -81,13 +82,44 @@ describe('placeDailyFillers', () => {
   });
 });
 
+describe('daily fillers — routines keep their own time', () => {
+  const student = { startHour: 15.5, endHour: 21.5 };
+  const place = (fillers: Parameters<typeof placeDailyFillers>[0]['fillers'], now: number, existingFixed: Block[] = []) =>
+    placeDailyFillers({ fillers, now, horizonDays: 1, workingHours: student, existingFixed, tzOffsetMin: 0 });
+
+  it('puts a routine with a time outside quest hours at that time', () => {
+    const [meds] = place([{ id: 'm', name: 'Morning meds', durationMin: 10, preferredHour: null }], Date.UTC(2026, 4, 18, 6, 0));
+    expect(new Date(meds!.start).getUTCHours()).toBe(8);
+  });
+
+  it('skips a routine whose time is long gone today instead of running it late', () => {
+    const placed = place([{ id: 'm', name: 'Morning meds', durationMin: 10, preferredHour: null }], Date.UTC(2026, 4, 18, 16, 30));
+    expect(placed).toHaveLength(0);
+  });
+
+  it('finds the nearest free slot, earlier as well as later', () => {
+    // Bedtime reading already sits at 21:00–21:25 and quest hours end at 21:30:
+    // the evening walk (19:00 would clash with nothing) must not be lost.
+    const reading: Block = {
+      id: 'r', start: Date.UTC(2026, 4, 18, 20, 30), end: Date.UTC(2026, 4, 18, 21, 30),
+      type: 'fixed', taskId: null, locked: true, note: 'Daily: Read before bed',
+    };
+    const [walk] = place([{ id: 'w', name: 'Walk', durationMin: 35, preferredHour: 21 }], Date.UTC(2026, 4, 18, 15, 0), [reading]);
+    expect(walk).toBeDefined();
+    expect(walk!.end).toBeLessThanOrEqual(reading.start);
+  });
+});
+
 describe('daily fillers — time hints and breathing room', () => {
   const hours = { startHour: 9, endHour: 18 };
 
   it('reads unambiguous time words from the name', () => {
-    expect(inferPreferredHour('Bake morning sourdough', hours)).toBe(9);
+    // Routines are personal time: morning is morning even when quest hours start later.
+    expect(inferPreferredHour('Bake morning sourdough', hours)).toBe(8);
+    expect(inferPreferredHour('Morning meds', { startHour: 15.5, endHour: 21.5 })).toBe(8);
     expect(inferPreferredHour('End of day gym walkthrough', hours)).toBe(17);
-    expect(inferPreferredHour('Evening walk', hours)).toBe(17);
+    expect(inferPreferredHour('Evening walk', hours)).toBe(19);
+    expect(inferPreferredHour('Read before bed', hours)).toBe(21);
     expect(inferPreferredHour('Lunch stretch', hours)).toBe(12);
     expect(inferPreferredHour('Afternoon email sweep', hours)).toBe(14);
     expect(inferPreferredHour('Duolingo', hours)).toBeNull();
@@ -110,8 +142,8 @@ describe('daily fillers — time hints and breathing room', () => {
       tzOffsetMin: 0,
     }).sort((x, y) => x.start - y.start);
     const hourOf = (t: number) => new Date(t).getUTCHours();
-    expect(hourOf(blocks.find((b) => b.note === 'Daily: Morning meds')!.start)).toBe(9);
-    expect(hourOf(blocks.find((b) => b.note === 'Daily: Evening walk')!.start)).toBe(17);
+    expect(hourOf(blocks.find((b) => b.note === 'Daily: Morning meds')!.start)).toBe(8);
+    expect(hourOf(blocks.find((b) => b.note === 'Daily: Evening walk')!.start)).toBe(19);
     for (let i = 1; i < blocks.length; i++) {
       expect(blocks[i]!.start - blocks[i - 1]!.end).toBeGreaterThanOrEqual(10 * 60_000);
     }

@@ -9,7 +9,7 @@
  * `UserConfig`. All schedule routes call `getUserConfig(user)`.
  */
 
-import { defaultConfig } from './scheduler/index.js';
+import { CHRONOTYPE_CURVES, defaultConfig, type Chronotype } from './scheduler/config.js';
 import type { UserConfig, Weights, ScoreWeights, BreakPolicy, WorkingHours } from './scheduler/index.js';
 
 /**
@@ -30,6 +30,8 @@ export interface SchedulerOverrides {
   workingHours?: Partial<WorkingHours>;
   horizonDays?: number;
   softMaxBlockMin?: number;
+  /** When in the day the user is sharpest; picks the energy curve. */
+  chronotype?: Chronotype;
 }
 
 /** Type-narrow helper for JSON-from-DB. */
@@ -56,6 +58,7 @@ export function getUserConfig(
     workingHours: { ...base.workingHours, ...(overrides.workingHours ?? {}) },
     horizonDays: overrides.horizonDays ?? base.horizonDays,
     softMaxBlockMin: overrides.softMaxBlockMin ?? base.softMaxBlockMin,
+    energyCurve: CHRONOTYPE_CURVES[overrides.chronotype ?? 'standard'] ?? base.energyCurve,
     tzOffsetMin,
   };
 }

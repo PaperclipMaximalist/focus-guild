@@ -24,6 +24,7 @@
  * the new block appears; nothing else moves" UX expectation.
  */
 
+import { buildDayInfo, todayCap, triage } from './budget.js';
 import { plan } from './planner.js';
 import type { Block, Schedule, SchedulerResult, Task, UserConfig } from './types.js';
 
@@ -79,36 +80,81 @@ export function reflow(
     // else: dropped (invalidated unlocked block — its time becomes free)
   }
 
-  // Subtract minutes already committed by stable + user-locked work blocks
-  // from each task's remainingMin so the planner doesn't double-book.
-  const consumed = new Map<string, number>();
-  for (const b of [...stableFuture, ...userLockedFuture]) {
-    if (b.type !== 'work' || !b.taskId) continue;
-    const mins = (b.end - b.start) / MS_PER_MIN;
-    consumed.set(b.taskId, (consumed.get(b.taskId) ?? 0) + mins);
-  }
-  const adjusted = tasks.map((t) => {
-    const used = consumed.get(t.id) ?? 0;
-    if (used <= 0) return t;
-    return { ...t, remainingMin: Math.max(0, t.remainingMin - used), committedMin: used };
-  });
+  const run = (stable: Block[]) => {
+    // Subtract minutes already committed by stable + user-locked work blocks
+    // from each task's remainingMin so the planner doesn't double-book.
+    const consumed = new Map<string, number>();
+    for (const b of [...stable, ...userLockedFuture]) {
+      if (b.type !== 'work' || !b.taskId) continue;
+      const mins = (b.end - b.start) / MS_PER_MIN;
+      consumed.set(b.taskId, (consumed.get(b.taskId) ?? 0) + mins);
+    }
+    const adjusted = tasks.map((t) => {
+      const used = consumed.get(t.id) ?? 0;
+      if (used <= 0) return t;
+      return { ...t, remainingMin: Math.max(0, t.remainingMin - used), committedMin: used };
+    });
 
-  // Run the full planner over the remaining work. Treat stable blocks as
-  // ADDITIONAL locked blocks: that's the trick — plan() routes around them
-  // exactly as it routes around user-pinned blocks, so the constructor only
-  // ever places into the freed gaps.
-  const result = plan({
-    tasks: adjusted,
-    fixedBlocks: fixedFuture,
-    lockedBlocks: [...userLockedFuture, ...stableFuture],
-    config,
-    now,
-  });
+    // Run the full planner over the remaining work. Treat stable blocks as
+    // ADDITIONAL locked blocks: that's the trick — plan() routes around them
+    // exactly as it routes around user-pinned blocks, so the constructor only
+    // ever places into the freed gaps.
+    return plan({
+      tasks: adjusted,
+      fixedBlocks: fixedFuture,
+      lockedBlocks: [...userLockedFuture, ...stable],
+      config,
+      now,
+    });
+  };
+
+  let kept = stableFuture;
+  let result = run(kept);
+
+  // Deadline safety outranks stability. After a skipped block, the work due
+  // tomorrow could only use the gaps, while this week's other quests kept
+  // their slots, and the population lab watched it miss by 30 minutes with
+  // an hour of next week's essay sitting before its deadline. Short quests
+  // that can still make it (triage) may take stable blocks of work due later.
+  if (result.feasibilityReport.issues.length) {
+    const days = buildDayInfo(config, now, [...fixedFuture, ...userLockedFuture]);
+    const live = tasks.filter((t) => t.status !== 'done' && t.remainingMin > 0.5 && t.deadline > now);
+    const dropped = triage(live, days, todayCap(days, now, config), config.breakPolicy);
+    const shortOf = (r: SchedulerResult) =>
+      r.feasibilityReport.issues.filter((i) => !dropped.has(i.taskId)).reduce((m, i) => m + i.shortfallMin, 0);
+
+    for (let round = 0; round < 3; round += 1) {
+      const release = new Set<string>();
+      for (const issue of result.feasibilityReport.issues) {
+        const t = taskMap.get(issue.taskId);
+        if (!t || dropped.has(t.id)) continue;
+        let need = issue.shortfallMin;
+        const from = Math.max(now, t.notBefore ?? 0);
+        const movable = kept
+          .filter((b) => !release.has(b.id) && b.taskId !== t.id && b.start >= from && b.end <= t.deadline)
+          .map((b) => ({ b, owner: taskMap.get(b.taskId!)! }))
+          .filter((x) => x.owner && x.owner.deadline > t.deadline)
+          .sort((x, y) => y.owner.deadline - x.owner.deadline || x.b.start - y.b.start);
+        for (const { b } of movable) {
+          if (need <= 0) break;
+          release.add(b.id);
+          need -= (b.end - b.start) / MS_PER_MIN;
+        }
+      }
+      if (!release.size) break;
+      const nextKept = kept.filter((b) => !release.has(b.id));
+      const next = run(nextKept);
+      if (shortOf(next) >= shortOf(result)) break;
+      kept = nextKept;
+      result = next;
+    }
+  }
+  const stableFutureKept = kept;
 
   // Strip our temporary `locked=true` off the stable blocks so they look the
   // same to the client as they did before reflow. User-locked blocks keep
   // their locked flag (they were genuinely pinned).
-  const stableIds = new Set(stableFuture.map((b) => b.id));
+  const stableIds = new Set(stableFutureKept.map((b) => b.id));
   const restored: Block[] = result.schedule.map((b) =>
     stableIds.has(b.id) ? { ...b, locked: false } : b,
   );

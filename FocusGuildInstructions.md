@@ -163,7 +163,7 @@ Never commit .env files. Never log API keys.
 ## Current Build Phase
 [Update this at the end of every session. History lives in WORKLOG.md and git; this section is the current state only.]
 
-**As of 2026-09-26: everything below is built, deployed and live.** Production is `main` @ `5688211`, auto-deployed from `main` (Railway server + Vercel client). The open work is in `PLAN.md`.
+**As of 2026-09-26: everything below is built; all of it is live except the population-lab scheduler work** (committed on `presets-and-chronicle`, not yet merged). Production is `main` @ `5688211`, auto-deployed from `main` (Railway server + Vercel client). The open work is in `PLAN.md`.
 
 ### Live
 - Client: https://focus-guild-ten.vercel.app · Server: https://focus-guild-production.up.railway.app (`/health`)
@@ -177,21 +177,21 @@ Never commit .env files. Never log API keys.
 | Quests | CRUD, quick-add grammar (`2h by fri #tag !high`), sub-quests, Not Today (held to tomorrow, revived at the user's midnight), Rescue for overdue, bulk text import (`/quests/import`) | `routes/quests.ts`, `lib/deferral.ts`, `client/src/lib/quickAdd.ts`, `pages/{Today,Quests,QuestImport,Rescue}.tsx` |
 | XP & ranks | XP, streaks, 7 ranks, 14 achievements, Trophy Room, rank theming, SFX/haptics, duck mascot, Lucide icons, "devcave" theme | `lib/{xp,streak,achievements,evalAndUnlock}.ts`, `pages/Trophies.tsx`, `components/mascot` |
 | Guild Feed | Timeline with live countdown, drag/pin/delete, "why now" reason per block, plan insights (overdue, routines crowding, backlog pace, working-hours suggestion, estimate calibration), energy sparkline | `pages/GuildFeed.tsx`, `components/PlanInsights.tsx`, `routes/schedule.ts` |
-| Scheduler | budget → construct → reflow; real sittings, breaks, peak hours for heavy work, pacing, deadline preemption, calendar + routine fixed blocks, self-correcting estimates | `server/src/lib/scheduler/` (see its README + SCHEDULER_PSEUDOCODE.md), `scripts/scenario-lab.ts` |
+| Scheduler | budget → construct → reconcile → reflow; triage when deadlines can't all fit, real sittings, breaks, peak hours and a best-energy window for heavy work, chronotypes, pacing, deadline preemption, calendar + routine fixed blocks, self-correcting estimates | `server/src/lib/scheduler/` (see its README + SCHEDULER_PSEUDOCODE.md), `scripts/scenario-lab.ts`, `scripts/population-lab.ts` |
 | Focus timer | Persists across refresh; logs focused minutes (pauses excluded) on Done / "Stop for now, keep progress" → `actualMinutes` | `components/FocusTimer.tsx`, `POST /quests/:id/focus` |
 | Tracker + CAS | Long-horizon items with codes, 5 statuses (editable labels), active cap, domains, parking lot, decision log, CAS lens (7×3 matrix, strands, interviews), presets + preset packs (IB Guild / Bad-week minimal / Projects & work), add templates, markdown export/import, "Schedule as quest" | `routes/tracker.ts`, `lib/tracker/*`, `pages/Tracker*.tsx`, `client/src/lib/trackerPacks.ts` |
 | Chronicle | Activity log (written as a side effect of real actions), journal, versioned permafile, AI context bundle, Ask the Guild (Claude, tap-to-apply suggestions) | `routes/chronicle.ts`, `lib/{activity,chronicle}.ts`, `pages/Chronicle.tsx` |
 | Connections | ICS calendar import (Google / Outlook-Teams / iCloud) the planner routes around; personal access token (`fgpat_…`) for the inbox, REST API and MCP; `POST /inbox` → Parking Lot; plan published as `/calendar/<token>.ics` | `routes/{integrations,inbox,calendarFeed}.ts`, `lib/calendar/*`, `lib/tokens.ts`, `pages/Connections.tsx` |
 | PWA | Installable, offline shell, shortcuts, Android share target → Parking Lot (`/share`) | `client/public/{manifest.webmanifest,sw.js}`, `client/scripts/generate-icons.mjs` |
 | MCP | Claude Desktop / Code connector: 6 reads + additive writes | `mcp/` (see its README) |
-| Settings | Scheduler weights, working hours (half hours allowed), experience toggles, Connections link | `pages/Settings.tsx`, `routes/settings.ts` |
+| Settings | Scheduler weights, working hours (half hours allowed), "sharpest time of day" (chronotype), experience toggles, Connections link | `pages/Settings.tsx`, `routes/settings.ts` |
 
 Client routes: `/ /feed /rescue /checkin /quests /quests/import /stats /settings /trophies /tracker /tracker/presets /tracker/markdown /chronicle /connections /share`.
 Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle /integrations` (Clerk or `fgpat_` token), plus token-in-URL `/inbox` and `/calendar/<token>.ics`.
 
 ### How to run, test, ship
 - Local: two terminals. `cd server && npm run dev` (port 3000), `cd client && npm run dev` (open **http://127.0.0.1:5173**, not localhost). No Clerk needed: `server/.env.local` and `client/.env.local` switch to dev auth (`dev-member-001`).
-- Tests: `cd server && npm test` (242) · `cd client && npm test` (10) · **`cd server && npm run lab`** for the scheduler (grade whole plans; run before and after any scheduler change).
+- Tests: `cd server && npm test` (256) · `cd client && npm test` (10) · **`cd server && npm run lab`** and **`npm run lab:pop`** for the scheduler (grade whole plans, and thousands of simulated people living a week with `-- --week`; run both before and after any scheduler change).
 - Ship: merge to `main` and push; Railway runs `prisma migrate deploy` on boot. Migrations must be **idempotent** (a failing one takes the server down). The Prisma schema engine can't reach Neon from this Windows machine; the Neon HTTP driver works for reads.
 - AI features (Quest Decomposer, Ask the Guild) need `ANTHROPIC_API_KEY` on the server; without it they return 503 with a clear message. Model: `AI_MODEL` in `server/src/lib/ai.ts` (`claude-opus-5`).
 
@@ -204,7 +204,7 @@ Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle 
 - More in the Claude Code memory file for this project and in `DEPLOY.md`.
 
 ### Open work
-See `PLAN.md` → "Still open": personal energy curve, dailies clipped to 60 min, duplicate detection, replan on focus overrun, plus ops (Neon password rotation, Neon dev branch, Clerk production keys, `ANTHROPIC_API_KEY`).
+See `PLAN.md` → "Still open": learning the energy curve, estimates for new users, duplicate detection, replan on focus overrun, plus ops (Neon password rotation, Neon dev branch, Clerk production keys, `ANTHROPIC_API_KEY`).
 
 ## Live Daily Schedule Engine ("The Guild Feed")
 

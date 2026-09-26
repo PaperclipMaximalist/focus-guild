@@ -62,16 +62,24 @@ const FILLER_GAP_MIN = 10;
  * "End of day gym walkthrough" was being placed at 11:00 and "Bake morning
  * sourdough" at 12:30, because nothing read the words the user wrote.
  * Deliberately few, unambiguous patterns; an explicit preferredHour wins.
+ *
+ * Routines are personal time, so the hour isn't squeezed into quest hours:
+ * a student whose quest hours start at 15:30 still takes morning meds in
+ * the morning (the population lab had them at 15:20 for a quarter of students).
  */
 export function inferPreferredHour(name: string, workingHours: { startHour: number; endHour: number }): number | null {
   const n = name.toLowerCase();
-  const clamp = (h: number) => Math.min(Math.max(h, workingHours.startHour), workingHours.endHour - 1);
-  if (/\b(end of (the )?day|eod|evening|tonight|night|bedtime)\b/.test(n)) return clamp(workingHours.endHour - 1);
-  if (/\bafternoon\b/.test(n)) return clamp(14);
-  if (/\b(lunch|midday|noon)\b/.test(n)) return clamp(12);
-  if (/\b(morning|breakfast|first thing)\b/.test(n)) return clamp(workingHours.startHour);
+  if (/\b(end of (the )?day|eod)\b/.test(n)) return Math.max(workingHours.startHour, workingHours.endHour - 1);
+  if (/\b(night|bedtime|before bed)\b/.test(n)) return Math.min(23, Math.max(workingHours.endHour - 1, 21));
+  if (/\b(evening|tonight)\b/.test(n)) return Math.min(22, Math.max(workingHours.endHour - 1, 19));
+  if (/\bafternoon\b/.test(n)) return 14;
+  if (/\b(lunch|midday|noon)\b/.test(n)) return 12;
+  if (/\b(morning|breakfast|first thing)\b/.test(n)) return Math.min(workingHours.startHour, 8);
   return null;
 }
+
+/** A routine whose time has been gone this long is skipped for today, not run late. */
+const ROUTINE_MISSED_AFTER_MIN = 120;
 
 /**
  * Place each filler once per day across the horizon as a `fixed` block.
@@ -110,6 +118,12 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
         hour !== null
           ? userHourUtc(midnight, hour)
           : wStart + idx * spreadStep;
+      // Morning meds at 16:30 is not morning meds: once the time is well
+      // gone, today's is skipped rather than dropped on top of the afternoon.
+      if (hour !== null && now - preferredStart > ROUTINE_MISSED_AFTER_MIN * MS_PER_MIN) return;
+      // A routine with a time outside quest hours keeps its time.
+      const lo = Math.max(now, Math.min(wStart, preferredStart));
+      const hi = Math.min(midnight + 24 * MS_PER_HOUR, Math.max(wEnd, preferredStart + durMs));
 
       // Try with breathing room around what's already placed; if the day is
       // too full for that, fall back to packing.
@@ -118,8 +132,8 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
       const gapMs = roomy ? FILLER_GAP_MIN * MS_PER_MIN : 0;
       const padded = allFixed.map((b) => ({ ...b, start: b.start - gapMs, end: b.end + gapMs }));
       const slot =
-        findNonOverlappingSlot(preferredStart, durMs, wStart, wEnd, padded) ??
-        findNonOverlappingSlot(preferredStart, durMs, wStart, wEnd, allFixed);
+        findNearestSlot(preferredStart, durMs, lo, hi, padded) ??
+        findNearestSlot(preferredStart, durMs, lo, hi, allFixed);
       if (slot == null) return; // skip this day for this filler
 
       counter += 1;
@@ -141,26 +155,26 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
 }
 
 /**
- * Find the earliest slot ≥ preferredStart of length `durMs` that fits inside
- * [wStart, wEnd] and doesn't overlap any block in `taken`. If preferredStart
- * is inside a taken block, advance to its end. Returns null if no fit.
+ * The free slot of length `durMs` inside [lo, hi] closest to `preferredStart`,
+ * earlier or later (ties go earlier). Searching forward only lost the evening
+ * walk every day for anyone whose bedtime reading sat just after it: the lab
+ * found routines missing on 12% of people's days with room to spare.
  */
-function findNonOverlappingSlot(
+function findNearestSlot(
   preferredStart: number,
   durMs: number,
-  wStart: number,
-  wEnd: number,
-  taken: Block[],
+  lo: number,
+  hi: number,
+  taken: Array<{ start: number; end: number }>,
 ): number | null {
-  let s = Math.max(preferredStart, wStart);
-  if (s + durMs > wEnd) s = wStart; // wrap to earliest possible
-  // Walk through taken blocks in order of start.
-  const sorted = [...taken].sort((a, b) => a.start - b.start);
-  for (let attempt = 0; attempt < sorted.length + 2; attempt += 1) {
-    if (s + durMs > wEnd) return null;
-    const conflict = sorted.find((b) => b.start < s + durMs && s < b.end);
-    if (!conflict) return s;
-    s = conflict.end;
+  const candidates = [preferredStart, lo, hi - durMs];
+  for (const b of taken) candidates.push(b.end, b.start - durMs);
+  let best: number | null = null;
+  for (const s of candidates) {
+    if (s < lo || s + durMs > hi) continue;
+    if (taken.some((b) => b.start < s + durMs && s < b.end)) continue;
+    const d = Math.abs(s - preferredStart);
+    if (best === null || d < Math.abs(best - preferredStart) || (d === Math.abs(best - preferredStart) && s < best)) best = s;
   }
-  return null;
+  return best;
 }

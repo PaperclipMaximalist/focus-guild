@@ -26,9 +26,10 @@
  * Pure: same inputs → same outputs. Deterministic tie-break on equal score.
  */
 
-import { allocateBudgets, buildDayInfo, dueWithinPlan } from './budget.js';
+import { allocateBudgets, buildDayInfo, dueWithinPlan, todayCap, triage } from './budget.js';
+import { reconcile } from './reconcile.js';
 import { DEFAULT_SCORE_WEIGHTS } from './config.js';
-import { constructDay } from './constructor.js';
+import { buildDay } from './constructor.js';
 import { userHourOf, userMidnightUtc } from './tz.js';
 import type {
   Block,
@@ -580,16 +581,28 @@ export function plan(inputs: PlanInputs): SchedulerResult {
 
   // ── 2/3. Build per-day capacity + allocate budgets ───────────────────
   const days = buildDayInfo(config, now, immovable);
-  const budgets = allocateBudgets(sorted, days, now, config.todayCapMin, config.breakPolicy);
+  // When the deadlines can't all be met, decide up front which quests to
+  // stop prioritising, so as many as possible finish on time.
+  const cap = todayCap(days, now, config);
+  const dropped = triage(sorted, days, cap, config.breakPolicy);
+  const budgets = allocateBudgets(sorted, days, now, cap, config.breakPolicy, dropped);
 
-  // ── 4. Construct each day ────────────────────────────────────────────
+  // ── 4. Construct each day, then settle deadline work against what fit ─
   const allWorkBlocks: Block[] = [];
   const idGen = makeIdGen('blk', immovable.map((b) => b.id));
   // Track how many minutes each task actually got placed (vs granted).
   const placedByTask = new Map<string, number>();
 
-  for (const budget of budgets) {
-    const day = constructDay(budget, taskMap, config);
+  const built = reconcile(
+    budgets,
+    budgets.map((budget) => buildDay(budget, taskMap, config, now)),
+    sorted,
+    taskMap,
+    { ...config, todayCapMin: cap },
+    dropped,
+    now,
+  );
+  for (const day of built) {
     for (const b of day.blocks) {
       const blk: Block = { ...b, id: idGen() };
       allWorkBlocks.push(blk);

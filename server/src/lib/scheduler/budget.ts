@@ -125,6 +125,9 @@ function softMaxPerDay(t: Task): number {
 /** Below this many minutes a day, nobody's day is crowded enough to level. */
 const LEVEL_FLOOR_MIN = 120;
 
+/** A day's grant below this, for a quest that isn't small, is a sliver to fold away. */
+const SLIVER_MIN = 15;
+
 /** Smallest piece the permissive deadline repair will hand out. */
 const REPAIR_MIN_GRAB = 10;
 
@@ -167,15 +170,35 @@ function usableMinBeforeDeadline(
   return Math.floor(mins);
 }
 
-/** Minutes of one free interval left for work after the policy's short breaks. */
+/**
+ * Minutes of one free interval left for work after the policy's breaks: a
+ * short one every cycle, and the long one after `longBreakAfterMin` of work.
+ * Ignoring the long break had the budget promise 420 minutes of a 510-minute
+ * Sunday that the constructor, which does take it, could only fit 410 of.
+ */
 export function workableMin(
   lengthMin: number,
-  policy?: { shortBreakAfterMin: number; shortBreakDurationMin: number },
+  policy?: { shortBreakAfterMin: number; shortBreakDurationMin: number; longBreakAfterMin?: number; longBreakDurationMin?: number },
 ): number {
   if (!policy || policy.shortBreakDurationMin <= 0) return lengthMin;
   const cycle = Math.max(1, policy.shortBreakAfterMin) + policy.shortBreakDurationMin;
   const breaks = Math.floor(lengthMin / cycle);
-  return lengthMin - breaks * policy.shortBreakDurationMin;
+  let work = lengthMin - breaks * policy.shortBreakDurationMin;
+  const longAfter = policy.longBreakAfterMin ?? 0;
+  const extra = (policy.longBreakDurationMin ?? 0) - policy.shortBreakDurationMin;
+  if (longAfter > 0 && extra > 0) work -= Math.floor(work / (longAfter + extra)) * extra;
+  return work;
+}
+
+/**
+ * The check-in's "minutes available today", if the plan's first day really
+ * is today. Opened after working hours, the first day is tomorrow, and the
+ * cap used to land on it: a Monday-night check-in of "2 hours" left all of
+ * Tuesday idle after 11:55 with three hours of Tuesday deadlines unplaced.
+ */
+export function todayCap(days: DayInfo[], now: number, config: Pick<UserConfig, 'todayCapMin' | 'tzOffsetMin'>): number | undefined {
+  if (config.todayCapMin === undefined || !days.length) return undefined;
+  return days[0]!.midnightUtc === userMidnightUtc(now, config.tzOffsetMin ?? 0) ? config.todayCapMin : undefined;
 }
 
 /** Whole days between the end of the horizon and `task`'s deadline. */
@@ -245,6 +268,11 @@ export function allocateBudgets(
    * interval: a lone 30-minute gap needs no break and keeps all 30.
    */
   policy?: { shortBreakAfterMin: number; shortBreakDurationMin: number },
+  /**
+   * Quests due in the plan that can't all make it (see `triage`). They are
+   * repaired last, and never take time from a quest that can still finish.
+   */
+  dropped: ReadonlySet<string> = new Set(),
 ): DayBudget[] {
   const usable = (day: DayInfo, deadline: number) => usableMinBeforeDeadline(day, deadline, policy);
   const remaining = new Map<string, number>(tasks.map((t) => [t.id, t.remainingMin]));
@@ -352,9 +380,12 @@ export function allocateBudgets(
   // Only for work due inside the plan. Work due after it is on pace if pass 1
   // kept its daily share; pulling the rest forward would be exactly the
   // front-loading pass 1 exists to prevent.
+  // Quests that can still finish come first; the ones that can't (triage)
+  // get what's left, so a hopeless 5-hour problem set due in two hours
+  // doesn't eat the only slot a 10-minute task due tonight had.
   const short = tasks
     .filter((t) => (remaining.get(t.id) ?? 0) > EPSILON_MIN && dueWithinPlan(t, days))
-    .sort((a, b) => a.deadline - b.deadline || (a.id < b.id ? -1 : 1));
+    .sort((a, b) => Number(dropped.has(a.id)) - Number(dropped.has(b.id)) || a.deadline - b.deadline || (a.id < b.id ? -1 : 1));
 
   /**
    * Grant `task` leftover capacity on days before its deadline. Strict mode
@@ -380,7 +411,8 @@ export function allocateBudgets(
     return left;
   };
 
-  const donorsTouched = new Set<string>();
+  // Minutes each donor gave up, so it can be paid back where there's room.
+  const donorsTouched = new Map<string, number>();
   for (const task of short) {
     let left = remaining.get(task.id) ?? 0;
     left = fillFromResidual(task, left, true);
@@ -398,8 +430,8 @@ export function allocateBudgets(
       const budget = budgets[dayIdx]!;
       let room = usable(day, task.deadline) - grantedOnDay(budget, task.id);
       const donors = budget.quotas
-        .filter((q) => q.task.deadline > task.deadline && q.task.id !== task.id)
-        .sort((a, b) => b.task.deadline - a.task.deadline || (a.task.id < b.task.id ? -1 : 1));
+        .filter((q) => canDonate(q.task, task, days, dropped))
+        .sort((a, b) => Number(dropped.has(b.task.id)) - Number(dropped.has(a.task.id)) || b.task.deadline - a.task.deadline || (a.task.id < b.task.id ? -1 : 1));
       for (const donor of donors) {
         if (left <= EPSILON_MIN || room <= EPSILON_MIN) break;
         let take = Math.floor(Math.min(donor.targetMin, left, room));
@@ -411,7 +443,7 @@ export function allocateBudgets(
         if (take < 1) continue;
         donor.targetMin -= take;
         remaining.set(donor.task.id, (remaining.get(donor.task.id) ?? 0) + take);
-        donorsTouched.add(donor.task.id);
+        donorsTouched.set(donor.task.id, (donorsTouched.get(donor.task.id) ?? 0) + take);
         // Any surplus beyond this task's need returns to the day's residual.
         const used = Math.min(take, left);
         addQuota(budget, task, used);
@@ -424,17 +456,116 @@ export function allocateBudgets(
     remaining.set(task.id, left);
   }
 
-  // Donors due inside the plan get their time back from what's left,
-  // whole sittings first.
+  // Donors get their time back from what's left, whole sittings first. Work
+  // due after the plan only needs back what it gave: it used to get nothing,
+  // so a HIGH quest due in two weeks lent its Monday slot to Monday's
+  // deadline and then sat out a week with three empty days in it.
   for (const task of tasks) {
-    if (!donorsTouched.has(task.id) || !dueWithinPlan(task, days)) continue;
-    let left = remaining.get(task.id) ?? 0;
-    left = fillFromResidual(task, left, true);
-    left = fillFromResidual(task, left, false);
-    remaining.set(task.id, left);
+    const gave = donorsTouched.get(task.id);
+    if (!gave) continue;
+    const owed = remaining.get(task.id) ?? 0;
+    if (dueWithinPlan(task, days)) {
+      let left = fillFromResidual(task, owed, true);
+      left = fillFromResidual(task, left, false);
+      remaining.set(task.id, left);
+    } else {
+      const back = Math.min(owed, gave);
+      const left = fillFromResidual(task, back, true);
+      remaining.set(task.id, owed - (back - left));
+    }
+  }
+
+  // Slivers: a few minutes of a real quest alone on a day become a 4-minute
+  // block. Fold them into a day that already has a sitting of it, if it has
+  // room; work due after the plan just leaves them for a later week.
+  for (let i = 0; i < budgets.length; i += 1) {
+    for (const q of [...budgets[i]!.quotas]) {
+      if (q.targetMin >= SLIVER_MIN || q.task.totalMin < 2 * SLIVER_MIN) continue;
+      let folded = false;
+      for (let j = 0; j < budgets.length && !folded; j += 1) {
+        if (j === i) continue;
+        const host = budgets[j]!.quotas.find((x) => x.task.id === q.task.id);
+        if (!host || residuals[j]! < q.targetMin) continue;
+        if (usable(days[j]!, q.task.deadline) - host.targetMin < q.targetMin) continue;
+        host.targetMin += q.targetMin;
+        residuals[j]! -= q.targetMin;
+        residuals[i]! += q.targetMin;
+        budgets[i]!.quotas = budgets[i]!.quotas.filter((x) => x !== q);
+        folded = true;
+      }
+      if (!folded && !dueWithinPlan(q.task, days)) {
+        residuals[i]! += q.targetMin;
+        budgets[i]!.quotas = budgets[i]!.quotas.filter((x) => x !== q);
+      }
+    }
   }
 
   return budgets;
+}
+
+/**
+ * May `donor` give up budgeted time to `task`, which is short of its deadline?
+ * Normally only work due later gives way. A quest that can't make its
+ * deadline anyway (triage) gives way to one that can, whatever the dates,
+ * and never takes time from a quest due in the plan that could still finish.
+ */
+export function canDonate(donor: Task, task: Task, days: DayInfo[], dropped: ReadonlySet<string>): boolean {
+  if (donor.id === task.id) return false;
+  const donorDropped = dropped.has(donor.id);
+  const taskDropped = dropped.has(task.id);
+  if (donorDropped && !taskDropped) return true;
+  if (taskDropped && !donorDropped && dueWithinPlan(donor, days)) return false;
+  return donor.deadline > task.deadline;
+}
+
+/**
+ * Which quests due inside the plan to give up on when they can't all fit,
+ * keeping as many on time as possible (Moore–Hodgson): walk the deadlines in
+ * order, and whenever the work so far overflows the time before the current
+ * deadline, drop the quest that frees the most time for the least value.
+ * Dropped quests still get any time that's left over; they just stop
+ * outranking quests that can finish.
+ */
+export function triage(
+  tasks: Task[],
+  days: DayInfo[],
+  todayCapMin?: number,
+  policy?: { shortBreakAfterMin: number; shortBreakDurationMin: number },
+): Set<string> {
+  const dropped = new Set<string>();
+  const due = tasks.filter((t) => dueWithinPlan(t, days)).sort((a, b) => a.deadline - b.deadline || (a.id < b.id ? -1 : 1));
+  if (!due.length) return dropped;
+  const capacityBefore = (deadline: number) => {
+    let mins = 0;
+    days.forEach((d, i) => {
+      let m = usableMinBeforeDeadline(d, deadline, policy);
+      if (i === 0 && todayCapMin !== undefined) m = Math.min(m, Math.max(0, todayCapMin));
+      mins += m;
+    });
+    return mins;
+  };
+  // What the user said comes first: LOW-tier quests go before MED, and a HIGH
+  // one only when nothing else is left to give up (the adapter marks the tier
+  // in urgencyMultiplier). Within a tier, the most minutes per unit of
+  // importance go first.
+  const tier = (x: Task) => ((x.urgencyMultiplier ?? 1) >= 1.39 ? 2 : (x.urgencyMultiplier ?? 1) <= 0.71 ? 0 : 1);
+  const cost = (x: Task) => x.remainingMin / (0.5 + x.importance);
+  const worse = (a: Task, b: Task) => tier(a) < tier(b) || (tier(a) === tier(b) && cost(a) > cost(b));
+  const kept: Task[] = [];
+  let sum = 0;
+  for (const t of due) {
+    kept.push(t);
+    sum += t.remainingMin;
+    const cap = capacityBefore(t.deadline);
+    while (sum > cap + EPSILON_MIN && kept.length) {
+      let worst = 0;
+      for (let i = 1; i < kept.length; i += 1) if (worse(kept[i]!, kept[worst]!)) worst = i;
+      const [gone] = kept.splice(worst, 1);
+      sum -= gone!.remainingMin;
+      dropped.add(gone!.id);
+    }
+  }
+  return dropped;
 }
 
 /**

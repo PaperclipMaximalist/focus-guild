@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "test": "vitest run",
     "lab": "tsx scripts/scenario-lab.ts",
+    "lab:pop": "tsx scripts/population-lab.ts",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
