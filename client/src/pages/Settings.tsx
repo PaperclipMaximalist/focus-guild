@@ -212,11 +212,13 @@ export default function Settings() {
       {/* Working hours */}
       <Section title="Working hours">
         <Row label="Day starts at" hint="When the scheduler starts placing work blocks (your local time).">
-          <HourInput value={current.workingHours.startHour} onChange={(v) => updateHours('startHour', v)} />
+          {/* A day can't start at 24:00; the server takes 00:00–23:30. */}
+          <HourInput value={current.workingHours.startHour} onChange={(v) => updateHours('startHour', v)} last={23.5} />
         </Row>
-        <Row label="Day ends at" hint="When the scheduler stops placing work blocks (your local time).">
+        <Row label="Day ends at" hint="When the scheduler stops placing work blocks (your local time). An end earlier than the start means the next day: 22:00 to 06:00 is a night shift.">
           <HourInput value={current.workingHours.endHour} onChange={(v) => updateHours('endHour', v)} />
         </Row>
+        <HoursNote hours={current.workingHours} />
         <div>
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-sm" style={{ color: 'var(--color-text)' }}>Sharpest time of day</span>
@@ -297,7 +299,7 @@ export default function Settings() {
           </button>
           <button
             onClick={handleSave}
-            disabled={saving || !hasChanges}
+            disabled={saving || !hasChanges || hoursAreEmpty(current.workingHours)}
             className="text-xs rounded-md px-4 py-1.5 font-semibold text-(--color-on-primary) disabled:opacity-40"
             style={{ background: 'var(--color-primary)' }}
           >
@@ -471,7 +473,39 @@ function NumberInput({
   );
 }
 
-function HourInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+const fmtHour = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${h % 1 ? '30' : '00'}`;
+
+/** Hours that start and end at the same time leave nothing to plan (the server refuses them too). */
+function hoursAreEmpty({ startHour, endHour }: WorkingHours): boolean {
+  return startHour === endHour;
+}
+
+/**
+ * What the two hour pickers add up to when it isn't obvious. 22:00–06:00 used
+ * to save without a word and then plan nothing at all; now it is a night
+ * shift, and the page says so before the Save.
+ */
+function HoursNote({ hours }: { hours: WorkingHours }) {
+  const { startHour, endHour } = hours;
+  if (hoursAreEmpty(hours)) {
+    return (
+      <p role="alert" className="text-xs px-1" style={{ color: 'var(--color-fire)' }}>
+        The day starts and ends at {fmtHour(startHour)}, which leaves no time to plan. Pick a later end,
+        or an earlier one for hours that run past midnight.
+      </p>
+    );
+  }
+  if (endHour > startHour) return null;
+  const span = endHour + 24 - startHour;
+  return (
+    <p className="text-xs px-1" style={{ color: 'var(--color-muted)' }}>
+      Runs past midnight: {fmtHour(startHour)} to {fmtHour(endHour)} the next day ({span} h).
+      {endHour > 0 && <> Your day turns over at {fmtHour(endHour)} instead of midnight, so Not Today lasts until then.</>}
+    </p>
+  );
+}
+
+function HourInput({ value, onChange, last = 24 }: { value: number; onChange: (v: number) => void; last?: number }) {
   return (
     <select
       value={value}
@@ -479,9 +513,9 @@ function HourInput({ value, onChange }: { value: number; onChange: (v: number) =
       className="rounded-md border bg-white/5 px-2 py-1 text-sm outline-none"
       style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
     >
-      {Array.from({ length: 49 }, (_, i) => i / 2).map((h) => (
+      {Array.from({ length: last * 2 + 1 }, (_, i) => i / 2).map((h) => (
         <option key={h} value={h}>
-          {String(Math.floor(h)).padStart(2, '0')}:{h % 1 ? '30' : '00'}
+          {fmtHour(h)}
         </option>
       ))}
     </select>

@@ -20,7 +20,7 @@
  */
 
 import { idealSessionRange, priorityScore } from './planner.js';
-import { dayKey, userHourUtc, userMidnightUtc } from './tz.js';
+import { dayKey, userMidnightUtc, workDayMidnightUtc, workWindowUtc } from './tz.js';
 import type { Block, Task, UserConfig } from './types.js';
 
 const MS_PER_MIN = 60_000;
@@ -75,13 +75,19 @@ export function buildDayInfo(
   const tz = config.tzOffsetMin ?? 0;
   const horizonEnd = now + config.horizonDays * MS_PER_DAY;
   const sortedImmov = sortBlocks(immovable);
-  const todayMidnight = userMidnightUtc(now, tz);
+  // The first day is the working day `now` falls in. For hours that run past
+  // midnight (22–06) that is yesterday's date until the window closes: at
+  // 01:00 the person is mid-session, and the rest of tonight is day one.
+  const todayMidnight = workDayMidnightUtc(now, tz, config.workingHours);
   const out: DayInfo[] = [];
 
   for (let d = 0; d < config.horizonDays; d += 1) {
     const midnight = todayMidnight + d * MS_PER_DAY;
-    const wStart = Math.max(userHourUtc(midnight, config.workingHours.startHour), now);
-    const wEnd = Math.min(userHourUtc(midnight, config.workingHours.endHour), horizonEnd);
+    // An end before the start is tomorrow's: the window, and so a work block,
+    // may run past midnight. The day keeps the date its window starts on.
+    const window = workWindowUtc(midnight, config.workingHours);
+    const wStart = Math.max(window.start, now);
+    const wEnd = Math.min(window.end, horizonEnd);
     if (wEnd <= wStart) continue;
 
     const key = dayKey(midnight, tz);
@@ -198,7 +204,17 @@ export function workableMin(
  */
 export function todayCap(days: DayInfo[], now: number, config: Pick<UserConfig, 'todayCapMin' | 'tzOffsetMin'>): number | undefined {
   if (config.todayCapMin === undefined || !days.length) return undefined;
-  return days[0]!.midnightUtc === userMidnightUtc(now, config.tzOffsetMin ?? 0) ? config.todayCapMin : undefined;
+  return isToday(days[0]!, now, config.tzOffsetMin ?? 0) ? config.todayCapMin : undefined;
+}
+
+/**
+ * Is `day` the working day the user is in right now? Its date is today's, or
+ * yesterday's when the window runs past midnight and is still open: at 01:00
+ * with hours 22–06, the day that began on yesterday's date is "today" (the
+ * check-in's minutes are for this session, and its work starts now).
+ */
+export function isToday(day: DayInfo, now: number, tzOffsetMin: number): boolean {
+  return day.midnightUtc <= userMidnightUtc(now, tzOffsetMin);
 }
 
 /** Whole days between the end of the horizon and `task`'s deadline. */

@@ -14,7 +14,7 @@
  * lose to deadline-driven work).
  */
 
-import { userHourUtc, userMidnightUtc } from './tz.js';
+import { crossesMidnight, userHourUtc, windowHours, workDayMidnightUtc, workWindowUtc } from './tz.js';
 import type { Block } from './types.js';
 
 export interface DailyFiller {
@@ -69,7 +69,12 @@ const FILLER_GAP_MIN = 10;
  */
 export function inferPreferredHour(name: string, workingHours: { startHour: number; endHour: number }): number | null {
   const n = name.toLowerCase();
-  if (/\b(end of (the )?day|eod)\b/.test(n)) return Math.max(workingHours.startHour, workingHours.endHour - 1);
+  // For hours that run past midnight the end of the day is the end of the
+  // session (05:00 for 22–06), not a clamp back up to its start.
+  if (/\b(end of (the )?day|eod)\b/.test(n))
+    return crossesMidnight(workingHours)
+      ? windowHours(workingHours) < 1 ? workingHours.startHour : (workingHours.endHour + 23) % 24
+      : Math.max(workingHours.startHour, workingHours.endHour - 1);
   if (/\b(night|bedtime|before bed)\b/.test(n)) return Math.min(23, Math.max(workingHours.endHour - 1, 21));
   if (/\b(evening|tonight)\b/.test(n)) return Math.min(22, Math.max(workingHours.endHour - 1, 19));
   if (/\bafternoon\b/.test(n)) return 14;
@@ -94,13 +99,21 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
   const allFixed = [...existingFixed];
 
   const enabled = fillers.filter((f) => f.enabled !== false);
-  const todayMidnight = userMidnightUtc(now, tz);
+  // Same days as the planner's (budget.buildDayInfo): the working day `now`
+  // is in comes first, and a window that runs past midnight keeps the date it
+  // starts on. With hours 22–06 this loop used to find `end <= start` on
+  // every day and place no routines at all.
+  const todayMidnight = workDayMidnightUtc(now, tz, workingHours);
+  const pastMidnight = crossesMidnight(workingHours);
 
   for (let day = 0; day < horizonDays; day += 1) {
     const midnight = todayMidnight + day * MS_PER_DAY;
-    const wStart = Math.max(userHourUtc(midnight, workingHours.startHour), now);
-    const wEnd = userHourUtc(midnight, workingHours.endHour);
+    const window = workWindowUtc(midnight, workingHours);
+    const wStart = Math.max(window.start, now);
+    const wEnd = window.end;
     if (wEnd <= wStart) continue;
+    // The person's day ends at midnight, or with the session when it runs later.
+    const dayEnd = Math.max(midnight + MS_PER_DAY, wEnd);
 
     // For each filler, find a slot for the day. We spread fillers by
     // their order in the array: first → near startHour, then linearly
@@ -114,16 +127,18 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
     enabled.forEach((f, idx) => {
       const durMs = f.durationMin * MS_PER_MIN;
       const hour = f.preferredHour ?? inferPreferredHour(f.name, workingHours);
+      // An hour before the session closes belongs to the night that is
+      // ending: "02:00" on Monday's 22–06 day is Tuesday 02:00.
       const preferredStart =
         hour !== null
-          ? userHourUtc(midnight, hour)
+          ? userHourUtc(pastMidnight && hour < workingHours.endHour ? midnight + MS_PER_DAY : midnight, hour)
           : wStart + idx * spreadStep;
       // Morning meds at 16:30 is not morning meds: once the time is well
       // gone, today's is skipped rather than dropped on top of the afternoon.
       if (hour !== null && now - preferredStart > ROUTINE_MISSED_AFTER_MIN * MS_PER_MIN) return;
       // A routine with a time outside quest hours keeps its time.
       const lo = Math.max(now, Math.min(wStart, preferredStart));
-      const hi = Math.min(midnight + 24 * MS_PER_HOUR, Math.max(wEnd, preferredStart + durMs));
+      const hi = Math.min(dayEnd, Math.max(wEnd, preferredStart + durMs));
 
       // Try with breathing room around what's already placed; if the day is
       // too full for that, fall back to packing.

@@ -12,7 +12,7 @@
  * Pure: callers pass the plan, the quests and the clock.
  */
 
-import { userMidnightUtc, userHourUtc } from './tz.js';
+import { crossesMidnight, userMidnightUtc, windowHours, workWindowUtc } from './tz.js';
 import type { Block, Task, UserConfig } from './types.js';
 
 const MIN = 60_000;
@@ -34,42 +34,70 @@ export interface Calibration {
   sample: number;
 }
 
-/** Fewer finished quests than this and we trust the user's own numbers. */
-export const MIN_SAMPLE = 5;
+/** A category needs this many finished quests before it gets its own rate. */
 export const MIN_CATEGORY_SAMPLE = 3;
-/** Bounds, so one wild session can't make every plan absurd. */
-const CLAMP: [number, number] = [0.6, 2.0];
+/**
+ * How much the evidence is trusted: weight n / (n + PRIOR_QUESTS), the rest
+ * stays on the user's own number. One quest that took double moves estimates
+ * half-way; five move them 83% of the way. (It used to be nothing until five
+ * quests were finished, so a new user who needs twice their estimates planned
+ * the whole first week too short: 61% of what was possible in the population
+ * lab, against 97% for people with generous estimates.)
+ */
+const PRIOR_QUESTS = 1;
+/**
+ * Plan for the slower side of what's been seen, not the middle. Finishing
+ * early costs nothing (the replan pulls the day forward); running out of
+ * time before a deadline costs the deadline. With the median, half of all
+ * quests still ran over, and even people whose estimates are right on
+ * average lost 7 points to that in the lab.
+ */
+const CAUTIOUS_QUANTILE = 0.75;
+/**
+ * Bounds, so one wild session can't make every plan absurd. The top was 2.0,
+ * which people who need about double (1.6× to 2.6×, quest by quest) hit.
+ */
+const CLAMP: [number, number] = [0.6, 2.5];
 /** Within ±15% of the estimate is noise; don't change the plan for it. */
 const DEADBAND = 0.15;
 
-function median(xs: number[]): number {
+function quantile(xs: number[], q: number): number {
   const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+  const pos = (s.length - 1) * q;
+  const lo = Math.floor(pos);
+  return s[lo]! + (s[Math.ceil(pos)]! - s[lo]!) * (pos - lo);
 }
 
-function settle(ratio: number): number {
-  const r = Math.min(CLAMP[1], Math.max(CLAMP[0], ratio));
-  return Math.abs(r - 1) < DEADBAND ? 1 : Math.round(r * 100) / 100;
+/** What a set of actual/estimate ratios supports, starting from `prior`. */
+function learn(ratios: number[], prior: number): number {
+  const seen = Math.min(CLAMP[1], Math.max(CLAMP[0], quantile(ratios, CAUTIOUS_QUANTILE)));
+  return prior + (ratios.length / (ratios.length + PRIOR_QUESTS)) * (seen - prior);
 }
+
+const settle = (r: number) => (Math.abs(r - 1) < DEADBAND ? 1 : Math.round(r * 100) / 100);
 
 /**
- * Learn how far estimates run from reality: the median of actual/estimate
- * over finished quests, per category where there's enough data. Median, not
- * mean — one quest left open over a weekend shouldn't set the rate.
+ * Learn how far estimates run from reality, from the first finished quest
+ * with logged time: the upper quartile of actual/estimate, shrunk toward the
+ * user's own number while there's little to go on, per category where
+ * there's enough data. A quantile, not the mean — one quest left open over a
+ * weekend shouldn't set the rate (from five quests on it can't move it).
  */
 export function calibrateEstimates(samples: CompletedSample[]): Calibration | null {
   const usable = samples.filter((s) => s.estimatedMinutes >= 5 && s.actualMinutes >= 5);
-  if (usable.length < MIN_SAMPLE) return null;
+  if (!usable.length) return null;
   const ratio = (s: CompletedSample) => s.actualMinutes / s.estimatedMinutes;
   const byCat = new Map<string, number[]>();
   for (const s of usable) {
     const k = s.category ?? 'deep_work';
     byCat.set(k, [...(byCat.get(k) ?? []), ratio(s)]);
   }
+  // Overall, the prior is the user's own number; for one category it's what
+  // their quests do overall (three essays say less than twelve quests).
+  const overall = learn(usable.map(ratio), 1);
   const byCategory: Record<string, number> = {};
-  for (const [k, rs] of byCat) if (rs.length >= MIN_CATEGORY_SAMPLE) byCategory[k] = settle(median(rs));
-  return { global: settle(median(usable.map(ratio))), byCategory, sample: usable.length };
+  for (const [k, rs] of byCat) if (rs.length >= MIN_CATEGORY_SAMPLE) byCategory[k] = settle(learn(rs, overall));
+  return { global: settle(overall), byCategory, sample: usable.length };
 }
 
 export function multiplierFor(cal: Calibration | null | undefined, category: string | null | undefined): number {
@@ -133,13 +161,15 @@ export function suggestWorkingHours(calendarBlocks: Block[], config: UserConfig,
   const tz = config.tzOffsetMin ?? 0;
   const { startHour, endHour } = config.workingHours;
   const today = userMidnightUtc(now, tz);
-  const span = endHour - startHour;
+  // The window's real length: `end − start` is negative for 22–06, and
+  // "covered ≥ 60% of a negative span" was true of every day.
+  const span = windowHours(config.workingHours);
+  if (span <= 0) return null;
   const busyEnds: number[] = [];
   let heavyDays = 0;
   for (let d = 0; d < config.horizonDays; d++) {
     const mid = today + d * DAY;
-    const ws = userHourUtc(mid, startHour);
-    const we = userHourUtc(mid, endHour);
+    const { start: ws, end: we } = workWindowUtc(mid, config.workingHours);
     const covered = calendarBlocks.reduce((a, b) => a + overlapMin(b, ws, we), 0);
     if (covered >= span * 60 * 0.6) {
       heavyDays++;
@@ -150,14 +180,19 @@ export function suggestWorkingHours(calendarBlocks: Block[], config: UserConfig,
   if (heavyDays < 3) return null;
   // Start 20–40 min after the latest regular finish, on a half hour.
   const suggestedStart = Math.ceil((Math.max(...busyEnds) + 1 / 3) * 2) / 2;
+  const reason = `Your calendar fills most of ${fmtHour(startHour)}–${fmtHour(endHour)} on ${heavyDays} days this week`;
+  if (crossesMidnight(config.workingHours)) {
+    // Someone who works past midnight keeps their own end: the suggestion
+    // only moves the start to after the busy stretch, if that leaves three
+    // hours. (Capping the end at 22:00, as below, would take a night owl's
+    // night away.) Hours here count from the window's own date, so 01:00 is 25.
+    if (suggestedStart <= startHour || startHour + span - suggestedStart < 3) return null;
+    return { startHour: suggestedStart % 24, endHour, reason };
+  }
   const suggestedEnd = Math.min(22, suggestedStart + Math.max(span, 5));
   if (suggestedStart >= 21 || suggestedEnd - suggestedStart < 3) return null;
   if (suggestedStart <= startHour) return null;
-  return {
-    startHour: suggestedStart,
-    endHour: suggestedEnd,
-    reason: `Your calendar fills most of ${fmtHour(startHour)}–${fmtHour(endHour)} on ${heavyDays} days this week`,
-  };
+  return { startHour: suggestedStart, endHour: suggestedEnd, reason };
 }
 
 export function fmtHour(h: number): string {
@@ -172,6 +207,11 @@ export function computeInsights(input: InsightInput): PlanInsights {
   const today = userMidnightUtc(now, tz);
   const days = config.horizonDays;
   const notes: string[] = [];
+
+  // Hours nothing can be planned in. Settings refuses them now, but a saved
+  // "18:00–18:00" from before would still give an empty plan with no reason.
+  if (windowHours(config.workingHours) <= 0)
+    notes.push('Your working hours start and end at the same time, so nothing can be planned. Change them in Settings.');
 
   // Overdue: the planner can't schedule past a deadline, so these vanish.
   const overdue = quests
@@ -192,8 +232,9 @@ export function computeInsights(input: InsightInput): PlanInsights {
   let calendar = 0;
   for (let d = 0; d < days; d++) {
     const mid = today + d * DAY;
-    const ws = userHourUtc(mid, config.workingHours.startHour);
-    const we = userHourUtc(mid, config.workingHours.endHour);
+    // The window may end tomorrow (22–06): `end − start` on one date came out
+    // as −16 hours a day, which silenced the routine note for night workers.
+    const { start: ws, end: we } = workWindowUtc(mid, config.workingHours);
     working += (we - ws) / MIN;
     routines += routineBlocks.reduce((a, b) => a + overlapMin(b, ws, we), 0);
     calendar += calendarBlocks.reduce((a, b) => a + overlapMin(b, ws, we), 0);
@@ -232,8 +273,8 @@ export function computeInsights(input: InsightInput): PlanInsights {
   if (calibration && calibration.global !== 1) {
     notes.push(
       calibration.global > 1
-        ? `Quests have been taking about ${calibration.global}× your estimates (from ${calibration.sample} finished), so the plan allows for that.`
-        : `Quests have been taking about ${calibration.global}× your estimates (from ${calibration.sample} finished): you're faster than you think.`,
+        ? `Quests have been running to about ${calibration.global}× your estimates (from ${calibration.sample} finished), so the plan allows for that.`
+        : `Even your slower quests take about ${calibration.global}× your estimates (from ${calibration.sample} finished): you're faster than you think.`,
     );
   }
 

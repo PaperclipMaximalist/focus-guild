@@ -7,6 +7,7 @@ import { updateStreak, computeMultiplier } from '../lib/streak.js';
 import { AI_ENABLED, AI_MODEL, getClient } from '../lib/ai.js';
 import { logActivity } from '../lib/activity.js';
 import { reviveDeferred } from '../lib/deferral.js';
+import { getUserConfig } from '../lib/userConfig.js';
 import { evalAndUnlockAchievements } from '../lib/evalAndUnlock.js';
 
 export const quests = new Hono();
@@ -117,9 +118,10 @@ quests.get('/', async (c) => {
   const availableMinutes = checkIn?.availableMinutes ?? 480;
   const energyLevel = checkIn?.energyLevel ?? 3;
 
-  // "Not Today" lasts until the user's local midnight, then the quest is back.
+  // "Not Today" lasts until the user's local midnight, then the quest is back
+  // (until their session ends, for working hours that run past midnight).
   const tz = Number(c.req.query('tz'));
-  await reviveDeferred(user.id, Number.isFinite(tz) ? tz : undefined);
+  await reviveDeferred(user.id, Number.isFinite(tz) ? tz : undefined, Date.now(), getUserConfig(user).workingHours);
 
   // Non-recurring active quests only — recurring are surfaced via /quests/recurring.
   const activeQuests = await db.quest.findMany({
