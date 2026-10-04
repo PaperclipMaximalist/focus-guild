@@ -28,8 +28,8 @@ const MIN_BLOCK_PX = 64;
 const DAY_TABS = 3;
 
 const COMPACT_THRESHOLD_PX = 84;
-/** Tall enough to fit the one-line "why now" under the title. */
-const REASON_MIN_HEIGHT_PX = 104;
+/** Tall enough for a two-line title AND the "why now" line; shorter tiles clamp the title to one. */
+const TWO_LINE_TITLE_MIN_PX = 104;
 
 // One hue per category, validated as a set against the dark surface: the
 // best four-colour combination of the reference hues (colourblind separation
@@ -314,21 +314,30 @@ function BlockTile({
           </div>
 
           {/* Main content */}
-          <div className={`flex-1 min-w-0 ${isCompact ? 'flex items-center gap-2 px-3' : 'flex flex-col justify-between p-3'}`}>
+          <div className={`flex-1 min-w-0 ${isCompact ? 'flex flex-col justify-center px-3' : 'flex flex-col justify-between p-3'}`}>
             {isCompact ? (
               <>
-                <span className="text-[0.62rem] font-bold uppercase tracking-wider opacity-90 shrink-0" style={{ color: 'var(--color-text)' }}>
-                  {typeLabel(block)}
-                </span>
-                <span className="flex-1 min-w-0 truncate font-semibold text-[0.9rem]" style={{ color: 'var(--color-text)' }}>
-                  {title}
-                </span>
-                {quest && (
-                  <span className="flex gap-[3px] shrink-0">
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <span key={i} className="w-1 h-1 rounded-full" style={{ background: i <= dots ? 'var(--color-text)' : 'var(--color-border)' }} />
-                    ))}
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[0.62rem] font-bold uppercase tracking-wider opacity-90 shrink-0" style={{ color: 'var(--color-text)' }}>
+                    {typeLabel(block)}
                   </span>
+                  <span className="flex-1 min-w-0 truncate font-semibold text-[0.9rem]" style={{ color: 'var(--color-text)' }}>
+                    {title}
+                  </span>
+                  {quest && (
+                    <span className="flex gap-[3px] shrink-0">
+                      {[1, 2, 3, 4, 5].map((i) => (
+                        <span key={i} className="w-1 h-1 rounded-full" style={{ background: i <= dots ? 'var(--color-text)' : 'var(--color-border)' }} />
+                      ))}
+                    </span>
+                  )}
+                </div>
+                {/* Most blocks are 25–50 min, i.e. compact: the "why now" has to
+                    live here or nobody ever sees it (it used to need a 70-min block). */}
+                {block.reason && !isActive && !isPast && (
+                  <div className="mt-0.5 truncate text-[0.68rem] opacity-80" style={{ color: 'var(--color-text)' }}>
+                    {block.reason}
+                  </div>
                 )}
               </>
             ) : (
@@ -344,10 +353,13 @@ function BlockTile({
                       </span>
                     )}
                   </div>
-                  <div className="font-bold text-base leading-tight line-clamp-2" style={{ color: 'var(--color-text)' }}>
+                  <div
+                    className={`font-bold text-base leading-tight ${block.reason && height < TWO_LINE_TITLE_MIN_PX ? 'line-clamp-1' : 'line-clamp-2'}`}
+                    style={{ color: 'var(--color-text)' }}
+                  >
                     {title}
                   </div>
-                  {block.reason && !isActive && !isPast && height >= REASON_MIN_HEIGHT_PX && (
+                  {block.reason && !isActive && !isPast && (
                     <div className="mt-0.5 truncate text-[0.72rem] opacity-80" style={{ color: 'var(--color-text)' }}>
                       {block.reason}
                     </div>
