@@ -37,6 +37,16 @@ describe('questToTask', () => {
     expect(t.totalMin).toBe(60);
   });
 
+  it('keeps a real sitting for a quest past its own estimate but inside the calibrated one', () => {
+    const cal = { global: 1.2, byCategory: {}, sample: 3 };
+    // 72 planned, 67 logged: 5 min left is a sliver the budget won't place.
+    const over = questToTask(makeQuest({ estimatedMinutes: 60, actualMinutes: 67 }), {}, NOW, 0, cal);
+    expect(over.totalMin).toBe(72);
+    expect(over.remainingMin).toBe(18);
+    // Still inside the user's own estimate: plain subtraction.
+    expect(questToTask(makeQuest({ estimatedMinutes: 60, actualMinutes: 30 }), {}, NOW, 0, cal).remainingMin).toBe(42);
+  });
+
   it('falls back to a future deadline when none is set', () => {
     const t = questToTask(makeQuest({ deadline: null }), {}, NOW);
     expect(t.deadline).toBeGreaterThan(NOW + 7 * MS_PER_DAY);
