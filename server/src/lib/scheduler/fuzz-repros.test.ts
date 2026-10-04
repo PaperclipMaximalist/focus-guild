@@ -68,7 +68,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // quests on a busy day; reconcile lends one quest's time to a tighter
   // deadline, then pays the loan back on a later day without checking the
   // quest still needs it.
-  it.fails('never plans more minutes for a quest than it has left', () => {
+  it('never plans more minutes for a quest than it has left', () => {
     const now = at(0, 5);
     const tasks = [
       task('report', { remainingMin: 120, deadline: at(2, 22) }),
