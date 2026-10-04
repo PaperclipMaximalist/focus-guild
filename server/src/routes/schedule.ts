@@ -39,7 +39,7 @@ import { eventsToFixedBlocks, isCalendarBlock } from '../lib/calendar/ics.js';
 import { reviveDeferred } from '../lib/deferral.js';
 import { calibrateEstimates, computeInsights, type PlanInsights } from '../lib/scheduler/insights.js';
 import { syncStaleForUser, upcomingEvents } from '../lib/calendar/sync.js';
-import { dayKey } from '../lib/scheduler/tz.js';
+import { workDayKey, workDayMidnightUtc, workWindowUtc } from '../lib/scheduler/tz.js';
 
 export const schedule = new Hono();
 
@@ -211,9 +211,10 @@ function topUpRoutines(
   now: number,
 ): Block[] {
   const tz = cfg.tzOffsetMin ?? 0;
-  const have = new Set(
-    schedule.filter((b) => b.note?.startsWith('Daily:')).map((b) => `${b.note}|${dayKey(b.start, tz)}`),
-  );
+  // By working day, not calendar date: with hours 22–06 a routine at 02:00
+  // belongs to the night before, and tonight's 23:00 one isn't a duplicate.
+  const dayOf = (b: Block) => `${b.note}|${workDayKey(b.start, tz, cfg.workingHours)}`;
+  const have = new Set(schedule.filter((b) => b.note?.startsWith('Daily:')).map(dayOf));
   return placeDailyFillers({
     fillers,
     now,
@@ -222,7 +223,7 @@ function topUpRoutines(
     existingFixed: schedule.filter((b) => b.end > now),
     tzOffsetMin: tz,
     idPrefix: `filler-${now}`,
-  }).filter((b) => !have.has(`${b.note}|${dayKey(b.start, tz)}`));
+  }).filter((b) => !have.has(dayOf(b)));
 }
 
 function regenerate(
@@ -233,7 +234,7 @@ function regenerate(
 ) {
   if (!loaded) return;
   const now = Date.now();
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
 
   const recurringFillers = recurringToFillers(loaded.recurring);
   const allFillers = [...recurringFillers, ...state.fillers];
@@ -425,7 +426,7 @@ schedule.post('/:clerkId/replan', async (c) => {
   const state = getState(user.id);
   const now = Date.now();
   const cfg = await configForUser(user, tzOffsetMin);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const current = [...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar];
@@ -470,7 +471,7 @@ schedule.post('/:clerkId/edit', async (c) => {
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
   const cfg = await configForUser(user, parsed.data.tzOffsetMin);
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
@@ -543,7 +544,7 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   const cfg = await configForUser(user, tzOffsetMin);
   // Only the requested quest is "new" — pass everything to replan, which
   // re-flows unlocked future blocks. Locked + past are preserved.
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
@@ -580,14 +581,11 @@ schedule.get('/:clerkId/energy', async (c) => {
   const cfg = getUserConfig(user, tzOffsetMin);
   const loaded = await loadQuestsForUser(user);
   const now = Date.now();
-  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration);
+  const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
   const tz = cfg.tzOffsetMin ?? 0;
-  // Midnight in the user's local time as UTC ms.
-  const todayLocalView = new Date(Date.now() - tz * 60_000);
-  todayLocalView.setUTCHours(0, 0, 0, 0);
-  const midnightUtc = todayLocalView.getTime() + tz * 60_000;
-  const dayStart = midnightUtc + cfg.workingHours.startHour * 60 * 60_000;
-  const dayEnd = midnightUtc + cfg.workingHours.endHour * 60 * 60_000;
+  // The working window of the user's current day (it may end tomorrow: with
+  // hours 22–06 the old `end < start` range drew an empty sparkline).
+  const { start: dayStart, end: dayEnd } = workWindowUtc(workDayMidnightUtc(now, tz, cfg.workingHours), cfg.workingHours);
   const trace = computeEnergyTrace(state.schedule, tasks, dayStart, dayEnd, 15);
   return ok(c, { trace: trace.map((p) => ({ time: new Date(p.time).toISOString(), meter: Math.round(p.meter) })) });
 });

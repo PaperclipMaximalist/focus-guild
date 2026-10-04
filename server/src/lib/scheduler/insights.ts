@@ -12,7 +12,7 @@
  * Pure: callers pass the plan, the quests and the clock.
  */
 
-import { userMidnightUtc, userHourUtc } from './tz.js';
+import { crossesMidnight, userMidnightUtc, windowHours, workWindowUtc } from './tz.js';
 import type { Block, Task, UserConfig } from './types.js';
 
 const MIN = 60_000;
@@ -133,13 +133,15 @@ export function suggestWorkingHours(calendarBlocks: Block[], config: UserConfig,
   const tz = config.tzOffsetMin ?? 0;
   const { startHour, endHour } = config.workingHours;
   const today = userMidnightUtc(now, tz);
-  const span = endHour - startHour;
+  // The window's real length: `end − start` is negative for 22–06, and
+  // "covered ≥ 60% of a negative span" was true of every day.
+  const span = windowHours(config.workingHours);
+  if (span <= 0) return null;
   const busyEnds: number[] = [];
   let heavyDays = 0;
   for (let d = 0; d < config.horizonDays; d++) {
     const mid = today + d * DAY;
-    const ws = userHourUtc(mid, startHour);
-    const we = userHourUtc(mid, endHour);
+    const { start: ws, end: we } = workWindowUtc(mid, config.workingHours);
     const covered = calendarBlocks.reduce((a, b) => a + overlapMin(b, ws, we), 0);
     if (covered >= span * 60 * 0.6) {
       heavyDays++;
@@ -150,14 +152,19 @@ export function suggestWorkingHours(calendarBlocks: Block[], config: UserConfig,
   if (heavyDays < 3) return null;
   // Start 20–40 min after the latest regular finish, on a half hour.
   const suggestedStart = Math.ceil((Math.max(...busyEnds) + 1 / 3) * 2) / 2;
+  const reason = `Your calendar fills most of ${fmtHour(startHour)}–${fmtHour(endHour)} on ${heavyDays} days this week`;
+  if (crossesMidnight(config.workingHours)) {
+    // Someone who works past midnight keeps their own end: the suggestion
+    // only moves the start to after the busy stretch, if that leaves three
+    // hours. (Capping the end at 22:00, as below, would take a night owl's
+    // night away.) Hours here count from the window's own date, so 01:00 is 25.
+    if (suggestedStart <= startHour || startHour + span - suggestedStart < 3) return null;
+    return { startHour: suggestedStart % 24, endHour, reason };
+  }
   const suggestedEnd = Math.min(22, suggestedStart + Math.max(span, 5));
   if (suggestedStart >= 21 || suggestedEnd - suggestedStart < 3) return null;
   if (suggestedStart <= startHour) return null;
-  return {
-    startHour: suggestedStart,
-    endHour: suggestedEnd,
-    reason: `Your calendar fills most of ${fmtHour(startHour)}–${fmtHour(endHour)} on ${heavyDays} days this week`,
-  };
+  return { startHour: suggestedStart, endHour: suggestedEnd, reason };
 }
 
 export function fmtHour(h: number): string {
@@ -172,6 +179,11 @@ export function computeInsights(input: InsightInput): PlanInsights {
   const today = userMidnightUtc(now, tz);
   const days = config.horizonDays;
   const notes: string[] = [];
+
+  // Hours nothing can be planned in. Settings refuses them now, but a saved
+  // "18:00–18:00" from before would still give an empty plan with no reason.
+  if (windowHours(config.workingHours) <= 0)
+    notes.push('Your working hours start and end at the same time, so nothing can be planned. Change them in Settings.');
 
   // Overdue: the planner can't schedule past a deadline, so these vanish.
   const overdue = quests
@@ -192,8 +204,9 @@ export function computeInsights(input: InsightInput): PlanInsights {
   let calendar = 0;
   for (let d = 0; d < days; d++) {
     const mid = today + d * DAY;
-    const ws = userHourUtc(mid, config.workingHours.startHour);
-    const we = userHourUtc(mid, config.workingHours.endHour);
+    // The window may end tomorrow (22–06): `end − start` on one date came out
+    // as −16 hours a day, which silenced the routine note for night workers.
+    const { start: ws, end: we } = workWindowUtc(mid, config.workingHours);
     working += (we - ws) / MIN;
     routines += routineBlocks.reduce((a, b) => a + overlapMin(b, ws, we), 0);
     calendar += calendarBlocks.reduce((a, b) => a + overlapMin(b, ws, we), 0);

@@ -7,9 +7,12 @@
  * is where the impedance mismatch lives.
  */
 
-import { userMidnightUtc } from './tz.js';
+import { workDayEndUtc, type HoursWindow } from './tz.js';
 import { multiplierFor, type Calibration } from './insights.js';
 import type { Task, TaskStatus } from './types.js';
+
+/** Hours whose day turns at midnight, for callers that don't pass the user's. */
+const MIDNIGHT_TO_MIDNIGHT: HoursWindow = { startHour: 0, endHour: 24 };
 
 export type PriorityTier = 'HIGH' | 'MED' | 'LOW';
 
@@ -99,6 +102,8 @@ export function questToTask(
   now: number = Date.now(),
   tzOffsetMin = 0,
   calibration: Calibration | null = null,
+  /** The user's working hours: they set when "today" ends for Not Today. */
+  workingHours: HoursWindow = MIDNIGHT_TO_MIDNIGHT,
 ): Task {
   // Plan with what quests like this actually take, once there's evidence.
   const mult = multiplierFor(calibration, overrides.category ?? q.category ?? ADAPTER_DEFAULTS.category);
@@ -131,8 +136,10 @@ export function questToTask(
   return {
     id: q.id,
     name: q.title,
-    // "Not Today": still owed, just not before tomorrow (user-local).
-    ...(q.status === 'NOT_TODAY' ? { notBefore: userMidnightUtc(now, tzOffsetMin) + 24 * 60 * 60_000 } : {}),
+    // "Not Today": still owed, just not before tomorrow (user-local). For
+    // hours that run past midnight (22–06) "today" is the session: the quest
+    // waits for the next one, instead of coming back at 00:00 the same night.
+    ...(q.status === 'NOT_TODAY' ? { notBefore: workDayEndUtc(now, tzOffsetMin, workingHours) } : {}),
     remainingMin: remaining,
     totalMin: total,
     deadline,
@@ -182,8 +189,9 @@ export function questsToTasks(
   now: number = Date.now(),
   tzOffsetMin = 0,
   calibration: Calibration | null = null,
+  workingHours?: HoursWindow,
 ): Task[] {
   return quests
     .filter((q) => q.status !== 'COMPLETE')
-    .map((q) => questToTask(q, overridesById[q.id] ?? {}, now, tzOffsetMin, calibration));
+    .map((q) => questToTask(q, overridesById[q.id] ?? {}, now, tzOffsetMin, calibration, workingHours));
 }

@@ -20,6 +20,16 @@
  * stopped focus session replans, people skip blocks, overrun estimates and
  * get surprise homework. The outcome that matters is deadlines met.
  *
+ * Night-shift people (working hours that run past midnight: 22–06, 14–02)
+ * are a population of their own, numbered n0, n1, … and simulated after
+ * everyone else, so the ordinary people of a seed are exactly who they were
+ * before the archetype existed:
+ *
+ *   (default)             --n ordinary people, plus 6% as many night-shift
+ *   --no-night-shift      the ordinary people only (the pre-night-shift lab)
+ *   --only-night-shift    --n night-shift people and nobody else
+ *   --show n12            night-shift person 12 in detail
+ *
  * Pure: the same pipeline as routes/schedule.ts, no DB, no network, seeded.
  */
 
@@ -47,7 +57,7 @@ const triage = (budget as { triage?: (...a: unknown[]) => Set<string> }).triage 
 /** The judge's own rule: the check-in caps today only (the plan's first day, if that is today). */
 function todayCap(days: ReturnType<typeof buildDayInfo>, now: number, cfg: UserConfig): number | undefined {
   if (cfg.todayCapMin === undefined || !days.length) return undefined;
-  return dayIndexOf(days[0]!.workStart, cfg.tzOffsetMin ?? 0) === dayIndexOf(now, cfg.tzOffsetMin ?? 0) ? cfg.todayCapMin : undefined;
+  return ownDayOf(days[0]!.workStart, cfg) === ownDayOf(now, cfg) ? cfg.todayCapMin : undefined;
 }
 
 // ─── Args ─────────────────────────────────────────────────────────────────────
@@ -60,7 +70,20 @@ const arg = (name: string, def: string | null = null) => {
 const N = Number(arg('n', '1000'));
 const SEED = Number(arg('seed', '1'));
 const WEEK = argv.includes('--week') || arg('show') !== null;
-const SHOW = arg('show') === null ? null : Number(arg('show'));
+/**
+ * Night-shift people are numbered from here (shown as n0, n1, …). They get
+ * their own index range, random streams and quest ids, and run after the
+ * ordinary people: adding them to the weighted archetype draw would have
+ * re-rolled who everyone else is, and no number could be compared across it.
+ */
+const NIGHT_BASE = 1_000_000;
+/** Night-shift people per ordinary person in the default run. */
+const NIGHT_SHARE = 0.06;
+const NIGHT_MODE: 'add' | 'none' | 'only' = argv.includes('--no-night-shift') ? 'none' : argv.includes('--only-night-shift') ? 'only' : 'add';
+const isNight = (idx: number) => idx >= NIGHT_BASE;
+const label = (idx: number) => (isNight(idx) ? `n${idx - NIGHT_BASE}` : `${idx}`);
+const showArg = arg('show');
+const SHOW = showArg === null ? null : showArg.startsWith('n') ? NIGHT_BASE + Number(showArg.slice(1)) : Number(showArg);
 const ONLY_FLAG = arg('flag');
 const EXAMPLES = Number(arg('examples', '3'));
 /** Route behaviours that are simulated, so fixes can be A/B'd from here. */
@@ -102,11 +125,13 @@ function weighted<T>(r: Rng, xs: ReadonlyArray<readonly [T, number]>): T {
 
 // ─── People ───────────────────────────────────────────────────────────────────
 
-type Archetype =
+type OrdinaryArchetype =
   | 'ib-student' | 'uni-student' | 'office' | 'freelancer' | 'parent'
   | 'night-owl' | 'shift-worker' | 'overcommitter' | 'minimalist' | 'procrastinator' | 'newbie';
+/** night-shift: working hours that run past midnight. Never drawn from the weights below (see NIGHT_BASE). */
+type Archetype = OrdinaryArchetype | 'night-shift';
 
-const ARCHETYPES: ReadonlyArray<readonly [Archetype, number]> = [
+const ARCHETYPES: ReadonlyArray<readonly [OrdinaryArchetype, number]> = [
   ['ib-student', 18], ['uni-student', 12], ['office', 14], ['freelancer', 8], ['parent', 8],
   ['night-owl', 7], ['shift-worker', 5], ['overcommitter', 9], ['minimalist', 6], ['procrastinator', 8], ['newbie', 5],
 ];
@@ -144,7 +169,25 @@ const localHourOf = (t: number, tz: number) => {
   return d.getUTCHours() + d.getUTCMinutes() / 60;
 };
 const dayIndexOf = (t: number, tz: number) => Math.floor((t - baseMidnight(tz)) / DAY);
-const fmt = (t: number, tz: number) => new Date(t - tz * MIN).toISOString().slice(11, 16);
+
+// The judge's own reading of hours that run past midnight (22–06, 14–02),
+// written here rather than imported: the grader must not inherit the
+// planner's idea of a day. For ordinary hours every one of these is the
+// calendar day, so nothing below changes for them.
+/** The window ends on the next date. */
+const pastMidnight = (cfg: UserConfig) => cfg.workingHours.endHour < cfg.workingHours.startHour;
+/** Hours in the working window. */
+const windowLen = (cfg: UserConfig) => cfg.workingHours.endHour - cfg.workingHours.startHour + (pastMidnight(cfg) ? 24 : 0);
+/**
+ * When this person's day turns over, in ms after midnight. At 01:00 with
+ * hours 22–06 they are mid-session and it is still "today" until 06:00:
+ * the check-in, Not Today and routines all mean this night, not this date.
+ */
+const dayTurn = (cfg: UserConfig) => (pastMidnight(cfg) ? cfg.workingHours.endHour * HOUR : 0);
+/** Index of the person's own day at `t` (the calendar day, for ordinary hours). */
+const ownDayOf = (t: number, cfg: UserConfig) => dayIndexOf(t - dayTurn(cfg), cfg.tzOffsetMin ?? 0);
+
+const fmt =(t: number, tz: number) => new Date(t - tz * MIN).toISOString().slice(11, 16);
 const wd = (t: number, tz: number) => ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][new Date(t - tz * MIN).getUTCDay()]!;
 
 function peakCurve(peak: number, width: number, floor = 0.15): (h: number) => number {
@@ -156,10 +199,12 @@ function peakCurve(peak: number, width: number, floor = 0.15): (h: number) => nu
 }
 
 let questSeq = 0;
+/** `q` for ordinary people (one running count, as ever); `n<j>q` per night-shift person. */
+let questPrefix = 'q';
 function makeQuest(r: Rng, p: { tz: number; now: number }, over: Partial<QuestLike> & { title: string }): QuestLike {
   questSeq += 1;
   return {
-    id: `q${questSeq}`,
+    id: `${questPrefix}${questSeq}`,
     estimatedMinutes: 60,
     mentalLoad: 5,
     impact: 5,
@@ -273,6 +318,16 @@ function calendar(r: Rng, a: Archetype, tz: number): CalEvent[] {
       case 'night-owl':
         if (!weekend && chance(r, 0.5)) add(d, 13, 14, 'Standup');
         break;
+      case 'night-shift':
+        // A job in the day or the evening, before their own hours; and now
+        // and then something inside the night, on either side of midnight.
+        if (d % 7 < 5 || chance(r, 0.2)) {
+          const [s, e] = ([[8, 16], [13, 21], [16, 21.5]] as const)[shiftPattern]!;
+          add(d, s, e, 'Shift');
+        }
+        if (chance(r, 0.15)) add(d, 23.5, 24.75, 'Night class');
+        if (chance(r, 0.1)) { const h = pick(r, [24.5, 26, 27.5]); add(d, h, h + 1, 'Call across timezones'); }
+        break;
       default:
         if (chance(r, 0.15)) { const h = int(r, 9, 18); add(d, h, h + 1, 'Appointment'); }
     }
@@ -295,15 +350,25 @@ const DAILY_POOL: Array<{ name: string; min: [number, number]; pref: number | nu
 
 function makePerson(idx: number): Person {
   const r = mulberry32(SEED * 100_003 + idx * 7919);
-  const archetype = weighted(r, ARCHETYPES);
+  // Night-shift people are picked by index, not by this draw (it still
+  // happens, so an ordinary person's stream is what it always was).
+  const night = isNight(idx);
+  const drawn = weighted(r, ARCHETYPES);
+  const archetype: Archetype = night ? 'night-shift' : drawn;
   const tz = pick(r, TZS);
   const cfg: UserConfig = { ...defaultConfig(), tzOffsetMin: tz };
 
   // Most people never open Settings; the rest set roughly their real window.
-  const tunedHours = chance(r, archetype === 'newbie' ? 0 : 0.6);
-  const hoursFor: Record<Archetype, [number, number]> = {
+  // (Night-shift people all have: hours past midnight are what makes them one.)
+  const tunedHours = chance(r, archetype === 'newbie' ? 0 : 0.6) || night;
+  // A night shift, the small hours, or an afternoon that runs into the night.
+  const nightHours = night
+    ? weighted(r, [[[22, 6], 5], [[14, 2], 2.5], [[20, 4], 1.5], [[18, 1.5], 1], [[23, 7], 1]] as const)
+    : ([22, 6] as const);
+  const hoursFor: Record<Archetype, readonly [number, number]> = {
     'ib-student': [15.5, 21.5], 'uni-student': [10, 22], office: [9, 17.5], freelancer: [8, 19], parent: [8.5, 21],
     'night-owl': [13, 24], 'shift-worker': [8, 23], overcommitter: [7, 22], minimalist: [9, 18], procrastinator: [15.5, 23], newbie: [9, 18],
+    'night-shift': nightHours,
   };
   if (tunedHours) {
     const [s, e] = hoursFor[archetype];
@@ -312,7 +377,8 @@ function makePerson(idx: number): Person {
     cfg.workingHours = { startHour: Math.max(0, s + js), endHour: Math.min(24, e + je) };
   }
 
-  const energy = weighted(r, [['default', 4], ['lark', 2], ['afternoon', 2], ['owl', archetype === 'night-owl' ? 20 : 1.5]] as const);
+  // Most night-shift people are owls, but not all: some bodies never agree to the rota.
+  const energy = weighted(r, [['default', 4], ['lark', 2], ['afternoon', 2], ['owl', archetype === 'night-owl' ? 20 : night ? 10 : 1.5]] as const);
   const trueEnergy =
     energy === 'default' ? DEFAULT_ENERGY_CURVE
     : energy === 'lark' ? peakCurve(8.5, 3)
@@ -328,11 +394,15 @@ function makePerson(idx: number): Person {
 
   // "Now" is when they open the Feed: a real, unrounded moment of a random day.
   const openDay = int(r, 0, 6);
-  const openHour = weighted(r, [[7.2, 2], [8.6, 3], [12.4, 2], [15.8, 3], [19.3, 3], [22.7, 1.5], [0.8, 0.5]] as const);
+  // Night-shift people open it mid-session after midnight far more often,
+  // just after the session, and in the afternoon before the next one.
+  const openHour = night
+    ? weighted(r, [[0.6, 2], [2.4, 2], [4.5, 1.5], [6.3, 1], [12.4, 1], [16.8, 2], [20.6, 2], [22.1, 3], [23.0, 2]] as const)
+    : weighted(r, [[7.2, 2], [8.6, 3], [12.4, 2], [15.8, 3], [19.3, 3], [22.7, 1.5], [0.8, 0.5]] as const);
   const now = baseMidnight(tz) + openDay * DAY + (openHour + r() * 0.9) * HOUR;
   const p = { tz, now };
 
-  const mixes: Record<Archetype, [number, DeadlineMix, number]> = {
+  const mixes: Record<OrdinaryArchetype, [number, DeadlineMix, number]> = {
     'ib-student': [int(r, 5, 14), { none: 2, today: 1, soon: 3, week: 3, far: 2, overdue: 0.3, notToday: 0.04 }, 0.6],
     'uni-student': [int(r, 6, 15), { none: 3, today: 0.7, soon: 2, week: 3, far: 2, overdue: 0.3, notToday: 0.04 }, 0.5],
     office: [int(r, 4, 12), { none: 4, today: 1, soon: 2, week: 2, far: 1, overdue: 0.2, notToday: 0.03 }, 0.3],
@@ -345,7 +415,12 @@ function makePerson(idx: number): Person {
     procrastinator: [int(r, 6, 14), { none: 2, today: 3, soon: 4, week: 1, far: 0.5, overdue: 1.5, notToday: 0.1 }, 0.5],
     newbie: [int(r, 2, 6), { none: 6, today: 0.3, soon: 1, week: 1, far: 0.5, overdue: 0, notToday: 0 }, 0.2],
   };
-  const [count, mix, big] = mixes[archetype];
+  // (Not a row of the table above: every row draws, and one more draw would
+  // re-roll every ordinary person's quests.)
+  const nightMix: [number, DeadlineMix, number] | null = night
+    ? [int(r, 4, 12), { none: 3, today: 1, soon: 2.5, week: 2.5, far: 2, overdue: 0.3, notToday: 0.08 }, 0.4]
+    : null;
+  const [count, mix, big] = nightMix ?? mixes[archetype as OrdinaryArchetype];
   const quests = questList(r, p, count, mix, big);
 
   // Dailies: recurring quests, clipped by the route the way it does today.
@@ -364,6 +439,12 @@ function makePerson(idx: number): Person {
       preferredHour: d.pref ?? (chance(r, 0.3) ? int(r, 7, 21) : null),
       enabled: true,
     });
+  }
+  // A routine at an hour after midnight, inside the night's window.
+  if (night && chance(r, 0.4)) {
+    const id = 'recurring:Shift meal';
+    dailyAsked.set(id, 30);
+    dailies.push({ id, name: 'Shift meal', durationMin: 30, preferredHour: pick(r, [0, 1, 2, 3]), enabled: true });
   }
 
   // A third check in: energy scales their curve, available minutes caps today.
@@ -422,7 +503,7 @@ function history(p: Person): Sample[] {
 function build(p: Person, quests: QuestLike[], now: number, cfg: UserConfig = p.cfg, calibration: Calibration | null = calibrateEstimates(history(p))): Built {
   const cal = eventsToFixedBlocks(p.events, now).filter((b) => b.start < now + (cfg.horizonDays + 1) * DAY);
   const fixed = [...cal, ...fillersFor(p, now, cal, quests, new Set())];
-  const tasks = questsToTasks(quests, {}, now, p.tz, calibration);
+  const tasks = questsToTasks(quests, {}, now, p.tz, calibration, cfg.workingHours);
   const t0 = performance.now();
   const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, cfg, now);
   return { tasks, fixed, schedule, issues: feasibilityReport.issues, ms: performance.now() - t0 };
@@ -516,16 +597,27 @@ function gradePlan(p: Person, b: Built): Finding[] {
   if (b.ms > 250) f.push({ flag: 'slow', detail: `${b.ms.toFixed(0)} ms for ${tasks.length} quests` });
 
   // ── Hard invariants ──
+  // Not Today on the judge's own clock: nothing until the person's day is
+  // over. For hours that run past midnight that is the end of the session,
+  // so the planner's own `notBefore` is not taken on trust there (a quest
+  // waved off at 23:00 and planned again at 00:10 is the bug to catch).
+  const heldUntil = baseMidnight(tz) + (ownDayOf(now, cfg) + 1) * DAY + dayTurn(cfg);
   for (const w of work) {
     const t = byId.get(w.taskId!)!;
     if (w.end > t.deadline + 1000) f.push({ flag: 'INV past-deadline', detail: `"${t.name}" at ${at(w.start)} after its deadline` });
     if (w.start < now - 1000) f.push({ flag: 'INV before-now', detail: `"${t.name}" at ${at(w.start)}` });
-    if (t.notBefore && w.start < t.notBefore) f.push({ flag: 'INV not-today-ignored', detail: `"${t.name}" today at ${at(w.start)}` });
+    if (t.notBefore && w.start < Math.max(t.notBefore, pastMidnight(cfg) ? heldUntil : 0)) f.push({ flag: 'INV not-today-ignored', detail: `"${t.name}" today at ${at(w.start)}` });
     const fx = fixed.find((x) => x.start < w.end && w.start < x.end);
     if (fx) f.push({ flag: 'INV overlaps-fixed', detail: `"${t.name}" ${at(w.start)} on "${fx.note}"` });
     const h0 = localHourOf(w.start, tz);
     const h1 = localHourOf(w.end, tz) || 24;
-    if (h0 < cfg.workingHours.startHour - 0.01 || h1 > cfg.workingHours.endHour + 0.01)
+    // A window that ends tomorrow is measured from its start: 23:30–00:20
+    // is inside 22–06, 21:40 and 06:10 are not. (The clock comparison in
+    // the other branch calls every block of a night shift outside its hours.)
+    const outside = pastMidnight(cfg)
+      ? ((h0 - cfg.workingHours.startHour + 24.01) % 24) - 0.01 + (w.end - w.start) / HOUR > windowLen(cfg) + 0.01
+      : h0 < cfg.workingHours.startHour - 0.01 || h1 > cfg.workingHours.endHour + 0.01;
+    if (outside)
       f.push({ flag: 'INV outside-hours', detail: `"${t.name}" ${at(w.start)}–${fmt(w.end, tz)}` });
   }
   for (let i = 1; i < work.length; i++)
@@ -571,11 +663,11 @@ function gradePlan(p: Person, b: Built): Finding[] {
     let idle = 0;
     let where = '';
     // Today's time beyond the check-in's "minutes available" isn't idle.
-    const todayUsed = work.filter((w) => dayIndexOf(w.start, tz) === dayIndexOf(now, tz)).reduce((a, w) => a + mins(w), 0);
+    const todayUsed = work.filter((w) => ownDayOf(w.start, cfg) === ownDayOf(now, cfg)).reduce((a, w) => a + mins(w), 0);
     const capToday = todayCap(o.days, now, cfg);
     const todayFull = capToday !== undefined && todayUsed >= capToday - 5;
     for (const d of o.days) for (const iv of d.freeIntervals) {
-      if (todayFull && dayIndexOf(d.workStart, tz) === dayIndexOf(now, tz)) continue;
+      if (todayFull && ownDayOf(d.workStart, cfg) === ownDayOf(now, cfg)) continue;
       const s0 = Math.max(iv.start, from);
       const e0 = Math.min(iv.end, t.deadline);
       if (e0 <= s0) continue;
@@ -591,9 +683,13 @@ function gradePlan(p: Person, b: Built): Finding[] {
   }
 
   // ── Today ──
-  const today = o.days[0] && o.days[0].key === (o.days[0]?.key ?? '') && dayIndexOf(o.days[0].workStart, tz) === dayIndexOf(now, tz) ? o.days[0] : null;
-  const todayWork = work.filter((w) => dayIndexOf(w.start, tz) === dayIndexOf(now, tz));
-  const eligibleToday = tasks.filter((t) => t.remainingMin > 0.5 && t.deadline > now && !(t.notBefore && t.notBefore > now + 12 * HOUR));
+  // "Today" is the person's own day: at 01:00 mid-session it is the night
+  // that began on yesterday's date, and its work runs on past midnight.
+  const today = o.days[0] && o.days[0].key === (o.days[0]?.key ?? '') && ownDayOf(o.days[0].workStart, cfg) === ownDayOf(now, cfg) ? o.days[0] : null;
+  const todayWork = work.filter((w) => ownDayOf(w.start, cfg) === ownDayOf(now, cfg));
+  // (Past midnight, a Not Today quest is held however few hours of the day are left.)
+  const heldToday = (t: Task) => (pastMidnight(cfg) ? t.notBefore !== undefined : !!(t.notBefore && t.notBefore > now + 12 * HOUR));
+  const eligibleToday = tasks.filter((t) => t.remainingMin > 0.5 && t.deadline > now && !heldToday(t));
   const todayFree = today ? today.freeIntervals.reduce((a, iv) => a + (iv.end - iv.start) / MIN, 0) : 0;
   const checkInCap = cfg.todayCapMin ?? Infinity;
   if (today && todayFree >= 60 && checkInCap >= 30 && eligibleToday.reduce((a, t) => a + t.remainingMin, 0) >= 30 && todayWork.length === 0)
@@ -613,19 +709,22 @@ function gradePlan(p: Person, b: Built): Finding[] {
   // ── Horizon coverage ──
   const planDays = o.days.length;
   const wantDays = cfg.horizonDays;
-  if (planDays < wantDays - 1 && cfg.workingHours.endHour > cfg.workingHours.startHour)
+  // (This used to excuse hours with the end before the start, which planned
+  // nothing at all. They are a night shift now and owe a full horizon too.)
+  if (planDays < wantDays - 1)
     f.push({ flag: 'short-horizon', detail: `${planDays}/${wantDays} days planned` });
 
   // ── Day shape ──
+  // One night's work is one day, though it lies on two dates.
   const byDay = new Map<number, Block[]>();
   for (const w of work) {
-    const k = dayIndexOf(w.start, tz);
+    const k = ownDayOf(w.start, cfg);
     byDay.set(k, [...(byDay.get(k) ?? []), w]);
   }
   const loadRatio = o.need / Math.max(1, o.capacity);
   for (const [k, ws] of byDay) {
     const total = ws.reduce((a, w) => a + mins(w), 0);
-    const info = o.days.find((d) => dayIndexOf(d.workStart, tz) === k);
+    const info = o.days.find((d) => ownDayOf(d.workStart, cfg) === k);
     const cap = info ? info.freeIntervals.reduce((a, iv) => a + workableMin((iv.end - iv.start) / MIN, cfg.breakPolicy), 0) : 0;
     // Only work that could have gone elsewhere counts: due two or more days later.
     const movable = ws.filter((w) => byId.get(w.taskId!)!.deadline - w.end > 2 * DAY).reduce((a, w) => a + mins(w), 0);
@@ -661,7 +760,12 @@ function gradePlan(p: Person, b: Built): Finding[] {
   const hardLowMin = hardLow.reduce((a, w) => a + mins(w), 0);
   if (hardMin >= 60 && hardLowMin / hardMin > 0.4)
     f.push({ flag: `energy-misfit (${p.energyLabel})`, detail: `${Math.round((hardLowMin / hardMin) * 100)}% of heavy work at the person's low-energy hours` });
-  const hardLate = work.filter((w) => byId.get(w.taskId!)!.cognitiveLoad >= 0.7 && localHourOf(w.start, tz) >= 21.5 && p.energyLabel !== 'owl');
+  // Past midnight is later still than 21:30 (the clock test alone passes
+  // 01:00); and hours that only begin at 21:30 or after have nowhere
+  // earlier to put heavy work, so there is nothing to hold against the plan.
+  const isLate = (h: number) =>
+    pastMidnight(cfg) ? cfg.workingHours.startHour < 21.5 && (h >= 21.5 || h < cfg.workingHours.endHour) : h >= 21.5;
+  const hardLate = work.filter((w) => byId.get(w.taskId!)!.cognitiveLoad >= 0.7 && isLate(localHourOf(w.start, tz)) && p.energyLabel !== 'owl');
   if (hardLate.length) f.push({ flag: 'heavy-late', detail: `${hardLate.length} heavy block(s) from 21:30 for a non-owl` });
 
   // ── Routines ──
@@ -674,10 +778,10 @@ function gradePlan(p: Person, b: Built): Finding[] {
   // Today is exempt for routines with a time: once it's long gone, skipping is right.
   const calendarOnly = fixed.filter((x) => !x.note?.startsWith('Daily:'));
   for (const info of o.days.length ? buildDayInfo(cfg, now, calendarOnly) : []) {
-    const k = dayIndexOf(info.workStart, tz);
+    const k = ownDayOf(info.workStart, cfg);
     for (const d of p.dailies) {
-      if (k === dayIndexOf(now, tz) && (d.preferredHour !== null || /morning|evening|night|bed|lunch|afternoon/i.test(d.name))) continue;
-      const on = dailyBlocks.some((x) => x.note === `Daily: ${d.name}` && dayIndexOf(x.start, tz) === k);
+      if (k === ownDayOf(now, cfg) && (d.preferredHour !== null || /morning|evening|night|bed|lunch|afternoon/i.test(d.name))) continue;
+      const on = dailyBlocks.some((x) => x.note === `Daily: ${d.name}` && ownDayOf(x.start, cfg) === k);
       const room = info.freeIntervals.reduce((a, iv) => Math.max(a, (iv.end - iv.start) / MIN), 0);
       if (!on && room >= d.durationMin + 60) { f.push({ flag: 'daily-dropped', detail: `"${d.name}"${d.preferredHour !== null ? ` @${d.preferredHour}` : ''} ${d.durationMin}m missing on ${wd(info.workStart, tz)} (hours ${cfg.workingHours.startHour}–${cfg.workingHours.endHour}, opened ${at(now)})` }); break; }
     }
@@ -730,7 +834,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     ...quests.filter((q) => q.status === 'COMPLETE' && (q.actualMinutes ?? 0) > 0)
       .map((q) => ({ category: q.category ?? null, estimatedMinutes: q.estimatedMinutes, actualMinutes: q.actualMinutes! })),
   ]);
-  const tasksAt = (t: number) => questsToTasks(quests.filter((q) => q.status !== 'RESCUE'), {}, t, tz, calibration());
+  const tasksAt = (t: number) => questsToTasks(quests.filter((q) => q.status !== 'RESCUE'), {}, t, tz, calibration(), p.cfg.workingHours);
   const regen = (t: number) => {
     const b = build(p, quests.filter((q) => q.status !== 'RESCUE'), t, t === p.now ? p.cfg : cfgNoCap, calibration());
     schedule = b.schedule;
@@ -741,7 +845,8 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     const cal = eventsToFixedBlocks(p.events, t).filter((b) => b.start < t + (p.cfg.horizonDays + 1) * DAY);
     const current = [...schedule.filter((b) => !isCalendarBlock(b)), ...cal];
     // routes/schedule.ts topUpRoutines: routines for days that lack them.
-    const dayOf = (x: Block) => `${x.note}|${dayIndexOf(x.start, tz)}`;
+    // (By the person's own day: a 02:00 routine belongs to the night before.)
+    const dayOf = (x: Block) => `${x.note}|${ownDayOf(x.start, p.cfg)}`;
     const have = new Set(current.filter((b) => b.note?.startsWith('Daily:')).map(dayOf));
     const routines = POLICY.morningRefresh
       ? placeDailyFillers({ fillers: p.dailies, now: t, horizonDays: p.cfg.horizonDays, workingHours: p.cfg.workingHours, existingFixed: current.filter((b) => b.end > t), tzOffsetMin: tz, idPrefix: `f${t}` }).filter((b) => !have.has(dayOf(b)))
@@ -771,12 +876,20 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
   let noDailyDays = 0;
   let qn = 0;
 
+  // Seven of the person's own days. For hours that run past midnight a day
+  // is a night: it starts on one date and ends when the session closes on
+  // the next, and everything that used to say "midnight" below (Not Today
+  // ending, the day's blocks, deadlines passing) follows that instead.
+  // Walking calendar dates cut each night in two at 00:00 and never lived
+  // the hours after it.
   for (let d = 0; d < 7; d++) {
-    const dayIdx = dayIndexOf(p.now, tz) + d;
-    const dayStart = baseMidnight(tz) + dayIdx * DAY;
-    const wake = Math.max(t, dayStart + Math.max(6.5, p.cfg.workingHours.startHour - 0.5) * HOUR);
+    const dayIdx = ownDayOf(p.now, p.cfg) + d;
+    /** Midnight of the date this day's window starts on. */
+    const midnight = baseMidnight(tz) + dayIdx * DAY;
+    const dayStart = midnight + dayTurn(p.cfg);
+    const wake = Math.max(t, midnight + Math.max(6.5, p.cfg.workingHours.startHour - 0.5) * HOUR);
     t = wake;
-    // lib/deferral.ts reviveDeferred: "Not Today" ends at local midnight.
+    // lib/deferral.ts reviveDeferred: "Not Today" ends when the person's day does.
     if (d > 0) for (const q of quests) if (q.status === 'NOT_TODAY') q.status = 'ACTIVE';
 
     // Opening the Feed: fetch; generate only when the stored plan is empty.
@@ -790,7 +903,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     if (p.dailies.length && !schedule.some((b) => b.note?.startsWith('Daily:') && b.start >= dayStart && b.start < todayEnd)) noDailyDays++;
 
     // Surprise homework / a new ask lands mid-day.
-    const surpriseAt = chance(r, p.surprisePerDay) ? dayStart + (p.cfg.workingHours.startHour + r() * Math.max(1, p.cfg.workingHours.endHour - p.cfg.workingHours.startHour)) * HOUR : Infinity;
+    const surpriseAt = chance(r, p.surprisePerDay) ? midnight + (p.cfg.workingHours.startHour + r() * Math.max(1, windowLen(p.cfg))) * HOUR : Infinity;
 
     // Walk the day's blocks as they come.
     let guard = 0;
@@ -871,36 +984,47 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
 
 function timeline(p: Person, b: Built): string {
   const byId = new Map(b.tasks.map((t) => [t.id, t]));
-  const days = [...new Set(b.schedule.filter((x) => x.end > p.now).map((x) => dayIndexOf(x.start, p.tz)))].sort((x, y) => x - y).slice(0, 3);
+  const days = [...new Set(b.schedule.filter((x) => x.end > p.now).map((x) => ownDayOf(x.start, p.cfg)))].sort((x, y) => x - y).slice(0, 3);
   return days
     .map((k) => {
       const rows = b.schedule
-        .filter((x) => dayIndexOf(x.start, p.tz) === k && x.end > p.now)
+        .filter((x) => ownDayOf(x.start, p.cfg) === k && x.end > p.now)
         .map((x) => {
           const t = x.taskId ? byId.get(x.taskId) : null;
           const label = t ? `${t.name} [${t.remainingMin}m left, load ${Math.round(t.cognitiveLoad * 10)}, due ${wd(t.deadline, p.tz)} ${fmt(t.deadline, p.tz)}]` : x.note ?? x.type;
           return `     ${fmt(x.start, p.tz)}–${fmt(x.end, p.tz)} ${String(mins(x)).padStart(3)}m  ${label}`;
         });
-      return `   ${wd(b.schedule.find((x) => dayIndexOf(x.start, p.tz) === k)!.start, p.tz)}\n${rows.join('\n')}`;
+      return `   ${wd(b.schedule.find((x) => ownDayOf(x.start, p.cfg) === k)!.start, p.tz)}\n${rows.join('\n')}`;
     })
     .join('\n');
 }
 
 function describe(p: Person) {
   const h = p.cfg.workingHours;
-  return `#${p.idx} ${p.archetype}, UTC${p.tz <= 0 ? '+' : '-'}${Math.abs(p.tz / 60)}, hours ${h.startHour}–${h.endHour}, energy ${p.energyLabel}, ${p.quests.length} quests, ${p.dailies.length} dailies, ${p.events.length} events, opened ${wd(p.now, p.tz)} ${fmt(p.now, p.tz)}${p.cfg.todayCapMin !== undefined ? `, check-in cap ${p.cfg.todayCapMin}m` : ''}`;
+  return `#${label(p.idx)} ${p.archetype}, UTC${p.tz <= 0 ? '+' : '-'}${Math.abs(p.tz / 60)}, hours ${h.startHour}–${h.endHour}, energy ${p.energyLabel}, ${p.quests.length} quests, ${p.dailies.length} dailies, ${p.events.length} events, opened ${wd(p.now, p.tz)} ${fmt(p.now, p.tz)}${p.cfg.todayCapMin !== undefined ? `, check-in cap ${p.cfg.todayCapMin}m` : ''}`;
 }
 
 const flagCount = new Map<string, { people: Set<number>; weight: number; examples: string[]; byArch: Map<string, number> }>();
 const archCount = new Map<string, number>();
 const times: number[] = [];
 let crashes = 0;
-const week = { due: 0, met: 0, worked: 0, planned: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0 };
+const newWeek = () => ({ due: 0, met: 0, worked: 0, planned: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0 });
+const week = newWeek();
+/** The same totals over the ordinary people only, to set beside a run from before night-shift people existed. */
+const weekOrdinary = newWeek();
 const weekByArch = new Map<string, { due: number; met: number }>();
 
-const start = SHOW ?? 0;
-const end = SHOW !== null ? SHOW + 1 : N;
-for (let i = start; i < end; i++) {
+const range = (k: number, from = 0) => Array.from({ length: k }, (_, j) => from + j);
+const everyone =
+  SHOW !== null ? [SHOW]
+  : [
+      ...(NIGHT_MODE === 'only' ? [] : range(N)),
+      ...(NIGHT_MODE === 'none' ? [] : range(NIGHT_MODE === 'only' ? N : Math.round(N * NIGHT_SHARE), NIGHT_BASE)),
+    ];
+for (const i of everyone) {
+  // A night-shift person's quest ids are their own (n3q1, n3q2, …), so
+  // `--show n3` is the same person, with the same tie-breaks, as in a full run.
+  if (isNight(i)) { questPrefix = `${label(i)}q`; questSeq = 0; }
   const p = makePerson(i);
   archCount.set(p.archetype, (archCount.get(p.archetype) ?? 0) + 1);
   let findings: Finding[] = [];
@@ -914,18 +1038,22 @@ for (let i = start; i < end; i++) {
       // The same week followed perfectly: every miss left is the planner's.
       const ideal = liveWeek(p, false, 1);
       for (const f of ideal.findings) if (f.flag === 'week: missed deadline') findings.push({ flag: 'week: missed even when followed perfectly', detail: f.detail });
-      week.idealDue += ideal.due;
-      week.idealMet += ideal.met;
-      week.initialMet += ideal.initialMet;
-      week.initialBest += ideal.initialBest;
+      for (const w of isNight(i) ? [week] : [week, weekOrdinary]) {
+        w.idealDue += ideal.due;
+        w.idealMet += ideal.met;
+        w.initialMet += ideal.initialMet;
+        w.initialBest += ideal.initialBest;
+      }
       if (ideal.initialMet < ideal.initialBest)
         findings.push({ flag: 'week: fewer on time than possible (perfect follower)', detail: `${ideal.initialMet} of the week's starting deadlines met; ${ideal.initialBest} were possible`, weight: ideal.initialBest - ideal.initialMet });
       const life = liveWeek(p, SHOW !== null);
       findings.push(...life.findings);
-      week.due += life.due;
-      week.met += life.met;
-      week.worked += life.workedMin;
-      week.planned += life.plannedMin;
+      for (const w of isNight(i) ? [week] : [week, weekOrdinary]) {
+        w.due += life.due;
+        w.met += life.met;
+        w.worked += life.workedMin;
+        w.planned += life.plannedMin;
+      }
       const wa = weekByArch.get(p.archetype) ?? { due: 0, met: 0 };
       wa.due += life.due;
       wa.met += life.met;
@@ -958,7 +1086,7 @@ for (let i = start; i < end; i++) {
     const e = flagCount.get(f.flag) ?? { people: new Set(), weight: 0, examples: [], byArch: new Map() };
     if (!seen.has(f.flag)) {
       e.byArch.set(p.archetype, (e.byArch.get(p.archetype) ?? 0) + 1);
-      if (e.examples.length < EXAMPLES) e.examples.push(`#${i} ${p.archetype}: ${f.detail}`);
+      if (e.examples.length < EXAMPLES) e.examples.push(`#${label(i)} ${p.archetype}: ${f.detail}`);
     }
     e.people.add(i);
     e.weight += f.weight ?? 0;
@@ -968,16 +1096,22 @@ for (let i = start; i < end; i++) {
 }
 
 if (SHOW === null) {
-  const n = end - start;
+  const n = everyone.length;
+  const nights = everyone.filter(isNight).length;
   const sorted = [...times].sort((a, b) => a - b);
   const pct = (q: number) => sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))]?.toFixed(1);
-  console.log(`\nPopulation lab · ${n} people · seed ${SEED}${WEEK ? ' · lived one week each' : ''}${POLICY.morningRefresh ? '' : ' · no morning refresh'}${POLICY.clipDailies ? ' · dailies clipped to 60' : ''}`);
+  console.log(`\nPopulation lab · ${n} people${nights && nights < n ? ` (${n - nights} + ${nights} night-shift)` : ''} · seed ${SEED}${WEEK ? ' · lived one week each' : ''}${POLICY.morningRefresh ? '' : ' · no morning refresh'}${POLICY.clipDailies ? ' · dailies clipped to 60' : ''}`);
   console.log(`archetypes: ${[...archCount].map(([a, c]) => `${a} ${c}`).join(', ')}`);
   console.log(`plan time: p50 ${pct(0.5)} ms · p95 ${pct(0.95)} ms · max ${pct(1)} ms · crashes ${crashes}`);
   if (WEEK) {
     console.log(`week: deadlines met ${week.met}/${week.due} (${((week.met / Math.max(1, week.due)) * 100).toFixed(1)}%) · followed perfectly ${week.idealMet}/${week.idealDue} (${((week.idealMet / Math.max(1, week.idealDue)) * 100).toFixed(1)}%) · worked ${Math.round(week.worked / 60)} h of ${Math.round(week.planned / 60)} h planned-and-reached`);
     console.log(`      starting deadlines, perfect follower: ${week.initialMet} met of ${week.initialBest} possible (${((week.initialMet / Math.max(1, week.initialBest)) * 100).toFixed(1)}% of the best any plan could do)`);
     console.log(`      by archetype: ${[...weekByArch].map(([a, w]) => `${a} ${((w.met / Math.max(1, w.due)) * 100).toFixed(0)}%`).join(' · ')}`);
+    // The line to hold against a baseline from before the night-shift people.
+    if (nights && nights < n) {
+      const o = weekOrdinary;
+      console.log(`      without night-shift: deadlines met ${o.met}/${o.due} (${((o.met / Math.max(1, o.due)) * 100).toFixed(1)}%) · followed perfectly ${o.idealMet}/${o.idealDue} (${((o.idealMet / Math.max(1, o.idealDue)) * 100).toFixed(1)}%) · ${o.initialMet} met of ${o.initialBest} possible (${((o.initialMet / Math.max(1, o.initialBest)) * 100).toFixed(1)}%)`);
+    }
   }
   console.log('');
   const rows = [...flagCount].filter(([k]) => !ONLY_FLAG || k.includes(ONLY_FLAG)).sort((a, b) => b[1].people.size - a[1].people.size);

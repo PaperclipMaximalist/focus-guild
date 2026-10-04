@@ -32,8 +32,8 @@ import {
   totalFromBreakdown,
   type PlacedRef,
 } from './planner.js';
-import { MIN_SITTING_MIN, minSitting } from './budget.js';
-import { userHourOf, userMidnightUtc } from './tz.js';
+import { MIN_SITTING_MIN, isToday, minSitting } from './budget.js';
+import { userHourOf } from './tz.js';
 import { composeWhy } from './explain.js';
 import type { DayBudget, FreeInterval } from './budget.js';
 import type { Block, Task, UserConfig } from './types.js';
@@ -432,7 +432,7 @@ const WINDOW_MIN_GAIN = 0.05;
  */
 export function focusWindow(budget: DayBudget, config: UserConfig, now: number): FreeInterval[] | null {
   const day = budget.day;
-  if (day.midnightUtc === userMidnightUtc(now, config.tzOffsetMin ?? 0)) return null;
+  if (isToday(day, now, config.tzOffsetMin ?? 0)) return null;
   const need = budget.quotas.reduce((m, q) => m + q.targetMin, 0);
   if (need <= 0) return null;
   if (!budget.quotas.some((q) => q.task.cognitiveLoad >= WINDOW_LOAD)) return null;
@@ -440,7 +440,9 @@ export function focusWindow(budget: DayBudget, config: UserConfig, now: number):
   const span = Math.ceil((need * WINDOW_SLACK + 20) / 5) * 5;
   if (span >= day.freeMinutes * 0.8) return null;
 
-  const hourAt = (t: number) => (t - day.midnightUtc) / (60 * MS_PER_MIN);
+  // Wrapped to 0–24: a window that runs past midnight (22–06) reaches hour 30
+  // of its day, and the energy curves read that as "no energy at all".
+  const hourAt = (t: number) => ((t - day.midnightUtc) / (60 * MS_PER_MIN)) % 24;
   const score = (s: number, e: number): { free: number; energy: number } => {
     let free = 0;
     let sum = 0;
