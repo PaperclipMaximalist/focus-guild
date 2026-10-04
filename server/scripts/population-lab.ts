@@ -76,6 +76,19 @@ const POLICY = {
   exact: argv.includes('--exact'),
   /** A returning user: a dozen finished quests already teach the planner their pace. */
   history: argv.includes('--history'),
+  /**
+   * The replan route reads today's check-in on every call, so the cap is in
+   * force for every replan of that day. (Before Oct 2026 the lab's replans
+   * dropped it, and its people worked uncapped from the first minute:
+   * --no-replan-cap.)
+   */
+  replanCap: !argv.includes('--no-replan-cap'),
+  /**
+   * People also edit: "Not Today" on the next quest, pin a block, lower an
+   * estimate, shorten their hours. Off by default so the week's numbers stay
+   * comparable; on, it exercises the replan invariants against edits.
+   */
+  edits: argv.includes('--edits'),
 };
 
 // ─── Seeded randomness ────────────────────────────────────────────────────────
@@ -708,8 +721,15 @@ interface Life {
   workedMin: number;
   plannedMin: number;
   replans: number;
+  /** Per replan trigger: blocks that were still valid going in, and how many of them moved. */
+  churn: Map<Trigger, { valid: number; moved: number; replans: number }>;
   log: string[];
 }
+
+/** Why the plan was rebuilt: the Feed opened, a focus session ended, a quest was added, the person edited. */
+type Trigger = 'open' | 'session' | 'new quest' | 'edit';
+
+const blockKey = (b: Block) => `${b.taskId}@${b.start}-${b.end}`;
 
 function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
   const r = mulberry32(SEED * 31 + p.idx * 131);
@@ -717,9 +737,13 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
   const quests: QuestLike[] = p.quests.map((q) => ({ ...q }));
   // What each quest really takes this person (unknown to the planner).
   const trueLeft = new Map(quests.map((q) => [q.id, Math.max(5, Math.round((q.estimatedMinutes * (POLICY.exact ? 1 : p.overrun * (0.8 + r() * 0.5))) - (q.actualMinutes ?? 0)))]));
-  const life: Life = { findings: [], due: 0, met: 0, initialMet: 0, initialBest: 0, missedFixable: 0, workedMin: 0, plannedMin: 0, replans: 0, log: [] };
+  const life: Life = { findings: [], due: 0, met: 0, initialMet: 0, initialBest: 0, missedFixable: 0, workedMin: 0, plannedMin: 0, replans: 0, churn: new Map(), log: [] };
   const log = (s: string) => { if (verbose) life.log.push(s); };
   const cfgNoCap = { ...p.cfg, todayCapMin: undefined };
+  // The check-in belongs to the day it was made on, and the route passes its
+  // cap to every plan of that day, replans included.
+  const cfgAt = (t: number): UserConfig =>
+    POLICY.replanCap && dayIndexOf(t, tz) === dayIndexOf(p.now, tz) ? p.cfg : cfgNoCap;
 
   let schedule: Block[] = [];
   let lastFixed: Block[] = [];
@@ -731,13 +755,113 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
       .map((q) => ({ category: q.category ?? null, estimatedMinutes: q.estimatedMinutes, actualMinutes: q.actualMinutes! })),
   ]);
   const tasksAt = (t: number) => questsToTasks(quests.filter((q) => q.status !== 'RESCUE'), {}, t, tz, calibration());
+  // ── Invariants: every plan of the week is held to them, not only the first ──
+  const inv = new Map<string, { n: number; detail: string }>();
+  const bad = (name: string, detail: string) => {
+    const e = inv.get(name) ?? { n: 0, detail };
+    e.n += 1;
+    inv.set(name, e);
+  };
+  /**
+   * Check the plan as it stands at `t`. `before` is the plan the replan
+   * started from (null after a full generate), for the churn measure.
+   */
+  const audit = (t: number, cfg: UserConfig, tasks: Task[], before: Block[] | null, trigger: Trigger) => {
+    const byId = new Map(tasks.map((x) => [x.id, x]));
+    const at = (x: number) => `${wd(x, tz)} ${fmt(x, tz)}`;
+    const ahead = schedule.filter((b) => b.end > t);
+    const work = ahead.filter(isWork).sort((a, b) => a.start - b.start);
+    const fixedAhead = ahead.filter((b) => b.type === 'fixed');
+    const onFixed = (b: Block) => fixedAhead.find((x) => x.start < b.end && b.start < x.end);
+    const aheadMin = new Map<string, number>();
+
+    for (let i = 0; i < work.length; i++) {
+      const w = work[i]!;
+      const task = byId.get(w.taskId!);
+      const label = `"${task?.name ?? w.taskId}" ${at(w.start)}–${fmt(w.end, tz)} (plan of ${at(t)})`;
+      if (i > 0 && w.start < work[i - 1]!.end - 1000) bad('work overlaps work', label);
+      const fx = onFixed(w);
+      if (fx) bad('work on a fixed block', `${label} on "${fx.note}"`);
+      // Nobody in this lab is mid-block when a replan runs: a block that
+      // began before now is one the person never started.
+      if (w.start < t - 1000) bad('work started before now', label);
+      if (!task) { bad('block for a quest that is gone', label); continue; }
+      if (w.end > task.deadline + 1000) bad('past deadline', label);
+      if (task.notBefore && w.start < task.notBefore) bad('before notBefore', label);
+      const h0 = localHourOf(w.start, tz);
+      const h1 = localHourOf(w.end, tz) || 24;
+      if (h0 < cfg.workingHours.startHour - 0.01 || h1 > cfg.workingHours.endHour + 0.01) bad('outside working hours', label);
+      aheadMin.set(task.id, (aheadMin.get(task.id) ?? 0) + (w.end - Math.max(w.start, t)) / MIN);
+    }
+    for (const [id, m] of aheadMin) {
+      const task = byId.get(id)!;
+      if (m > task.remainingMin + 1) bad('quest over-committed', `"${task.name}" ${Math.round(m)} min planned ahead, ${Math.round(task.remainingMin)} left (plan of ${at(t)})`);
+    }
+    for (const r of fixedAhead.filter((x) => x.note?.startsWith('Daily:'))) {
+      const c = fixedAhead.find((x) => !x.note?.startsWith('Daily:') && x.start < r.end && r.start < x.end);
+      if (c) bad('routine on a calendar block', `"${r.note}" ${at(r.start)} on "${c.note}"`);
+    }
+
+    // Today's quests, done or still to do, against the check-in's minutes.
+    if (cfg.todayCapMin !== undefined) {
+      const today = schedule.filter((b) => isWork(b) && dayIndexOf(b.start, tz) === dayIndexOf(t, tz)).reduce((a, b) => a + mins(b), 0);
+      if (today > cfg.todayCapMin + 5) bad('over check-in cap', `${today} min of quests today vs check-in ${cfg.todayCapMin} (plan of ${at(t)})`);
+    }
+
+    // The same replan again, at the same instant, changes nothing.
+    const again = replan(schedule, tasks, cfg, t).schedule.filter((b) => b.end > t && isWork(b)).map(blockKey).sort();
+    const first = work.map(blockKey).sort();
+    if (again.length !== first.length || again.some((k, i) => k !== first[i])) {
+      const gone = first.filter((k) => !again.includes(k)).length;
+      bad('replan twice differs', `${gone} of ${first.length} blocks moved, ${again.length - first.length + gone} added (plan of ${at(t)})`);
+    }
+
+    // Breaks are real after a replan too.
+    let streak = 0;
+    let worst = 0;
+    for (let i = 0; i < work.length; i++) {
+      const gap = i === 0 ? Infinity : work[i]!.start - work[i - 1]!.end;
+      streak = gap < 5 * MIN ? streak + mins(work[i]!) : mins(work[i]!);
+      worst = Math.max(worst, streak);
+    }
+    if (worst > 110) bad('no-break', `${worst} min without a 5-min break (plan of ${at(t)})`);
+
+    // Churn: of the blocks that were still good going in, how many moved.
+    // A block is still good when it lies ahead, its quest is open and still
+    // needs it, it ends before the deadline and nothing fixed landed on it.
+    if (before) {
+      const c = life.churn.get(trigger) ?? { valid: 0, moved: 0, replans: 0 };
+      c.replans += 1;
+      const now = new Set(work.map(blockKey));
+      const left = new Map(tasks.map((x) => [x.id, x.remainingMin]));
+      let valid = 0;
+      let moved = 0;
+      for (const b of before.filter((x) => isWork(x) && x.start >= t).sort((x, y) => x.start - y.start)) {
+        const task = byId.get(b.taskId!);
+        if (!task || b.end > task.deadline || (task.notBefore && b.start < task.notBefore) || onFixed(b)) continue;
+        left.set(task.id, left.get(task.id)! - mins(b));
+        if (left.get(task.id)! < -1) continue;
+        valid += 1;
+        if (!now.has(blockKey(b))) moved += 1;
+      }
+      c.valid += valid;
+      c.moved += moved;
+      life.churn.set(trigger, c);
+      // Opening the Feed the moment the plan was made changes nothing at all.
+      if (t === p.now && trigger === 'open' && (moved || work.length !== valid))
+        bad('no-change replan changed the plan', `${moved} of ${valid} blocks moved, ${work.length - (valid - moved)} added (plan of ${at(t)})`);
+    }
+  };
+
   const regen = (t: number) => {
-    const b = build(p, quests.filter((q) => q.status !== 'RESCUE'), t, t === p.now ? p.cfg : cfgNoCap, calibration());
+    const cfg = t === p.now ? p.cfg : cfgNoCap;
+    const b = build(p, quests.filter((q) => q.status !== 'RESCUE'), t, cfg, calibration());
     schedule = b.schedule;
     lastFixed = b.fixed;
     life.replans++;
+    audit(t, cfg, b.tasks, null, 'open');
   };
-  const re = (t: number) => {
+  const re = (t: number, trigger: Trigger) => {
     const cal = eventsToFixedBlocks(p.events, t).filter((b) => b.start < t + (p.cfg.horizonDays + 1) * DAY);
     const current = [...schedule.filter((b) => !isCalendarBlock(b)), ...cal];
     // routes/schedule.ts topUpRoutines: routines for days that lack them.
@@ -746,8 +870,12 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     const routines = POLICY.morningRefresh
       ? placeDailyFillers({ fillers: p.dailies, now: t, horizonDays: p.cfg.horizonDays, workingHours: p.cfg.workingHours, existingFixed: current.filter((b) => b.end > t), tzOffsetMin: tz, idPrefix: `f${t}` }).filter((b) => !have.has(dayOf(b)))
       : [];
-    schedule = replan([...current, ...routines], tasksAt(t), cfgNoCap, t).schedule;
+    const before = schedule;
+    const cfg = cfgAt(t);
+    const tasks = tasksAt(t);
+    schedule = replan([...current, ...routines], tasks, cfg, t).schedule;
     life.replans++;
+    audit(t, cfg, tasks, before, trigger);
   };
 
   // Deadlines that fall inside the lived week are what we score.
@@ -781,7 +909,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
 
     // Opening the Feed: fetch; generate only when the stored plan is empty.
     const future = schedule.filter((b) => b.end > t);
-    if (POLICY.morningRefresh) re(t);
+    if (POLICY.morningRefresh) re(t, 'open');
     else if (future.length === 0) regen(t);
     const todayEnd = dayStart + 24 * HOUR;
     const todays = () => schedule.filter((b) => isWork(b) && b.start >= t - 1 && b.start < todayEnd).sort((a, b) => a.start - b.start);
@@ -812,7 +940,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
         trueLeft.set(q.id, Math.round(q.estimatedMinutes * (POLICY.exact ? 1 : p.overrun)));
         if (q.deadline!.getTime() <= weekEnd) tracked.add(q.id);
         log(`${wd(t, tz)} ${fmt(t, tz)}  + new quest "${q.title}" ${q.estimatedMinutes}m due ${wd(q.deadline!.getTime(), tz)}`);
-        re(t);
+        re(t, 'new quest');
         continue;
       }
       if (!next) break;
@@ -837,7 +965,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
       } else {
         log(`${wd(next.start, tz)} ${fmt(next.start, tz)}  did "${q.title}" ${worked}m (${need - worked}m really left, plan thinks ${Math.max(0, q.estimatedMinutes - q.actualMinutes)})`);
       }
-      re(t);
+      re(t, 'session');
       // Overran its estimate, still open, a day or more to go, and nothing left for it in the plan.
       if (q.status === 'ACTIVE' && q.actualMinutes >= q.estimatedMinutes && (!q.deadline || q.deadline.getTime() > t + DAY) && !schedule.some((b) => b.taskId === q.id && b.end > t))
         vanished.add(q.id);
@@ -862,6 +990,9 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
   }
   if (stale) life.findings.push({ flag: 'week: stale morning (no work today)', detail: `${stale} morning(s) opened to nothing today while quests were pending` });
   if (noDailyDays >= 2) life.findings.push({ flag: 'week: dailies missing', detail: `${noDailyDays}/7 days without routines in the plan` });
+  // One finding per broken invariant, weighted by how many plans broke it.
+  for (const [name, e] of inv)
+    life.findings.push({ flag: name === 'no-break' ? 'week: no-break after a replan' : `week INV: ${name}`, detail: `${e.n}×, e.g. ${e.detail}`, weight: e.n });
   void lastFixed;
   void idleByQuest;
   return life;
@@ -895,7 +1026,8 @@ const flagCount = new Map<string, { people: Set<number>; weight: number; example
 const archCount = new Map<string, number>();
 const times: number[] = [];
 let crashes = 0;
-const week = { due: 0, met: 0, worked: 0, planned: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0 };
+const week = { due: 0, met: 0, worked: 0, planned: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0, replans: 0 };
+const weekChurn = new Map<Trigger, { valid: number; moved: number; replans: number }>();
 const weekByArch = new Map<string, { due: number; met: number }>();
 
 const start = SHOW ?? 0;
@@ -926,6 +1058,11 @@ for (let i = start; i < end; i++) {
       week.met += life.met;
       week.worked += life.workedMin;
       week.planned += life.plannedMin;
+      week.replans += life.replans;
+      for (const [k, c] of life.churn) {
+        const w = weekChurn.get(k) ?? { valid: 0, moved: 0, replans: 0 };
+        weekChurn.set(k, { valid: w.valid + c.valid, moved: w.moved + c.moved, replans: w.replans + c.replans });
+      }
       const wa = weekByArch.get(p.archetype) ?? { due: 0, met: 0 };
       wa.due += life.due;
       wa.met += life.met;
@@ -977,6 +1114,7 @@ if (SHOW === null) {
   if (WEEK) {
     console.log(`week: deadlines met ${week.met}/${week.due} (${((week.met / Math.max(1, week.due)) * 100).toFixed(1)}%) · followed perfectly ${week.idealMet}/${week.idealDue} (${((week.idealMet / Math.max(1, week.idealDue)) * 100).toFixed(1)}%) · worked ${Math.round(week.worked / 60)} h of ${Math.round(week.planned / 60)} h planned-and-reached`);
     console.log(`      starting deadlines, perfect follower: ${week.initialMet} met of ${week.initialBest} possible (${((week.initialMet / Math.max(1, week.initialBest)) * 100).toFixed(1)}% of the best any plan could do)`);
+    console.log(`      replans: ${(week.replans / Math.max(1, n)).toFixed(1)} per person · still-valid blocks moved by a replan: ${[...weekChurn].map(([k, c]) => `${k} ${((c.moved / Math.max(1, c.valid)) * 100).toFixed(1)}% (${c.replans})`).join(' · ')}`);
     console.log(`      by archetype: ${[...weekByArch].map(([a, w]) => `${a} ${((w.met / Math.max(1, w.due)) * 100).toFixed(0)}%`).join(' · ')}`);
   }
   console.log('');
