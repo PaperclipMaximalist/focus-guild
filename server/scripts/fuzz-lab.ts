@@ -9,6 +9,9 @@
  *                                                smallest case that still shows that class
  *   npm run lab:fuzz -- --only wild|api|ui       restrict to one tier of input
  *   npm run lab:fuzz -- --seeds                  list several ui-tier cases per class
+ *   npm run lab:fuzz -- --from 1900 --n 100      a slice of the run (FUZZ_PROGRESS=all names each case)
+ *   npm run lab:fuzz -- --show 1933 --print      a case's data without running it
+ *   npm run lab:fuzz -- --hazard                 include inputs known to never return (negative breaks)
  *   npm run lab:fuzz -- --scale                  runtime vs task count and horizon
  *   npm run lab:fuzz -- --probe                  documented behaviour on a few odd inputs
  *
@@ -64,6 +67,8 @@ const arg = (name: string, def: string | null = null) => {
 };
 const N = Number(arg('n', '1000'));
 const SEED = Number(arg('seed', '1'));
+/** First case number, to resume a run or bisect a crash. */
+const FROM = Number(arg('from', '0'));
 const SHOW = arg('show') === null ? null : Number(arg('show'));
 const SHRINK = arg('shrink') === null ? null : Number(arg('shrink'));
 const CLASS = arg('class');
@@ -230,7 +235,8 @@ const inRange = (v: number, lo: number, hi: number) => Number.isFinite(v) && v >
 /** True when routes/settings.ts, checkin.ts or schedule.ts would reject this config. */
 function cfgIsWild(c: Partial<CfgSpec>): boolean {
   const wh = c.workingHours;
-  if (wh && !(inRange(wh.startHour, 0, 23.5) && inRange(wh.endHour, 1, 24) && Number.isInteger(wh.startHour * 2) && Number.isInteger(wh.endHour * 2))) return true;
+  // An end before the start runs past midnight; start == end is refused (routes/settings.ts).
+  if (wh && !(inRange(wh.startHour, 0, 23.5) && inRange(wh.endHour, 0, 24) && Number.isInteger(wh.startHour * 2) && Number.isInteger(wh.endHour * 2) && spanHours(wh) > 0)) return true;
   if (c.horizonDays !== undefined && !isInt(c.horizonDays, 1, 30)) return true;
   if (c.softMaxBlockMin !== undefined && !isInt(c.softMaxBlockMin, 15, 480)) return true;
   const bp = c.breakPolicy;
@@ -280,6 +286,19 @@ function tierOf(c: Case): Tier {
 // ─── Generators ───────────────────────────────────────────────────────────────
 
 const localMidnight = (t: number, tz: number) => Math.floor((t - tz * MIN) / DAY) * DAY + tz * MIN;
+
+// Working hours whose end is before their start run past midnight (22–06).
+// Worked out here on purpose, not imported from tz.ts: the checker must not
+// share the planner's arithmetic.
+type Hours = { startHour: number; endHour: number };
+const crosses = (h: Hours) => h.endHour < h.startHour;
+function spanHours(h: Hours): number { const d = h.endHour - h.startHour; return d < 0 ? d + 24 : d; }
+/** When the user's day turns over, in ms after local midnight: the hour a night window closes. */
+const turnMs = (h: Hours) => (crosses(h) ? h.endHour * HOUR : 0);
+/** Local midnight of the date the working day containing `t` started on. */
+const workDayMidnight = (t: number, tz: number, h: Hours) => localMidnight(t - turnMs(h), tz);
+/** The working window that starts on the local day beginning at `mid`. */
+const windowOn = (mid: number, h: Hours) => ({ start: mid + h.startHour * HOUR, end: mid + (crosses(h) ? DAY : 0) + h.endHour * HOUR });
 
 /** getTimezoneOffset() values, including the :30 and :45 zones and both extremes. */
 const TZS = [-720, -765, -570, -345, -330, -60, 0, 0, 60, 210, 240, 300, 420, 480, 600, 840];
@@ -497,9 +516,8 @@ function genCfg(r: Rng, wild: boolean): CfgSpec {
       [{ startHour: 0, endHour: 24 }, 4], [{ startHour: 23.5, endHour: 24 }, 2], [{ startHour: 9, endHour: 9.5 }, 2],
       [{ startHour: 0, endHour: 1 }, 1], [{ startHour: 15.5, endHour: 21.5 }, 4], [{ startHour: 13, endHour: 24 }, 3],
       [{ startHour: 7, endHour: 22 }, 4],
-      // start >= end. A night-shift window is being built by someone else;
-      // today the plan has no working days at all (see --probe).
-      [{ startHour: 9, endHour: 9 }, 1], [{ startHour: 18, endHour: 9 }, 1], [{ startHour: 22, endHour: 6 }, 1],
+      // An end before the start: the window runs past midnight.
+      [{ startHour: 22, endHour: 6 }, 3], [{ startHour: 18, endHour: 9 }, 2], [{ startHour: 23.5, endHour: 0.5 }, 1], [{ startHour: 14, endHour: 0 }, 1],
       [{ startHour: int(r, 0, 47) / 2, endHour: int(r, 2, 48) / 2 }, 4],
     ] as const);
   }
@@ -529,7 +547,7 @@ function genCfg(r: Rng, wild: boolean): CfgSpec {
   // Out of range: each of these is refused by a route, so findings that need
   // them are robustness notes, not bugs a person can reach.
   if (chance(r, 0.3)) c.workingHours = pick(r, [
-    { startHour: -1, endHour: 25 }, { startHour: 9.25, endHour: 17.1 }, { startHour: NaN, endHour: 18 }, { startHour: 9, endHour: NaN }, { startHour: 0, endHour: 48 },
+    { startHour: 9, endHour: 9 }, { startHour: -1, endHour: 25 }, { startHour: 9.25, endHour: 17.1 }, { startHour: NaN, endHour: 18 }, { startHour: 9, endHour: NaN }, { startHour: 0, endHour: 48 },
   ]);
   if (chance(r, 0.25)) c.horizonDays = pick(r, [0, -1, 2.5, 45, NaN]);
   if (chance(r, 0.25)) c.softMaxBlockMin = pick(r, [0, 1, 5, 600, 10000, NaN, -30]);
@@ -538,6 +556,10 @@ function genCfg(r: Rng, wild: boolean): CfgSpec {
     { shortBreakAfterMin: 100000, shortBreakDurationMin: 100000, longBreakAfterMin: 100000, longBreakDurationMin: 100000 },
     { shortBreakDurationMin: -30 }, { shortBreakAfterMin: NaN }, { longBreakDurationMin: 100000 }, { shortBreakDurationMin: 100000 },
   ]);
+  // A negative break never ends: seed 1 case 1933 ran the process out of
+  // memory (2 GB) inside one planning call, which no in-process check can
+  // report. Left out unless --hazard asks for it, so a run can finish.
+  if (!argv.includes('--hazard') && (c.breakPolicy.shortBreakDurationMin ?? 0) < 0) c.breakPolicy = { shortBreakDurationMin: 0 };
   if (chance(r, 0.3)) {
     const keys = ['energy', 'urgency', 'batch', 'prefHour', 'monotony', 'tedium', 'cooldown', 'session'] as const;
     for (const k of keys) if (chance(r, 0.5)) c.scoreWeights[k] = pick(r, [-2, -4, 100, NaN]);
@@ -700,13 +722,14 @@ const BAD_TEXT = /undefined|NaN|Infinity|\[object|null|-\d/;
 /** The days the planner may use, worked out here independently of budget.ts. */
 function workingWindows(cfg: UserConfig, now: number): Array<{ mid: number; start: number; end: number }> {
   const tz = cfg.tzOffsetMin ?? 0;
-  const mid0 = localMidnight(now, tz);
+  const mid0 = workDayMidnight(now, tz, cfg.workingHours);
   const horizonEnd = now + cfg.horizonDays * DAY;
   const out: Array<{ mid: number; start: number; end: number }> = [];
   for (let d = 0; d < cfg.horizonDays && d < 400; d++) {
     const mid = mid0 + d * DAY;
-    const start = Math.max(mid + cfg.workingHours.startHour * HOUR, now);
-    const end = Math.min(mid + cfg.workingHours.endHour * HOUR, horizonEnd);
+    const w = windowOn(mid, cfg.workingHours);
+    const start = Math.max(w.start, now);
+    const end = Math.min(w.end, horizonEnd);
     if (end > start) out.push({ mid, start, end });
   }
   return out;
@@ -769,10 +792,11 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
   const beforePlace = new Set(before.filter((b) => b.type === 'work' && !b.locked).map(placeKey));
   const windows = workingWindows(cfg, now);
   const horizonEnd = now + cfg.horizonDays * DAY;
-  const today = localMidnight(now, tz);
+  // "Today" is the working day the user is in: for 22–06 it runs to 06:00.
+  const today = workDayMidnight(now, tz, cfg.workingHours) + turnMs(cfg.workingHours);
   const inHours = (b: Block) => {
-    const mid = localMidnight(b.start, tz);
-    return b.start >= mid + cfg.workingHours.startHour * HOUR && b.end <= mid + cfg.workingHours.endHour * HOUR;
+    const w = windowOn(workDayMidnight(b.start, tz, cfg.workingHours), cfg.workingHours);
+    return b.start >= w.start && b.end <= w.end;
   };
 
   type Kind = 'new' | 'kept' | 'pinned' | 'fixed';
@@ -894,7 +918,7 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
 
   // The check-in's "minutes available today".
   const cap = cfg.todayCapMin;
-  if (cap !== undefined && Number.isFinite(cap) && windows.length && windows[0]!.mid === today) {
+  if (cap !== undefined && Number.isFinite(cap) && windows.length && windows[0]!.mid <= localMidnight(now, tz)) {
     const limit = Math.max(0, cap) + 0.5;
     if (todayNew > limit) add(`cap:today-over-check-in-cap (${kind}, new work alone)`, `new today ${todayNew} min, cap ${cap}`);
     else if (todayNew > 0.5 && todayNew + todayKept > limit) add('cap:today-over-check-in-cap (replan added to kept work)', `kept ${todayKept} + new ${todayNew} min, cap ${cap}`);
@@ -964,9 +988,9 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
   const tasksNow = (): Task[] => {
     // The quest list revives "Not Today" once its local day is over (lib/deferral.ts).
     for (const q of c.quests) {
-      if (q.status === 'NOT_TODAY' && q.deferredAt !== undefined && localMidnight(now, tz()) > localMidnight(q.deferredAt, tz())) q.status = 'ACTIVE';
+      if (q.status === 'NOT_TODAY' && q.deferredAt !== undefined && q.deferredAt < workDayMidnight(now, tz(), cfg.workingHours) + turnMs(cfg.workingHours)) q.status = 'ACTIVE';
     }
-    const adapted = guard('questsToTasks', () => questsToTasks(c.quests.map(toQuestLike), {}, now, cfg.tzOffsetMin, cal)) ?? [];
+    const adapted = guard('questsToTasks', () => questsToTasks(c.quests.map(toQuestLike), {}, now, cfg.tzOffsetMin, cal, cfg.workingHours)) ?? [];
     return [...adapted, ...c.rawTasks];
   };
   const calendarNow = (): Block[] =>
@@ -1086,7 +1110,7 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
     const current = [...schedule.filter((b) => !isCalendarBlock(b)), ...calendarNow()];
     let routines: Block[] = [];
     if (topUp && c.fillers.length) {
-      const dayOf = (t: number) => Math.floor((t - tz() * MIN) / DAY);
+      const dayOf = (t: number) => Math.floor((t - turnMs(cfg.workingHours) - tz() * MIN) / DAY);
       const have = new Set(current.filter((b) => b.note?.startsWith('Daily:')).map((b) => `${b.note}|${dayOf(b.start)}`));
       const existing = current.filter((b) => b.end > now);
       const placed = guard('placeDailyFillers', () =>
@@ -1191,7 +1215,7 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
       case 'notToday': {
         const it = item(op.item);
         if (it?.q) { it.q.status = 'NOT_TODAY'; it.q.deferredAt = now; it.q.updatedAt = now; }
-        if (it?.t) it.t.notBefore = localMidnight(now, tz()) + DAY;
+        if (it?.t) it.t.notBefore = workDayMidnight(now, tz(), cfg.workingHours) + turnMs(cfg.workingHours) + DAY;
         log(`  [${step}] not today: ${it?.q?.id ?? it?.t?.id}`);
         break;
       }
@@ -1392,10 +1416,10 @@ function probes() {
   run('hours 0–24', { startHour: 0, endHour: 24 });
   run('hours 23.5–24', { startHour: 23.5, endHour: 24 });
   run('hours 9–9.5, opened 10:00', { startHour: 9, endHour: 9.5 });
-  run('hours 9–9 (start = end)', { startHour: 9, endHour: 9 });
-  run('hours 18–9 (start > end)', { startHour: 18, endHour: 9 });
-  run('hours 22–6 (night shift)', { startHour: 22, endHour: 6 });
-  run('hours 22–6, opened 23:00', { startHour: 22, endHour: 6 }, now + 13 * HOUR);
+  run('hours 22–6 (past midnight)', { startHour: 22, endHour: 6 });
+  run('hours 22–6, opened 01:00 (mid-session)', { startHour: 22, endHour: 6 }, now + 15 * HOUR);
+  run('hours 18–9', { startHour: 18, endHour: 9 });
+  run('hours 9–9 (refused by the settings route)', { startHour: 9, endHour: 9 });
 
   // Daylight saving: tzOffsetMin is one number for the whole plan.
   const ny = Date.UTC(2026, 9, 30, 14, 0); // Fri 30 Oct 2026 10:00 in New York (UTC-4); clocks go back Sun 1 Nov
@@ -1420,6 +1444,8 @@ function main() {
     showCase(small, DUMP);
     return;
   }
+  // --print: the case's data without running it (for a case that hangs or runs out of memory).
+  if (SHOW !== null && argv.includes('--print')) { const c = genCase(SHOW); console.log(`tier ${tierOf(c)}\n${pretty(c)}`); return; }
   if (SHOW !== null) { showCase(genCase(SHOW), DUMP); return; }
 
   // Warm the JIT, so the first cases aren't "slow" for the compiler's sake.
@@ -1432,11 +1458,12 @@ function main() {
   let calls = 0;
   const started = performance.now();
 
-  for (let i = 0; i < N; i++) {
+  for (let i = FROM; i < FROM + N; i++) {
     const c = genCase(i);
     const tier = tierOf(c);
     tiers[tier] += 1;
-    if (process.env['FUZZ_PROGRESS'] && i % 100 === 0) process.stderr.write(`case ${i}\n`);
+    // A hang or an out-of-memory can't be caught in-process: FUZZ_PROGRESS=all names the case.
+    if (process.env['FUZZ_PROGRESS'] === 'all' || (process.env['FUZZ_PROGRESS'] && i % 100 === 0)) process.stderr.write(`case ${i}\n`);
     const run = runCase(c);
     calls += run.timings.length;
     for (const t of run.timings) allTimings.push(t);
