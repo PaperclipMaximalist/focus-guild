@@ -64,6 +64,28 @@ const STARTER_MIN = 25;
 /** Strength of the peak guard, on the same scale as the score weights. */
 const PEAK_GUARD_WEIGHT = 1.2;
 
+/**
+ * Longest stretch of one quest with only short breaks in it. Past this a
+ * person needs a real change of pace, however the sittings are counted (the
+ * scenario lab flags "same quest for N min nearly straight" above it).
+ */
+const SAME_QUEST_RUN_MAX_MIN = 150;
+
+/**
+ * Cost, on the score scale, of a deadline errand cutting into the session of
+ * the quest in hand. It lands on every candidate at that slot alike, so it
+ * never picks between them: it makes the beam prefer the day that put the
+ * errand first.
+ */
+const INTERRUPT_PENALTY = 1;
+
+/** Smallest share of the day that opens with a starter push. */
+const STARTER_SHARE_MIN = 60;
+/** Score pull, on the weights' scale, for a quest that is due today. */
+const DUE_TODAY_PULL = 1;
+/** Free time to keep before a deadline inside the working day, beyond the work itself. */
+const DEADLINE_MARGIN_MIN = 30;
+
 /** How far past the ideal ceiling a block may run to finish a task's quota. */
 const TAIL_ABSORB_MIN = 20;
 /**
@@ -137,9 +159,21 @@ interface Candidate {
 }
 
 /**
- * Enumerate the candidate placements that could go at the current cursor.
- * `applyFloor` toggles the variety filter; the caller falls back to false
- * if the floor empties the candidate set, so we never waste a free slot.
+ * How strictly variety is enforced on candidates. The caller walks down the
+ * levels when one leaves the slot empty, so free time is never wasted:
+ *
+ *   mode    — the variety floor: no same-mode run past `floorN`.
+ *   session — the floor is off (everything left is the same kind of work),
+ *             but a quest that has just had its session still steps aside
+ *             for the others: on a day of four essays, two sittings each in
+ *             turn, not whichever scores best block by block.
+ *   off     — anything that fits.
+ */
+type Variety = 'mode' | 'session' | 'off';
+
+/**
+ * Enumerate the candidate placements that could go at the current cursor,
+ * at the given variety level.
  */
 function enumerateCandidates(
   state: BeamState,
@@ -147,7 +181,7 @@ function enumerateCandidates(
   immovable: Block[],
   taskMap: Map<string, Task>,
   config: UserConfig,
-  applyFloor: boolean,
+  variety: Variety,
   floorN: number,
 ): Candidate[] {
   const iv = state.freeIntervals[0];
@@ -155,21 +189,13 @@ function enumerateCandidates(
   const refs = refsForState(state, immovable, taskMap);
   const out: Candidate[] = [];
   const weights = resolveScoreWeights(config);
+  const inHand = questInHand(refs, iv.start);
+  const dueToday = (t: Task) => t.deadline <= budget.day.midnightUtc + 24 * 60 * MS_PER_MIN;
 
   for (const q of budget.quotas) {
     const left = state.remaining.get(q.task.id) ?? 0;
     if (left < EPSILON_MIN) continue;
     if (iv.start >= q.task.deadline) continue;
-
-    // Variety floor: reject candidates that would make a same-mode run
-    // longer than `floorN`. We estimate the prospective run length as
-    // `monotonyPenalty > 0 IFF prior runLen > 1`. Use the underlying
-    // primitive directly here for clarity.
-    if (applyFloor) {
-      const targetMode = taskMode(q.task);
-      const runLen = countSameModeRun(refs, iv.start, targetMode);
-      if (runLen >= floorN) continue;
-    }
 
     // Chunk sizing: pull toward ideal, never exceed slot or hard cap.
     const [idealLo, idealHi] = idealSessionRange(q.task);
@@ -190,8 +216,14 @@ function enumerateCandidates(
     // Momentum first: the day's opening block on a heavy quest is a short
     // starter push. Starting is the hard part with ADHD; 25 minutes on the
     // essay is easy to begin and still uses the morning peak for it.
-    const firstOfDay = !state.blocks.some((b) => b.type === 'work');
-    if (firstOfDay && q.task.cognitiveLoad >= HEAVY_LOAD && chunkMin > STARTER_MIN && left - STARTER_MIN >= sitting) {
+    // "First" counts every work block of the day, the ones a replan kept in
+    // place included: looking only at blocks placed in this pass, each replan
+    // opened its new stretch with another 25-minute starter (a Saturday of 17
+    // blocks, 16 of them 30 minutes or less).
+    const firstOfDay = !refs.some((r) => r.block.end <= iv.start);
+    // Only when today's share is an hour or more: a 50-minute share cut into
+    // 25 + 25 is two fragments, not a warm-up and the work.
+    if (firstOfDay && q.task.cognitiveLoad >= HEAVY_LOAD && chunkMin > STARTER_MIN && left - STARTER_MIN >= sitting && left >= STARTER_SHARE_MIN) {
       chunkMin = STARTER_MIN;
     }
     // And don't open a sliver at the end of an interval.
@@ -201,9 +233,34 @@ function enumerateCandidates(
     if (chunkMin < SLIVER_MIN && q.task.totalMin >= 2 * SLIVER_MIN && q.task.remainingMin > chunkMin) continue;
     if (chunkMin < 1) continue;
 
+    if (variety !== 'off') {
+      const session = sessionOf(q.task, refs, iv.start);
+      // A session's last sitting shrinks to what the run still has room for,
+      // if that is a real sitting: 25 + 50 + 50 + 25 on a crunch day, rather
+      // than leaving at 125 minutes and coming back a third time for the rest.
+      const room = SAME_QUEST_RUN_MAX_MIN - session.minutes;
+      if (session.blocks > 0 && chunkMin > room && room >= MIN_SITTING_MIN && left - room >= minSitting(q.task, left - room)) {
+        chunkMin = room;
+      }
+      if (!sessionAllows(q.task, chunkMin, left, q.targetMin, session, floorN, config)) continue;
+      // Variety floor: no same-mode run past `floorN`, except for what the
+      // quest in hand may do with its own session (see sessionAllows).
+      if (variety === 'mode') {
+        const run = sameModeRun(refs, iv.start, taskMode(q.task));
+        if (run.length >= floorN && !run.every((r) => r.task.id === q.task.id)) continue;
+      }
+    }
+
+    // Work due today goes before work that can wait, unless the hour suits
+    // it badly enough to outweigh that (the peak guard, energy fit).
+    // A cost on the work that can wait while today's is still open, not a
+    // bonus on today's: a bonus is the same wherever in the day the block
+    // lands, so the beam's totals never saw the order.
+    const jumpsQueue = !dueToday(q.task) && budget.quotas.some((o) => dueToday(o.task) && (state.remaining.get(o.task.id) ?? 0) > EPSILON_MIN);
     const score =
       placementScore(q.task, chunkMin, iv.start, refs, weights, config) +
-      peakGuard(q.task, iv.start, state, budget, config);
+      peakGuard(q.task, iv.start, state, budget, config) -
+      (jumpsQueue ? DUE_TODAY_PULL : 0);
     out.push({ task: q.task, chunkMin, start: iv.start, score });
   }
 
@@ -213,7 +270,23 @@ function enumerateCandidates(
       ? b.score - a.score
       : a.task.id < b.task.id ? -1 : 1,
   );
-  const safe = out.filter((c) => keepsDeadlines(c, state, budget, config));
+  // With a margin first: a quest due at 20:31 used to be placed 20:10–20:30,
+  // after 25 minutes on something due in six days, because that was still
+  // "feasible". Only when nothing leaves the margin does bare feasibility do.
+  const roomy = out.filter((c) => keepsDeadlines(c, state, budget, config, DEADLINE_MARGIN_MIN));
+  const safe = roomy.length ? roomy : out.filter((c) => keepsDeadlines(c, state, budget, config));
+  // Stay with the quest in hand. While its session is open (the rules above
+  // still allow it) and a deadline doesn't need the slot, it is the only
+  // candidate: every score term judged one slot at a time, so the essay's
+  // second sitting lost to whatever fit this hour a little better, and came
+  // back later as a third and fourth pickup.
+  if (variety !== 'off' && inHand) {
+    const stay = out.find((c) => c.task.id === inHand.id);
+    if (stay && safe.includes(stay)) return [stay];
+    // A deadline inside the day needs this slot instead. That splits the
+    // session, so a day that got the errand out of the way first should win.
+    if (stay) for (const c of safe) c.score -= INTERRUPT_PENALTY;
+  }
   return safe.length ? safe : out;
 }
 
@@ -224,7 +297,7 @@ function enumerateCandidates(
  * errand take 16:55, then couldn't be placed at all (3% of simulated people
  * had a quest flagged short with the time sitting right there).
  */
-function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, config: UserConfig): boolean {
+function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, config: UserConfig, marginMin = 0): boolean {
   const after = c.start + (c.chunkMin + config.breakPolicy.shortBreakDurationMin) * MS_PER_MIN;
   // Only deadlines inside the working day: one at the end of it (or tonight)
   // is the budget's and reconcile's business, and guarding it here too turned
@@ -248,7 +321,7 @@ function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, confi
       const b = Math.min(iv.end, d);
       if (b > a) free += (b - a) / MS_PER_MIN;
     }
-    if (free < need) return false;
+    if (free < need + marginMin) return false;
   }
   return true;
 }
@@ -290,26 +363,95 @@ function peakGuard(task: Task, start: number, state: BeamState, budget: DayBudge
  * an overnight boundary resets the run — mirrors monotonyPenalty's
  * adjacency semantics so the floor and the soft penalty agree.
  */
-function countSameModeRun(
+function sameModeRun(
   refs: PlacedRef[],
   cursor: number,
   targetMode: ReturnType<typeof taskMode>,
-): number {
+): PlacedRef[] {
   const gapMs = ADJACENT_GAP_MAX_MIN * 60_000;
   const chrono = [...refs]
     .filter((r) => r.block.end <= cursor)
     .sort((a, b) => b.block.end - a.block.end); // most recently ended first
-  let n = 0;
+  const run: PlacedRef[] = [];
   let at = cursor;
   for (const r of chrono) {
     if (at - r.block.end > gapMs) break; // real break — run over
     const m = taskMode(r.task);
     if (m.category === targetMode.category && m.load === targetMode.load && m.tedium === targetMode.tedium) {
-      n += 1;
+      run.push(r);
       at = r.block.start;
     } else break;
   }
-  return n;
+  return run;
+}
+
+/** The sittings of `task` that run up to `cursor` with only short breaks between. */
+function sessionOf(task: Task, refs: PlacedRef[], cursor: number): { blocks: number; minutes: number } {
+  const gapMs = ADJACENT_GAP_MAX_MIN * MS_PER_MIN;
+  const chrono = refs.filter((r) => r.block.end <= cursor).sort((a, b) => b.block.end - a.block.end);
+  let blocks = 0;
+  let minutes = 0;
+  let at = cursor;
+  for (const r of chrono) {
+    if (at - r.block.end > gapMs || r.task.id !== task.id) break;
+    blocks += 1;
+    minutes += (r.block.end - r.block.start) / MS_PER_MIN;
+    at = r.block.start;
+  }
+  return { blocks, minutes };
+}
+
+/**
+ * How long one quest's session may run before it makes way.
+ *
+ * Counting blocks alone treated "the essay again" like "a third essay": after
+ * two sittings the quest had to leave, and its last 25 minutes came back two
+ * quests later (25 reading, 25 portfolio, 50 reading, 25 inbox, 50 reading:
+ * a third of simulated people had a quest picked up three or more times in
+ * a day). A session is `floorN` sittings, and may go on a little:
+ *
+ *   - one short closing sitting that finishes the quest's work for today
+ *     (25 + 50 + 25 is one session, not a session and an orphan);
+ *   - one more full sitting when today holds more than two sessions' worth
+ *     of it (a deadline crunch), so 250 minutes is two pickups of three
+ *     sittings rather than three pickups of two;
+ *
+ * and never past SAME_QUEST_RUN_MAX_MIN of it nearly straight.
+ */
+function sessionAllows(
+  task: Task,
+  chunkMin: number,
+  left: number,
+  quotaMin: number,
+  session: { blocks: number; minutes: number },
+  floorN: number,
+  config: UserConfig,
+): boolean {
+  if (session.blocks === 0) return true;
+  if (session.minutes + chunkMin > SAME_QUEST_RUN_MAX_MIN) return false;
+  if (session.blocks < floorN) return true;
+  const closes = chunkMin >= left - EPSILON_MIN && chunkMin <= MIN_SITTING_MIN;
+  const crunch = Math.ceil(quotaMin / Math.max(1, maxBlockMin(task, config))) > 2 * floorN;
+  return session.blocks < floorN + (crunch ? 1 : 0) + (closes ? 1 : 0);
+}
+
+/**
+ * The quest in hand at `cursor`: whatever the day's last work block was on,
+ * however long ago. After lunch or a class it is still the thing to pick
+ * back up; going to something else first makes that a separate pickup.
+ */
+function questInHand(refs: PlacedRef[], cursor: number): Task | null {
+  return workBefore(refs, cursor)?.task ?? null;
+}
+
+/** The day's last work block ending at or before `cursor`, for "why now". */
+export function workBefore(refs: PlacedRef[], cursor: number): { task: Task; end: number } | null {
+  let last: PlacedRef | null = null;
+  for (const r of refs) {
+    if (r.block.end > cursor) continue;
+    if (!last || r.block.end > last.block.end) last = r;
+  }
+  return last ? { task: last.task, end: last.block.end } : null;
 }
 
 /**
@@ -529,10 +671,11 @@ export function constructDay(
         continue;
       }
 
-      let candidates = enumerateCandidates(state, budget, immovable, taskMap, config, true, floorN);
+      let candidates = enumerateCandidates(state, budget, immovable, taskMap, config, 'mode', floorN);
       // Variety floor falls back to relaxed if it would leave the slot empty.
       if (candidates.length === 0) {
-        candidates = enumerateCandidates(state, budget, immovable, taskMap, config, false, floorN);
+        candidates = enumerateCandidates(state, budget, immovable, taskMap, config, 'session', floorN);
+        if (candidates.length === 0) candidates = enumerateCandidates(state, budget, immovable, taskMap, config, 'off', floorN);
         // Everything left would extend a same-mode run. If the day has room,
         // step away long enough for the run to end (a walk between two
         // essays) rather than chaining a fourth heavy block. On a tight day
@@ -596,15 +739,10 @@ export function constructDay(
     const breakdown = placementBreakdown(t, chunkMin, blk.start, replayRefs, weights, config);
     const total = totalFromBreakdown(breakdown);
     const dom = dominantTerm(breakdown);
-    const prevBlk = i > 0 ? annotated[i - 1] : null;
-    const prevTask = prevBlk?.taskId ? taskMap.get(prevBlk.taskId) : undefined;
-    const why = composeWhy({
-      task: t,
-      start: blk.start,
-      end: blk.end,
-      prev: prevBlk && prevTask ? { task: prevTask, end: prevBlk.end } : null,
-      config,
-    });
+    // The block before this one among ALL of today's work, kept blocks
+    // included: with only the new ones, a replan's 16:00 block read "a short
+    // first push" after a morning of work.
+    const why = composeWhy({ task: t, start: blk.start, end: blk.end, prev: workBefore(replayRefs, blk.start), config });
     // Compact JSON: explain.ts shows `why`, falling back to `term` + `sign`;
     // `total` is handy for debugging.
     annotated[i] = {

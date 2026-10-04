@@ -159,16 +159,23 @@ paceLeft (tasks due AFTER the horizon only):
 
 levelTarget = max(120, ceil(total owed this plan / days))
 
-PASS 1 — fair spread, day by day, tasks in priorityScore order:
+PASS 1 — fair spread, day by day; work that can't wait first, then the
+rest, each in priorityScore order:
   skip if deadline passed, or task.notBefore ≥ day end (Not Today)
   daysAvailable = plan days before deadline + daysBeyondHorizon
-  sitting = minSitting(task, left)       # small (≤45) whole; else ≥ max(25, idealHi/2)
-  want    = max(ceil(left / daysAvailable), sitting)
-  cap     = min(softMaxPerDay, day residual, usable before deadline, left, pace + sitting)
+  sitting = minSitting(task, left)       # smallest BLOCK: small (≤45) whole; else ≥ max(25, idealHi/2)
+  dose    = dayDose(task, left)          # smallest DAY of it: ≤ 90 min whole; else a full sitting (50)
+  want    = max(ceil(left / daysAvailable), dose)
+  cap     = min(softMaxPerDay, day residual, usable before deadline, left, pace + dose)
   grant   = min(want, cap); absorb a remainder smaller than a sitting
-  skip if grant < sitting and grant < left          # never a crumb
-  skip if small task, > 2 days to spare, and today is over levelTarget
-                                                     # small tasks wait for a lighter day
+  skip if grant < dose (in the last two days: < sitting) and grant < left   # never a crumb
+  canWait = > 2 days to spare, and this plan's share still fits the later days,
+            and (≤ 90 min, or the pace after skipping today is still ≤ one dose a day)
+  skip if canWait and the day already holds work and would pass levelTarget
+  # With dose = sitting, every quest that could wait got 25 minutes a day (a
+  # 90-minute reading as 25 today and 25 tomorrow, six quests a day). With only
+  # small tasks waiting, every day carried a slice of every big quest, and an
+  # undated quest took its sitting on the day a deadline then filled.
 
 PASS 2 — deadline-safety repair (only tasks dueWithinPlan), non-dropped first:
   fill from residual: whole sittings first, then any size ≥ 10 min
@@ -178,9 +185,10 @@ PASS 2 — deadline-safety repair (only tasks dueWithinPlan), non-dropped first:
       otherwise: the donor must be due LATER
     dropped donors first, then loosest; never leave the donor a crumb
   donors are paid back from what's left: due in plan → all they need;
-    due after the plan → up to what they gave (it used to be nothing, so a
-    HIGH quest due in two weeks lent Monday and then sat out a week of
-    empty days)
+    due after the plan → up to what they gave, on the LIGHTEST day first (it
+    used to be nothing, so a HIGH quest due in two weeks lent Monday and then
+    sat out a week of empty days; then the earliest day, so everything lent
+    on Monday and Tuesday landed together on Wednesday)
 
 SLIVERS — a grant under 15 min for a quest that isn't small folds into a day
   that already has a sitting of it, if that day has room; if not and the
@@ -233,7 +241,24 @@ loop:
 enumerate(candidate task at cursor):
   chunk = clamp(left, idealLo, idealHi), ≤ interval, ≤ cap, ≤ left
   tail rule: never leave a tail < sitting (finish it, ≤ cap + 20, or leave a full sitting)
-  starter push: first work block of the day on a heavy task (load ≥ 0.7) → 25 min
+  starter push: the day's first work block (kept blocks of a replan count) on a
+    heavy task (load ≥ 0.7) with an hour or more of it today → 25 min
+  session (sessionAllows): a quest runs `floorN` sittings, plus one short closing
+    sitting that finishes its day, plus one more on a crunch day (> 2 sessions'
+    worth today); never past 150 min of it nearly straight (the last sitting
+    shrinks to fit). A different quest of the same mode stops at `floorN`.
+  variety levels, tried in order until one leaves a candidate:
+    mode    — the floor above
+    session — floor off, but a quest whose session just ended still steps aside
+    off     — anything that fits
+  stay with the quest in hand (the day's last work block, however long ago):
+    while its session is open and no deadline needs the slot, it is the ONLY
+    candidate. Scored slot by slot, a third of people had a quest picked up 3+
+    times a day (reading, portfolio, reading, inbox, reading). If a deadline
+    does take the slot, every candidate there costs INTERRUPT_PENALTY (1), so
+    the beam prefers the day that did the errand first.
+  due today: work that can wait costs DUE_TODAY_PULL (1) while work due today
+    is still open
   skip if chunk < sitting and chunk < left       # no sliver at an interval end
   skip if chunk < 15 on a quest of ≥ 30 min with more left than this chunk
   score = placementScore + peakGuard
@@ -277,8 +302,12 @@ SWAP (up to 4 rounds):
 FILL, in gaps between placed blocks (10-min break margin beside work),
 within today's check-in cap:
   candidates: still-short tasks, then donors for what they lent
-  a quest that can FINISH in the gap goes first (not a < 15-min shard of a
-  big one); otherwise a real sitting (≥ 25 min) on one that can't
+  a quest that can FINISH in the gap goes first (not a < 20-min shard of a
+  big one); otherwise a real sitting (≥ 25 min) on one that can't, never
+  leaving a shard behind
+  shards (< 20 min still owed) lengthen a sitting the quest already has that
+  day, where the time after it is free; they are never a block of their own
+  reasons see all of the day's work, kept blocks included
 ```
 
 ## Reflow (`reflow.ts`) — the edit path
@@ -385,8 +414,13 @@ above the timeline (`PlanInsights.tsx`):
 
 ## Acceptance properties
 
-- **Variety** — no same-mode run > `varietyFloorN` within a continuous
-  stretch (a gap > 45 min ends a run).
+- **Variety** — no run of different same-mode quests > `varietyFloorN` within
+  a continuous stretch (a gap > 45 min ends a run); one quest's own session
+  may add a closing sitting, or a third on a crunch day, up to 150 min.
+- **Sessions** — a quest's sittings on a day stay together: at most two
+  pickups when its share fits two sessions.
+- **Doses** — a quest of ≤ 90 min is one day's work; a bigger one gets a full
+  sitting on the days it gets anything.
 - **Energy fit** — high-load work lands in higher-energy hours than low-load
   work on days that have both.
 - **No front-loading** — loose-deadline work spreads; small tasks level out.
