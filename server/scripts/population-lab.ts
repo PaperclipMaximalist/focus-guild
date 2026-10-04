@@ -5,6 +5,7 @@
  *   npm run lab:pop -- --n 3000 --seed 7   bigger / different population
  *   npm run lab:pop -- --week              also live each person's week
  *   npm run lab:pop -- --show 42           one person in detail (plan + week)
+ *   npm run lab:pop -- --show 42 --days 7  ... printing the whole week's plan, not three days
  *   npm run lab:pop -- --flag deadline-loss --examples 8
  *
  * The scenario lab (`npm run lab`) grades a handful of hand-written weeks.
@@ -63,6 +64,8 @@ const WEEK = argv.includes('--week') || arg('show') !== null;
 const SHOW = arg('show') === null ? null : Number(arg('show'));
 const ONLY_FLAG = arg('flag');
 const EXAMPLES = Number(arg('examples', '3'));
+/** With --show: how many days of the plan to print (--days 7 for the whole week). */
+const SHOW_DAYS = Number(arg('days', '3'));
 /** Route behaviours that are simulated, so fixes can be A/B'd from here. */
 const POLICY = {
   /** Before Sep 2026, routes/schedule.ts clipped dailies to 60 min (--clip). */
@@ -503,6 +506,20 @@ function mostOnTime(due: Task[], days: ReturnType<typeof buildDayInfo>, cfg: Use
   return kept.length;
 }
 
+/**
+ * A reason that calls a block the day's start ("a short first push", "an easy
+ * start") when work comes before it that day. Returns the first such block.
+ */
+function falseFirst(schedule: Block[], tz: number): string | null {
+  const work = schedule.filter(isWork).sort((x, y) => x.start - y.start);
+  for (let i = 1; i < work.length; i++) {
+    const w = work[i]!;
+    if (dayIndexOf(work[i - 1]!.start, tz) !== dayIndexOf(w.start, tz)) continue;
+    if (/first push|easy start/i.test(w.note ?? '')) return `${wd(w.start, tz)} ${fmt(w.start, tz)} says "${/"why":"([^"]*)"/.exec(w.note ?? '')?.[1] ?? ''}" but isn't the day's first block`;
+  }
+  return null;
+}
+
 function gradePlan(p: Person, b: Built): Finding[] {
   const f: Finding[] = [];
   const { tasks, schedule, fixed, issues } = b;
@@ -553,7 +570,10 @@ function gradePlan(p: Person, b: Built): Finding[] {
       f.push({ flag: 'silent-slip', detail: `"${t.name}" ${placed}/${t.remainingMin} min, not flagged` });
   }
   // Something that can't fit anyway: shortfalls should be reported.
-  if (o.shortBy.size && !issues.length) f.push({ flag: 'unflagged-overload', detail: `${o.shortBy.size} quest(s) can't fit, nothing flagged` });
+  // (Not when the plan placed every minute of it: the oracle's capacity is an
+  // estimate of the breaks, and a plan that fits 600 of the "597 possible"
+  // has nothing to flag. Seed 7 #17 without --history.)
+  if (o.shortBy.size && !issues.length && dueIn.some((t) => beforeDeadline(t) < t.remainingMin - 1)) f.push({ flag: 'unflagged-overload', detail: `${o.shortBy.size} quest(s) can't fit, nothing flagged` });
 
   // On time: how many quests due in the plan are fully planned before their
   // deadline, against the most that could be (Moore–Hodgson on the oracle's
@@ -642,6 +662,26 @@ function gradePlan(p: Person, b: Built): Finding[] {
   }
   const tiny = work.filter((w) => mins(w) < 20 && byId.get(w.taskId!)!.totalMin >= 30);
   if (tiny.length) f.push({ flag: 'tiny-block', detail: `${tiny.length} block(s) under 20 min, e.g. "${byId.get(tiny[0]!.taskId!)!.name}" ${mins(tiny[0]!)}m at ${at(tiny[0]!.start)}` });
+  // Fragment dose: a heavy quest with an hour and a half or more to go, given
+  // under half an hour on a day. Nobody gets into an essay in 25 minutes.
+  // Split small: a 30–90 minute quest spread over two or more days, when it
+  // is one sitting's work.
+  const dose = new Map<string, number>();
+  for (const w of work) { const k = `${w.taskId}|${dayIndexOf(w.start, tz)}`; dose.set(k, (dose.get(k) ?? 0) + mins(w)); }
+  const daysOf = new Map<string, number>();
+  let fragName = '';
+  let frags = 0;
+  for (const [k, m] of dose) {
+    const id = k.split('|')[0]!;
+    daysOf.set(id, (daysOf.get(id) ?? 0) + 1);
+    const t = byId.get(id)!;
+    if (t.cognitiveLoad >= 0.7 && t.remainingMin >= 90 && m < 30) { frags++; fragName ||= `"${t.name}" ${m}m`; }
+  }
+  if (frags) f.push({ flag: 'fragment-dose', detail: `${frags} day(s) give a heavy quest with 90+ min left under 30 min, e.g. ${fragName}` });
+  const split = [...daysOf].filter(([id, n]) => n >= 2 && byId.get(id)!.remainingMin >= 30 && byId.get(id)!.remainingMin <= 90);
+  if (split.length) f.push({ flag: 'split-small', detail: `${split.length} quest(s) of 30–90 min spread over 2+ days, e.g. "${byId.get(split[0]![0])!.name}" ${byId.get(split[0]![0])!.remainingMin}m over ${split[0]![1]} days` });
+  const ff = falseFirst(schedule, tz);
+  if (ff) f.push({ flag: 'false-first-push', detail: ff });
   const huge = work.filter((w) => mins(w) > 150);
   if (huge.length) f.push({ flag: 'huge-block', detail: `${huge.length} block(s) over 150 min (longest ${Math.max(...huge.map(mins))})` });
 
@@ -723,6 +763,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
 
   let schedule: Block[] = [];
   let lastFixed: Block[] = [];
+  let falseFirstSeen = false;
   // The route calibrates from finished quests with logged focus time.
   const samples = history(p);
   const calibration = () => calibrateEstimates([
@@ -748,6 +789,10 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
       : [];
     schedule = replan([...current, ...routines], tasksAt(t), cfgNoCap, t).schedule;
     life.replans++;
+    if (!falseFirstSeen) {
+      const ff = falseFirst(schedule.filter((b) => b.end > t), tz);
+      if (ff) { falseFirstSeen = true; life.findings.push({ flag: 'week: false-first-push (after a replan)', detail: ff }); }
+    }
   };
 
   // Deadlines that fall inside the lived week are what we score.
@@ -871,7 +916,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
 
 function timeline(p: Person, b: Built): string {
   const byId = new Map(b.tasks.map((t) => [t.id, t]));
-  const days = [...new Set(b.schedule.filter((x) => x.end > p.now).map((x) => dayIndexOf(x.start, p.tz)))].sort((x, y) => x - y).slice(0, 3);
+  const days = [...new Set(b.schedule.filter((x) => x.end > p.now).map((x) => dayIndexOf(x.start, p.tz)))].sort((x, y) => x - y).slice(0, SHOW_DAYS);
   return days
     .map((k) => {
       const rows = b.schedule

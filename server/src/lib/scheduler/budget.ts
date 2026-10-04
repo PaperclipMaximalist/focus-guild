@@ -152,6 +152,26 @@ export function minSitting(task: Task, left: number): number {
   return Math.min(left, Math.max(MIN_SITTING_MIN, Math.round(hi / 2)));
 }
 
+/** A quest with this much left or less is one day's work: a single session, not a spread. */
+export const ONE_DAY_MAX_MIN = 90;
+/** A full sitting: what a day gives a bigger quest at the least, when it gives it anything. */
+const FULL_SITTING_MIN = 50;
+
+/**
+ * The least a day gives `task` in the fair spread. `minSitting` is the
+ * smallest block worth sitting down for; this is the smallest DAY of it.
+ * With the two the same, every quest that could wait got 25 minutes a day:
+ * a 90-minute reading as 25 today and 25 tomorrow, six essays a day at 25
+ * minutes each (two thirds of simulated people had a heavy quest with 90+
+ * minutes to go given under half an hour in a day). Up to 90 minutes goes on
+ * one day, whole; more than that moves in full sittings on fewer days.
+ */
+export function dayDose(task: Task, left: number): number {
+  if (left <= ONE_DAY_MAX_MIN) return left;
+  const [, hi] = idealSessionRange(task);
+  return Math.min(left, Math.max(minSitting(task, left), Math.min(hi, FULL_SITTING_MIN)));
+}
+
 /**
  * Minutes of free time on `day` that fall strictly before `deadline`.
  * The constructor can never place a chunk past the deadline, so any
@@ -316,34 +336,72 @@ export function allocateBudgets(
     if (residuals[dayIdx]! < EPSILON_MIN) continue;
     let grantedToday = 0;
 
+    // Working days `task` has from this one to its deadline. A deadline past
+    // the horizon still has working days after it: counting only the horizon
+    // days crammed a 12-day essay into 7, and then called the part that
+    // didn't fit a shortfall.
+    const daysFor = (task: Task): number => {
+      let n = 0;
+      for (let j = dayIdx; j < days.length; j += 1) {
+        if (days[j]!.workStart >= task.deadline) break;
+        n += 1;
+      }
+      return n === 0 ? 0 : n + daysBeyondHorizon(task, days);
+    };
+    // Work with days to spare can wait for a lighter day: a small task, or a
+    // bigger one whose pace would still be a sitting a day after skipping
+    // today. It still lands in time: once its deadline is two days out, or
+    // the pace tightens, it goes in regardless (work due after the plan must
+    // get this week's share inside it), and pass 2 guarantees it after that.
+    // Only small tasks used to wait, so every day carried a slice of every
+    // big quest.
+    const canWait = (task: Task): boolean => {
+      const left = remaining.get(task.id) ?? 0;
+      const daysAvailable = daysFor(task);
+      const dose = dayDose(task, left);
+      const owedThisPlan = Math.min(left, paceLeft.get(task.id) ?? Infinity);
+      return (
+        daysAvailable > 2 &&
+        owedThisPlan <= (days.length - dayIdx - 1) * dose &&
+        (left <= ONE_DAY_MAX_MIN || Math.ceil(left / (daysAvailable - 1)) <= dose)
+      );
+    };
+
+    // Work that can't wait first, then the rest in priority order: the day's
+    // level has to count what must land on it before anything optional does.
+    // In plain priority order an undated backlog quest took its sitting on a
+    // Wednesday that a 10-hour report due Saturday then filled to the brim,
+    // with Sunday to Tuesday nearly empty.
+    const waits = new Map<string, boolean>();
     const eligible = tasks
       .filter(
         (t) =>
           (remaining.get(t.id) ?? 0) > EPSILON_MIN &&
           t.deadline > day.workStart &&
           (t.notBefore ?? 0) < day.workEnd,
-      )
-      .sort((a, b) => {
-        const diff = (priority.get(b.id) ?? 0) - (priority.get(a.id) ?? 0);
-        if (Math.abs(diff) > 1e-6) return diff;
-        return a.deadline - b.deadline || (a.id < b.id ? -1 : 1);
-      });
+      );
+    for (const t of eligible) waits.set(t.id, canWait(t));
+    eligible.sort((a, b) => {
+      const w = Number(waits.get(a.id)) - Number(waits.get(b.id));
+      if (w !== 0) return w;
+      const diff = (priority.get(b.id) ?? 0) - (priority.get(a.id) ?? 0);
+      if (Math.abs(diff) > 1e-6) return diff;
+      return a.deadline - b.deadline || (a.id < b.id ? -1 : 1);
+    });
 
+    // A day too small for anyone's full dose (40 free minutes after school
+    // and a club) still gets a real sitting of something: the second round
+    // only runs if the first left the day empty. An empty day with quests
+    // waiting is worse than a short sitting ("today's work starts now").
+    for (const smallDay of [false, true]) {
+    if (smallDay && grantedToday > 0) break;
     for (const task of eligible) {
       if (residuals[dayIdx]! < EPSILON_MIN) break;
       const left = remaining.get(task.id) ?? 0;
       if (left <= EPSILON_MIN) continue;
 
-      let daysAvailable = 0;
-      for (let j = dayIdx; j < days.length; j += 1) {
-        if (days[j]!.workStart >= task.deadline) break;
-        daysAvailable += 1;
-      }
+      const daysAvailable = daysFor(task);
       if (daysAvailable === 0) continue;
-      // A deadline past the horizon still has working days after it. Counting
-      // only the horizon days crammed a 12-day essay into 7, and then called
-      // the part that didn't fit a shortfall.
-      daysAvailable += daysBeyondHorizon(task, days);
 
       // An even split alone shreds work: a 15-min chore over 7 days became
       // 3 min/day and a 2-hour reading 17 min/day, and nobody sits down for
@@ -351,21 +409,22 @@ export function allocateBudgets(
       // and never leaves a remainder smaller than one — the spread still
       // happens for big tasks, it just moves in whole sessions.
       const sitting = minSitting(task, left);
-      const perDayWant = Math.max(Math.ceil(left / daysAvailable), sitting);
+      // A day's share is a full dose (see dayDose), not the smallest sitting.
+      const dose = dayDose(task, left);
+      const perDayWant = Math.max(Math.ceil(left / daysAvailable), dose);
       const placeable = usable(day, task.deadline);
       const pace = paceLeft.get(task.id) ?? Infinity;
       if (pace < 1) continue;
-      const cap = Math.floor(Math.min(softMaxPerDay(task), residuals[dayIdx]!, placeable, left, pace + sitting));
+      const cap = Math.floor(Math.min(softMaxPerDay(task), residuals[dayIdx]!, placeable, left, pace + dose));
       let grant = Math.min(perDayWant, cap);
       // Absorb a sliver remainder today rather than stranding it for later.
       if (left - grant > 0 && left - grant < sitting && left <= cap) grant = left;
       // Too little room today for a real sitting: leave it for a later day
-      // (or the deadline-safety pass), instead of placing a crumb.
-      if (grant < sitting && grant < left) continue;
-      // A small task with days to spare waits for a lighter day. It still
-      // lands in time: once its deadline is two days out it goes in
-      // regardless, and pass 2 guarantees it after that.
-      if (left <= WHOLE_TASK_MAX_MIN && daysAvailable > 2 && grantedToday + grant > levelTarget) continue;
+      // (or the deadline-safety pass), instead of placing a crumb. For work
+      // that can wait the same goes for less than a full dose; work that
+      // can't takes any real sitting.
+      if (grant < (waits.get(task.id) && !smallDay ? dose : sitting) && grant < left) continue;
+      if (waits.get(task.id) && grantedToday > 0 && grantedToday + grant > levelTarget) continue;
       if (grant < 1) continue;
 
       addQuota(budgets[dayIdx]!, task, grant);
@@ -373,6 +432,7 @@ export function allocateBudgets(
       grantedToday += grant;
       remaining.set(task.id, left - grant);
       if (paceLeft.has(task.id)) paceLeft.set(task.id, pace - grant);
+    }
     }
   }
 
@@ -392,10 +452,11 @@ export function allocateBudgets(
    * only takes whole sittings (or the whole remainder); the permissive
    * retry accepts any size, because a deadline beats a tidy block.
    */
-  const fillFromResidual = (task: Task, left: number, strict: boolean): number => {
-    for (let dayIdx = 0; dayIdx < days.length && left > EPSILON_MIN; dayIdx += 1) {
+  const fillFromResidual = (task: Task, left: number, strict: boolean, order: number[] = days.map((_, i) => i)): number => {
+    for (const dayIdx of order) {
+      if (left <= EPSILON_MIN) break;
       const day = days[dayIdx]!;
-      if (day.workStart >= task.deadline) break;
+      if (day.workStart >= task.deadline) continue;
       if ((task.notBefore ?? 0) >= day.workEnd) continue;
       if (residuals[dayIdx]! < EPSILON_MIN) continue;
       const placeable = usable(day, task.deadline) - grantedOnDay(budgets[dayIdx]!, task.id);
@@ -470,7 +531,12 @@ export function allocateBudgets(
       remaining.set(task.id, left);
     } else {
       const back = Math.min(owed, gave);
-      const left = fillFromResidual(task, back, true);
+      // Lightest day first, not the earliest: paid back in date order, every
+      // quest that lent Monday and Tuesday to a deadline landed together on
+      // Wednesday (316 of its 368 minutes, in a week at 42% load).
+      const load = budgets.map((b) => b.quotas.reduce((m, q) => m + q.targetMin, 0));
+      const lightest = days.map((_, i) => i).sort((a, b) => load[a]! - load[b]! || a - b);
+      const left = fillFromResidual(task, back, true, lightest);
       remaining.set(task.id, owed - (back - left));
     }
   }

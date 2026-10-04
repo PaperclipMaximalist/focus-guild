@@ -45,9 +45,10 @@ plan():   eligibility → budget.ts (triage, per-day quotas, cross-day spread)
 replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
 ```
 
-- **`budget.ts`** decides *how much of each task lands on each day*: whole
-  sittings (never crumbs), paced against real deadlines even past the
-  horizon, levelled so one day doesn't collect every chore, and a
+- **`budget.ts`** decides *how much of each task lands on each day*: real
+  doses (a quest of up to 90 min on one day, a full sitting of anything
+  bigger, never 25 minutes of everything), paced against real deadlines even
+  past the horizon, levelled so work that can wait takes a lighter day, and a
   deadline-safety pass that can take time back from later-due work.
 - **`constructor.ts`** walks each day's free time in time order and picks
   the best task for each slot via a normalized scoring function
@@ -56,8 +57,12 @@ replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
   bad early pick can't ruin the day. A **variety floor** (default: max 2
   same-mode blocks in a row) is enforced at candidate-selection time; when
   only same-mode work is left and the day has slack, it takes a reset
-  break instead. It also rests per the break policy, keeps peak hours for
-  heavy work (peak guard), and opens a heavy day with a 25-min starter push.
+  break instead. A quest's sittings stay together as a **session** (the
+  quest in hand is the only candidate until its session ends), so a day is a
+  few sessions, not one quest picked up four times. It also rests per the
+  break policy, keeps peak hours for heavy work (peak guard), puts work due
+  today ahead of work that can wait, and opens a heavy day with a 25-min
+  starter push.
 - **`reconcile.ts`** settles the gap between the budget's arithmetic and
   what the constructor could fit: short deadline work takes placed time from
   work due later (or from quests triage gave up on), fills leftover gaps,

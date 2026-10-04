@@ -459,8 +459,10 @@ for (const s of scenarios()) {
   console.log(`   ${ms.toFixed(1)} ms · ` + Object.entries(r.stats).map(([k, v]) => `${k}: ${v}`).join(' · '));
   for (const f of r.findings) console.log(`   ✗ ${f}`);
   if (!r.findings.length) console.log('   ✓ no findings');
-  const firstDay = [...new Set(schedule.filter(isWork).map((b) => dayKey(b.start)))].sort()[0];
-  if (firstDay) console.log(`   ${weekday(Date.parse(firstDay + 'T12:00:00Z'))} ${firstDay}:\n${timeline(r, firstDay)}`);
+  // The first day, or every day with `npm run lab -- <id> --all`.
+  const workDays = [...new Set(schedule.filter(isWork).map((b) => dayKey(b.start)))].sort();
+  for (const d of process.argv.includes('--all') ? workDays : workDays.slice(0, 1))
+    console.log(`   ${weekday(Date.parse(d + 'T12:00:00Z'))} ${d}:\n${timeline(r, d)}`);
 }
 
 if (!only || only === 'live') {

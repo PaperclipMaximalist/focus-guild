@@ -372,9 +372,15 @@ export function tediumClash(task: Task, prev: Task | null): number {
     ? 1 : 0;
 }
 
-/** 1 iff this block and the immediately-prior one are both high-cognitive-load. */
+/**
+ * 1 iff this block and the immediately-prior one are both high-cognitive-load
+ * and are different quests. The cost is the switch from one brain-killer
+ * into another; a second sitting of the same essay after its break is the
+ * session continuing, and penalising it pushed an errand between every two
+ * sittings (essay, inbox, essay, receipts, essay).
+ */
 export function cooldownClash(task: Task, prev: Task | null): number {
-  if (!prev) return 0;
+  if (!prev || prev.id === task.id) return 0;
   return loadTierOf(task.cognitiveLoad) === 'high'
     && loadTierOf(prev.cognitiveLoad) === 'high'
     ? 1 : 0;

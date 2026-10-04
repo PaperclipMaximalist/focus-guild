@@ -27,7 +27,8 @@
  */
 
 import { canDonate, dueWithinPlan, MIN_SITTING_MIN, minSitting, type DayBudget } from './budget.js';
-import { buildDay, type ConstructedDay } from './constructor.js';
+import { buildDay, workBefore, type ConstructedDay } from './constructor.js';
+import type { PlacedRef } from './planner.js';
 import { composeWhy } from './explain.js';
 import type { Block, Task, UserConfig } from './types.js';
 
@@ -36,7 +37,9 @@ const EPSILON_MIN = 0.5;
 const MAX_ROUNDS = 4;
 const SNAP_MS = 5 * MS_PER_MIN;
 /** No block shorter than this for a quest that isn't small itself. */
-const SHARD_MIN = 15;
+const SHARD_MIN = 20;
+/** A quest this long or longer is "not small": its pieces must be real sittings. */
+const REAL_QUEST_MIN = 30;
 
 type Placed = Omit<Block, 'id'>;
 
@@ -120,7 +123,7 @@ export function reconcile(
         // A few minutes only go where the quest already has a sitting to grow;
         // on their own they'd be a 7-minute block nobody starts.
         const hasSitting = out[i]!.blocks.some((b) => b.taskId === t.id);
-        if (need < SHARD_MIN && t.totalMin >= 2 * SHARD_MIN && !hasSitting) continue;
+        if (need < SHARD_MIN && t.totalMin >= REAL_QUEST_MIN && !hasSitting) continue;
 
         // What each possible donor really got here, in time this quest could use.
         const donorMin = new Map<string, number>();
@@ -213,6 +216,17 @@ export function reconcile(
       ? config.todayCapMin - blocks.reduce((m, b) => m + minutesOf(b), 0)
       : Infinity;
     const added: Placed[] = [];
+    // All of the day's work, kept blocks of a replan included, so a filled
+    // block's reason knows what came before it (it used to be told "nothing",
+    // and called a 16:00 block "an easy start").
+    const dayRefs = (): PlacedRef[] => {
+      const refs: PlacedRef[] = [];
+      for (const b of [...day.immovableThisDay, ...blocks, ...added]) {
+        const t = b.type === 'work' && b.taskId ? taskMap.get(b.taskId) : undefined;
+        if (t) refs.push({ block: { ...b, id: 'tmp' } as Block, task: t });
+      }
+      return refs;
+    };
 
     for (const [gapStart, ge] of gapsOf(day, blocks, breakMin)) {
       let gs = gapStart;
@@ -223,16 +237,21 @@ export function reconcile(
         );
         const fits = (t: Task) => (room(t.deadline) - gs) / MS_PER_MIN;
         // A quest that can finish here, first; otherwise a real sitting on one that can't.
-        const shard = (t: Task) => need.get(t.id)! < SHARD_MIN && t.totalMin >= 2 * SHARD_MIN;
+        const shard = (t: Task) => need.get(t.id)! < SHARD_MIN && t.totalMin >= REAL_QUEST_MIN;
         const finish = open.find(({ t }) => need.get(t.id)! <= fits(t) + EPSILON_MIN && !shard(t));
-        const partial = finish ? null : open.find(({ t }) => fits(t) >= Math.max(MIN_SITTING_MIN, minSitting(t, need.get(t.id)!)));
+        // (Not a shard here either: `partial` used to take one, since a gap of
+        // 25 minutes "fits a sitting" of a 7-minute need, and placed the 7.)
+        const partial = finish ? null : open.find(({ t }) => !shard(t) && fits(t) >= Math.max(MIN_SITTING_MIN, minSitting(t, need.get(t.id)!)));
         const pick = finish ?? partial;
         if (!pick) break;
         const t = pick.t;
-        const chunk = Math.floor(Math.min(need.get(t.id)!, fits(t), config.softMaxBlockMin));
-        if (chunk < 1) break;
+        let chunk = Math.floor(Math.min(need.get(t.id)!, fits(t), config.softMaxBlockMin));
+        // Don't leave a shard behind: take it all if it nearly fits, else leave a real piece.
+        const after = need.get(t.id)! - chunk;
+        if (after > EPSILON_MIN && after < SHARD_MIN && t.totalMin >= REAL_QUEST_MIN) chunk = Math.floor(chunk - (SHARD_MIN - after));
+        if (chunk < Math.min(SHARD_MIN, need.get(t.id)!)) break;
         const end = gs + chunk * MS_PER_MIN;
-        const why = composeWhy({ task: t, start: gs, end, prev: null, config });
+        const why = composeWhy({ task: t, start: gs, end, prev: workBefore(dayRefs(), gs), config });
         added.push({
           start: gs,
           end,
@@ -247,8 +266,65 @@ export function reconcile(
         gs = Math.ceil((end + rest * MS_PER_MIN) / SNAP_MS) * SNAP_MS;
       }
     }
-    if (added.length) {
-      out[i] = { ...out[i]!, blocks: [...out[i]!.blocks, ...added].sort((a, b) => a.start - b.start) };
+    // Shards: a few minutes still owed lengthen a sitting the quest already
+    // has today, where the time after it is free. On their own they were a
+    // 7-minute block; unplaced, a deadline missed by 7 minutes.
+    const all: Placed[] = [...blocks, ...added].sort((a, b) => a.start - b.start);
+    let grew = false;
+    for (const { t } of short) {
+      const owed = need.get(t.id) ?? 0;
+      if (owed <= EPSILON_MIN || owed >= SHARD_MIN || capLeft < owed) continue;
+      for (let k = 0; k < all.length; k += 1) {
+        const b = all[k]!;
+        if (b.taskId !== t.id || minutesOf(b) + owed > config.softMaxBlockMin) continue;
+        const end = b.end + Math.ceil(owed) * MS_PER_MIN;
+        const iv = day.freeIntervals.find((x) => x.start <= b.start && x.end >= b.end);
+        const next = all[k + 1];
+        if (!iv || end > iv.end || end > t.deadline) continue;
+        if (next && next.start < end + breakMin * MS_PER_MIN) continue;
+        // Nor straight on from the block before it: the longer sitting must
+        // still start after a break, or the stretch runs past the break policy.
+        const before = all[k - 1];
+        if (before && b.start - before.end < 5 * MS_PER_MIN && minutesOf(before) + minutesOf(b) + owed > config.breakPolicy.shortBreakAfterMin + 2 * SHARD_MIN) continue;
+        all[k] = { ...b, end };
+        need.set(t.id, 0);
+        capLeft -= owed;
+        grew = true;
+        break;
+      }
+    }
+    if (added.length || grew) out[i] = { ...out[i]!, blocks: all };
+  }
+
+  // Last resort, for quests due in the plan only: a shard that found no
+  // sitting to lengthen gets a short block of its own. A 15-minute block is
+  // a poor block; a deadline missed by 15 minutes with the afternoon free
+  // is worse.
+  for (const { t } of short) {
+    const owed = Math.ceil(need.get(t.id) ?? 0);
+    if (owed < 1 || !dueWithinPlan(t, days)) continue;
+    for (let i = 0; i < days.length && (need.get(t.id) ?? 0) > EPSILON_MIN; i += 1) {
+      if (days[i]!.workStart >= t.deadline) break;
+      const blocks = out[i]!.blocks;
+      if (i === 0 && config.todayCapMin !== undefined && blocks.reduce((m, b) => m + minutesOf(b), 0) + owed > config.todayCapMin) continue;
+      const gap = gapsOf(days[i]!, blocks, breakMin).find(
+        ([s, e]) => s >= (t.notBefore ?? 0) && Math.min(e, t.deadline) - s >= owed * MS_PER_MIN,
+      );
+      if (!gap) continue;
+      const [start] = gap;
+      const end = start + owed * MS_PER_MIN;
+      const refs: PlacedRef[] = [];
+      for (const b of [...days[i]!.immovableThisDay, ...blocks]) {
+        const bt = b.type === 'work' && b.taskId ? taskMap.get(b.taskId) : undefined;
+        if (bt) refs.push({ block: { ...b, id: 'tmp' } as Block, task: bt });
+      }
+      const why = composeWhy({ task: t, start, end, prev: workBefore(refs, start), config });
+      const block: Placed = {
+        start, end, type: 'work', taskId: t.id, locked: false,
+        note: JSON.stringify({ term: 'urgency', sign: '+', total: 0, why: why ?? 'fitted into a free gap so it’s done in time' }),
+      };
+      out[i] = { ...out[i]!, blocks: [...blocks, block].sort((a, b) => a.start - b.start) };
+      need.set(t.id, 0);
     }
   }
   return out;
