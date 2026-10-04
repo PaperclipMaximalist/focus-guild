@@ -13,6 +13,7 @@ import { z } from 'zod';
 import { Prisma } from '../../generated/prisma/client.js';
 import { db } from '../db/client.js';
 import { defaultConfig } from '../lib/scheduler/index.js';
+import { workingHoursProblem } from '../lib/scheduler/tz.js';
 import { getOverrides, type SchedulerOverrides } from '../lib/userConfig.js';
 
 export const settings = new Hono();
@@ -60,8 +61,10 @@ const BreakPolicySchema = z
 const WorkingHoursSchema = z
   .object({
     // Half hours allowed: school ends at 15:10, so 15:30 is a real start.
+    // An end before the start runs past midnight (22:00–06:00, 14:00–00:30),
+    // so the end may be any time of day; start == end is refused below.
     startHour: z.number().min(0).max(23.5).multipleOf(0.5).optional(),
-    endHour: z.number().min(1).max(24).multipleOf(0.5).optional(),
+    endHour: z.number().min(0).max(24).multipleOf(0.5).optional(),
   })
   .strict();
 
@@ -105,6 +108,13 @@ settings.put('/', async (c) => {
     );
   }
   const overrides: SchedulerOverrides = parsed.data;
+  // Only the changed hour is sent, so judge the pair the planner will use:
+  // a start of 18:00 alone meets the default 18:00 end. Hours like that used
+  // to save fine and then plan nothing, with no error anywhere.
+  const problem = workingHoursProblem({ ...defaultConfig().workingHours, ...(overrides.workingHours ?? {}) });
+  if (problem) {
+    return c.json({ success: false, error: { code: 'BAD_REQUEST', message: problem } }, 400);
+  }
   await db.user.update({
     where: { id: user.id },
     data: { schedulerSettings: overrides as object },

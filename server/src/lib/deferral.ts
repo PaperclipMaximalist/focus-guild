@@ -16,12 +16,28 @@
  */
 
 import { db } from '../db/client.js';
-import { userMidnightUtc } from './scheduler/tz.js';
+import { userMidnightUtc, workDayStartUtc, type HoursWindow } from './scheduler/tz.js';
 
 const FALLBACK_AGE_MS = 20 * 60 * 60_000;
 
-export async function reviveDeferred(userId: string, tzOffsetMin?: number, now = Date.now()): Promise<number> {
-  const cutoff = tzOffsetMin === undefined ? now - FALLBACK_AGE_MS : userMidnightUtc(now, tzOffsetMin);
+/**
+ * When the user's current day began: a deferral from before it is over.
+ * Their local midnight, or, with working hours that run past midnight
+ * (22–06), the hour the last session closed: a quest waved off at 23:00
+ * must not be back at 00:05, mid-session, just because the date changed.
+ */
+export function deferralCutoff(now: number, tzOffsetMin?: number, workingHours?: HoursWindow): number {
+  if (tzOffsetMin === undefined) return now - FALLBACK_AGE_MS;
+  return workingHours ? workDayStartUtc(now, tzOffsetMin, workingHours) : userMidnightUtc(now, tzOffsetMin);
+}
+
+export async function reviveDeferred(
+  userId: string,
+  tzOffsetMin?: number,
+  now = Date.now(),
+  workingHours?: HoursWindow,
+): Promise<number> {
+  const cutoff = deferralCutoff(now, tzOffsetMin, workingHours);
   const res = await db.quest.updateMany({
     where: { userId, status: 'NOT_TODAY', updatedAt: { lt: new Date(cutoff) } },
     data: { status: 'ACTIVE' },

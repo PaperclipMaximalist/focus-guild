@@ -123,6 +123,12 @@ resets across a real gap of more than `ADJACENT_GAP_MAX_MIN` (45) and overnight.
 buildDayInfo:
   for each day in horizon:
     working window = [max(now, startHour), endHour] in user-local time
+      endHour < startHour (22–06, 14–02) = until that hour TOMORROW; the day
+      keeps the date its window starts on, and the first day is the working
+      day `now` is in (at 01:00 mid-session: the night that began yesterday).
+      The person's day then turns over at endHour, not midnight (tz.ts
+      workDay*): check-in cap, "today starts now", Not Today and routines all
+      follow that. start == end is refused by Settings (workingHoursProblem).
     free intervals = window minus immovable (fixed + locked) blocks
     after a fixed block ≥ 90 min, the next free time starts 20 min later
       (TRANSITION — nobody walks out of school straight into an essay)
@@ -422,6 +428,9 @@ quests, and a true energy curve that may not match the configured one.
   estimates, finish when nearly there, and get surprise quests. A second,
   perfect-follower run, plus the best possible count for the week's starting
   deadlines, separates the planner's misses from the person's.
+- Night-shift people (hours past midnight) are a separate population (`n0`,
+  `n1`, …; 6% extra by default) simulated after everyone else, so ordinary
+  people are unchanged: `--no-night-shift`, `--only-night-shift`, `--show n12`.
 - Flags: `--n`, `--seed`, `--exact` (estimates are right), `--history`
   (12 finished quests calibrate estimates), `--show <i>` (one person, plan
   and week), `--debug` (triage and budgets), `--flag <name>`,
