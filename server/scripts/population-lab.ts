@@ -1013,6 +1013,12 @@ const week = newWeek();
 /** The same totals over the ordinary people only, to set beside a run from before night-shift people existed. */
 const weekOrdinary = newWeek();
 const weekByArch = new Map<string, { due: number; met: number }>();
+/**
+ * The same outcomes by the person's hidden overrun factor. An estimate fix
+ * must help the ×1.6 and ×2 rows without costing the ×0.8 and ×1 rows, and
+ * the totals alone can't show that.
+ */
+const weekByOverrun = new Map<number, { people: number; due: number; met: number; idealDue: number; idealMet: number; initialMet: number; initialBest: number }>();
 
 const range = (k: number, from = 0) => Array.from({ length: k }, (_, j) => from + j);
 const everyone =
@@ -1058,6 +1064,15 @@ for (const i of everyone) {
       wa.due += life.due;
       wa.met += life.met;
       weekByArch.set(p.archetype, wa);
+      const wo = weekByOverrun.get(p.overrun) ?? { people: 0, due: 0, met: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0 };
+      wo.people++;
+      wo.due += life.due;
+      wo.met += life.met;
+      wo.idealDue += ideal.due;
+      wo.idealMet += ideal.met;
+      wo.initialMet += ideal.initialMet;
+      wo.initialBest += ideal.initialBest;
+      weekByOverrun.set(p.overrun, wo);
       if (SHOW !== null) { console.log('\n   The week:'); for (const l of life.log) console.log(`     ${l}`); }
     }
   } catch (e) {
@@ -1112,6 +1127,10 @@ if (SHOW === null) {
       const o = weekOrdinary;
       console.log(`      without night-shift: deadlines met ${o.met}/${o.due} (${((o.met / Math.max(1, o.due)) * 100).toFixed(1)}%) · followed perfectly ${o.idealMet}/${o.idealDue} (${((o.idealMet / Math.max(1, o.idealDue)) * 100).toFixed(1)}%) · ${o.initialMet} met of ${o.initialBest} possible (${((o.initialMet / Math.max(1, o.initialBest)) * 100).toFixed(1)}%)`);
     }
+    const share = (a: number, b: number) => `${((a / Math.max(1, b)) * 100).toFixed(1)}%`;
+    console.log('      by real work ÷ estimate (met · followed perfectly · of the best possible):');
+    for (const [o, w] of [...weekByOverrun].sort((a, b) => a[0] - b[0]))
+      console.log(`        ×${String(o).padEnd(4)} ${String(w.people).padStart(4)} people: ${share(w.met, w.due).padStart(6)} · ${share(w.idealMet, w.idealDue).padStart(6)} · ${share(w.initialMet, w.initialBest).padStart(6)}`);
   }
   console.log('');
   const rows = [...flagCount].filter(([k]) => !ONLY_FLAG || k.includes(ONLY_FLAG)).sort((a, b) => b[1].people.size - a[1].people.size);
