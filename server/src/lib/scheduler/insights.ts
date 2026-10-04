@@ -34,42 +34,70 @@ export interface Calibration {
   sample: number;
 }
 
-/** Fewer finished quests than this and we trust the user's own numbers. */
-export const MIN_SAMPLE = 5;
+/** A category needs this many finished quests before it gets its own rate. */
 export const MIN_CATEGORY_SAMPLE = 3;
-/** Bounds, so one wild session can't make every plan absurd. */
-const CLAMP: [number, number] = [0.6, 2.0];
+/**
+ * How much the evidence is trusted: weight n / (n + PRIOR_QUESTS), the rest
+ * stays on the user's own number. One quest that took double moves estimates
+ * half-way; five move them 83% of the way. (It used to be nothing until five
+ * quests were finished, so a new user who needs twice their estimates planned
+ * the whole first week too short: 61% of what was possible in the population
+ * lab, against 97% for people with generous estimates.)
+ */
+const PRIOR_QUESTS = 1;
+/**
+ * Plan for the slower side of what's been seen, not the middle. Finishing
+ * early costs nothing (the replan pulls the day forward); running out of
+ * time before a deadline costs the deadline. With the median, half of all
+ * quests still ran over, and even people whose estimates are right on
+ * average lost 7 points to that in the lab.
+ */
+const CAUTIOUS_QUANTILE = 0.75;
+/**
+ * Bounds, so one wild session can't make every plan absurd. The top was 2.0,
+ * which people who need about double (1.6× to 2.6×, quest by quest) hit.
+ */
+const CLAMP: [number, number] = [0.6, 2.5];
 /** Within ±15% of the estimate is noise; don't change the plan for it. */
 const DEADBAND = 0.15;
 
-function median(xs: number[]): number {
+function quantile(xs: number[], q: number): number {
   const s = [...xs].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m]! : (s[m - 1]! + s[m]!) / 2;
+  const pos = (s.length - 1) * q;
+  const lo = Math.floor(pos);
+  return s[lo]! + (s[Math.ceil(pos)]! - s[lo]!) * (pos - lo);
 }
 
-function settle(ratio: number): number {
-  const r = Math.min(CLAMP[1], Math.max(CLAMP[0], ratio));
-  return Math.abs(r - 1) < DEADBAND ? 1 : Math.round(r * 100) / 100;
+/** What a set of actual/estimate ratios supports, starting from `prior`. */
+function learn(ratios: number[], prior: number): number {
+  const seen = Math.min(CLAMP[1], Math.max(CLAMP[0], quantile(ratios, CAUTIOUS_QUANTILE)));
+  return prior + (ratios.length / (ratios.length + PRIOR_QUESTS)) * (seen - prior);
 }
+
+const settle = (r: number) => (Math.abs(r - 1) < DEADBAND ? 1 : Math.round(r * 100) / 100);
 
 /**
- * Learn how far estimates run from reality: the median of actual/estimate
- * over finished quests, per category where there's enough data. Median, not
- * mean — one quest left open over a weekend shouldn't set the rate.
+ * Learn how far estimates run from reality, from the first finished quest
+ * with logged time: the upper quartile of actual/estimate, shrunk toward the
+ * user's own number while there's little to go on, per category where
+ * there's enough data. A quantile, not the mean — one quest left open over a
+ * weekend shouldn't set the rate (from five quests on it can't move it).
  */
 export function calibrateEstimates(samples: CompletedSample[]): Calibration | null {
   const usable = samples.filter((s) => s.estimatedMinutes >= 5 && s.actualMinutes >= 5);
-  if (usable.length < MIN_SAMPLE) return null;
+  if (!usable.length) return null;
   const ratio = (s: CompletedSample) => s.actualMinutes / s.estimatedMinutes;
   const byCat = new Map<string, number[]>();
   for (const s of usable) {
     const k = s.category ?? 'deep_work';
     byCat.set(k, [...(byCat.get(k) ?? []), ratio(s)]);
   }
+  // Overall, the prior is the user's own number; for one category it's what
+  // their quests do overall (three essays say less than twelve quests).
+  const overall = learn(usable.map(ratio), 1);
   const byCategory: Record<string, number> = {};
-  for (const [k, rs] of byCat) if (rs.length >= MIN_CATEGORY_SAMPLE) byCategory[k] = settle(median(rs));
-  return { global: settle(median(usable.map(ratio))), byCategory, sample: usable.length };
+  for (const [k, rs] of byCat) if (rs.length >= MIN_CATEGORY_SAMPLE) byCategory[k] = settle(learn(rs, overall));
+  return { global: settle(overall), byCategory, sample: usable.length };
 }
 
 export function multiplierFor(cal: Calibration | null | undefined, category: string | null | undefined): number {
@@ -232,8 +260,8 @@ export function computeInsights(input: InsightInput): PlanInsights {
   if (calibration && calibration.global !== 1) {
     notes.push(
       calibration.global > 1
-        ? `Quests have been taking about ${calibration.global}× your estimates (from ${calibration.sample} finished), so the plan allows for that.`
-        : `Quests have been taking about ${calibration.global}× your estimates (from ${calibration.sample} finished): you're faster than you think.`,
+        ? `Quests have been running to about ${calibration.global}× your estimates (from ${calibration.sample} finished), so the plan allows for that.`
+        : `Even your slower quests take about ${calibration.global}× your estimates (from ${calibration.sample} finished): you're faster than you think.`,
     );
   }
 

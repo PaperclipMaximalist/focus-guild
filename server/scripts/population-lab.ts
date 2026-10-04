@@ -897,6 +897,12 @@ const times: number[] = [];
 let crashes = 0;
 const week = { due: 0, met: 0, worked: 0, planned: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0 };
 const weekByArch = new Map<string, { due: number; met: number }>();
+/**
+ * The same outcomes by the person's hidden overrun factor. An estimate fix
+ * must help the ×1.6 and ×2 rows without costing the ×0.8 and ×1 rows, and
+ * the totals alone can't show that.
+ */
+const weekByOverrun = new Map<number, { people: number; due: number; met: number; idealDue: number; idealMet: number; initialMet: number; initialBest: number }>();
 
 const start = SHOW ?? 0;
 const end = SHOW !== null ? SHOW + 1 : N;
@@ -930,6 +936,15 @@ for (let i = start; i < end; i++) {
       wa.due += life.due;
       wa.met += life.met;
       weekByArch.set(p.archetype, wa);
+      const wo = weekByOverrun.get(p.overrun) ?? { people: 0, due: 0, met: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0 };
+      wo.people++;
+      wo.due += life.due;
+      wo.met += life.met;
+      wo.idealDue += ideal.due;
+      wo.idealMet += ideal.met;
+      wo.initialMet += ideal.initialMet;
+      wo.initialBest += ideal.initialBest;
+      weekByOverrun.set(p.overrun, wo);
       if (SHOW !== null) { console.log('\n   The week:'); for (const l of life.log) console.log(`     ${l}`); }
     }
   } catch (e) {
@@ -978,6 +993,10 @@ if (SHOW === null) {
     console.log(`week: deadlines met ${week.met}/${week.due} (${((week.met / Math.max(1, week.due)) * 100).toFixed(1)}%) · followed perfectly ${week.idealMet}/${week.idealDue} (${((week.idealMet / Math.max(1, week.idealDue)) * 100).toFixed(1)}%) · worked ${Math.round(week.worked / 60)} h of ${Math.round(week.planned / 60)} h planned-and-reached`);
     console.log(`      starting deadlines, perfect follower: ${week.initialMet} met of ${week.initialBest} possible (${((week.initialMet / Math.max(1, week.initialBest)) * 100).toFixed(1)}% of the best any plan could do)`);
     console.log(`      by archetype: ${[...weekByArch].map(([a, w]) => `${a} ${((w.met / Math.max(1, w.due)) * 100).toFixed(0)}%`).join(' · ')}`);
+    const share = (a: number, b: number) => `${((a / Math.max(1, b)) * 100).toFixed(1)}%`;
+    console.log('      by real work ÷ estimate (met · followed perfectly · of the best possible):');
+    for (const [o, w] of [...weekByOverrun].sort((a, b) => a[0] - b[0]))
+      console.log(`        ×${String(o).padEnd(4)} ${String(w.people).padStart(4)} people: ${share(w.met, w.due).padStart(6)} · ${share(w.idealMet, w.idealDue).padStart(6)} · ${share(w.initialMet, w.initialBest).padStart(6)}`);
   }
   console.log('');
   const rows = [...flagCount].filter(([k]) => !ONLY_FLAG || k.includes(ONLY_FLAG)).sort((a, b) => b[1].people.size - a[1].people.size);

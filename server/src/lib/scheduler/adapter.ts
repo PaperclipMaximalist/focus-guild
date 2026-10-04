@@ -103,7 +103,7 @@ export function questToTask(
   // Plan with what quests like this actually take, once there's evidence.
   const mult = multiplierFor(calibration, overrides.category ?? q.category ?? ADAPTER_DEFAULTS.category);
   const total = Math.max(1, Math.round(q.estimatedMinutes * mult));
-  const remaining = remainingFor(total, q.actualMinutes ?? 0);
+  const remaining = remainingFor(total, q.actualMinutes ?? 0, q.estimatedMinutes);
   const deadline = q.deadline
     ? q.deadline.getTime()
     : now + ADAPTER_DEFAULTS.fallbackDeadlineDays * 24 * 60 * 60_000;
@@ -164,10 +164,14 @@ const OVERRUN_MAX = 120;
  * saw in most simulated weeks. It now keeps a quarter of its estimate
  * (15 min to 2 h) in the plan until it's marked complete.
  */
-export function remainingFor(totalMin: number, loggedMin: number): number {
+export function remainingFor(totalMin: number, loggedMin: number, estimateMin = totalMin): number {
   const left = totalMin - loggedMin;
-  if (left > 0) return left;
-  return Math.min(OVERRUN_MAX, Math.max(OVERRUN_MIN, Math.round(totalMin * OVERRUN_SHARE)));
+  const floor = Math.min(OVERRUN_MAX, Math.max(OVERRUN_MIN, Math.round(totalMin * OVERRUN_SHARE)));
+  // Past the user's own estimate but inside the calibrated one (72 planned
+  // for a 60-min quest, 67 logged): the 5 min left is a sliver the budget
+  // won't place, so the quest vanished again. It keeps the floor instead.
+  if (left > 0) return loggedMin >= estimateMin ? Math.max(left, floor) : left;
+  return floor;
 }
 
 function clamp01(v: number): number {

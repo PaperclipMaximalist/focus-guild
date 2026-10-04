@@ -313,7 +313,9 @@ replan route also tops up routines on days that don't have them yet
   owl (19–24). `userConfig.ts` picks it from `schedulerSettings.chronotype`.
 - **Overrun** (`adapter.remainingFor`): a quest still open after its logged
   time used up the estimate keeps 25% of the estimate (15–120 min) in the
-  plan until it's marked done. It used to drop to 0 and vanish.
+  plan until it's marked done. It used to drop to 0 and vanish. The same
+  floor holds once the user's own estimate is used up, even if the
+  calibrated one has a few minutes left (a sliver the budget won't place).
 - **Calendar** (`../calendar`): busy, timed, non-cancelled ICS events become
   `fixed` blocks noted `Calendar: <title>`; synced every 15 min and before
   generate/replan when stale (4 s cap).
@@ -322,9 +324,13 @@ replan route also tops up routines on days that don't have them yet
   back to ACTIVE after that midnight. (It used to delete quests from the plan
   for good.)
 - **Calibration** (`insights.calibrateEstimates`): the focus timer logs
-  focused minutes to `actualMinutes`. From finished quests with logged time:
-  the median actual/estimate, per category with ≥ 3 samples (≥ 5 overall),
-  clamped 0.6–2.0, ±15% deadband. The adapter plans `estimate × multiplier`.
+  focused minutes to `actualMinutes`. From the first finished quest with
+  logged time: the upper quartile of actual/estimate (plan for the slower
+  quests; finishing early is free, a missed deadline isn't), clamped 0.6–2.5,
+  shrunk toward 1 by n / (n + 1), ±15% deadband; per category with ≥ 3
+  samples (shrunk toward the overall rate). The adapter plans
+  `estimate × multiplier`. (Until Oct 2026: the
+  median, clamped at 2.0, and nothing before five finished quests.)
 
 ## Explain (`explain.ts`)
 
