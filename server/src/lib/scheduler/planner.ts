@@ -544,6 +544,13 @@ export interface PlanInputs {
   lockedBlocks: Block[];
   config: UserConfig;
   now: number;
+  /**
+   * Block ids already in use that plan() isn't handed as blocks: a replan
+   * holds the past blocks back and re-attaches them afterwards. Without
+   * these, skip the morning's `blk-1`, replan, and the new block was `blk-1`
+   * too: two tiles with one React key, one row in the database.
+   */
+  reservedIds?: Iterable<string>;
 }
 
 /**
@@ -595,7 +602,7 @@ export function plan(inputs: PlanInputs): SchedulerResult {
 
   // ── 4. Construct each day, then settle deadline work against what fit ─
   const allWorkBlocks: Block[] = [];
-  const idGen = makeIdGen('blk', immovable.map((b) => b.id));
+  const idGen = makeIdGen('blk', [...immovable.map((b) => b.id), ...(inputs.reservedIds ?? [])]);
   // Track how many minutes each task actually got placed (vs granted).
   const placedByTask = new Map<string, number>();
 

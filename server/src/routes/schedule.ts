@@ -352,7 +352,12 @@ const FillersSchema = z.object({
 });
 const EditSchema = z.object({
   edit: z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('move_block'), blockId: z.string(), newStart: z.string() }),
+    z.object({
+      kind: z.literal('move_block'),
+      blockId: z.string(),
+      // Any string used to pass: "tomorrow" became NaN and pinned a block at no time.
+      newStart: z.string().refine((s) => Number.isFinite(new Date(s).getTime()), 'newStart must be a date-time'),
+    }),
     z.object({ kind: z.literal('swap_blocks'), aId: z.string(), bId: z.string() }),
     z.object({ kind: z.literal('delete_block'), blockId: z.string() }),
     z.object({ kind: z.literal('pin_block'), blockId: z.string() }),

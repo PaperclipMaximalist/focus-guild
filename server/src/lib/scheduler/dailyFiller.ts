@@ -182,14 +182,26 @@ function findNearestSlot(
   hi: number,
   taken: Array<{ start: number; end: number }>,
 ): number | null {
-  const candidates = [preferredStart, lo, hi - durMs];
-  for (const b of taken) candidates.push(b.end, b.start - durMs);
-  let best: number | null = null;
-  for (const s of candidates) {
-    if (s < lo || s + durMs > hi) continue;
-    if (taken.some((b) => b.start < s + durMs && s < b.end)) continue;
-    const d = Math.abs(s - preferredStart);
-    if (best === null || d < Math.abs(best - preferredStart) || (d === Math.abs(best - preferredStart) && s < best)) best = s;
+  const raw = [preferredStart, lo, hi - durMs];
+  for (const b of taken) raw.push(b.end, b.start - durMs);
+  // On the clock's 5-minute marks, or whole minutes when a tight day has no
+  // such slot. Routines with no hour are spread by dividing what is left of
+  // the day: opened at 09:00:00.001, the second one started on half a
+  // millisecond, and so did the work placed after it.
+  for (const grid of [ROUTINE_SNAP_MS, MS_PER_MIN]) {
+    let best: number | null = null;
+    for (const r of raw) {
+      for (const s of [Math.floor(r / grid) * grid, Math.ceil(r / grid) * grid]) {
+        if (s < lo || s + durMs > hi) continue;
+        if (taken.some((b) => b.start < s + durMs && s < b.end)) continue;
+        const d = Math.abs(s - preferredStart);
+        if (best === null || d < Math.abs(best - preferredStart) || (d === Math.abs(best - preferredStart) && s < best)) best = s;
+      }
+    }
+    if (best !== null) return best;
   }
-  return best;
+  return null;
 }
+
+/** Routines start on a 5-minute mark. */
+const ROUTINE_SNAP_MS = 5 * MS_PER_MIN;
