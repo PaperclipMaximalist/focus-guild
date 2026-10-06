@@ -547,7 +547,8 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
-  const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now);
+  // The user asked for this quest: it may land today even when it isn't due soon.
+  const result = replan([...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar], tasks, cfg, now, { addTaskIds: [questId] });
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;

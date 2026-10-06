@@ -64,7 +64,11 @@ replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
   and pays back what it borrowed.
 - **`reflow.ts`** handles edits with minimal perturbation: adding one
   quest never shuffles the rest of your day. The exception is deadline
-  safety: a quest that would miss can move stable work due later.
+  safety: a quest that would miss can move stable work due later. It also
+  repairs what the day did to the plan: a block that began before now keeps
+  only what's ahead, a quest never holds more than it has left, the check-in
+  cap covers the whole of today, and today doesn't grow (finishing the last
+  block isn't answered with more work that could wait).
 
 ## Key concepts
 
