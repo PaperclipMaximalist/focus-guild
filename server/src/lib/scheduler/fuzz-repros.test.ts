@@ -103,7 +103,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // block lands in the shorter one's slot and runs into its neighbour; the
   // replan leaves both, so the Feed shows two quests at 09:25. reflow only
   // checks unpinned work against fixed blocks, not against pins.
-  it.fails('leaves no two work blocks overlapping after a swap of unequal blocks', () => {
+  it('leaves no two work blocks overlapping after a swap of unequal blocks', () => {
     const now = at(0, 8);
     const tasks = [task('a', { remainingMin: 25 }), task('b', { remainingMin: 70 })];
     const plan: Block[] = [
@@ -151,7 +151,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // today's plan after the replan. The adapter holds the quest to tomorrow
   // (notBefore), but reflow's "still valid" test never looks at it.
   // (POST /quests/:id/not-today; the client has the store action but no button yet.)
-  it.fails('moves a quest out of today after Not Today', () => {
+  it('moves a quest out of today after Not Today', () => {
     const now = at(0, 15);
     const plan = [work('blk-1', 'essay', at(0, 15), 25), work('blk-2', 'essay', at(1, 9), 35)];
     const deferred = task('essay', { remainingMin: 60, notBefore: at(1, 0) });
@@ -163,7 +163,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // What a user sees: change working hours (or tap the "Plan 15:30–21:30
   // instead?" suggestion) and the blocks already planned stay at the old
   // hours until they go by.
-  it.fails('keeps no unpinned block outside the working hours after they change', () => {
+  it('keeps no unpinned block outside the working hours after they change', () => {
     const now = at(0, 7);
     const quest = task('essay', { remainingMin: 25 });
     const late = generateSchedule([quest], [], cfg({ workingHours: { startHour: 20, endHour: 24 } }), now);

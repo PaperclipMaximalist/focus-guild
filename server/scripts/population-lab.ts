@@ -871,6 +871,8 @@ interface Life {
   workedMin: number;
   plannedMin: number;
   replans: number;
+  /** Minutes done on work not due this week, against its fair share of the week. */
+  pace: { dated: { done: number; share: number }; undated: { done: number; share: number }; behind: number };
   /** Per replan trigger: blocks that were still valid going in, and how many of them moved. */
   churn: Map<Trigger, { valid: number; moved: number; replans: number }>;
   log: string[];
@@ -889,7 +891,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
   const quests: QuestLike[] = p.quests.map((q) => ({ ...q }));
   // What each quest really takes this person (unknown to the planner).
   const trueLeft = new Map(quests.map((q) => [q.id, Math.max(5, Math.round((q.estimatedMinutes * (POLICY.exact ? 1 : p.overrun * (0.8 + r() * 0.5))) - (q.actualMinutes ?? 0)))]));
-  const life: Life = { findings: [], due: 0, met: 0, initialMet: 0, initialBest: 0, initialBestCapped: 0, missedFixable: 0, workedMin: 0, plannedMin: 0, replans: 0, churn: new Map(), log: [] };
+  const life: Life = { findings: [], due: 0, met: 0, initialMet: 0, initialBest: 0, initialBestCapped: 0, missedFixable: 0, workedMin: 0, plannedMin: 0, replans: 0, pace: { dated: { done: 0, share: 0 }, undated: { done: 0, share: 0 }, behind: 0 }, churn: new Map(), log: [] };
   const log = (s: string) => { if (verbose) life.log.push(s); };
   const cfgNoCap = { ...p.cfg, todayCapMin: undefined };
   // The check-in belongs to the day it was made on, and the route passes its
@@ -1045,6 +1047,16 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
   const tracked = new Set(quests.filter((q) => q.deadline && q.deadline.getTime() > p.now && q.deadline.getTime() <= weekEnd && q.status !== 'RESCUE').map((q) => q.id));
   const idleByQuest = new Map<string, number>();
   const initial = new Set(tracked);
+  // Work that isn't due this week (due later, or undated, which the planner
+  // treats as two weeks out): its fair share of this week. Deadlines met says
+  // nothing about it, and a plan can look good by quietly starving it.
+  const later = quests
+    .filter((q) => q.status !== 'RESCUE' && q.status !== 'COMPLETE' && (!q.deadline || q.deadline.getTime() > weekEnd))
+    .map((q) => {
+      const left = Math.max(0, q.estimatedMinutes - (q.actualMinutes ?? 0));
+      const days = q.deadline ? (q.deadline.getTime() - p.now) / DAY : 14;
+      return { q, logged: q.actualMinutes ?? 0, share: Math.min(left, (left * 7) / days), dated: !!q.deadline };
+    });
 
   regen(p.now);
   // What the first plan held for each of the person's days.
@@ -1182,6 +1194,13 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
   // One finding per broken invariant, weighted by how many plans broke it.
   for (const [name, e] of inv)
     life.findings.push({ flag: QUALITY.has(name) ? `week: ${name}` : `week INV: ${name}`, detail: `${e.n}×, e.g. ${e.detail}`, weight: e.n });
+  for (const l of later) {
+    const done = l.q.status === 'COMPLETE' ? l.share : Math.min(l.share, (l.q.actualMinutes ?? 0) - l.logged);
+    const bucket = l.dated ? life.pace.dated : life.pace.undated;
+    bucket.done += done;
+    bucket.share += l.share;
+    if (l.dated && l.share >= 60 && done < 0.5 * l.share) life.pace.behind += 1;
+  }
   void lastFixed;
   void idleByQuest;
   return life;
@@ -1215,6 +1234,7 @@ const flagCount = new Map<string, { people: Set<number>; weight: number; example
 const archCount = new Map<string, number>();
 const times: number[] = [];
 let crashes = 0;
+const weekPace = { dated: { done: 0, share: 0 }, undated: { done: 0, share: 0 }, peopleBehind: 0 };
 const newWeek = () => ({ due: 0, met: 0, worked: 0, planned: 0, idealDue: 0, idealMet: 0, initialMet: 0, initialBest: 0 });
 const week = newWeek();
 /** The same totals over the ordinary people only, to set beside a run from before night-shift people existed. */
@@ -1261,6 +1281,14 @@ for (const i of everyone) {
         w.initialBest += ideal.initialBest;
       }
       weekBestCapped += ideal.initialBestCapped;
+      weekPace.dated.done += ideal.pace.dated.done;
+      weekPace.dated.share += ideal.pace.dated.share;
+      weekPace.undated.done += ideal.pace.undated.done;
+      weekPace.undated.share += ideal.pace.undated.share;
+      if (ideal.pace.behind) {
+        weekPace.peopleBehind += 1;
+        findings.push({ flag: 'week: behind pace on work due later (perfect follower)', detail: `${ideal.pace.behind} quest(s) due after the week got under half their share of it`, weight: ideal.pace.behind });
+      }
       if (ideal.initialMet < ideal.initialBest)
         findings.push({ flag: 'week: fewer on time than possible (perfect follower)', detail: `${ideal.initialMet} of the week's starting deadlines met; ${ideal.initialBest} were possible`, weight: ideal.initialBest - ideal.initialMet });
       const life = liveWeek(p, SHOW !== null);
@@ -1337,6 +1365,7 @@ if (SHOW === null) {
   if (WEEK) {
     console.log(`week: deadlines met ${week.met}/${week.due} (${((week.met / Math.max(1, week.due)) * 100).toFixed(1)}%) · followed perfectly ${week.idealMet}/${week.idealDue} (${((week.idealMet / Math.max(1, week.idealDue)) * 100).toFixed(1)}%) · worked ${Math.round(week.worked / 60)} h of ${Math.round(week.planned / 60)} h planned-and-reached`);
     console.log(`      starting deadlines, perfect follower: ${week.initialMet} met of ${week.initialBest} possible (${((week.initialMet / Math.max(1, week.initialBest)) * 100).toFixed(1)}% of the best any plan could do)`);
+    console.log(`      work not due this week, perfect follower: due later ${((weekPace.dated.done / Math.max(1, weekPace.dated.share)) * 100).toFixed(1)}% of its fair share done · undated ${((weekPace.undated.done / Math.max(1, weekPace.undated.share)) * 100).toFixed(1)}%`);
     // The benchmark above ignores the check-in. Replans now hold today to its
     // minutes, so a person who said "2 hours" can't reach it; this is the
     // same benchmark inside what they said they had.
