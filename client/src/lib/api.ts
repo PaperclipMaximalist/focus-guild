@@ -578,7 +578,7 @@ export interface ScheduleBlock {
   taskId: string | null;
   locked: boolean;
   note: string | null;
-  /** Plain-language "why now" for work blocks, e.g. "Due tomorrow · heavy work in your sharpest hours." */
+  /** Plain-language "why now" for work blocks, e.g. "Due tomorrow · this finishes it" (48 characters at most). */
   reason?: string | null;
 }
 
