@@ -140,6 +140,7 @@ export function questToTask(
     // hours that run past midnight (22–06) "today" is the session: the quest
     // waits for the next one, instead of coming back at 00:00 the same night.
     ...(q.status === 'NOT_TODAY' ? { notBefore: workDayEndUtc(now, tzOffsetMin, workingHours) } : {}),
+    ...(q.deadline ? {} : { undated: true }),
     remainingMin: remaining,
     totalMin: total,
     deadline,

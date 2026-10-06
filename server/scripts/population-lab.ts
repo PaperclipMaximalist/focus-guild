@@ -509,6 +509,7 @@ function build(p: Person, quests: QuestLike[], now: number, cfg: UserConfig = p.
   const tasks = questsToTasks(quests, {}, now, p.tz, calibration, cfg.workingHours);
   const t0 = performance.now();
   const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, cfg, now);
+  hashPlan(schedule);
   return { tasks, fixed, schedule, issues: feasibilityReport.issues, ms: performance.now() - t0 };
 }
 
@@ -599,6 +600,135 @@ function falseFirst(schedule: Block[], tz: number): string | null {
     if (/first push|easy start/i.test(w.note ?? '')) return `${wd(w.start, tz)} ${fmt(w.start, tz)} says "${/"why":"([^"]*)"/.exec(w.note ?? '')?.[1] ?? ''}" but isn't the day's first block`;
   }
   return null;
+}
+
+/**
+ * Every "why now" sentence, held against the plan it sits in. The judge
+ * reads the words and checks each claim itself, on its own arithmetic:
+ *
+ *   reason-false   a clause the plan contradicts (first one found)
+ *   reason-repeat  the same sentence on four or more blocks of one day
+ *   reason-long    a sentence over 48 characters (Feed tiles cut it off)
+ *
+ * Energy is the curve the app was given (`cfg.energyCurve`, by the hour, as
+ * the planner reads it): the sentence says "your sharp hours" on the app's
+ * own knowledge, and whether that knowledge is right is `energy-misfit`.
+ * "Free" is generous to the planner: a slot only counts when it holds the
+ * whole block a break clear of other work, with at least 0.1 more energy.
+ * The phrases of the reasons before October 2026 are still checked, so an
+ * old build can be graded for a baseline.
+ */
+function reasonFindings(
+  work: Block[], byId: Map<string, Task>, days: ReturnType<typeof buildDayInfo>, cfg: UserConfig, now: number,
+  issues: Built['issues'], undated: ReadonlySet<string>,
+): Finding[] {
+  const tz = cfg.tzOffsetMin ?? 0;
+  const brk = cfg.breakPolicy.shortBreakDurationMin * MIN;
+  const energyAt = (t: number) => cfg.energyCurve(Math.floor(localHourOf(t, tz)));
+  const mid = (w: Block) => w.start + (w.end - w.start) / 2;
+  const whyOf = (w: Block): string | null => {
+    try { return (JSON.parse(w.note ?? '') as { why?: string }).why ?? null; } catch { return null; }
+  };
+  const sharper = (w: Block, until: number, sameDay: boolean): number | null => {
+    const len = w.end - w.start;
+    const need = energyAt(mid(w)) + 0.1;
+    const from = Math.max(now, byId.get(w.taskId!)!.notBefore ?? 0);
+    for (const d of days) {
+      if (sameDay && ownDayOf(d.workStart, cfg) !== ownDayOf(w.start, cfg)) continue;
+      for (const iv of d.freeIntervals) {
+        const inside = work.filter((x) => x.end > iv.start && x.start < iv.end);
+        let cursor = iv.start;
+        let afterWork = false;
+        for (const x of [...inside, null]) {
+          const gs = Math.max(from, cursor + (afterWork ? brk : 0));
+          const ge = Math.min(until, x ? x.start - brk : iv.end);
+          for (let s = Math.ceil(gs / (5 * MIN)) * 5 * MIN; s + len <= ge; s += 5 * MIN) if (energyAt(s + len / 2) >= need) return s;
+          if (x) { cursor = Math.max(cursor, x.end); afterWork = true; }
+        }
+      }
+    }
+    return null;
+  };
+  const at = (t: number) => `${wd(t, tz)} ${fmt(t, tz)}`;
+  const minutesIn = (s: string) => {
+    const m = /(?:(\d+) h)? ?(?:(\d+)(?: min)?)?$/.exec(s.trim());
+    return Number(m?.[1] ?? 0) * 60 + Number(m?.[2] ?? 0);
+  };
+
+  let wrong: string | null = null;
+  let long = 0;
+  let reasons = 0;
+  const perDay = new Map<string, number>();
+  const doneBy = new Map<string, number>();
+  for (let i = 0; i < work.length; i++) {
+    const w = work[i]!;
+    const t = byId.get(w.taskId!)!;
+    const cum = (doneBy.get(t.id) ?? 0) + (w.end - w.start) / MIN;
+    doneBy.set(t.id, cum);
+    const why = whyOf(w);
+    if (!why) continue;
+    reasons++;
+    if (why.length > 48) long++;
+    const dk = `${ownDayOf(w.start, cfg)}|${why}`;
+    perDay.set(dk, (perDay.get(dk) ?? 0) + 1);
+    if (wrong) continue;
+
+    const s = why.toLowerCase();
+    const sameDayAs = (x: Block) => ownDayOf(x.start, cfg) === ownDayOf(w.start, cfg);
+    const prev = i > 0 && sameDayAs(work[i - 1]!) ? work[i - 1]! : null;
+    const pt = prev ? byId.get(prev.taskId!)! : null;
+    const gap = prev ? (w.start - prev.end) / MIN : Infinity;
+    const dueDays = dayIndexOf(t.deadline, tz) - dayIndexOf(w.start, tz);
+    const e = energyAt(mid(w));
+    const load = t.cognitiveLoad;
+    const last = !work.slice(i + 1).some((x) => x.taskId === t.id);
+    const left = Math.round(t.remainingMin - cum);
+    const bad = (what: string) => { wrong = `${at(w.start)} "${t.name}" says "${why}" but ${what}`; };
+    let m: RegExpExecArray | null;
+
+    if (/\bdue (today|tomorrow|in \d+ days)/.test(s) && undated.has(t.id)) bad('the quest has no deadline');
+    else if (/\bdue today/.test(s) && dueDays !== 0) bad(`it is due in ${dueDays} days`);
+    else if (/\bdue tomorrow/.test(s) && dueDays !== 1) bad(`it is due in ${dueDays} days`);
+    else if ((m = /\bdue in (\d+) days/.exec(s)) && Number(m[1]) !== dueDays) bad(`it is due in ${dueDays} days`);
+    else if (/high priority/.test(s) && t.urgencyMultiplier < 1.39) bad('the quest is not HIGH');
+    else if ((m = /untouched (\d+) days/.exec(s)) && (!undated.has(t.id) || Number(m[1]) !== Math.floor((now - (t.lastWorkedAt ?? t.createdAt)) / DAY))) bad('that is not how long it has waited');
+    else if (/finishes it/.test(s) && left >= 1) bad(`${left} min of it are left after this block`);
+    else if ((m = /([\d h]+(?: min)?) short after this/.exec(s)) && (!last || minutesIn(m[1]!) !== (issues.find((x) => x.taskId === t.id)?.shortfallMin ?? -1))) bad(`the plan is ${issues.find((x) => x.taskId === t.id)?.shortfallMin ?? 0} min short on it${last ? '' : ' and this is not its last block'}`);
+    else if ((m = /([\d h]+(?: min)?) left after this/.exec(s)) && Math.abs(minutesIn(m[1]!) - left) > 1) bad(`${left} min are left after it`);
+    else if (/first push|easy start/.test(s) && prev) bad("it isn't the day's first block");
+    else if (/first push/.test(s) && (load < 0.7 || mins(w) > 30)) bad('it is not a short piece of heavy work');
+    else if (/easy start/.test(s) && load > 0.5 && mins(w) > 30) bad('it is neither light nor short');
+    else if (/lighter/.test(s) && !(pt && gap < 20 && pt.cognitiveLoad >= 0.7 && load <= 0.5)) bad('the block before it is not heavy work');
+    else if (/batched with/.test(s) && !(pt && gap < 20 && pt.category === 'admin' && t.category === 'admin')) bad('the block before it is not admin');
+    else if (/back to it/.test(s) && !(pt && pt.id === t.id && gap >= 5)) bad('the block before it is another quest, or runs straight on');
+    else if (/(sharp|sharpest) hours/.test(s) && !(load >= 0.7 && e >= 0.75)) bad(`energy there is ${e.toFixed(2)}`);
+    else if (/light work/.test(s) && !(load <= 0.4 && e < 0.55)) bad(`load ${load}, energy ${e.toFixed(2)}`);
+    else if (/time you asked for/.test(s) && !(t.preferredHour !== null && Math.abs(Math.floor(localHourOf(w.start, tz)) - t.preferredHour) <= 1)) bad('no such time was asked for');
+    else if (/no sharper time free today/.test(s) && sharper(w, Infinity, true) !== null) bad(`${at(sharper(w, Infinity, true)!)} is free and sharper`);
+    else if (/no sharper time left|best time left before it's due/.test(s) && sharper(w, t.deadline, false) !== null) bad(`${at(sharper(w, t.deadline, false)!)} is free, sharper and before the deadline`);
+    else if (/sharper ones were full/.test(s)) {
+      const free = sharper(w, Infinity, true);
+      const day = days.find((d) => ownDayOf(d.workStart, cfg) === ownDayOf(w.start, cfg));
+      let any = false;
+      for (let x = day?.workStart ?? 0; day && x < day.workEnd; x += 30 * MIN) if (energyAt(x) >= e + 0.1) any = true;
+      if (free !== null) bad(`${at(free)} is free and sharper`);
+      else if (!any) bad('that day has no sharper hours at all');
+    } else if (/change of subject/.test(s) && work.slice(0, i).some((x) => sameDayAs(x) && x.taskId === t.id)) bad('it goes back to a quest already worked on that day');
+  }
+
+  const f: Finding[] = [];
+  if (wrong) f.push({ flag: 'reason-false', detail: wrong });
+  const rep = [...perDay].filter(([, c]) => c >= 4).sort((x, y) => y[1] - x[1])[0];
+  if (rep) f.push({ flag: 'reason-repeat', detail: `"${rep[0].split('|').slice(1).join('|')}" ${rep[1]} times in one day` });
+  if (long) f.push({ flag: 'reason-long', detail: `${long} of ${reasons} reasons over 48 characters`, weight: Math.round((long / reasons) * 100) });
+  return f;
+}
+
+/** FNV-1a over every plan made (times, quest, type; notes left out). */
+let planHash = 0x811c9dc5;
+function hashPlan(schedule: Block[]) {
+  const rows = schedule.map((b) => `${b.start}|${b.end}|${b.type}|${b.taskId ?? ''}|${b.locked ? 1 : 0}`).sort();
+  for (const row of rows) for (let i = 0; i < row.length; i++) planHash = Math.imul(planHash ^ row.charCodeAt(i), 0x01000193) >>> 0;
 }
 
 function gradePlan(p: Person, b: Built): Finding[] {
@@ -836,6 +966,7 @@ function gradePlan(p: Person, b: Built): Finding[] {
     const mine = work.filter((w) => w.taskId === t.id).length;
     if (mine === 0 && work.length >= 3) { f.push({ flag: 'high-tier-unplanned', detail: `HIGH "${t.name}" ${t.remainingMin}m due ${at(t.deadline)} got nothing` }); break; }
   }
+  f.push(...reasonFindings(work, byId, o.days, cfg, now, issues, new Set(p.quests.filter((q) => !q.deadline).map((q) => q.id))));
   return f;
 }
 
@@ -893,6 +1024,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
       ? placeDailyFillers({ fillers: p.dailies, now: t, horizonDays: p.cfg.horizonDays, workingHours: p.cfg.workingHours, existingFixed: current.filter((b) => b.end > t), tzOffsetMin: tz, idPrefix: `f${t}` }).filter((b) => !have.has(dayOf(b)))
       : [];
     schedule = replan([...current, ...routines], tasksAt(t), cfgNoCap, t).schedule;
+    hashPlan(schedule);
     life.replans++;
     if (!falseFirstSeen) {
       const ff = falseFirst(schedule.filter((b) => b.end > t), tz);
@@ -1163,6 +1295,8 @@ if (SHOW === null) {
   console.log(`\nPopulation lab · ${n} people${nights && nights < n ? ` (${n - nights} + ${nights} night-shift)` : ''} · seed ${SEED}${WEEK ? ' · lived one week each' : ''}${POLICY.morningRefresh ? '' : ' · no morning refresh'}${POLICY.clipDailies ? ' · dailies clipped to 60' : ''}`);
   console.log(`archetypes: ${[...archCount].map(([a, c]) => `${a} ${c}`).join(', ')}`);
   console.log(`plan time: p50 ${pct(0.5)} ms · p95 ${pct(0.95)} ms · max ${pct(1)} ms · crashes ${crashes}`);
+  // Same hash before and after a change = the same blocks in every plan made.
+  console.log(`plan hash: ${planHash.toString(16).padStart(8, '0')} (every plan's blocks, notes left out)`);
   if (WEEK) {
     console.log(`week: deadlines met ${week.met}/${week.due} (${((week.met / Math.max(1, week.due)) * 100).toFixed(1)}%) · followed perfectly ${week.idealMet}/${week.idealDue} (${((week.idealMet / Math.max(1, week.idealDue)) * 100).toFixed(1)}%) · worked ${Math.round(week.worked / 60)} h of ${Math.round(week.planned / 60)} h planned-and-reached`);
     console.log(`      starting deadlines, perfect follower: ${week.initialMet} met of ${week.initialBest} possible (${((week.initialMet / Math.max(1, week.initialBest)) * 100).toFixed(1)}% of the best any plan could do)`);

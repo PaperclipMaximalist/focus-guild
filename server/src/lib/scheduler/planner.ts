@@ -28,6 +28,7 @@
 
 import { allocateBudgets, buildDayInfo, dueWithinPlan, todayCap, triage } from './budget.js';
 import { reconcile } from './reconcile.js';
+import { explainPlan } from './explain.js';
 import { DEFAULT_SCORE_WEIGHTS } from './config.js';
 import { buildDay } from './constructor.js';
 import { userHourOf, userMidnightUtc } from './tz.js';
@@ -641,7 +642,9 @@ export function plan(inputs: PlanInputs): SchedulerResult {
 
   // No automatic break-block insertion. Gaps between work blocks ARE the
   // breaks; the client visualizes the energy-meter dip and the user decides.
-  const schedule = sortBlocks([...immovable, ...allWorkBlocks]);
+  // The reasons are written last, from the whole plan: what a block may say
+  // ("this finishes it", "no sharper time left") depends on every other one.
+  const schedule = explainPlan(sortBlocks([...immovable, ...allWorkBlocks]), tasks, days, issues, config, now);
   return {
     schedule,
     feasibilityReport: { ok: issues.length === 0, issues },
