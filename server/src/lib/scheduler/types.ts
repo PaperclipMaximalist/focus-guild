@@ -47,6 +47,12 @@ export interface Task {
    * of losing them.
    */
   notBefore?: number;
+  /**
+   * The quest has no deadline of its own: `deadline` is the adapter's
+   * stand-in (two weeks out). Only the reasons read this, so they never
+   * tell someone an undated quest is "due in 8 days".
+   */
+  undated?: boolean;
 }
 
 export interface Block {

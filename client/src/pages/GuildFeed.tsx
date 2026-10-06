@@ -13,9 +13,11 @@ import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
 import { formatMinutes } from '../lib/formatters';
+import { shortfallLine, type ShortfallChoice } from '../lib/shortfall';
+import { blockDetail } from '../lib/blockDetail';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
 import { sfxComplete, sfxAchievement, sfxLevelUp, sfxStart } from '../lib/sfx';
-import { BatteryMedium, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock, Clock9, CloudSun, Coffee, Diamond, Lightbulb, Pin, Play, RefreshCw, RotateCw, Star, Timer, TriangleAlert, X } from 'lucide-react';
+import { BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock, Clock9, CloudSun, Coffee, Diamond, Lightbulb, Pin, Play, RefreshCw, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -550,15 +552,45 @@ function DayChip({
 
 // ─── Feasibility banner ───────────────────────────────────────────────────────
 
+/**
+ * Quests the plan can't finish in time. Each one gets a plain sentence of
+ * what does fit and one or two choices; a tap sends that quest edit and
+ * replans. Nothing changes until tapped.
+ */
 function FeasibilityBanner({
-  issues, questById,
+  issues, questById, schedule, now, onChanged,
 }: {
   issues: Array<{ taskId: string; shortfallMin: number; suggestions: string[] }>;
   questById: Record<string, Quest | undefined>;
+  schedule: ScheduleBlock[];
+  now: number;
+  onChanged: () => Promise<void> | void;
 }) {
-  const [open, setOpen] = useState(false);
+  // One or two quests: show the choices straight away. A long list stays folded.
+  const [open, setOpen] = useState(issues.length <= 2);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failed, setFailed] = useState<string | null>(null);
   const totalShortfall = issues.reduce((s, i) => s + i.shortfallMin, 0);
   const headline = `${issues.length} quest${issues.length > 1 ? 's' : ''} won't finish before deadline — short ${formatMinutes(totalShortfall)}`;
+  // `now` ticks every second; the lines only need the minute.
+  const minute = Math.floor(now / 60_000) * 60_000;
+  const lines = useMemo(
+    () => issues.map((issue) => shortfallLine(issue, questById[issue.taskId], schedule, minute)),
+    [issues, questById, schedule, minute],
+  );
+  const apply = async (taskId: string, choice: ShortfallChoice) => {
+    const key = `${taskId}:${choice.kind}`;
+    setBusy(key);
+    setFailed(null);
+    try {
+      await api.quests.update(taskId, choice.fields);
+      await onChanged();
+    } catch {
+      setFailed(taskId);
+    } finally {
+      setBusy(null);
+    }
+  };
   return (
     <div
       className="rounded-lg p-3 mb-3"
@@ -577,16 +609,34 @@ function FeasibilityBanner({
       <AnimatePresence>
         {open && (
           <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-            <div className="mt-2 space-y-1.5">
-              {issues.map((issue) => {
-                const q = questById[issue.taskId];
-                return (
-                  <div key={issue.taskId} className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                    <span style={{ color: 'var(--color-text)' }}>{q?.title ?? issue.taskId.slice(0, 8)}</span>
-                    {' '}— short {issue.shortfallMin}m
-                  </div>
-                );
-              })}
+            <div className="mt-3 space-y-3">
+              {lines.map((line) => (
+                <div key={line.taskId}>
+                  <p className="text-sm leading-snug" style={{ color: 'var(--color-muted)' }}>
+                    <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{line.title}:</span>
+                    {' '}{line.sentence}
+                  </p>
+                  {line.choices.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-2">
+                      {line.choices.map((choice) => (
+                        <button
+                          key={choice.kind}
+                          onClick={() => apply(line.taskId, choice)}
+                          disabled={busy !== null}
+                          className="inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-md border text-xs font-semibold transition-transform active:scale-95 disabled:opacity-50"
+                          style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', background: 'var(--color-surface)' }}
+                        >
+                          {choice.kind === 'deadline' ? <CalendarClock size={14} aria-hidden /> : <Scissors size={14} aria-hidden />}
+                          {busy === `${line.taskId}:${choice.kind}` ? 'Replanning…' : choice.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {failed === line.taskId && (
+                    <p className="mt-1 text-xs" style={{ color: 'var(--color-fire)' }}>Couldn't change the quest. Nothing was moved.</p>
+                  )}
+                </div>
+              ))}
             </div>
           </motion.div>
         )}
@@ -842,6 +892,13 @@ export default function GuildFeed() {
 
   const handleExplain = useCallback(async () => {
     if (!selectedBlock) return;
+    // A quest block already shows its reason; the sheet adds the deadline
+    // and what comes after, from the plan on screen (the server would only
+    // send the same sentence back).
+    if (selectedBlock.type === 'work' && selectedBlock.taskId) {
+      setExplanation(blockDetail(selectedBlock, selectedQuest, schedule));
+      return;
+    }
     setLoadingExplanation(true);
     try {
       const r = await api.schedule.explain(selectedBlock.id);
@@ -851,7 +908,7 @@ export default function GuildFeed() {
     } finally {
       setLoadingExplanation(false);
     }
-  }, [selectedBlock]);
+  }, [selectedBlock, selectedQuest, schedule]);
 
   useEffect(() => {
     setExplanation(null);
@@ -890,7 +947,13 @@ export default function GuildFeed() {
         <EnergyMeterStrip trace={energyTrace} />
 
         {!feasibilityReport.ok && (
-          <FeasibilityBanner issues={feasibilityReport.issues} questById={questById} />
+          <FeasibilityBanner
+            issues={feasibilityReport.issues}
+            questById={questById}
+            schedule={schedule}
+            now={now}
+            onChanged={async () => { await loadQuests(); await replan(); }}
+          />
         )}
 
         <PlanInsights insights={insights} onChanged={generate} />
