@@ -31,15 +31,16 @@ export function generateSchedule(
  * only fills gaps with newly-needed work. Idempotent — running twice with
  * no input change produces the same schedule.
  *
- * `_options` is kept for backward-compat but ignored. Callers used to pass
- * `skipSwapPass`; that lever doesn't make sense for the new constructor.
+ * `options.addTaskIds` names quests the user just asked for, which may land
+ * today whatever their deadline (see reflow.ts). `skipSwapPass` is kept for
+ * backward-compat but ignored.
  */
 export function replan(
   currentSchedule: Schedule,
   tasks: Task[],
   config: UserConfig,
   now: number,
-  _options: ReplanOptions = {},
+  options: ReplanOptions = {},
 ): SchedulerResult {
-  return reflow(currentSchedule, tasks, config, now);
+  return reflow(currentSchedule, tasks, config, now, options);
 }

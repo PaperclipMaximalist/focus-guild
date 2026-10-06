@@ -191,6 +191,12 @@ export interface SchedulerResult {
 export interface ReplanOptions {
   /** If true, do not run adjacent-swap optimization. Default false. */
   skipSwapPass?: boolean;
+  /**
+   * Quests the user just asked to have planned ("add to my day"). A replan
+   * doesn't otherwise add work that isn't due soon to a day that already
+   * has its plan; these may land today whatever their deadline.
+   */
+  addTaskIds?: readonly string[];
 }
 
 // ---------- Edits ----------

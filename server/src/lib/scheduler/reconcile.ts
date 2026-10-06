@@ -201,7 +201,11 @@ export function reconcile(
   const shortIds = new Set(short.map((x) => x.t.id));
   for (const [id, m] of lent) {
     const t = taskMap.get(id);
-    if (t && !shortIds.has(id)) short.push({ t, need: m });
+    // Never more than the quest still lacks: one rebuilt day can take a block
+    // that another day's rebuild already gave back, and a 45-minute errand
+    // was then planned twice.
+    const owed = t ? Math.min(m, t.remainingMin - placedFor(out, id)) : 0;
+    if (t && !shortIds.has(id) && owed > EPSILON_MIN) short.push({ t, need: owed });
   }
   if (!short.length) return out;
   const need = new Map(short.map((x) => [x.t.id, x.need]));

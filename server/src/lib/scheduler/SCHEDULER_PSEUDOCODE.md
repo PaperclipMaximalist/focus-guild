@@ -314,10 +314,37 @@ within today's check-in cap:
 
 A block is "stable" (kept exactly in place) if it is future + unlocked, its
 task still exists and isn't done, it ends before the deadline, dependencies
-are met, **and it doesn't overlap a fixed block** (a meeting synced after the
-plan was made invalidates the work under it). Stable blocks go to `plan()` as
-extra locked blocks; consumed minutes are subtracted from `remainingMin` and
-recorded as `committedMin`. Replanning with nothing changed moves 0 blocks.
+are met, it lies inside the current working hours and after the task's
+`notBefore` ("Not Today" hit after the plan was made), **and it doesn't
+overlap a fixed block, a pinned block or an earlier stable block** (a meeting
+synced after the plan was made, or a block dragged onto it, invalidates the
+work under it). Stable blocks go to `plan()` as extra locked blocks; the
+minutes still ahead in them are subtracted from `remainingMin` and recorded
+as `committedMin`. Replanning with nothing changed moves 0 blocks.
+
+A replan starts from a plan the day has already bent. Four rules for that:
+
+- **A block that began before `now`** keeps only the part still ahead
+  (`start = now`) when at least `STRADDLE_KEEP_MIN` (15) of it is left;
+  otherwise it is dropped and its work replanned. The whole block used to
+  stay and count in full, so its quest was planned short by the minutes gone.
+- **Over-commitment.** Walking a quest's blocks in time order (pinned ones
+  first), once they hold what it has left the next block is trimmed and the
+  rest dropped. Nothing moves for a surplus of `OVERCOMMIT_SLACK_MIN` (5) or less.
+- **The check-in cap is for the whole of today.** `todayCapMin` minus today's
+  past work blocks, pinned blocks and stable blocks is what `plan()` may add.
+  If today's stable blocks alone exceed it (a check-in made after the plan),
+  the ones due latest are released.
+- **Today doesn't grow.** On a day that already has a plan, work not due
+  within `URGENT_WITHIN_DAYS` (2) is only added to today in place of minutes
+  the plan gave up ahead of now (a quest finished early), and only while
+  today still has work ahead: with the last block done, today is done. Such
+  work waits (`notBefore`), and starts again on the lightest later day it can
+  use, a day in hand before its deadline, instead of all landing on tomorrow.
+  Exceptions: a quest in `options.addTaskIds` (the insert route passes the
+  quest the user just added), a day with no plan at all, and work that would
+  otherwise miss its deadline (the plan is rerun with it released). A full
+  generate ("Reflow day") is not bound by any of this.
 
 **Deadline safety outranks stability.** If the result still has short
 quests that triage keeps, stable blocks of work due later that sit before

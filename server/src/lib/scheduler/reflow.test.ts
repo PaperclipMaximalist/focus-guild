@@ -42,7 +42,9 @@ describe('reflow — minimal perturbation', () => {
     // User adds a third quest. Replan should keep a's and b's blocks where
     // they were, just slot c in around them.
     const expanded = [...original, task('c', { remainingMin: 30 })];
-    const after = replan(first.schedule, expanded, cfg(), now);
+    // (The insert route names the quest: one the user just asked for may land
+    // today even though it isn't due soon and today already has its plan.)
+    const after = replan(first.schedule, expanded, cfg(), now, { addTaskIds: ['c'] });
 
     for (const orig of originalWork) {
       const stillThere = after.schedule.find((b) => b.id === orig.id);
