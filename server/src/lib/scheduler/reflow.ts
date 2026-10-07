@@ -113,12 +113,31 @@ export function reflow(
   const candidates: Block[] = [];
 
   for (const b of currentSchedule) {
+    // A block without a time can't be shown, stored or planned around.
+    if (!Number.isFinite(b.start) || !Number.isFinite(b.end)) continue;
     if (b.end <= now) past.push(b);
     else if (b.type === 'fixed') fixedFuture.push(b);
-    else if (b.locked) userLockedFuture.push(b);
-    else if (isWork(b)) candidates.push(b);
+    else if (b.locked) {
+      // A pin holds time for a quest. Once the quest is finished or deleted
+      // there is nothing to hold it for: pin tomorrow's block, finish the
+      // quest today, and tomorrow kept an hour for work that no longer exists.
+      const t = isWork(b) ? taskMap.get(b.taskId!) : undefined;
+      if (isWork(b) && (!t || t.status === 'done')) continue;
+      userLockedFuture.push(b);
+    } else if (isWork(b)) candidates.push(b);
     // anything else unlocked (old break/buffer blocks) is dropped
   }
+
+  /**
+   * Minutes of a pinned block that count toward its quest: the part still
+   * ahead and before the deadline. A swap can leave a pin on the day after
+   * its quest is due; counting it as done meant no work was planned before
+   * the deadline and no shortfall was reported.
+   */
+  const pinCounts = (b: Block) => {
+    const due = taskMap.get(b.taskId!)?.deadline ?? Infinity;
+    return Math.max(0, (Math.min(b.end, due) - Math.max(b.start, now)) / MS_PER_MIN);
+  };
 
   // The working windows ahead. The user may have changed their hours since
   // the plan was made; unpinned work outside them is no longer stable.
@@ -130,7 +149,7 @@ export function reflow(
   // blocks are the ones to go. Pinned blocks count first: they never move.
   const need = new Map<string, number>(tasks.map((t) => [t.id, t.remainingMin]));
   for (const b of userLockedFuture) {
-    if (isWork(b) && need.has(b.taskId!)) need.set(b.taskId!, need.get(b.taskId!)! - ahead(b));
+    if (isWork(b) && need.has(b.taskId!)) need.set(b.taskId!, need.get(b.taskId!)! - pinCounts(b));
   }
   const stableFuture: Block[] = [];
   for (const raw of [...candidates].sort((a, b) => a.start - b.start || a.end - b.end)) {
@@ -194,9 +213,9 @@ export function reflow(
     // Subtract minutes already committed by stable + user-locked work blocks
     // from each task's remainingMin so the planner doesn't double-book.
     const consumed = new Map<string, number>();
-    for (const b of [...stable, ...userLockedFuture]) {
-      if (!isWork(b)) continue;
-      consumed.set(b.taskId!, (consumed.get(b.taskId!) ?? 0) + ahead(b));
+    for (const b of stable) consumed.set(b.taskId!, (consumed.get(b.taskId!) ?? 0) + ahead(b));
+    for (const b of userLockedFuture) {
+      if (isWork(b)) consumed.set(b.taskId!, (consumed.get(b.taskId!) ?? 0) + pinCounts(b));
     }
 
     let capLeft = capForUnpinned === undefined ? undefined : Math.max(0, capForUnpinned - workToday(stable));
@@ -269,6 +288,8 @@ export function reflow(
       lockedBlocks: [...userLockedFuture, ...stable],
       config: { ...config, todayCapMin: capLeft },
       now,
+      // Past and dropped blocks keep their ids too; a new block takes none of them.
+      reservedIds: currentSchedule.map((b) => b.id),
     });
     // Did keeping today as it was leave a quest short of its deadline?
     const pinched = result.feasibilityReport.issues.some((i) => limited || (hold && canWait(taskMap.get(i.taskId)!)));

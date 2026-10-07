@@ -15,7 +15,9 @@ export function applyEdit(schedule: Schedule, edit: Edit): Schedule {
   switch (edit.kind) {
     case 'move_block': {
       const target = schedule.find((b) => b.id === edit.blockId);
-      if (!target) return schedule;
+      // An unparseable time ("tomorrow") arrives as NaN: moving the block
+      // there pinned it at no time at all, and its minutes vanished.
+      if (!target || !Number.isFinite(edit.newStart)) return schedule;
       const moved = shiftBlock(target, edit.newStart);
       return schedule.map((b) => (b.id === edit.blockId ? moved : b));
     }

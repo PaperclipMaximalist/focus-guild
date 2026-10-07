@@ -88,7 +88,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // block (`find` returns the first match) and overwrites the new one.
   // plan()'s id generator only looks at the blocks it was handed, and reflow
   // doesn't hand it the past ones.
-  it.fails('gives a new block an id no other block in the schedule has', () => {
+  it('gives a new block an id no other block in the schedule has', () => {
     const quest = task('email', { remainingMin: 25, deadline: at(0, 18) });
     const first = generateSchedule([quest], [], cfg(), at(0, 9));
     expect(first.schedule.map((b) => b.id)).toEqual(['blk-1']);
@@ -121,7 +121,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // The plan still says everything fits: no shortfall, no warning, and the
   // quest is quietly 50 minutes late. reflow counts every pinned minute as
   // done, wherever the pin sits.
-  it.fails('reports a shortfall when a pinned block sits after its deadline', () => {
+  it('reports a shortfall when a pinned block sits after its deadline', () => {
     const now = at(0, 8);
     const due = task('due-today', { remainingMin: 50, deadline: at(0, 18) });
     const later = task('later', { remainingMin: 50, deadline: at(5, 18) });
@@ -139,7 +139,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // What a user sees: pin tomorrow's block, finish the quest today. The pin
   // stays in tomorrow's plan, for a quest that no longer exists, and work is
   // routed around it.
-  it.fails('drops a pinned block once its quest is finished or deleted', () => {
+  it('drops a pinned block once its quest is finished or deleted', () => {
     const now = at(0, 8);
     const plan = [work('blk-1', 'done-early', at(1, 9), 60, true)];
     const { schedule } = replan(plan, [], cfg(), now);
@@ -192,7 +192,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // its minutes as planned (25 of the quest's 60 vanish, no shortfall), and
   // serializeBlock's toISOString throws on every later response. Not
   // reachable from the client, which never sends move_block.
-  it.fails('never keeps a block whose time is not a number', () => {
+  it('never keeps a block whose time is not a number', () => {
     const now = at(0, 7);
     const quest = task('essay', { remainingMin: 60 });
     const first = generateSchedule([quest], [], cfg(), now);
@@ -206,7 +206,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // left of the day by division, so opened at 09:00:00.001 the second one
   // starts on half a millisecond, and so does the work placed after it. The
   // stored Date truncates it; the in-memory plan and the stored one differ.
-  it.fails('places routines on whole milliseconds', () => {
+  it('places routines on whole milliseconds', () => {
     const blocks = placeDailyFillers({
       fillers: [
         { id: 'a', name: 'Duolingo', durationMin: 15, preferredHour: null },

@@ -777,6 +777,11 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
   for (const b of before) {
     if (!Number.isFinite(b.start) || !Number.isFinite(b.end)) continue; // judged by block:non-finite below
     const group = kind === 'generate' ? 'fixed' : b.end <= now ? 'past' : b.type === 'fixed' ? 'fixed' : b.locked ? 'pinned' : null;
+    // A pin for a quest that is finished or deleted holds time for nothing, and
+    // is flagged below as an orphan when it stays. Flagging it here too when
+    // it goes left the scheduler no right answer.
+    const owner = b.taskId ? byId.get(b.taskId) : undefined;
+    if (group === 'pinned' && b.type === 'work' && b.taskId && (!owner || owner.status === 'done')) continue;
     if (group && !outKeys.has(keyOf(b))) add(`preserve:${group}-block-lost-or-changed (${kind})`, at(b));
   }
 
@@ -823,7 +828,7 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
       // still worth knowing about: it holds time for nothing.
       if (!t) add('orphan:pinned-block-for-absent-task', at(b));
       else if (t.status === 'done') add('orphan:pinned-block-for-done-task', at(b));
-      if (t && b.taskId) { const x = tally(b.taskId); x.pinned += minutes(b); x.future += future; if (b.end > t.deadline) x.pinnedLate += minutes(b); }
+      if (t && b.taskId) { const x = tally(b.taskId); x.pinned += minutes(b); x.future += future; x.pinnedLate += Math.max(0, b.end - Math.max(b.start, now, t.deadline)) / MIN; }
       continue;
     }
 
@@ -894,25 +899,34 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
     const rem = t.remainingMin;
     if (!Number.isFinite(rem)) continue;
     const tag = `${t.id} remaining=${rem} kept=${x.kept} new=${x.fresh} pinned=${x.pinned} future=${x.future}`;
-    if (x.future > Math.max(0, rem) + 0.5) {
+    // Minutes pinned after the deadline don't count toward meeting it: the
+    // work is still owed before the deadline, or reported short. They used to
+    // be counted here as planned, so a plan with the work on time AND the
+    // user's late pin was "over-planned", one that reported it short
+    // "exceeded remaining", and one that counted the pin was flagged for
+    // that: every answer was a violation.
+    const late = x.pinnedLate;
+    const future = x.future - late;
+    const pinned = x.pinned - late;
+    if (future > Math.max(0, rem) + 0.5) {
       // More planned than is left to do. The user's own pins don't count against the planner.
-      if (x.pinned > rem + 0.5 && x.fresh < 0.5 && x.kept < 0.5) add('minutes:pins-exceed-remaining (user’s doing)', tag);
+      if (pinned > rem + 0.5 && x.fresh < 0.5 && x.kept < 0.5) add('minutes:pins-exceed-remaining (user’s doing)', tag);
       else if (x.fresh > 0.5) add(`minutes:over-planned, ${kind} placed more than is left`, tag);
       else add('minutes:over-planned, kept blocks not trimmed', tag);
       continue;
     }
     if (!eligible(t, byId, now)) continue;
     const short = issueFor.get(t.id) ?? 0;
-    const full = x.kept + x.fresh + x.pinned;
+    const full = x.kept + x.fresh + pinned;
     if (!issueFor.has(t.id) && !(t.deadline <= lastWindowEnd)) continue; // due after the plan: paced, not owed in full
     // A block in progress counts whole or by its future part; either reading is fair.
     const okWhole = Math.abs(full + short - rem) <= TOL_MIN;
-    const okFuture = Math.abs(x.future + short - rem) <= TOL_MIN;
+    const okFuture = Math.abs(future + short - rem) <= TOL_MIN;
     if (!okWhole && !okFuture) {
-      if (full + short < rem) add(`minutes:silently-under-planned (${kind})`, `${tag} shortfall=${short}`);
+      const countedLate = Math.abs(full + late + short - rem) <= TOL_MIN || Math.abs(future + late + short - rem) <= TOL_MIN;
+      if (late > 0.5 && countedLate) add('minutes:pin-after-deadline-counts-as-on-time', `${tag} late=${late} shortfall=${short}`);
+      else if (full + short < rem) add(`minutes:silently-under-planned (${kind})`, `${tag} shortfall=${short}`);
       else add(`minutes:placed+shortfall-exceeds-remaining (${kind})`, `${tag} shortfall=${short}`);
-    } else if (x.pinnedLate > 0.5) {
-      add('minutes:pin-after-deadline-counts-as-on-time', `${tag} late=${x.pinnedLate} shortfall=${short}`);
     }
   }
 
