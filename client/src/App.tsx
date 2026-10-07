@@ -1,5 +1,5 @@
 import { Suspense, lazy, useEffect } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn, useAuth, useUser } from '@clerk/clerk-react';
 import { useUserStore } from './store/useUserStore';
 import { setAuthTokenGetter, setCurrentClerkId } from './lib/api';
@@ -21,7 +21,7 @@ const Connections = lazy(() => import('./pages/Connections'));
 const Share = lazy(() => import('./pages/Share'));
 const QuestImport = lazy(() => import('./pages/QuestImport'));
 import { ToastContainer } from './components/Toasts';
-import { BottomNav, useNavVisible } from './components/BottomNav';
+import { BottomNav } from './components/BottomNav';
 import { Header } from './components/Header';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
@@ -166,7 +166,8 @@ function AuthenticatedApp() {
 
 /** Leaves room for whichever navigation is showing: top bar and bottom bar on a phone, sidebar on a wide screen. */
 function Shell({ children }: { children: React.ReactNode }) {
-  const nav = useNavVisible();
+  // /checkin is a focused full-screen flow: no navigation, so no room left for it.
+  const nav = useLocation().pathname !== '/checkin';
   return (
     <div className={nav ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60' : 'min-h-screen'}>
       {nav && <Header />}

@@ -60,12 +60,6 @@ const HIDDEN_ROUTES = new Set(['/checkin']);
 const isActive = (pathname: string, to: string) =>
   to === '/' ? pathname === '/' : pathname === to || pathname.startsWith(`${to}/`);
 
-/** True when navigation is on screen; the page shell uses it to leave room. */
-export function useNavVisible(): boolean {
-  const { pathname } = useLocation();
-  return !HIDDEN_ROUTES.has(pathname);
-}
-
 export function BottomNav() {
   const { pathname } = useLocation();
   // The CAS lens is a navigation-level state, so the tracker tab shows which
@@ -184,7 +178,7 @@ function Sidebar({
 
       <button type="button" onClick={newQuest} className="btn-primary mb-4 w-full">
         <Plus size={16} strokeWidth={2.5} aria-hidden /> New quest
-        <kbd className="ml-auto border-0 bg-black/15 px-1.5 py-0.5 text-[10px] text-(--color-on-primary)">N</kbd>
+        <span className="ml-auto rounded-[4px] bg-black/10 px-1.5 py-px text-[11px] font-semibold" aria-hidden>N</span>
       </button>
 
       <nav className="flex flex-col gap-0.5">{PRIMARY.map((i) => row(i))}</nav>

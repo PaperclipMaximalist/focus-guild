@@ -5,8 +5,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { type Quest, type PriorityTier } from '../lib/api';
 import { MiniCalendar } from './MiniCalendar';
 import { InfoTip } from './InfoTip';
-import { PriorityDragger } from './PriorityDragger';
-import { BookOpen, Brush, ChevronDown, ChevronRight, Dumbbell, Inbox, Phone, Swords, Target, X } from 'lucide-react';
+import { BookOpen, Brush, ChevronDown, ChevronRight, Dumbbell, Inbox, Phone, CalendarDays, Target, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -271,21 +270,27 @@ export function QuestModal({ open, onClose, editing }: Props) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
           onClick={onClose}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-5"
+          className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 sm:items-center sm:p-5"
         >
           <motion.div
-            initial={{ scale: 0.95, y: 10 }}
-            animate={{ scale: 1, y: 0 }}
-            exit={{ scale: 0.95, y: 10 }}
-            transition={{ duration: 0.22 }}
+            initial={{ y: 24, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 24, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-[560px] rounded-2xl border border-(--color-border) bg-(--color-surface2) p-6 max-h-[90vh] overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-label={editing ? 'Edit quest' : 'New quest'}
+            className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-t-2xl bg-(--color-surface) px-5 pt-4 sm:rounded-2xl sm:px-6 sm:pt-5"
           >
-            <div className="mb-4 flex items-center gap-2 text-lg font-bold">
-              <Swords size={20} aria-hidden /> <span>{editing ? 'Edit Quest' : 'New Quest'}</span>
+            <div className="mb-4 flex items-center gap-2">
+              <h2 className="flex-1 text-lg font-bold">{editing ? 'Edit quest' : 'New quest'}</h2>
+              <button type="button" onClick={onClose} className="icon-btn -mr-2" aria-label="Close">
+                <X size={18} aria-hidden />
+              </button>
             </div>
 
-            <Field label="Quest title *">
+            <Field label="What needs doing?">
               <input
                 className="form-input"
                 placeholder="What do you need to do?"
@@ -298,7 +303,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             {/* Quick-start templates — only on create */}
             {!editing && (
               <div className="mb-4">
-                <Label>Quick start (optional)</Label>
+                <Label>Or start from a template</Label>
                 <div className="flex flex-wrap gap-1.5">
                   {TEMPLATES.map((t) => (
                     <button
@@ -317,11 +322,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         if (r.tags !== undefined) setTags(r.tags);
                         if (r.preferredHour !== undefined) setPreferredHour(r.preferredHour);
                       }}
-                      className="inline-flex items-center gap-1.5 text-xs rounded-md border px-2.5 py-1 transition-colors hover:bg-white/5"
-                      style={{
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text)',
-                      }}
+                      className="btn-quiet h-8 min-h-0 px-2.5 text-xs"
                     >
                       <t.icon size={13} aria-hidden /> {t.label}
                     </button>
@@ -332,8 +333,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
             {/* Quick cheat-sheet so the four overlapping fields feel distinct */}
             <details
-              className="mb-4 rounded-lg p-3 text-xs"
-              style={{ background: 'color-mix(in srgb, var(--color-primary) 6%, transparent)', border: '1px solid var(--color-border)' }}
+              className="mb-4 rounded-lg bg-(--color-surface2) p-3 text-xs"
             >
               <summary
                 className="cursor-pointer font-semibold"
@@ -368,8 +368,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
             <div
               className="mb-4 flex items-start gap-3 rounded-lg p-3"
               style={{
-                background: isRecurring ? 'color-mix(in srgb, var(--color-gold) 10%, transparent)' : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${isRecurring ? 'color-mix(in srgb, var(--color-gold) 40%, transparent)' : 'var(--color-border)'}`,
+                background: 'var(--color-surface2)',
+                boxShadow: isRecurring ? 'inset 0 0 0 1.5px var(--color-primary)' : 'none',
               }}
             >
               <input
@@ -380,10 +380,10 @@ export function QuestModal({ open, onClose, editing }: Props) {
               />
               <div className="flex-1">
                 <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                  Daily recurring quest
+                  Repeat every day
                 </p>
                 <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                  Scheduled every day as a short fixed block. Resets at midnight.
+                  A routine: planned daily as its own block, ticked off fresh each day.
                 </p>
               </div>
             </div>
@@ -405,14 +405,38 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   </p>
                 </InfoTip>
               </div>
-              <PriorityDragger value={priorityTier} onChange={setPriorityTier} />
+              {/* Three choices are three buttons. (This was a drag slider whose labels ran off a phone screen.) */}
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-(--color-surface2) p-1" role="radiogroup" aria-label="Priority">
+                {([
+                  { id: 'LOW', label: 'Low', sub: 'If there is time' },
+                  { id: 'MED', label: 'Normal', sub: 'Planner decides' },
+                  { id: 'HIGH', label: 'High', sub: 'Must do' },
+                ] as const).map((o) => {
+                  const on = priorityTier === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setPriorityTier(o.id)}
+                      className="rounded-md px-2 py-1.5 text-center transition-colors"
+                      style={{
+                        background: on ? 'var(--color-primary)' : 'transparent',
+                        color: on ? 'var(--color-on-primary)' : 'var(--color-text)',
+                      }}
+                    >
+                      <span className="block text-sm font-bold">{o.label}</span>
+                      <span className="block text-[0.68rem] opacity-75">{o.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Deadline picker (hidden for recurring) */}
             {!isRecurring && (
-              <Field label="Deadline">
-                <MiniCalendar value={deadline} onChange={setDeadline} />
-              </Field>
+              <DeadlineField value={deadline} onChange={setDeadline} />
             )}
 
             <div className="grid grid-cols-2 gap-3">
@@ -736,47 +760,71 @@ export function QuestModal({ open, onClose, editing }: Props) {
               )}
             </AnimatePresence>
 
-            <div className="mt-5 flex justify-end gap-2.5">
-              <button
-                onClick={onClose}
-                className="rounded-md border border-(--color-border) bg-white/5 px-4 py-2 text-sm font-semibold transition hover:bg-white/15"
-              >
+            {/* Always in reach, however long the form above gets. */}
+            <div className="sticky bottom-0 -mx-5 mt-5 flex justify-end gap-2 border-t border-(--color-border) bg-(--color-surface) px-5 py-3 sm:-mx-6 sm:px-6">
+              <button type="button" onClick={onClose} className="btn-quiet min-h-10">
                 Cancel
               </button>
-              <button
-                onClick={save}
-                disabled={!title.trim() || saving}
-                className="flex items-center gap-1 rounded-md bg-(--color-primary) px-4 py-2 text-sm font-semibold text-(--color-on-primary) transition hover:bg-(--color-primary-d) disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {editing ? 'Save Changes' : 'Save Quest'}
+              <button type="button" onClick={save} disabled={!title.trim() || saving} className="btn-primary">
+                {editing ? 'Save changes' : 'Add quest'}
               </button>
             </div>
 
-            <style>{`
-              .form-input {
-                width: 100%;
-                background: rgba(255,255,255,.05);
-                border: 1px solid var(--color-border);
-                border-radius: 10px;
-                padding: 9px 13px;
-                color: var(--color-text);
-                font-family: inherit;
-                font-size: .85rem;
-                outline: none;
-                transition: border-color .2s;
-              }
-              .form-input:focus {
-                border-color: var(--color-primary);
-                box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
-              }
-              input[type="range"] {
-                accent-color: var(--color-primary);
-              }
-            `}</style>
           </motion.div>
         </motion.div>
       )}
     </AnimatePresence>
+  );
+}
+
+/**
+ * Deadline as a few one-tap choices; the month grid opens only when asked
+ * for. (It used to sit open in the middle of the form, a third of a screen
+ * for a field most quests leave empty.)
+ */
+function DeadlineField({ value, onChange }: { value: Date | null; onChange: (d: Date | null) => void }) {
+  const [calendar, setCalendar] = useState(false);
+  const inDays = (n: number) => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + n);
+    return d;
+  };
+  const same = (a: Date | null, b: Date) => !!a && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const choices = [
+    { label: 'Tomorrow', date: inDays(1) },
+    { label: 'In 3 days', date: inDays(3) },
+    { label: 'In a week', date: inDays(7) },
+  ];
+  const custom = value !== null && !choices.some((c) => same(value, c.date));
+  const chip = (active: boolean) => ({
+    background: active ? 'var(--color-primary)' : 'var(--color-surface2)',
+    color: active ? 'var(--color-on-primary)' : 'var(--color-text)',
+  });
+
+  return (
+    <div className="mb-4">
+      <Label>Deadline</Label>
+      <div className="flex flex-wrap gap-1.5">
+        <button type="button" onClick={() => { onChange(null); setCalendar(false); }} aria-pressed={value === null} className="btn-quiet h-9 min-h-0 px-3 text-xs" style={chip(value === null)}>
+          None
+        </button>
+        {choices.map((c) => (
+          <button key={c.label} type="button" onClick={() => { onChange(c.date); setCalendar(false); }} aria-pressed={same(value, c.date)} className="btn-quiet h-9 min-h-0 px-3 text-xs" style={chip(same(value, c.date))}>
+            {c.label}
+          </button>
+        ))}
+        <button type="button" onClick={() => setCalendar((v) => !v)} aria-expanded={calendar} className="btn-quiet h-9 min-h-0 px-3 text-xs" style={chip(custom)}>
+          <CalendarDays size={13} aria-hidden />
+          {custom ? value!.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'Pick a date'}
+        </button>
+      </div>
+      {calendar && (
+        <div className="mt-2">
+          <MiniCalendar value={value} onChange={onChange} />
+        </div>
+      )}
+    </div>
   );
 }
 
