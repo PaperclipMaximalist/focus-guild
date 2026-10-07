@@ -173,6 +173,23 @@ describe('light days go in their best hours', () => {
   });
 });
 
+describe('a quest short by less than a minute', () => {
+  it('is planned, not thrown on', () => {
+    // A learned estimate leaves fractions: 60.6 minutes left, 60 placed. The
+    // 0.6 still owed went looking for a donor, settled the day, took nothing
+    // (under a whole minute), and the rebuild then read a receiver that was
+    // never set: "Cannot read properties of undefined", and no plan at all.
+    const c = cfg({ workingHours: { startHour: 9, endHour: 17 }, horizonDays: 3 });
+    const tasks = [
+      task('report', { remainingMin: 60.6, totalMin: 60.6, deadline: at(0, 16) }),
+      task('essay', { remainingMin: 240, totalMin: 240, deadline: at(2, 23.99) }),
+    ];
+    const r = generateSchedule(tasks, [], c, at(0, 9));
+    expect(minutesFor(r.schedule, 'report', at(0, 16))).toBeGreaterThanOrEqual(60);
+    expect(minutesFor(r.schedule, 'essay')).toBeGreaterThanOrEqual(239);
+  });
+});
+
 describe('capacity and estimates', () => {
   it('counts the long break in a long free stretch', () => {
     const p = defaultConfig().breakPolicy;

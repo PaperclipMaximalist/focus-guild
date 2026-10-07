@@ -129,7 +129,7 @@ Each push to `main` triggers both Railway and Vercel to redeploy. Railway's `/he
 
 **Checking a deploy landed:**
 - Client: fetch the Vercel page, find the `assets/index-*.js` name, and grep that bundle for a string new in the release.
-- Server: query `_prisma_migrations` for the new rows (via the Neon HTTP driver) when there's a migration; otherwise `/health` plus a new route answering 401 (auth runs before routing, so unauthenticated calls can't reveal the version).
+- Server: `GET /health` answers `{ "status": "ok", "commit": "<7 chars>" }`, the commit Railway built (`RAILWAY_GIT_COMMIT_SHA`; `null` when run locally). Compare it with `git rev-parse --short main`. With a migration, the new rows in `_prisma_migrations` (via the Neon HTTP driver) confirm it too.
 
 **What's live and needs no setup:** the PWA (`client/public/manifest.webmanifest`, `sw.js`), token-authed `/inbox` and `/calendar/<token>.ics` (skipped by `requireUser`), and the 15-minute calendar sync loop in the server process.
 

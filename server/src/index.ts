@@ -42,7 +42,11 @@ app.use(
   }),
 );
 
-app.get('/health', (c) => c.json({ status: 'ok' }));
+// `commit` is the build that is answering (Railway sets the variable on every
+// deploy), so a deploy can be checked from outside: every other route 401s
+// before it says anything.
+const commit = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
+app.get('/health', (c) => c.json({ status: 'ok', commit }));
 
 // Token-authenticated capture endpoint; skipped by requireUser.
 app.route('/inbox', inbox);
