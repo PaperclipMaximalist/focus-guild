@@ -710,6 +710,13 @@ interface Timing { ms: number; fn: 'generate' | 'replan'; tasks: number; blocks:
 interface CallDump { step: number; fn: string; now: number; tasks: Task[]; blocks: Block[]; out: Block[] | null; issues: SchedulerResult['feasibilityReport']['issues'] | null }
 
 const keyOf = (b: Block) => `${b.id}|${b.start}|${b.end}|${b.type}|${b.taskId}|${b.locked}|${b.note}`;
+/**
+ * Has this block stayed put? A work block's note is its "why now" sentence,
+ * which the planner rewrites from the finished plan (explain.explainPlan), so
+ * a new reason on an unmoved block is not a change; a fixed block's note is
+ * its name and must survive.
+ */
+const stayKey = (b: Block) => (b.type === 'work' ? `${b.id}|${b.start}|${b.end}|${b.type}|${b.taskId}|${b.locked}` : keyOf(b));
 const placeKey = (b: Block) => `${b.id}|${b.start}|${b.end}|${b.type}|${b.taskId}`;
 const minutes = (b: { start: number; end: number }) => (b.end - b.start) / MIN;
 /** `MM-DD HH:MM` in the user's zone; the raw number when it isn't a date at all. */
@@ -773,7 +780,7 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
   const at = (b: Block) => `${b.id} ${clock(b.start, tz)}–${clock(b.end, tz).slice(6)} task=${b.taskId}`;
 
   // Every fixed, pinned and past block comes back exactly as it went in.
-  const outKeys = new Set(out.map(keyOf));
+  const outKeys = new Set(out.map(stayKey));
   for (const b of before) {
     if (!Number.isFinite(b.start) || !Number.isFinite(b.end)) continue; // judged by block:non-finite below
     const group = kind === 'generate' ? 'fixed' : b.end <= now ? 'past' : b.type === 'fixed' ? 'fixed' : b.locked ? 'pinned' : null;
@@ -782,7 +789,7 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
     // it goes left the scheduler no right answer.
     const owner = b.taskId ? byId.get(b.taskId) : undefined;
     if (group === 'pinned' && b.type === 'work' && b.taskId && (!owner || owner.status === 'done')) continue;
-    if (group && !outKeys.has(keyOf(b))) add(`preserve:${group}-block-lost-or-changed (${kind})`, at(b));
+    if (group && !outKeys.has(stayKey(b))) add(`preserve:${group}-block-lost-or-changed (${kind})`, at(b));
   }
 
   const ids = new Set<string>();
@@ -940,9 +947,9 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
   }
 }
 
-function diffSchedules(a: Block[], b: Block[]): { gone: number; added: number } {
-  const ka = new Set(a.map(keyOf));
-  const kb = new Set(b.map(keyOf));
+function diffSchedules(a: Block[], b: Block[], key: (b: Block) => string = keyOf): { gone: number; added: number } {
+  const ka = new Set(a.map(key));
+  const kb = new Set(b.map(key));
   let gone = 0;
   let added = 0;
   for (const k of ka) if (!kb.has(k)) gone += 1;
@@ -1088,7 +1095,7 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
       // A replan with nothing changed, at the same instant, changes nothing.
       const settled = guard('replan', () => replan(result.schedule, tasks, cfg, now));
       if (settled) {
-        const d = diffSchedules(result.schedule, settled.schedule);
+        const d = diffSchedules(result.schedule, settled.schedule, stayKey);
         const label = fn === 'generate' ? 'no-change:replan-right-after-generate' : 'no-change:replan-not-idempotent';
         if (d.gone) add(`${label}, moves or drops blocks`, `${d.gone} gone, ${d.added} added`);
         else if (d.added) add(`${label}, adds blocks`, `${d.added} added`);

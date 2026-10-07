@@ -175,16 +175,25 @@ export function reconcile(
 
     let improved = false;
     for (const [i, snap] of snapshot) {
+      // A day can be settled and then give nothing (every donor's quota was
+      // already under a minute): nobody received, so put it back as it was.
+      // This used to throw, and the whole plan with it (2 of 600 simulated
+      // people, both with 20+ quests).
+      const received = receivers.get(i);
+      if (!received) {
+        budgets[i]!.quotas = snap.quotas;
+        continue;
+      }
       budgets[i]!.quotas = budgets[i]!.quotas.filter((q) => q.targetMin >= 1);
       const rebuilt = buildDay(budgets[i]!, taskMap, config, now);
       const gainedFor = (d: ConstructedDay) =>
-        d.blocks.filter((b) => b.taskId && receivers.get(i)!.has(b.taskId)).reduce((m, b) => m + minutesOf(b), 0);
+        d.blocks.filter((b) => b.taskId && received.has(b.taskId)).reduce((m, b) => m + minutesOf(b), 0);
       if (gainedFor(rebuilt) > gainedFor(snap.built) + EPSILON_MIN) {
         const before = perTask(snap.built);
         const after = perTask(rebuilt);
         for (const [id, m] of before) {
           const lost = m - (after.get(id) ?? 0);
-          if (lost > EPSILON_MIN && !receivers.get(i)!.has(id)) lent.set(id, (lent.get(id) ?? 0) + lost);
+          if (lost > EPSILON_MIN && !received.has(id)) lent.set(id, (lent.get(id) ?? 0) + lost);
         }
         out[i] = rebuilt;
         improved = true;
