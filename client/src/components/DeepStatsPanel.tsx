@@ -19,7 +19,7 @@ export function DeepStatsPanel() {
         <Row icon={ListChecks} label="Active quests"       value={quests.length} />
         <Row icon={Hourglass} label="Hours in pipeline"    value={`${hoursInPipeline}h`} />
         <Row icon={Star} label="Total XP earned"      value={(user?.totalXP ?? 0).toLocaleString()} />
-        <Row icon={Flame} label="Current streak"       value={`${user?.currentStreak ?? 0} days`} />
+        <Row icon={Flame} label="Current streak"       value={`${user?.currentStreak ?? 0} ${user?.currentStreak === 1 ? "day" : "days"}`} />
         <Row icon={Zap} label="Streak multiplier"   value={`${(user?.multiplier ?? 1).toFixed(2)}×`} />
         <Row icon={CircleCheck} label="All-time completed"   value={completed.length} />
       </div>

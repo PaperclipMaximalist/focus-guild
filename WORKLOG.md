@@ -206,7 +206,12 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Result on seed 7 (1 000 people, returning users): deadlines met 59.0% → 64.2%; a perfect follower at 94.4% of the best possible (was 90.1%); same quest picked up 3+ times a day 33% → 6%; 8+ switches a day 19% → 5%; finishing the last block adds more work 45% → 1.5%; false reasons ~50% → 0. Night-shift workers: an empty plan → 70% of deadlines met. Tests: 332 server (+1 expected fail) and 16 client. Checked in a browser at phone width (Settings picker, Feed tiles with reasons), then deployed.
 - Not finished, parked on branches: max-session cap, untimed routines and meals, learning the energy curve, and the no-change replan (cause known). See PLAN.md.
 
-## Phases, as named in the project's own log
+### Tue 2026-10-06 (evening) — UI refresh (≈2 h, one session, branch `ui-refresh`)
+- "This website UI still sucks and screams vibe coded." Screenshotted every page at phone width and Today at desktop width, critiqued them against Things, Todoist, Linear and Structured, then rebuilt the parts every screen shares.
+- What was wrong: every item its own bordered box; Today opened with five stat tiles of zeros; six colours and five controls on each quest card; monospace page titles; six bottom tabs stretched across a 1280 px monitor; a header on three pages and none on the rest; the duck and the add button floating over content.
+- What changed: sidebar on wide screens and five tabs on phones; one slim top bar with the duck in it; Today leads with the next action and a short list; quests, routines, completed and overdue as rows in one surface; the Feed as a time rail with capped heights and outlined routines; the quest editor as a bottom sheet with one-tap deadlines and a three-button priority; softer borders, larger radii, headings in the reading face; arrow and tick glyphs replaced with icons. Rules written into the Bible.
+- Done in a separate worktree because a second session was committing scheduler work in the main checkout at the same time.
+
 
 | Phase | What | When |
 |---|---|---|
@@ -229,6 +234,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 13 | Scenario lab, scheduler overhaul, insights, self-correcting estimates | Sep 24 – Sep 25 |
 | 14 | Population lab; triage, reconcile, focus window, chronotypes | Sep 26 |
 | 15 | Agent team: night hours, estimates, quest sessions, replans, honest reasons, fuzz lab | Oct 3 – Oct 6 |
+| 16 | UI refresh: app shell, list rows, calmer theme | Oct 6 |
 
 ---
 

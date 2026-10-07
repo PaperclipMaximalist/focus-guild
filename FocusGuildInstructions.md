@@ -189,6 +189,19 @@ Never commit .env files. Never log API keys.
 Client routes: `/ /feed /rescue /checkin /quests /quests/import /stats /settings /trophies /tracker /tracker/presets /tracker/markdown /chronicle /connections /share`.
 Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle /integrations` (Clerk or `fgpat_` token), plus token-in-URL `/inbox` and `/calendar/<token>.ics`.
 
+### UI rules (the shell and `client/src/index.css`)
+Rewritten 2026-10-06 after the owner said the app "still screams vibe coded". What made it read that way, and the rule that replaced each:
+- **Every item was its own bordered box.** A list is rows in one surface parted by hairlines: `<div className="panel rows">`. `--color-border` is a hairline; `--color-border-strong` is for things you type into.
+- **The first screen was a dashboard.** Today opens with the next action, then a short list (top 7). Numbers sit beside or below, never first.
+- **Six colours on one card.** Amber means "act here". Other colours only carry status (priority ring on the tick circle, a close deadline), with an icon or label.
+- **Chips and buttons on every row.** One tick circle, a title, one quiet line of facts. Edit and Delete live in the detail sheet (and appear on hover for a mouse). Bulk select is a mode, not a checkbox per row.
+- **Monospace page titles.** One typeface (Atkinson Hyperlegible Next) for reading and headings; Martian Mono only for keys and code. Numbers that line up use `.tnum`.
+- **A phone layout stretched across a monitor.** `components/BottomNav.tsx` renders a five-tab bar under `lg` and a sidebar (with Rescue, Trophies, Chronicle, Settings, the rank and New quest) from `lg` up. `components/Header.tsx` is the phone's top bar, rendered once in `App.tsx`; pages do not render their own.
+- **Things floating over content.** The duck sits in the top bar's left slot (phone) or the foot of the sidebar; its line appears beside it.
+- Still true from before: Lucide icons and no emoji (arrows and ticks typed as text count as emoji: use an icon), no gradients or glows, `rounded-full` only for real circles, dark ink on amber fills (never white), modals as bottom sheets on a phone, usable one-handed at 375 px.
+- Shared classes, all in `@layer components` so a utility on the same element wins: `.page` (`.page-wide`), `.page-title`, `.section-label`, `.panel`, `.rows`, `.icon-btn`, `.btn-primary`, `.btn-quiet`, `.form-input`, `.tnum`. Use them before inventing a new card.
+- Not yet brought to the new style: Chronicle, Connections, Tracker presets and markdown, quest detail sheet, focus timer, spin wheel, plan insights and the "won't finish" banner (they inherit the tokens but still draw their own boxes).
+
 ### How to run, test, ship
 - Local: two terminals. `cd server && npm run dev` (port 3000), `cd client && npm run dev` (open **http://127.0.0.1:5173**, not localhost). No Clerk needed: `server/.env.local` and `client/.env.local` switch to dev auth (`dev-member-001`).
 - Tests: `cd server && npm test` (332 + 1 expected fail, which pins a known bug) · `cd client && npm test` (16) · for the scheduler, from `server/`: **`npm run lab`** (hand-written weeks, 3 findings is the baseline), **`npm run lab:pop -- --week --history`** (simulated people living a week, graded against the best possible) and **`npm run lab:fuzz`** (adversarial inputs and edit/replan sequences). Run all three before and after any scheduler change.
