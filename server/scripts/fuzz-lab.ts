@@ -1100,7 +1100,11 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
         const d = diffSchedules(result.schedule, settled.schedule, stayKey);
         const label = fn === 'generate' ? 'no-change:replan-right-after-generate' : 'no-change:replan-not-idempotent';
         if (d.gone) add(`${label}, moves or drops blocks`, `${d.gone} gone, ${d.added} added`);
-        else if (d.added) add(`${label}, adds blocks`, `${d.added} added`);
+        else if (d.added) {
+          const hadKeys = new Set(result.schedule.map(stayKey));
+          const fresh = settled.schedule.filter((b) => !hadKeys.has(stayKey(b)));
+          add(`${label}, adds blocks`, `${d.added} added: ${fresh.slice(0, 3).map((b) => `${clock(b.start, tz())}–${clock(b.end, tz()).slice(6)} ${b.taskId}`).join(', ')}`);
+        }
         else if (JSON.stringify(result.feasibilityReport) !== JSON.stringify(settled.feasibilityReport)) {
           add(`${label}, report changes`, `${JSON.stringify(result.feasibilityReport.issues)} → ${JSON.stringify(settled.feasibilityReport.issues)}`);
         }
