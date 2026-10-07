@@ -450,9 +450,9 @@ for (const s of scenarios()) {
   const fixed = [...cal, ...fillers];
   const tasks = questsToTasks(s.quests, {}, s.now, TZ);
   const t0 = performance.now();
-  const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, s.cfg, s.now);
+  const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, s.cfg, s.now, s.dailies ?? []);
   const ms = performance.now() - t0;
-  const r = grade(s, schedule, tasks, feasibilityReport.issues, ms, fixed);
+  const r = grade(s, schedule, tasks, feasibilityReport.issues, ms, schedule.filter((b) => b.type === 'fixed'));
   total += r.findings.length;
 
   console.log(`\n━━ ${s.id}: ${s.title}`);

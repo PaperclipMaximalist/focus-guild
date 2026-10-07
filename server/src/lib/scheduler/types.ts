@@ -3,6 +3,8 @@
  * lives outside this module.
  */
 
+import type { DailyFiller } from './dailyFiller.js';
+
 export type TaskStatus = 'pending' | 'in_progress' | 'done';
 export type BlockType = 'work' | 'break' | 'fixed' | 'buffer';
 
@@ -203,6 +205,11 @@ export interface ReplanOptions {
    * has its plan; these may land today whatever their deadline.
    */
   addTaskIds?: readonly string[];
+  /**
+   * The user's routines. Given them, an untimed routine standing in front
+   * of a deadline the plan is short on steps aside (see `routinesAside`).
+   */
+  routines?: readonly DailyFiller[];
 }
 
 // ---------- Edits ----------

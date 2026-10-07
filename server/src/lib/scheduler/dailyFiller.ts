@@ -120,8 +120,12 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
     // distributed across the working window unless they have a preferredHour.
     const routineMin = enabled.reduce((a, f) => a + f.durationMin, 0);
     const roomy = routineMin * MS_PER_MIN <= (wEnd - wStart) / 2;
+    // Routines with no hour share out the whole window, not what is left of
+    // it: the same routine at the same time every day. Spread from `now`,
+    // today's piano sat at 16:40 (the minute the app was opened) and every
+    // other day's at 11:00.
     const spreadStep = enabled.length > 0
-      ? (wEnd - wStart) / Math.max(1, enabled.length)
+      ? (wEnd - window.start) / Math.max(1, enabled.length)
       : 0;
 
     enabled.forEach((f, idx) => {
@@ -132,10 +136,13 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
       const preferredStart =
         hour !== null
           ? userHourUtc(pastMidnight && hour < workingHours.endHour ? midnight + MS_PER_DAY : midnight, hour)
-          : wStart + idx * spreadStep;
+          : Math.round((window.start + idx * spreadStep) / ROUTINE_SNAP_MS) * ROUTINE_SNAP_MS;
       // Morning meds at 16:30 is not morning meds: once the time is well
       // gone, today's is skipped rather than dropped on top of the afternoon.
-      if (hour !== null && now - preferredStart > ROUTINE_MISSED_AFTER_MIN * MS_PER_MIN) return;
+      // The same for a routine with no hour of its own, now that it has a
+      // usual time: opened late, it used to land on "now", in front of
+      // whatever was due that evening.
+      if (now - preferredStart > ROUTINE_MISSED_AFTER_MIN * MS_PER_MIN) return;
       // A routine with a time outside quest hours keeps its time.
       const lo = Math.max(now, Math.min(wStart, preferredStart));
       const hi = Math.min(dayEnd, Math.max(wEnd, preferredStart + durMs));
@@ -167,6 +174,75 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
   }
 
   return placed;
+}
+
+/** A routine whose time of day the planner chose: no hour set, none in its name. */
+export function isUntimed(f: DailyFiller, workingHours: { startHour: number; endHour: number }): boolean {
+  return f.preferredHour === null && inferPreferredHour(f.name, workingHours) === null;
+}
+
+export interface RoutinesAsideInput {
+  /** The plan so far. A routine moves by changing its block in place. */
+  blocks: Block[];
+  /** Quests the plan is short on. */
+  shortfalls: Array<{ deadline: number; shortMin: number; notBefore?: number }>;
+  fillers: DailyFiller[];
+  now: number;
+  workingHours: { startHour: number; endHour: number };
+  tzOffsetMin?: number;
+}
+
+/**
+ * Routines that step aside for a deadline. An untimed routine sits where
+ * the planner put it, and that was sometimes right in front of work due the
+ * same evening: 45 minutes of piano at 19:00 with the lab report due at
+ * 20:00 an hour short. Such a routine moves to the first free time after
+ * the quest can no longer use it (its deadline, or the end of quest hours),
+ * still the same day. Latest first, and only as many as the shortfall needs.
+ *
+ * A routine with an hour of its own never moves: "Morning meds" is at 8.
+ * Returns the blocks with those routines moved, or null when none can.
+ */
+export function routinesAside(input: RoutinesAsideInput): Block[] | null {
+  const { now, workingHours } = input;
+  const tz = input.tzOffsetMin ?? 0;
+  const untimed = new Set(
+    input.fillers.filter((f) => f.enabled !== false && isUntimed(f, workingHours)).map((f) => `Daily: ${f.name}`),
+  );
+  if (!untimed.size || !input.shortfalls.length) return null;
+
+  const out = [...input.blocks];
+  const moved = new Set<string>();
+  for (const s of [...input.shortfalls].sort((a, b) => a.deadline - b.deadline)) {
+    // A quest without a real deadline gives a routine nowhere to step to.
+    if (!Number.isFinite(s.deadline) || !Number.isFinite(s.shortMin)) continue;
+    let need = s.shortMin;
+    const from = Math.max(now, Number.isFinite(s.notBefore) ? s.notBefore! : 0);
+    const inTheWay = out
+      .map((b, i) => ({ b, i }))
+      .filter(({ b }) => b.type === 'fixed' && !!b.note && untimed.has(b.note) && !moved.has(b.id) && b.start >= from && b.start < s.deadline)
+      .sort((x, y) => y.b.start - x.b.start);
+    for (const { b, i } of inTheWay) {
+      if (need <= 0) break;
+      const midnight = workDayMidnightUtc(b.start, tz, workingHours);
+      const window = workWindowUtc(midnight, workingHours);
+      // Outside quest hours it takes nothing from the quest.
+      if (b.start < window.start || b.start >= window.end) continue;
+      const until = Math.min(s.deadline, window.end);
+      const lo = Math.max(until, now);
+      const hi = Math.max(midnight + MS_PER_DAY, window.end);
+      const durMs = b.end - b.start;
+      const others = out.filter((x) => x.id !== b.id && x.end > now);
+      const slot =
+        findNearestSlot(lo, durMs, lo, hi, others) ??
+        findNearestSlot(lo, durMs, lo, hi, others.filter((x) => x.type === 'fixed'));
+      if (slot === null || !Number.isFinite(slot)) continue;
+      need -= (Math.min(b.end, until) - b.start) / MS_PER_MIN;
+      out[i] = { ...b, start: slot, end: slot + durMs };
+      moved.add(b.id);
+    }
+  }
+  return moved.size ? out : null;
 }
 
 /**

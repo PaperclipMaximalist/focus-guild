@@ -248,7 +248,7 @@ function regenerate(
     tzOffsetMin: cfg.tzOffsetMin,
   });
 
-  const { schedule, feasibilityReport } = generateSchedule(tasks, [...calendarBlocks, ...fillerBlocks], cfg, now);
+  const { schedule, feasibilityReport } = generateSchedule(tasks, [...calendarBlocks, ...fillerBlocks], cfg, now, allFillers);
   state.schedule = schedule;
   state.feasibilityReport = feasibilityReport;
   state.lastGeneratedAt = now;
@@ -435,8 +435,9 @@ schedule.post('/:clerkId/replan', async (c) => {
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
   const current = [...state.schedule.filter((b) => !isCalendarBlock(b)), ...calendar];
-  const routines = topUpRoutines(current, [...recurringToFillers(loaded.recurring), ...state.fillers], cfg, now);
-  const result = replan([...current, ...routines], tasks, cfg, now);
+  const fillers = [...recurringToFillers(loaded.recurring), ...state.fillers];
+  const routines = topUpRoutines(current, fillers, cfg, now);
+  const result = replan([...current, ...routines], tasks, cfg, now, { routines: fillers });
   state.schedule = result.schedule;
   state.feasibilityReport = result.feasibilityReport;
   state.lastGeneratedAt = now;
