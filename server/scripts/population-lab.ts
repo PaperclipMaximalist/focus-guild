@@ -525,9 +525,11 @@ function build(p: Person, quests: QuestLike[], now: number, cfg: UserConfig = p.
   const fixed = [...cal, ...fillersFor(p, now, cal, quests, new Set())];
   const tasks = questsToTasks(quests, {}, now, p.tz, calibration, cfg.workingHours);
   const t0 = performance.now();
-  const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, cfg, now);
+  // As the route does: the routines go along, so an untimed one can step
+  // aside for a deadline. The fixed blocks are read back from the plan.
+  const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, cfg, now, p.dailies);
   hashPlan(schedule);
-  return { tasks, fixed, schedule, issues: feasibilityReport.issues, ms: performance.now() - t0 };
+  return { tasks, fixed: schedule.filter((b) => b.type === 'fixed'), schedule, issues: feasibilityReport.issues, ms: performance.now() - t0 };
 }
 
 // ─── Grading one plan ─────────────────────────────────────────────────────────
@@ -898,6 +900,23 @@ function gradePlan(p: Person, b: Built): Finding[] {
     if (total > 480) f.push({ flag: 'overload-day', detail: `${wd(ws[0]!.start, tz)}: ${total} min of quests` });
     else if (loadRatio < 0.6 && cap > 0 && movable / cap > 0.6 && total > 240)
       f.push({ flag: 'crowded-day', detail: `${wd(ws[0]!.start, tz)} ${total}/${Math.round(cap)} min used (${movable} movable) on a light week (${Math.round(loadRatio * 100)}% load)` });
+    // A meal: on a day worked through midday, half an hour between 11:30
+    // and 14:00 with no quest in it. (Not for hours that run past midnight.)
+    if (!pastMidnight(cfg)) {
+      const noon = baseMidnight(tz) + k * DAY;
+      const from = noon + 11.5 * HOUR;
+      const to = noon + 14 * HOUR;
+      if (ws.some((w) => w.start < from) && ws.some((w) => w.end > to)) {
+        let cursor = from;
+        let gap = 0;
+        for (const w of ws.filter((x) => x.end > from && x.start < to)) {
+          gap = Math.max(gap, w.start - cursor);
+          cursor = Math.max(cursor, w.end);
+        }
+        gap = Math.max(gap, to - cursor);
+        if (gap < 30 * MIN) f.push({ flag: 'no-meal-gap', detail: `${wd(ws[0]!.start, tz)}: longest pause from quests 11:30–14:00 is ${Math.round(gap / MIN)} min` });
+      }
+    }
     const switches = ws.slice(1).filter((w, i) => w.taskId !== ws[i]!.taskId).length;
     if (switches >= 8) f.push({ flag: 'thrash', detail: `${wd(ws[0]!.start, tz)}: ${switches} quest switches` });
     // Interleaved: the same quest picked up again after another one (A B A B A).
@@ -1139,7 +1158,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     }
 
     // The same replan again, at the same instant, changes nothing.
-    const again = replan(schedule, tasks, cfg, t).schedule.filter((b) => b.end > t && isWork(b)).map(blockKey).sort();
+    const again = replan(schedule, tasks, cfg, t, { routines: p.dailies }).schedule.filter((b) => b.end > t && isWork(b)).map(blockKey).sort();
     const first = work.map(blockKey).sort();
     if (again.length !== first.length || again.some((k, i) => k !== first[i])) {
       const gone = first.filter((k) => !again.includes(k)).length;
@@ -1205,7 +1224,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     const cfg = cfgAt(t);
     const tasks = tasksAt(t);
     // The insert route names the quest the user just added.
-    schedule = replan([...current, ...routines], tasks, cfg, t, { addTaskIds }).schedule;
+    schedule = replan([...current, ...routines], tasks, cfg, t, { addTaskIds, routines: p.dailies }).schedule;
     hashPlan(schedule);
     life.replans++;
     if (!falseFirstSeen) {
