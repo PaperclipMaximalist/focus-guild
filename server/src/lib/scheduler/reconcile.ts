@@ -58,6 +58,14 @@ function byNeed(dropped: ReadonlySet<string>) {
     (a.t.id < b.t.id ? -1 : 1);
 }
 
+/** The constructor may run a block this far past the quest's max session to finish it (its TAIL_ABSORB_MIN). */
+const TAIL_ABSORB_MIN = 20;
+
+/** Longest block the fill may make for `t`: the user's soft max, and the quest's own max session plus the tail. */
+function sessionCap(t: Task, config: UserConfig): number {
+  return t.maxChunkMin > 0 ? Math.min(config.softMaxBlockMin, t.maxChunkMin + TAIL_ABSORB_MIN) : config.softMaxBlockMin;
+}
+
 /** Free gaps a day's blocks leave, with a break's margin beside other work. */
 function gapsOf(day: DayBudget['day'], blocks: Placed[], breakMin: number): Array<[number, number]> {
   const out: Array<[number, number]> = [];
@@ -249,11 +257,15 @@ export function reconcile(
         const pick = finish ?? partial;
         if (!pick) break;
         const t = pick.t;
-        let chunk = Math.floor(Math.min(need.get(t.id)!, fits(t), config.softMaxBlockMin));
+        // The quest's own max session holds here too, plus the tail the
+        // constructor may absorb: "max session 15" was filled as one 45.
+        const cap = sessionCap(t, config);
+        let chunk = Math.floor(Math.min(need.get(t.id)!, fits(t), cap));
+        if (need.get(t.id)! - chunk > EPSILON_MIN && chunk > t.maxChunkMin && t.maxChunkMin > 0) chunk = Math.floor(Math.min(chunk, t.maxChunkMin));
         // Don't leave a shard behind: take it all if it nearly fits, else leave a real piece.
         const after = need.get(t.id)! - chunk;
         if (after > EPSILON_MIN && after < SHARD_MIN && t.totalMin >= REAL_QUEST_MIN) chunk = Math.floor(chunk - (SHARD_MIN - after));
-        if (chunk < Math.min(SHARD_MIN, need.get(t.id)!)) break;
+        if (chunk < Math.min(SHARD_MIN, need.get(t.id)!, t.maxChunkMin > 0 ? t.maxChunkMin : Infinity)) break;
         const end = gs + chunk * MS_PER_MIN;
         const why = composeWhy({ task: t, start: gs, end, prev: workBefore(dayRefs(), gs), config });
         added.push({
@@ -266,7 +278,9 @@ export function reconcile(
         });
         need.set(t.id, need.get(t.id)! - chunk);
         capLeft -= chunk;
-        const rest = chunk >= MIN_SITTING_MIN || t.cognitiveLoad >= 0.7 ? breakMin : 0;
+        // A full session of a short-session quest earns its break as well.
+        const fullSession = t.maxChunkMin > 0 && chunk >= t.maxChunkMin;
+        const rest = chunk >= MIN_SITTING_MIN || t.cognitiveLoad >= 0.7 || fullSession ? breakMin : 0;
         gs = Math.ceil((end + rest * MS_PER_MIN) / SNAP_MS) * SNAP_MS;
       }
     }
@@ -280,7 +294,7 @@ export function reconcile(
       if (owed <= EPSILON_MIN || owed >= SHARD_MIN || capLeft < owed) continue;
       for (let k = 0; k < all.length; k += 1) {
         const b = all[k]!;
-        if (b.taskId !== t.id || minutesOf(b) + owed > config.softMaxBlockMin) continue;
+        if (b.taskId !== t.id || minutesOf(b) + owed > sessionCap(t, config)) continue;
         const end = b.end + Math.ceil(owed) * MS_PER_MIN;
         const iv = day.freeIntervals.find((x) => x.start <= b.start && x.end >= b.end);
         const next = all[k + 1];

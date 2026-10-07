@@ -179,7 +179,7 @@ describe('fuzz lab repros (each one fails today)', () => {
   // What a user sees: a quest with "max session 15 min" gets a 45-minute
   // block. The constructor's tail rule (`left - sitting`) and the starter
   // push ignore the cap; reconcile's fill only knows softMaxBlockMin.
-  it.fails('keeps blocks within a quest’s max session (plus the 20-minute tail)', () => {
+  it('keeps blocks within a quest’s max session (plus the 20-minute tail)', () => {
     const quest = task('flashcards', { remainingMin: 120, maxChunkMin: 15, deadline: at(14, 21) });
     const { schedule } = generateSchedule([quest], [], cfg({ horizonDays: 30 }), at(-1, 21));
     const longest = Math.max(...schedule.map((b) => (b.end - b.start) / MIN));
@@ -199,6 +199,22 @@ describe('fuzz lab repros (each one fails today)', () => {
     const moved = applyEdit(first.schedule, { kind: 'move_block', blockId: first.schedule[0]!.id, newStart: new Date('tomorrow').getTime() });
     const { schedule } = replan(moved, [quest], cfg(), now);
     expect(schedule.every((b) => Number.isFinite(b.start) && Number.isFinite(b.end))).toBe(true);
+  });
+
+  // Seed 5, case 7, "block:fraction-of-a-minute" (new and kept, 3% of cases).
+  // What a user sees: open the app at 09:20:30 with a block in progress and
+  // it reads "09:20–09:50, 29.5 min"; plan a day at 09:00:27 and every block
+  // starts on :27 seconds. The clock's seconds went straight into the plan.
+  it('plans in whole minutes when the clock has seconds', () => {
+    const quest = task('essay', { remainingMin: 100, deadline: at(0, 18) });
+    const first = generateSchedule([quest], [], cfg(), at(0, 9) + 27_000);
+    const whole = (blocks: Block[]) => blocks.every((b) => b.start % MIN === 0 && b.end % MIN === 0);
+    expect(first.schedule.length).toBeGreaterThan(0);
+    expect(whole(first.schedule)).toBe(true);
+    // 20.5 minutes into a 50-minute block.
+    const plan = [work('blk-1', 'essay', at(0, 9), 50), work('blk-2', 'essay', at(0, 10), 50)];
+    const next = replan(plan, [quest], cfg(), at(0, 9) + 20 * MIN + 30_000);
+    expect(whole(next.schedule)).toBe(true);
   });
 
   // Seed 1, case 192, "block:non-integer-ms" (0.7% of cases).

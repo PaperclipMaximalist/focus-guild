@@ -92,9 +92,12 @@ export function reflow(
   currentSchedule: Schedule,
   tasks: Task[],
   config: UserConfig,
-  now: number,
+  clock: number,
   options: ReplanOptions = {},
 ): SchedulerResult {
+  // Plans are made in whole minutes. The clock comes with seconds: a block in
+  // progress was cut at 23:44:30 and read "23:44–00:44, 59.5 min".
+  const now = Math.ceil(clock / MS_PER_MIN) * MS_PER_MIN;
   const taskMap = new Map(tasks.map((t) => [t.id, t]));
   const tz = config.tzOffsetMin ?? 0;
   /** Minutes of a block that are still ahead. */
