@@ -113,7 +113,8 @@ replan(): reflow.ts   (preserve everything still valid; plan() the gaps)
 `npm run lab` (in `server/`) plans realistic weeks through the real pipeline
 and grades them against the Project Bible. `npm run lab:pop` generates
 thousands of people, grades their plans against an optimal oracle and lives
-their weeks (`-- --week`). Run both before and after any change here — see
+their weeks (`-- --week`). `npm run lab:fuzz` throws adversarial inputs and edit/replan sequences at it
+and checks the hard rules. Run all three before and after any change here — see
 the end of SCHEDULER_PSEUDOCODE.md.
 
 ## Tuning

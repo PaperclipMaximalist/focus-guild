@@ -4,9 +4,9 @@ The living roadmap: what's done, what's open, in priority order. Current
 state and how to run everything: `FocusGuildInstructions.md` → "Current
 Build Phase". History with hours: `WORKLOG.md`.
 
-**Status 2026-09-26:** everything under "Done" is live in production
-(`main` @ `5688211`) except the population-lab row, which is committed on
-`presets-and-chronicle` and waiting for a deploy.
+**Status 2026-10-06:** everything under "Done" is live in production (`main`,
+merged from `presets-and-chronicle` on 2026-10-06). Work in progress that is
+NOT merged is listed under "Parked branches" below.
 
 ---
 
@@ -25,23 +25,39 @@ Build Phase". History with hours: `WORKLOG.md`.
 | + Import | Bulk quest import from pasted text; client test runner | `084890f`, `95daa53` |
 | + Scheduler overhaul | Scenario lab (`npm run lab`). Real sittings, real breaks, deadline preemption, pacing past the horizon, idempotent replan, honest "why now", peak hours for heavy work, starter push, load levelling, time hints for dailies. **Fixed "Not Today" deleting quests.** | `4e7de29`, `d3f3e50` |
 | + Insights | Feed notes for overdue quests, routines crowding out quests, undated backlog pace; working-hours suggestion; self-correcting estimates from logged focus time; half-hour working hours | `5688211` |
-| + Population lab | `npm run lab:pop`: thousands of simulated people plan and live a week, graded against an optimal oracle. Fixes: triage (keep the most deadlines, LOW before MED before HIGH), reconcile (deadline work gets what really fit), replans can move later work for a deadline, overrunning quests stay in the plan, check-in cap on today only (was landing on tomorrow), long breaks counted, focus window for light days, chronotype setting, routines at their own time and full length, routine top-up on replan, Feed replans on a new day. Deadlines met 43% → 57%; 68% → 89% of the best possible | branch `presets-and-chronicle`, **not deployed yet** |
+| + Population lab | `npm run lab:pop`: thousands of simulated people plan and live a week, graded against an optimal oracle. Fixes: triage (keep the most deadlines, LOW before MED before HIGH), reconcile (deadline work gets what really fit), replans can move later work for a deadline, overrunning quests stay in the plan, check-in cap on today only (was landing on tomorrow), long breaks counted, focus window for light days, chronotype setting, routines at their own time and full length, routine top-up on replan, Feed replans on a new day. Deadlines met 43% → 57%; 68% → 89% of the best possible | `8e501f7` |
+| + Agent team round | A director plus coder and tester agents, each coder in its own worktree, merged one at a time behind the labs. Hours past midnight (22–06). Estimates learned from the first finished quest. Quest sessions (a quest's sittings stay together; quests up to 90 min in one sitting; due-today work first). Replans that survive a day (no growth after the last block, check-in cap all day, nothing left behind `now`). Reasons written from the finished plan and shown on normal tiles; a "won't finish" banner with tap-to-apply choices. Fuzz lab (`npm run lab:fuzz`) and its fixes (unique block ids, late and orphan pins, NaN moves). A planner crash fixed. Deadlines met 59% → 64%; 90% → 94% of the best possible; same-quest-picked-up-3-times 33% → 6% | `6618096` … `e8809fd` |
 
 ---
 
 ## Still open
 
-### Product, in priority order
-1. **Learn the energy curve.** Settings now has a chronotype picker (standard / morning / afternoon / night owl), and light days use their best window. Still open: learn the curve from check-ins and from when focus sessions actually happen and finish, so people who never open Settings get theirs. In the population lab, 37% of night owls who didn't pick "night owl" still get heavy work in their slump.
-2. **Estimates for new users.** Calibration needs 5 finished quests; until then the plan uses raw estimates, and overruns are the biggest remaining gap (a perfect follower gets 89% of the best possible with real estimates, 97.5% with exact ones). Try shrinking toward the observed ratio from the first sample, or a mild planning-fallacy prior, and grade it with `npm run lab:pop -- --week`.
-3. **Duplicate detection.** The dev account has every recurring quest twice, most likely from a double import. Warn on import or creation when the title matches and the duration is the same, and offer to merge.
-4. **Replan on focus overrun** (a Bible promise). When a focus session runs 10+ min over, extend the block and compress or defer the lowest-priority rest of the day.
-5. **Overdue quests** now surface via insights and Rescue; consider a one-tap "move all to tomorrow".
-6. **Tracker one-line quick-add** (deferred from Phase 1): reuse the markdown line grammar, e.g. `EE intro > write one ugly paragraph @EE due:fri cas:c`.
-7. **Calendar write-back via OAuth** (Google / Microsoft) and **Google Classroom** assignments, only if ICS links and the inbox aren't enough.
-8. **Overnight working hours** (night shifts, 22:00–06:00). Settings allows a start after the end, and the planner then plans nothing at all; either support windows that cross midnight or refuse them in Settings.
-9. **Heavy days for overcommitters** interleave one big quest with lighter ones (the variety rules), up to 10 switches a day. Consider relaxing variety when one quest dominates a crunch day.
-10. **Replans and the check-in cap:** mid-day replans cap only the new work, so today can end up over the check-in's minutes when stable blocks already used some.
+### Scheduler, in priority order (measured by the labs)
+1. **A replan with nothing changed still adds work** (fuzz: 12% of cases; population lab: `replan twice differs` 44% of people, `no-change replan changed the plan` 30%, `no-break after a replan` 55%). Cause confirmed: generate reserves a rest after each block, a replan sees kept blocks as walls with no rest after them and fills the rests. An earlier attempt (padding kept blocks with their rest) fixed the breaks but cost 1.2 points of deadlines met, so it needs the budget to count those rests too.
+2. **A quest's max session is ignored** (`chunk:new-block-longer-than-maxChunkMin+20`, 7% of fuzz cases; the last `it.fails` in `fuzz-repros.test.ts`). A fix exists, unmerged and unverified: see Parked branches.
+3. **Untimed routines** are placed from "now" and can sit in front of a short deadline (`routine-blocks-deadline` 22% of people, `routine-drifts-today` 22%). Give them a stable time of day and let them yield to a short deadline. Lab checks exist on a parked branch.
+4. **No meals:** a third of people have no free half hour 11:30–14:00 on a day they work through. Try a lunch gap counted in capacity; ship only if it costs ≤ 0.3 points of deadlines met.
+5. **Learn the energy curve** from behaviour and offer it as a one-tap suggestion (33% of night owls who never open Settings still get heavy work in their slump). Started, parked.
+6. **Fragments that remain:** `fragment-dose` 21% of people, `week: snowball` 11%, `stale morning` 5.6% (up from 4.2% over this round), `fewer-on-time` 13%.
+7. **Estimates in the first week:** new users reach 87% of the best possible against 94% for returning ones; knowing each person's factor would give ~94.5%, so the rest is first-week learning speed.
+8. **After hours:** opened after quest hours with something small due tonight, the Feed is empty plus a banner. Add an insight with a "Start now" action. Working hours stay a hard wall for planning.
+9. **Banner:** "move the deadline" is +1 day and may need a second tap; compute the first date it fits (additive field on the issue).
+10. Smaller: night-shift users — the Feed groups by calendar date, `planner.meterAt` resets at midnight, the check-in lookup uses the UTC date; daylight-saving changes shift blocks an hour (single `tzOffsetMin`); generate at 200 quests × 30 days takes ~240 ms and grows faster than linearly; on compact Feed tiles the delete button overlaps the load dots; no minimal unit test yet for the reconcile crash fixed in `e8809fd` (repro: `npm run lab:pop -- --n 600 --seed 41 --week --no-night-shift`, people 127 and 555, before that commit).
+
+### Product
+- **Duplicate detection.** The dev account has every recurring quest twice, most likely from a double import. Warn on import or creation when the title matches and the duration is the same, and offer to merge.
+- **Overdue quests** surface via insights and Rescue; consider a one-tap "move all to tomorrow".
+- **Tracker one-line quick-add** (deferred from Phase 1): reuse the markdown line grammar, e.g. `EE intro > write one ugly paragraph @EE due:fri cas:c`.
+- **Calendar write-back via OAuth** (Google / Microsoft) and **Google Classroom** assignments, only if ICS links and the inbox aren't enough.
+- **Gemini Spark / other agents:** the MCP connector in `mcp/` is local (stdio). A hosted (HTTP) version would let cloud agents read the plan and add to the Parking Lot.
+
+### Parked branches (local worktrees under `.claude/worktrees/`, not pushed)
+| Branch | What is there | State |
+|---|---|---|
+| `worktree-agent-abaaa678aca7b13f9` @ `8a66471` | Max-session cap honoured (7.3% → 1.0% of fuzz cases), whole-minute block times; touches `reconcile.ts`, `constructor.ts` | Tests pass (334) but the population lab and `npm run lab` were not run. Verify before merging. |
+| `worktree-agent-aed603473ed3e0ccd` @ `1d4405a` | Lab checks only: `routine-blocks-deadline`, `routine-drifts-today` | Ready to build on (item 3). |
+| `worktree-agent-aaaf4994560cafbaa` (uncommitted) | Start of `suggestChronotype` in `insights.ts` plus lab changes | Early; based on `8e501f7`, so it needs a merge of the current branch first. |
+All other agent worktrees are merged and can be removed (`git worktree remove <path>`).
 
 ### Ops, needs the owner
 - Set `ANTHROPIC_API_KEY` on Railway (Ask the Guild, Quest Decomposer).
@@ -60,4 +76,9 @@ Build Phase". History with hours: `WORKLOG.md`.
 - When deadlines can't all be met, the plan keeps **as many on time as possible**, and gives up LOW before MED before HIGH. Hopeless quests still get leftover time; they don't take a finishable quest's slot.
 - **Deadline safety beats stability** on replan, but only for quests that can still make it.
 - Routines are personal time: they keep their own hour even outside quest hours.
+- **Finishing today's plan means done for today.** A replan after a session never adds non-urgent work to today; deadline work that became necessary is the exception.
+- A quest's sittings stay together (a session), and a quest of up to 90 minutes is done in one sitting on one day.
+- Reasons are written once, from the finished plan (`explainPlan`), and every clause must be checkable against it. Say less rather than something that might be false.
+- Working hours that end before they start run past midnight; a person's day ends when their session does.
+- How to run a team of agents on this repo: one job per agent, each coder in its own worktree, at most two or three at once, each told to commit after every step; the director merges one branch at a time and reruns `npm test`, `npm run lab`, `npm run lab:pop` and `npm run lab:fuzz` after each merge. The grader is a judge: checks may be added, never weakened.
 - Migrations are **idempotent**, because Railway runs `migrate deploy` on boot and a failing migration takes the server down.

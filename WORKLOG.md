@@ -198,6 +198,14 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Fixed: triage, reconcile (swap / fill / payback), replan deadline release, overrun floor, today-only check-in cap, long breaks in capacity, sliver folding, EDF guard for intra-day deadlines, focus window, chronotype setting (Settings), routines at their own hour and full length with nearest-slot placement, routine top-up on replan, Feed replans on the first open of a day.
 - Result: deadlines met 43.0% → 57.4%; a perfect follower gets 89.3% of the best possible (was 68.4%; 97.5% with exact estimates). 256 server + 10 client tests (11 new, 5 of which fail on the old code). Not deployed yet.
 
+### Sat–Tue 2026-10-03 → 10-06 — The agent team (hours not measured; most of it was agents running in the background)
+- "Make a director agent, multiple coder agents and multiple tester agents, and test until the scheduler is really improved." The main session directed; each coder worked in its own git worktree; every branch was merged one at a time and re-measured before the next.
+- The first launch (seven agents at once) hit the usage limit within the hour; so did the second batch of three. What worked: two at a time, a tight brief, commit after every step, resume from the saved worktree. One network drop and one stalled agent were recovered the same way.
+- Tester 2 (the user's advocate) read ~20 people's weeks in full and found what the metrics missed: days made of 25-minute fragments, a "first push" label on every replanned block, reasons that were false in a quarter to a half of plans, the reason line invisible on tiles (it needed a 70-minute block), and no way to act on the "won't finish" banner. Tester 1 built a fuzz lab: 31 000 planning calls, no crash, ten real bugs with minimal repros.
+- Merged: hours past midnight; estimates learned from the first finished quest; quest sessions and whole sittings; replans that survive a day; reasons written from the finished plan; the banner with tap-to-apply choices; fuzz fixes (unique ids, late and orphan pins, NaN moves). The director fixed the tile, a pace measure for work not due this week (to check that a 14% drop in hours worked was only the "never done for today" extra), a planner crash found by the final check on a fresh seed, and the fuzz judge.
+- Result on seed 7 (1 000 people, returning users): deadlines met 59.0% → 64.2%; a perfect follower at 94.4% of the best possible (was 90.1%); same quest picked up 3+ times a day 33% → 6%; 8+ switches a day 19% → 5%; finishing the last block adds more work 45% → 1.5%; false reasons ~50% → 0. Night-shift workers: an empty plan → 70% of deadlines met. Tests: 332 server (+1 expected fail) and 16 client. Checked in a browser at phone width (Settings picker, Feed tiles with reasons), then deployed.
+- Not finished, parked on branches: max-session cap, untimed routines and meals, learning the energy curve, and the no-change replan (cause known). See PLAN.md.
+
 ## Phases, as named in the project's own log
 
 | Phase | What | When |
@@ -220,6 +228,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 12 | Launch + presets, Chronicle, calendars/inbox, Ask the Guild, MCP, PWA | Sep 13 – Sep 19 |
 | 13 | Scenario lab, scheduler overhaul, insights, self-correcting estimates | Sep 24 – Sep 25 |
 | 14 | Population lab; triage, reconcile, focus window, chronotypes | Sep 26 |
+| 15 | Agent team: night hours, estimates, quest sessions, replans, honest reasons, fuzz lab | Oct 3 – Oct 6 |
 
 ---
 

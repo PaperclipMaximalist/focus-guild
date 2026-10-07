@@ -10,7 +10,7 @@ update this doc. Last rewritten 2026-09-26 after the scenario-lab overhaul
 (commits `4e7de29`, `d3f3e50`, `5688211`), then extended the same day after
 the population lab (triage, reconcile, focus window, chronotypes).
 
-**Before and after any change here, run `npm run lab` and `npm run lab:pop`**
+**Before and after any change here, run `npm run lab`, `npm run lab:pop` and `npm run lab:fuzz`**
 (see the end of this doc). The first plans hand-written weeks; the second
 plans and lives weeks for thousands of generated people and compares against
 the best any plan could do. Both found far more than the unit tests did.
@@ -396,23 +396,34 @@ replan route also tops up routines on days that don't have them yet
 
 ## Explain (`explain.ts`)
 
-After beam selection the constructor replays the winning sequence and stores
-a note per work block:
+Every work block carries a note; the API serves its `why` as `reason`, shown
+as a second line on Feed tiles and in the block sheet:
 
 ```json
-{ "term": "energy", "sign": "+", "total": 2.84, "why": "Due in 2 days · heavy work in your sharpest hours." }
+{ "term": "energy", "sign": "+", "total": 2.84, "why": "Due tomorrow · this finishes it" }
 ```
 
-`why` comes from `composeWhy`, built from **facts**, at most two clauses:
-a deadline clause (due today / tomorrow / in N ≤ 3 days) plus one situation
-(short first push, easy start, lighter change of pace after X, batched admin,
-sharpest hours, heavy at a low hour, light work for a low stretch, the time
-you asked for, change of subject), with an honest fallback. The API serves it
-as `reason` on each work block; the Feed shows it on tiles and in the block
-sheet. `term`/`sign` remain as the fallback for old notes.
+Reasons are written **once, from the finished plan**: `explainPlan()` runs at
+the end of `plan()`, over the whole schedule, kept blocks included. A reason
+composed while the day was being built couldn't know whether this block is
+the quest's last, how much is left after it, or whether a sharper hour stayed
+free, and reconcile and replans changed the plan after the sentence was
+written; half of simulated people had at least one false reason. Now:
 
-(The old reasons named whichever scoring term won, so an energy win at 19:43
-said "your capacity is high right now", and the Feed printed the raw JSON.)
+- every clause is a fact checkable against the plan (deadline in whole days,
+  never for an undated quest; "this finishes it"; "short first push" only on
+  the day's real first block; "high priority"; "untouched N days"; "heavy
+  work, sharp hours" only when the hour is sharp; a change of pace only after
+  a different quest);
+- at most 48 characters, the fact first, because tiles truncate;
+- a sentence already on three blocks of a day isn't said a fourth time;
+- it says less rather than something that might be false; only notes change,
+  never blocks. The population lab checks this (`reason-false`,
+  `reason-repeat`, `reason-long`, and a `plan hash` that leaves notes out).
+
+`composeWhy` remains for single-block use; `term`/`sign` are the fallback for
+old notes. The "won't finish" banner turns each feasibility issue into one
+sentence and two tap-to-apply edits (`client/src/lib/shortfall.ts`).
 
 ## Insights (`insights.ts`)
 
@@ -474,6 +485,29 @@ Scenarios: `week` (school on the calendar, student hours), `default-hours`,
 its first day. As of 2026-09-26: 4 findings, all defensible (a 15-min email
 at 15:55 tipping one day's energy average; crunch weeks with more heavy work
 than peak hours).
+
+## Fuzz lab (`server/scripts/fuzz-lab.ts`, `npm run lab:fuzz`)
+
+The opposite question to the population lab: not "is this a good week for a
+realistic person" but "what is the worst input and the worst order of taps,
+and does the plan still obey its hard rules". A case is a starting state plus
+up to ~30 steps (plan, replan, pin, swap, delete, move, log progress, finish,
+defer, add, change settings, wait). After every plan it checks: never throws,
+no overlaps, nothing before now / past a deadline / before notBefore /
+outside hours, minutes placed never above what is left, fixed and pinned
+blocks survive a replan, determinism, a no-change replan changes nothing,
+unique ids, whole-minute times, the check-in cap, sane insights. Each
+violation class is tagged with the mildest tier that reaches it: `ui` (what
+the client really sends), `api` (passes route validation), `wild` (raw
+values the routes reject). `--show <case>`, `--shrink <case> --class <name>`,
+`--scale`. A work block's note is its reason and may be re-worded, so "stayed
+put" ignores it (`stayKey`).
+
+`fuzz-repros.test.ts` holds a minimal repro per class. A bug that is known
+and not yet fixed is an `it.fails(...)`; fixing it means flipping it to `it`.
+As of 2026-10-06 one is left (a quest's max session is ignored), and the
+largest open class is a replan with nothing changed that still adds work
+(see PLAN.md).
 
 ## Population lab (`server/scripts/population-lab.ts`, `npm run lab:pop`)
 

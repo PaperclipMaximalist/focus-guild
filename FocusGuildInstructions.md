@@ -163,7 +163,7 @@ Never commit .env files. Never log API keys.
 ## Current Build Phase
 [Update this at the end of every session. History lives in WORKLOG.md and git; this section is the current state only.]
 
-**As of 2026-09-26: everything below is built; all of it is live except the population-lab scheduler work** (committed on `presets-and-chronicle`, not yet merged). Production is `main` @ `5688211`, auto-deployed from `main` (Railway server + Vercel client). The open work is in `PLAN.md`.
+**As of 2026-10-06: everything below is built, deployed and live.** Production is `main` (merged from `presets-and-chronicle` on 2026-10-06), auto-deployed from `main` (Railway server + Vercel client). The open work, and three parked branches with unfinished work, are in `PLAN.md`.
 
 ### Live
 - Client: https://focus-guild-ten.vercel.app · Server: https://focus-guild-production.up.railway.app (`/health`)
@@ -191,7 +191,7 @@ Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle 
 
 ### How to run, test, ship
 - Local: two terminals. `cd server && npm run dev` (port 3000), `cd client && npm run dev` (open **http://127.0.0.1:5173**, not localhost). No Clerk needed: `server/.env.local` and `client/.env.local` switch to dev auth (`dev-member-001`).
-- Tests: `cd server && npm test` (256) · `cd client && npm test` (10) · **`cd server && npm run lab`** and **`npm run lab:pop`** for the scheduler (grade whole plans, and thousands of simulated people living a week with `-- --week`; run both before and after any scheduler change).
+- Tests: `cd server && npm test` (332 + 1 expected fail, which pins a known bug) · `cd client && npm test` (16) · for the scheduler, from `server/`: **`npm run lab`** (hand-written weeks, 3 findings is the baseline), **`npm run lab:pop -- --week --history`** (simulated people living a week, graded against the best possible) and **`npm run lab:fuzz`** (adversarial inputs and edit/replan sequences). Run all three before and after any scheduler change.
 - Ship: merge to `main` and push; Railway runs `prisma migrate deploy` on boot. Migrations must be **idempotent** (a failing one takes the server down). The Prisma schema engine can't reach Neon from this Windows machine; the Neon HTTP driver works for reads.
 - AI features (Quest Decomposer, Ask the Guild) need `ANTHROPIC_API_KEY` on the server; without it they return 503 with a clear message. Model: `AI_MODEL` in `server/src/lib/ai.ts` (`claude-opus-5`).
 
@@ -204,7 +204,7 @@ Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle 
 - More in the Claude Code memory file for this project and in `DEPLOY.md`.
 
 ### Open work
-See `PLAN.md` → "Still open": learning the energy curve, estimates for new users, duplicate detection, replan on focus overrun, plus ops (Neon password rotation, Neon dev branch, Clerk production keys, `ANTHROPIC_API_KEY`).
+See `PLAN.md` → "Still open": the no-change replan that still adds work, max session, untimed routines and meals, learning the energy curve, plus ops (Neon password rotation, Neon dev branch, Clerk production keys, `ANTHROPIC_API_KEY`).
 
 ## Live Daily Schedule Engine ("The Guild Feed")
 
