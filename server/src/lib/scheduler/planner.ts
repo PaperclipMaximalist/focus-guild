@@ -573,7 +573,10 @@ export interface PlanInputs {
  * Pure: deterministic given inputs (beam tie-break is stable).
  */
 export function plan(inputs: PlanInputs): SchedulerResult {
-  const { tasks, fixedBlocks, lockedBlocks, config, now } = inputs;
+  const { tasks, fixedBlocks, lockedBlocks, config } = inputs;
+  // Today's work starts now, on the next whole minute: opened at 10:03:27,
+  // the first block used to start (and the rest of the day follow) on :27.
+  const now = Math.ceil(inputs.now / MS_PER_MIN) * MS_PER_MIN;
 
   const immovable = sortBlocks([...fixedBlocks, ...lockedBlocks]);
   const taskMap = new Map(tasks.map((t) => [t.id, t]));

@@ -207,7 +207,11 @@ function enumerateCandidates(
     // Never leave a tail shorter than a real sitting: a 60-min quota placed
     // as 50 + 10 gives a 10-minute block nobody will start. Either finish it
     // in this block (small overshoot of the ideal) or leave a proper sitting.
-    const sitting = minSitting(q.task, left);
+    // A sitting is never longer than the quest's own max session. With "max
+    // session 15" and 45 minutes to go, a sitting was the whole 45: no chunk
+    // could leave a "real" tail, nothing was placed here, and the deadline
+    // fill then put the 45 minutes down as one block.
+    const sitting = Math.min(minSitting(q.task, left), Math.max(1, cap));
     const tail = left - chunkMin;
     if (tail > 0 && tail < sitting) {
       const whole = Math.floor(Math.min(left, usableMin, cap + TAIL_ABSORB_MIN));
@@ -230,7 +234,8 @@ function enumerateCandidates(
     if (chunkMin < sitting && chunkMin < left) continue;
     // Nor a last few minutes of a real quest on their own: ten minutes of a
     // three-hour chapter edit is a block nobody starts. They wait for a sitting.
-    if (chunkMin < SLIVER_MIN && q.task.totalMin >= 2 * SLIVER_MIN && q.task.remainingMin > chunkMin) continue;
+    // (A quest capped below that by its own max session sits in full sessions.)
+    if (chunkMin < Math.min(SLIVER_MIN, cap) && q.task.totalMin >= 2 * SLIVER_MIN && q.task.remainingMin > chunkMin) continue;
     if (chunkMin < 1) continue;
 
     if (variety !== 'off') {
