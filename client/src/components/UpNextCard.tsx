@@ -17,7 +17,7 @@ import { useTimerStore } from '../store/useTimerStore';
 import { FocusTimer } from './FocusTimer';
 import { sfxStart } from '../lib/sfx';
 import type { ScheduleBlock } from '../lib/api';
-import { Compass, Play, SkipForward, Target, Timer } from 'lucide-react';
+import { CalendarDays, ChevronRight, Play, Timer } from 'lucide-react';
 
 interface Props {
   /** Same completion pipeline the Today quest cards use. */
@@ -68,22 +68,16 @@ export function UpNextCard({ onCompleteQuest }: Props) {
 
   const quest = block?.taskId ? quests.find((q) => q.id === block.taskId) ?? null : null;
 
-  // Nothing planned (or nothing left today) — gentle pointer to the feed.
+  // Nothing planned (or nothing left today): a quiet pointer to the feed.
   if (!block || !quest) {
     return (
-      <Link
-        to="/feed"
-        className="mt-3 flex items-center gap-3 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-4 py-3 transition hover:bg-(--color-surface2)"
-      >
-        <Compass size={24} strokeWidth={1.75} className="shrink-0 opacity-70" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-            Nothing queued right now
-          </p>
-          <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-            Open the Guild Feed to plan your day →
-          </p>
-        </div>
+      <Link to="/feed" className="panel flex items-center gap-3 px-3.5 py-3.5 transition-colors hover:bg-(--color-surface2)">
+        <CalendarDays size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">Nothing planned for the rest of today</span>
+          <span className="block text-xs text-(--color-muted)">Open the Feed to plan the day</span>
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-(--color-muted)" aria-hidden />
       </Link>
     );
   }
@@ -91,8 +85,8 @@ export function UpNextCard({ onCompleteQuest }: Props) {
   const startMs = new Date(block.start).getTime();
   const endMs = new Date(block.end).getTime();
   const subtitle = isActive
-    ? `In progress · ${fmtCountdown(endMs - now)} left in this block`
-    : `Up next at ${fmtClock(block.start)} · in ${fmtCountdown(startMs - now)}`;
+    ? `${fmtCountdown(endMs - now)} left in this block`
+    : `${fmtClock(block.start)} · in ${fmtCountdown(startMs - now)}`;
 
   const handleStart = () => {
     sfxStart();
@@ -106,43 +100,29 @@ export function UpNextCard({ onCompleteQuest }: Props) {
 
   return (
     <>
+      {/* The one thing on the page that is allowed to be loud. */}
       <div
-        className="mt-3 rounded-(--radius-card) border p-4"
-        style={{
-          borderColor: isActive ? 'var(--color-primary)' : 'var(--color-border)',
-          background: isActive ? 'color-mix(in srgb, var(--color-primary) 8%, var(--color-surface))' : 'var(--color-surface)',
-        }}
+        className="panel p-4"
+        style={isActive ? { boxShadow: 'inset 0 0 0 1.5px var(--color-primary)' } : undefined}
       >
-        <div className="flex items-center gap-3">
-          {isActive ? <Target size={24} strokeWidth={1.75} className="shrink-0" aria-hidden /> : <SkipForward size={24} strokeWidth={1.75} className="shrink-0" aria-hidden />}
-          <div className="min-w-0 flex-1">
-            <p className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: 'var(--color-primary)' }}>
-              {isActive ? 'Focus now' : 'Up next'}
-            </p>
-            <p className="truncate text-sm font-bold" style={{ color: 'var(--color-text)' }}>
-              {quest.title}
-            </p>
-            <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-              {subtitle}
-            </p>
-          </div>
+        <p className="section-label" style={{ color: 'var(--color-primary)' }}>
+          {isActive ? 'Now' : 'Up next'}
+        </p>
+        <p className="mt-1.5 text-[1.0625rem] font-bold leading-snug">{quest.title}</p>
+        <p className="tnum mt-0.5 text-[13px] text-(--color-muted)">{subtitle}</p>
+        <div className="mt-3.5 flex items-center gap-2">
           {timerActive?.questId === quest.id ? (
-            <button
-              onClick={() => setTimerOpen(true)}
-              className="shrink-0 rounded-md px-4 py-2 text-xs font-bold text-(--color-on-primary)"
-              style={{ background: 'var(--color-primary)' }}
-            >
-              <span className="inline-flex items-center gap-1.5"><Timer size={12} aria-hidden /> Resume</span>
+            <button type="button" onClick={() => setTimerOpen(true)} className="btn-primary">
+              <Timer size={15} aria-hidden /> Resume
             </button>
           ) : (
-            <button
-              onClick={handleStart}
-              className="shrink-0 rounded-md px-4 py-2 text-xs font-bold text-(--color-on-primary) transition-transform active:scale-95"
-              style={{ background: isActive ? 'var(--color-green)' : 'var(--color-primary)' }}
-            >
-              <span className="inline-flex items-center gap-1.5"><Play size={12} aria-hidden /> Start</span>
+            <button type="button" onClick={handleStart} className="btn-primary">
+              <Play size={15} aria-hidden /> Start
             </button>
           )}
+          <Link to="/feed" className="btn-quiet min-h-10">
+            See the day
+          </Link>
         </div>
       </div>
 

@@ -6,7 +6,6 @@ import { useUserStore } from '../store/useUserStore';
 import { useTimerStore } from '../store/useTimerStore';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { useToastStore } from '../components/Toasts';
-import { Header } from '../components/Header';
 import { FocusTimer } from '../components/FocusTimer';
 import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
@@ -17,15 +16,20 @@ import { shortfallLine, type ShortfallChoice } from '../lib/shortfall';
 import { blockDetail } from '../lib/blockDetail';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
 import { sfxComplete, sfxAchievement, sfxLevelUp, sfxStart } from '../lib/sfx';
-import { BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock, Clock9, CloudSun, Coffee, Diamond, Lightbulb, Pin, Play, RefreshCw, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
+import { BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock, Clock9, CloudSun, Coffee, Diamond, Lightbulb, Pin, Play, RefreshCw, Repeat, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 /** Pixels per minute for FOCUS blocks. */
-const PX_PER_MIN = 1.5;
-/** Minimum focus-block height so titles + dots always fit. */
-const MIN_BLOCK_PX = 64;
+const PX_PER_MIN = 1.1;
+/** Minimum block height: a title and the "why now" line always fit. */
+const MIN_BLOCK_PX = 58;
+/** A long block stops growing here: a 3-hour routine is not 270 px of nothing. */
+const MAX_BLOCK_PX = 128;
+const ROUTINE_MAX_PX = 68;
+/** Width of the time rail to the left of every block. */
+const RAIL_PX = 58;
 /** Number of days in the day-chip strip (today + 2). */
 const DAY_TABS = 3;
 
@@ -104,51 +108,27 @@ function blockHeight(b: ScheduleBlock): number {
     // Tiny separator line for short breaks; longer for big ones.
     return Math.max(10, Math.min(26, b.durationMin * 0.9));
   }
-  return Math.max(MIN_BLOCK_PX, b.durationMin * PX_PER_MIN);
+  // A routine has one line to show, however long it runs.
+  if (b.type === 'fixed') return Math.min(ROUTINE_MAX_PX, Math.max(MIN_BLOCK_PX - 10, b.durationMin * 0.6));
+  return Math.min(MAX_BLOCK_PX, Math.max(MIN_BLOCK_PX, b.durationMin * PX_PER_MIN));
 }
 
 // ─── Break / buffer separator (thin blue line) ────────────────────────────────
 
 function BreakLine({ block }: { block: ScheduleBlock }) {
   const isBuffer = block.type === 'buffer';
-  const label = isBuffer ? `${block.durationMin}m free` : `${block.durationMin}m breather`;
-  const color = isBuffer ? '#6B655B' : '#8A8478';
-
+  const label = isBuffer ? `${block.durationMin} min free` : `${block.durationMin} min break`;
   const height = blockHeight(block);
 
   return (
     <div
-      className="relative w-full flex items-center justify-center"
-      style={{ height }}
+      className="flex w-full items-center gap-2 text-[0.7rem] text-(--color-muted)"
+      style={{ height, paddingLeft: RAIL_PX + 12 }}
       title={`${block.durationMin}-minute ${isBuffer ? 'free slot' : 'break'}`}
     >
-      {/* Left dashed line */}
-      <div className="flex-1 h-px relative">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `repeating-linear-gradient(90deg, ${color}88 0 6px, transparent 6px 10px)`,
-          }}
-        />
-      </div>
-
-      {/* Center label */}
-      <span
-        className="px-2 text-[0.6rem] font-mono uppercase tracking-wide"
-        style={{ color }}
-      >
-        <span className="inline-flex items-center gap-1">{isBuffer ? <Diamond size={10} aria-hidden /> : <Coffee size={11} aria-hidden />} {label}</span>
-      </span>
-
-      {/* Right dashed line */}
-      <div className="flex-1 h-px relative">
-        <div
-          className="absolute inset-0"
-          style={{
-            background: `repeating-linear-gradient(90deg, ${color}88 0 6px, transparent 6px 10px)`,
-          }}
-        />
-      </div>
+      {isBuffer ? <Diamond size={10} aria-hidden /> : <Coffee size={11} aria-hidden />}
+      <span className="tnum">{label}</span>
+      <span className="h-px flex-1 border-t border-dashed border-(--color-border)" aria-hidden />
     </div>
   );
 }
@@ -224,7 +204,12 @@ function BlockTile({
     ? Math.max(0, Math.min(100, ((now - startD.getTime()) / (endD.getTime() - startD.getTime())) * 100))
     : isPast ? 100 : 0;
   const dots = quest ? loadDots(quest.mentalLoad) : 0;
-  const title = quest?.title ?? (block.type === 'fixed' ? (block.note ?? 'Fixed') : '—');
+  const isRoutine = block.type === 'fixed';
+  // Routine notes arrive as "Daily: Stretch"; the icon already says routine.
+  const title = quest?.title ?? (isRoutine ? (block.note ?? 'Fixed').replace(/^Daily:\s*/, '') : '—');
+  const showRemove = !isPast && !isActive && draggable;
+  // A routine is always fixed in place; the pin is for work the user pinned.
+  const showPin = !!block.locked && !isRoutine && !showRemove;
 
   return (
     <div
@@ -248,145 +233,107 @@ function BlockTile({
           }
         }}
         layout
-        initial={{ opacity: 0, y: 8, scale: 0.96 }}
-        animate={{
-          opacity: isDragging ? 0.4 : isPast ? 0.5 : 1,
-          y: 0,
-          scale: 1,
-        }}
-        transition={{ duration: 0.22, ease: 'easeOut' }}
-        className="group relative w-full h-full rounded-md overflow-hidden text-left cursor-pointer"
-        style={{
-          background: isPast ? 'var(--color-surface)' : 'var(--color-surface2)',
-          // The active block is the one lit in amber; selection is a plain outline.
-          border: isDragOver
-            ? `2px dashed ${hue}`
-            : isActive
-              ? '2px solid var(--color-primary)'
-              : isSelected
-                ? '1.5px solid var(--color-text)'
-                : '1px solid var(--color-border)',
-          // Category stripe down the left edge.
-          boxShadow: `inset 4px 0 0 ${hue}`,
-        }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: isDragging ? 0.4 : isPast ? 0.5 : 1, y: 0 }}
+        transition={{ duration: 0.2, ease: 'easeOut' }}
+        className="group flex h-full w-full cursor-pointer items-stretch gap-3 text-left"
       >
-        {/* Progress bar (active only) */}
-        {isActive && (
+        {/* Time rail: when it starts and how long, outside the card so the
+            eye can run down one column of times. */}
+        <div className="tnum shrink-0 pt-2.5 text-right" style={{ width: RAIL_PX }}>
           <div
-            className="absolute bottom-0 left-0 h-1 transition-all duration-1000"
-            style={{ width: `${pctDone}%`, background: 'var(--color-primary)' }}
-          />
-        )}
-
-        {/* Hover quick-delete (top-right, only on hover for non-active work blocks) */}
-        {!isPast && !isActive && draggable && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onQuickDelete(); }}
-            className="absolute top-2 right-2 z-10 opacity-70 hover:opacity-100 transition-opacity w-7 h-7 rounded-full flex items-center justify-center text-xs"
-            style={{ background: 'var(--color-surface)', color: 'var(--color-muted)', border: '1px solid var(--color-border)' }}
-            title="Remove this block"
-            aria-label="Remove this block"
+            className="text-[0.78rem] font-semibold leading-none"
+            style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text)' }}
           >
-            <X size={14} aria-hidden />
-          </button>
-        )}
+            {formatTime(startD)}
+          </div>
+          <div className="mt-1 text-[0.68rem] leading-none text-(--color-muted)">{formatMinutes(block.durationMin)}</div>
+        </div>
 
-        {/* Locked badge */}
-        {block.locked && (
-          <span className="absolute top-2 right-2 text-xs" style={{ color: 'var(--color-muted)' }} aria-label="Pinned">
-            <Pin size={14} aria-hidden />
-          </span>
-        )}
+        <div
+          className="relative min-w-0 flex-1 overflow-hidden rounded-lg"
+          style={{
+            // Work is a filled card; a routine is only outlined, so the day's
+            // real work is what stands out.
+            background: isRoutine ? 'transparent' : 'var(--color-surface2)',
+            // The active block is the one lit in amber; selection is a plain outline.
+            boxShadow: isDragOver
+              ? `inset 0 0 0 2px ${hue}`
+              : isActive
+                ? 'inset 0 0 0 2px var(--color-primary)'
+                : isSelected
+                  ? 'inset 0 0 0 1.5px var(--color-text)'
+                  : isRoutine
+                    ? 'inset 0 0 0 1px var(--color-border)'
+                    : 'none',
+          }}
+        >
+          {/* Category stripe */}
+          {!isRoutine && (
+            <span className="absolute inset-y-2 left-1.5 w-[3px] rounded-full" style={{ background: hue }} aria-hidden />
+          )}
 
-        {/* Content */}
-        <div className="relative h-full flex items-stretch">
-          {/* Start time gutter on the left edge */}
-          <div
-            className="shrink-0 flex flex-col items-center justify-center px-2"
-            style={{ minWidth: 58, paddingLeft: 12, borderRight: '1px solid var(--color-border)' }}
-          >
-            <span className="text-[0.65rem] font-mono font-bold tracking-tight" style={{ color: 'var(--color-text)' }}>
-              {formatTime(startD)}
-            </span>
+          {/* Progress bar (active only) */}
+          {isActive && (
+            <div
+              className="absolute bottom-0 left-0 h-[3px] transition-all duration-1000"
+              style={{ width: `${pctDone}%`, background: 'var(--color-primary)' }}
+            />
+          )}
+
+          <div className={`flex h-full flex-col py-2 pl-4 ${showRemove || showPin ? 'pr-10' : 'pr-3'} ${isCompact ? 'justify-center' : 'justify-between'}`}>
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-1.5">
+                {isRoutine && <Repeat size={12} className="shrink-0 text-(--color-muted)" aria-label="Routine" />}
+                <span
+                  className={`min-w-0 font-semibold leading-snug ${isCompact || (block.reason && height < TWO_LINE_TITLE_MIN_PX) ? 'truncate' : 'line-clamp-2'} ${isRoutine ? 'text-[0.875rem] text-(--color-muted)' : 'text-[0.9375rem]'}`}
+                >
+                  {title}
+                </span>
+              </div>
+              {/* Most blocks are 25–50 min, i.e. compact: the "why now" has to
+                  live here or nobody ever sees it (it used to need a 70-min block). */}
+              {block.reason && !isActive && !isPast && (
+                <div className="mt-0.5 truncate text-[0.75rem] text-(--color-muted)">{block.reason}</div>
+              )}
+              {isActive && (
+                <div className="tnum mt-1 inline-flex items-center gap-1 text-[0.8rem] font-bold" style={{ color: 'var(--color-primary)' }}>
+                  <Timer size={13} aria-hidden /> {formatCountdown(msRemaining)} left
+                </div>
+              )}
+            </div>
+
             {!isCompact && (
-              <span className="text-[0.55rem] font-mono opacity-70 mt-0.5" style={{ color: 'var(--color-text)' }}>
-                {block.durationMin}m
-              </span>
+              <div className="flex items-center gap-2 text-[0.7rem] text-(--color-muted)">
+                {quest && (
+                  <span className="flex gap-[3px]" title="Mental load" aria-hidden>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <span key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: i <= dots ? 'var(--color-muted)' : 'var(--color-border-strong)' }} />
+                    ))}
+                  </span>
+                )}
+                {quest?.category && <span>{quest.category.replace('_', ' ')}</span>}
+                <span className="tnum ml-auto">until {formatTime(endD)}</span>
+              </div>
             )}
           </div>
 
-          {/* Main content */}
-          <div className={`flex-1 min-w-0 ${isCompact ? 'flex flex-col justify-center px-3' : 'flex flex-col justify-between p-3'}`}>
-            {isCompact ? (
-              <>
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-[0.62rem] font-bold uppercase tracking-wider opacity-90 shrink-0" style={{ color: 'var(--color-text)' }}>
-                    {typeLabel(block)}
-                  </span>
-                  <span className="flex-1 min-w-0 truncate font-semibold text-[0.9rem]" style={{ color: 'var(--color-text)' }}>
-                    {title}
-                  </span>
-                  {quest && (
-                    <span className="flex gap-[3px] shrink-0">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <span key={i} className="w-1 h-1 rounded-full" style={{ background: i <= dots ? 'var(--color-text)' : 'var(--color-border)' }} />
-                      ))}
-                    </span>
-                  )}
-                </div>
-                {/* Most blocks are 25–50 min, i.e. compact: the "why now" has to
-                    live here or nobody ever sees it (it used to need a 70-min block). */}
-                {block.reason && !isActive && !isPast && (
-                  <div className="mt-0.5 truncate text-[0.68rem] opacity-80" style={{ color: 'var(--color-text)' }}>
-                    {block.reason}
-                  </div>
-                )}
-              </>
-            ) : (
-              <>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[0.6rem] font-bold uppercase tracking-wider opacity-90" style={{ color: 'var(--color-text)' }}>
-                      {typeLabel(block)}
-                    </span>
-                    {quest?.category && (
-                      <span className="text-[0.55rem] opacity-70 uppercase tracking-wider" style={{ color: 'var(--color-text)' }}>
-                        · {quest.category.replace('_', ' ')}
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    className={`font-bold text-base leading-tight ${block.reason && height < TWO_LINE_TITLE_MIN_PX ? 'line-clamp-1' : 'line-clamp-2'}`}
-                    style={{ color: 'var(--color-text)' }}
-                  >
-                    {title}
-                  </div>
-                  {block.reason && !isActive && !isPast && (
-                    <div className="mt-0.5 truncate text-[0.72rem] opacity-80" style={{ color: 'var(--color-text)' }}>
-                      {block.reason}
-                    </div>
-                  )}
-                  {isActive && (
-                    <div className="font-mono font-bold text-sm mt-1.5 inline-block px-2 py-0.5 rounded" style={{ background: 'color-mix(in srgb, var(--color-primary) 16%, transparent)', color: 'var(--color-primary)' }}>
-                      <span className="inline-flex items-center gap-1"><Timer size={13} aria-hidden /> {formatCountdown(msRemaining)}</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2">
-                  {quest && (
-                    <span className="flex gap-[3px]">
-                      {[1, 2, 3, 4, 5].map((i) => (
-                        <span key={i} className="w-1.5 h-1.5 rounded-full" style={{ background: i <= dots ? 'var(--color-text)' : 'var(--color-border)' }} />
-                      ))}
-                    </span>
-                  )}
-                  <span className="text-[0.65rem] font-mono opacity-75" style={{ color: 'var(--color-text)' }}>
-                    until {formatTime(endD)}
-                  </span>
-                </div>
-              </>
-            )}
-          </div>
+          {/* Remove this block (not for the past, the active one, or routines) */}
+          {showRemove && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onQuickDelete(); }}
+              className="icon-btn absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 opacity-60 hover:opacity-100"
+              title="Remove this block"
+              aria-label="Remove this block"
+            >
+              <X size={15} aria-hidden />
+            </button>
+          )}
+          {showPin && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-(--color-muted)" aria-label="Pinned">
+              <Pin size={14} aria-hidden />
+            </span>
+          )}
         </div>
       </motion.div>
     </div>
@@ -417,19 +364,11 @@ function EnergyMeterStrip({ trace }: { trace: EnergyTracePoint[] }) {
   const tint = lastMeter > 60 ? '#3FB950' : lastMeter > 30 ? '#EC835A' : '#EB6A61';
 
   return (
-    <div
-      className="rounded-md mb-3 p-2.5"
-      style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-    >
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-[0.65rem] font-bold uppercase tracking-wider" style={{ color: 'var(--color-muted)' }}>
-          <span className="inline-flex items-center gap-1.5"><BatteryMedium size={12} aria-hidden /> Energy</span>
-        </span>
-        <span className="text-xs font-mono font-bold" style={{ color: tint }}>
-          {Math.round(lastMeter)}%
-        </span>
-      </div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: H }}>
+    <div className="mb-4 flex items-center gap-3" title="Energy through today's working hours">
+      <span className="flex shrink-0 items-center gap-1.5 text-xs font-medium text-(--color-muted)">
+        <BatteryMedium size={14} aria-hidden /> Energy
+      </span>
+      <svg viewBox={`0 0 ${W} ${H}`} className="min-w-0 flex-1" preserveAspectRatio="none" style={{ height: 22 }}>
         <polyline points={areaPoints} fill={tint} fillOpacity="0.14" stroke="none" />
         <polyline points={points} fill="none" stroke={tint} strokeWidth="1.5" strokeLinejoin="round" />
         {/* 25% threshold line */}
@@ -440,6 +379,9 @@ function EnergyMeterStrip({ trace }: { trace: EnergyTracePoint[] }) {
           stroke="color-mix(in srgb, var(--color-fire) 40%, transparent)" strokeWidth="0.5" strokeDasharray="2 3"
         />
       </svg>
+      <span className="tnum shrink-0 text-xs font-bold" style={{ color: tint }}>
+        {Math.round(lastMeter)}%
+      </span>
     </div>
   );
 }
@@ -528,11 +470,11 @@ function DayChip({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-md transition-colors shrink-0"
+      aria-pressed={active}
+      className="flex shrink-0 flex-col items-center gap-0.5 rounded-lg px-3 py-2 transition-colors"
       style={{
         background: active ? 'var(--color-primary)' : 'var(--color-surface)',
-        border: active ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
-        minWidth: 56,
+        minWidth: 60,
       }}
     >
       <span className="text-[0.65rem] font-bold uppercase tracking-wide" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
@@ -542,7 +484,7 @@ function DayChip({
         {day}
       </span>
       {workMin > 0 && (
-        <span className="text-[0.55rem] font-mono" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
+        <span className="tnum text-[0.62rem]" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
           {Math.round(workMin / 60 * 10) / 10}h
         </span>
       )}
@@ -915,33 +857,33 @@ export default function GuildFeed() {
   }, [selectedBlockId]);
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: 'var(--color-bg)' }}>
-      <Header />
-
-      {/* Progress bar */}
-      <div className="sticky top-[67px] z-30 h-1 w-full" style={{ background: 'var(--color-surface)' }}>
-        <motion.div
-          className="h-full"
-          style={{ background: 'var(--color-primary)' }}
-          animate={{ width: `${pctDone}%` }}
-          transition={{ duration: 0.6 }}
-        />
-      </div>
-
-      <div className="mx-auto max-w-2xl px-4 pt-4">
+    <div>
+      <div className="page">
         {/* Header row */}
-        <div className="flex items-center gap-3 mb-3">
-          <h1 className="flex-1 text-2xl">
-            Guild Feed
-          </h1>
-          <span className="text-xs" style={{ color: 'var(--color-muted)' }}>
-            {pctDone}% · {Math.round(totalWorkMin / 60 * 10) / 10}h
-          </span>
+        <div className="mb-1 flex items-center gap-3">
+          <h1 className="page-title flex-1">Guild Feed</h1>
           <FeedActionsMenu
             loading={loading}
             onReflow={() => generate()}
             onReplan={() => replan()}
           />
+        </div>
+        {/* The day's progress, as one line under the title. */}
+        <div className="mb-5 flex items-center gap-3">
+          <span className="tnum shrink-0 text-[13px] text-(--color-muted)">
+            {totalWorkMin > 0
+              ? `${Math.round(totalWorkMin / 60 * 10) / 10}h of work today · ${pctDone}% done`
+              : 'No work planned today'}
+          </span>
+          <div className="h-1 flex-1 overflow-hidden rounded-full bg-(--color-surface2)">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: 'var(--color-primary)' }}
+              initial={{ width: 0 }}
+              animate={{ width: `${totalWorkMin > 0 ? pctDone : 0}%` }}
+              transition={{ duration: 0.6 }}
+            />
+          </div>
         </div>
 
         <EnergyMeterStrip trace={energyTrace} />
@@ -983,11 +925,10 @@ export default function GuildFeed() {
           <div className="relative shrink-0">
             <button
               onClick={() => setCalendarOpen((v) => !v)}
-              className="w-12 h-12 rounded-xl transition-all flex items-center justify-center"
+              className="grid h-12 w-12 place-items-center rounded-lg transition-colors"
               style={{
                 background: calendarOpen ? 'var(--color-primary)' : 'var(--color-surface)',
-                border: calendarOpen ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-                color: calendarOpen ? '#fff' : 'var(--color-text)',
+                color: calendarOpen ? 'var(--color-on-primary)' : 'var(--color-text)',
               }}
               aria-label="Open month calendar"
             >
@@ -1061,12 +1002,10 @@ export default function GuildFeed() {
         )}
 
         {schedule.length > 0 && dayBlocks.length === 0 && (
-          <div
-            className="rounded-lg p-8 text-center"
-            style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)' }}
-          >
-            <CloudSun size={32} strokeWidth={1.5} className="mx-auto mb-2 opacity-60" aria-hidden />
-            <p className="text-sm" style={{ color: 'var(--color-muted)' }}>Nothing scheduled this day.</p>
+          <div className="panel px-6 py-10 text-center">
+            <CloudSun size={28} strokeWidth={1.5} className="mx-auto mb-2 text-(--color-muted)" aria-hidden />
+            <p className="font-semibold">Nothing planned for this day</p>
+            <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or replan from the menu.</p>
           </div>
         )}
 

@@ -67,43 +67,41 @@ export function DailySection({ onEdit }: Props) {
   };
 
   return (
-    <div className="mt-5">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-1.5 text-base font-bold">
-          <Repeat size={16} strokeWidth={2} aria-hidden /> Daily Quests
-          <span className="text-xs font-normal" style={{ color: 'var(--color-muted)' }}>
-            ({done.length}/{recurring.length})
-          </span>
-        </div>
+    <section className="mt-7">
+      <div className="mb-2.5 flex items-center gap-2">
+        <h2 className="section-label flex flex-1 items-center gap-1.5">
+          <Repeat size={13} strokeWidth={2.25} aria-hidden /> Routines
+        </h2>
+        <span className="tnum text-xs text-(--color-muted)">
+          {done.length} of {recurring.length} done
+        </span>
       </div>
 
-      <div className="space-y-2">
+      <div className="panel rows overflow-hidden">
         <AnimatePresence>
           {[...undone, ...done].map((q) => (
             <motion.div
               key={q.id}
               layout
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: q.doneToday ? 0.5 : 1, y: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="flex items-center gap-3 rounded-(--radius-card) border px-4 py-2.5"
-              style={{
-                background: q.doneToday ? 'color-mix(in srgb, var(--color-green) 6%, transparent)' : 'var(--color-surface)',
-                borderColor: q.doneToday ? 'color-mix(in srgb, var(--color-green) 30%, transparent)' : 'var(--color-border)',
-              }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: q.doneToday ? 0.55 : 1 }}
+              exit={{ opacity: 0 }}
+              className="group flex items-center gap-3 px-3.5 py-2.5"
             >
               <button
                 onClick={() => !q.doneToday && handleComplete(q.id)}
                 disabled={q.doneToday}
-                className="h-6 w-6 shrink-0 rounded-full border-2 flex items-center justify-center transition-all"
+                className={`grid h-[22px] w-[22px] shrink-0 place-items-center rounded-full border-2 transition-colors ${q.doneToday ? '' : 'quest-check'}`}
                 style={{
-                  borderColor: q.doneToday ? 'var(--color-green)' : 'var(--color-primary)',
+                  borderColor: q.doneToday ? 'var(--color-green)' : 'var(--color-border-strong)',
                   background: q.doneToday ? 'var(--color-green)' : 'transparent',
                   cursor: q.doneToday ? 'default' : 'pointer',
                 }}
                 title={q.doneToday ? 'Done today' : 'Mark done'}
               >
-                {q.doneToday && <Check size={14} strokeWidth={3} className="text-(--color-on-primary)" aria-hidden />}
+                {q.doneToday
+                  ? <Check size={13} strokeWidth={3} className="text-(--color-on-primary)" aria-hidden />
+                  : <Check size={13} strokeWidth={3} className="text-(--color-green) opacity-0 transition-opacity" aria-hidden />}
               </button>
 
               <div className="flex-1 min-w-0">
@@ -116,37 +114,37 @@ export function DailySection({ onEdit }: Props) {
                 >
                   {q.title}
                 </p>
-                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                <p className="tnum text-xs" style={{ color: 'var(--color-muted)' }}>
                   {q.estimatedMinutes}m
                   {q.preferredHour != null && ` · ${String(q.preferredHour).padStart(2, '0')}:00`}
                   {q.category && ` · ${q.category.replace('_', ' ')}`}
                 </p>
               </div>
 
-              <div className="flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
+              <div className="flex items-center transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
                 <button
                   onClick={() => onEdit(q)}
-                  className="text-base"
+                  className="icon-btn h-8 w-8"
                   title="Edit"
                   aria-label="Edit"
                 >
-                  <Pencil size={16} aria-hidden />
+                  <Pencil size={14} aria-hidden />
                 </button>
                 <button
                   onClick={() => {
                     if (confirm('Delete this daily quest?')) remove(q.id);
                   }}
-                  className="text-base"
+                  className="icon-btn h-8 w-8 max-lg:hidden"
                   title="Delete"
                   aria-label="Delete"
                 >
-                  <Trash2 size={16} aria-hidden />
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </div>
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
-    </div>
+    </section>
   );
 }

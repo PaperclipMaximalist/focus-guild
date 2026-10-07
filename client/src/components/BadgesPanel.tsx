@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { ACHIEVEMENT_CATALOG, TOTAL_ACHIEVEMENTS } from '../lib/achievementCatalog';
-import { Medal, Trophy } from 'lucide-react';
+import { Trophy } from 'lucide-react';
 
 export function BadgesPanel() {
   const { unlocked, loaded, load } = useAchievementsStore();
@@ -22,11 +22,11 @@ export function BadgesPanel() {
   const preview = ordered.slice(0, 9);
 
   return (
-    <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4">
-      <div className="flex items-center justify-between gap-1.5 text-base font-bold">
-        <span className="flex items-center gap-1.5"><Medal size={16} strokeWidth={2} aria-hidden /> Achievements</span>
-        <span className="text-xs font-normal text-(--color-muted)">
-          {unlockedSlugs.size}/{TOTAL_ACHIEVEMENTS}
+    <div className="panel p-4">
+      <div className="flex items-center justify-between gap-1.5">
+        <h2 className="section-label">Trophies</h2>
+        <span className="tnum text-xs text-(--color-muted)">
+          {unlockedSlugs.size} of {TOTAL_ACHIEVEMENTS}
         </span>
       </div>
       <div className="mt-2.5 grid grid-cols-3 gap-2">
@@ -36,16 +36,14 @@ export function BadgesPanel() {
             <div
               key={b.slug}
               title={b.desc}
-              className={`flex flex-col items-center gap-1 rounded-[10px] border p-2.5 text-center transition ${
-                isUnlocked
-                  ? 'border-(--color-gold) bg-(--color-gold)/5 hover:scale-105'
-                  : 'border-(--color-border) opacity-30 grayscale'
+              className={`flex flex-col items-center gap-1.5 rounded-lg px-1 py-2.5 text-center ${
+                isUnlocked ? 'bg-(--color-primary)/10 text-(--color-primary)' : 'bg-(--color-surface2) opacity-40'
               }`}
             >
-              <b.icon size={24} strokeWidth={1.75} aria-hidden />
+              <b.icon size={20} strokeWidth={1.75} aria-hidden />
               <span
                 className={`text-[0.6rem] font-semibold leading-tight ${
-                  isUnlocked ? 'text-(--color-gold)' : 'text-(--color-muted)'
+                  isUnlocked ? 'text-(--color-text)' : 'text-(--color-muted)'
                 }`}
               >
                 {b.name}
@@ -56,10 +54,9 @@ export function BadgesPanel() {
       </div>
       <Link
         to="/trophies"
-        className="mt-3 block rounded-lg border py-2 text-center text-xs font-semibold transition hover:bg-white/5"
-        style={{ borderColor: 'var(--color-border)', color: 'var(--color-primary)' }}
+        className="btn-quiet mt-3 w-full text-xs"
       >
-        <span className="inline-flex items-center gap-1.5"><Trophy size={14} strokeWidth={2} aria-hidden /> Open Trophy Room</span>
+        <span className="inline-flex items-center gap-1.5"><Trophy size={14} strokeWidth={2} aria-hidden /> Trophy Room</span>
       </Link>
     </div>
   );

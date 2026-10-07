@@ -15,7 +15,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { useToastStore } from './Toasts';
 import { parseQuickAdd } from '../lib/quickAdd';
 import { sfxClick } from '../lib/sfx';
-import { CornerDownLeft, Swords, TriangleAlert, Zap } from 'lucide-react';
+import { CornerDownLeft, Swords, TriangleAlert, Plus } from 'lucide-react';
 
 export function QuickAddBar() {
   const add = useQuestStore((s) => s.add);
@@ -53,26 +53,24 @@ export function QuickAddBar() {
   };
 
   return (
-    <div
-      className="mt-5 rounded-(--radius-card) border p-3"
-      style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-    >
-      <div className="flex items-center gap-2">
-        <Zap size={18} className="shrink-0 opacity-70" aria-hidden />
+    <div className="mt-3 rounded-(--radius-card) border border-(--color-border-strong) bg-(--color-bg) py-2 pl-3.5 pr-2 transition-colors focus-within:border-(--color-primary)">
+      <div className="flex items-center gap-2.5">
+        <Plus size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
-          placeholder={'Quick add — try "Write report 2h by fri #work !high"'}
-          className="flex-1 bg-transparent text-sm outline-none"
+          placeholder="Add a quest… 2h by fri !high"
+          aria-label="Quick add a quest"
+          className="h-9 min-w-0 flex-1 bg-transparent text-[0.9375rem] outline-none placeholder:text-(--color-muted)"
           style={{ color: 'var(--color-text)' }}
           disabled={busy}
         />
         <button
           onClick={() => void submit()}
           disabled={!ready || busy}
-          className="shrink-0 rounded-md px-3.5 py-1.5 text-xs font-bold text-(--color-on-primary) transition disabled:opacity-30"
-          style={{ background: 'var(--color-primary)' }}
+          className="btn-primary min-h-9 shrink-0 px-3 text-xs"
+          style={!ready ? { visibility: 'hidden' } : undefined}
         >
           {busy ? '…' : <span className="inline-flex items-center gap-1">Add <CornerDownLeft size={12} aria-hidden /></span>}
         </button>

@@ -105,7 +105,7 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
                 className="h-9 w-9 rounded-lg text-xs font-bold"
                 style={{
                   background: loTags.includes(lo) ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
-                  color: loTags.includes(lo) ? '#fff' : 'var(--color-muted)',
+                  color: loTags.includes(lo) ? 'var(--color-on-primary)' : 'var(--color-muted)',
                 }}
               >
                 {lo}

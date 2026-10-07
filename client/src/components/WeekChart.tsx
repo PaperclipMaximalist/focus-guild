@@ -1,5 +1,4 @@
 import { useQuestStore } from '../store/useQuestStore';
-import { ChartColumn } from 'lucide-react';
 
 const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
@@ -25,8 +24,8 @@ export function WeekChart() {
   const todayStr = new Date().toISOString().slice(0, 10);
 
   return (
-    <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4">
-      <div className="flex items-center gap-1.5 text-base font-bold"><ChartColumn size={16} aria-hidden /> Weekly Activity</div>
+    <div className="panel p-4">
+      <h2 className="section-label">This week</h2>
       <div className="mt-2.5 flex h-[60px] items-end gap-1">
         {days.map((day, i) => {
           const isToday = day === todayStr;
@@ -34,11 +33,10 @@ export function WeekChart() {
           return (
             <div key={day} className="flex flex-1 flex-col items-center gap-0.5">
               <div
-                className="w-full rounded-t transition-all duration-500"
+                className="w-full rounded-[3px] transition-all duration-500"
                 style={{
                   height: `${h}px`,
-                  background: isToday ? 'var(--color-primary)' : 'color-mix(in srgb, var(--color-primary) 30%, transparent)',
-                  boxShadow: isToday ? '0 0 8px color-mix(in srgb, var(--color-primary) 50%, transparent)' : 'none',
+                  background: isToday ? 'var(--color-primary)' : counts[i] ? 'color-mix(in srgb, var(--color-primary) 40%, transparent)' : 'var(--color-surface2)',
                   minHeight: 4,
                 }}
                 title={`${counts[i]} quests`}

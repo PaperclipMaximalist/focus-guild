@@ -8,7 +8,7 @@ import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
 import { api, type Quest } from '../lib/api';
 import { Link } from 'react-router-dom';
-import { Check, Hourglass, ListPlus, MapIcon, Search, Star, Trash2 } from 'lucide-react';
+import { Check, Hourglass, ListPlus, MapIcon, Search, SquareCheck, Star, Trash2, X } from 'lucide-react';
 
 type Sort = 'priority' | 'deadline' | 'created' | 'title';
 
@@ -27,6 +27,8 @@ export default function Quests() {
   const [sort, setSort] = useState<Sort>('priority');
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Picking rows for a bulk action is a mode you enter, not a checkbox on every row.
+  const [selecting, setSelecting] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -166,157 +168,123 @@ export default function Quests() {
   };
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-5 px-4 py-6">
-      <header className="flex items-baseline justify-between gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold">All Quests</h1>
-        <Link
-          to="/quests/import"
-          className="flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-semibold"
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+    <div className="page flex flex-col gap-4">
+      <header className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <h1 className="page-title">Quests</h1>
+          <p className="tnum mt-1 text-[13px] text-(--color-muted)">
+            {visible.length === quests.length
+              ? `${quests.length} active`
+              : `${visible.length} of ${quests.length} shown`}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => { if (selecting) clearSelection(); setSelecting((v) => !v); }}
+          className="btn-quiet"
+          aria-pressed={selecting}
+          style={selecting ? { background: 'var(--color-primary)', color: 'var(--color-on-primary)' } : undefined}
         >
+          <SquareCheck size={15} aria-hidden /> {selecting ? 'Done' : 'Select'}
+        </button>
+        <Link to="/quests/import" className="btn-quiet">
           <ListPlus size={15} aria-hidden /> Import
         </Link>
       </header>
 
       {/* Search + sort */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[200px]">
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1">
+          <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-(--color-muted)" aria-hidden />
           <input
             ref={searchRef}
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search quests…  (press / to focus)"
-            className="w-full rounded-md border px-4 py-2 text-sm outline-none transition-colors"
-            style={{
-              borderColor: 'var(--color-border)',
-              background: 'rgba(255,255,255,0.04)',
-              color: 'var(--color-text)',
-            }}
+            placeholder="Search quests"
+            aria-label="Search quests"
+            className="form-input pl-9"
           />
         </div>
         <select
           value={sort}
           onChange={(e) => setSort(e.target.value as Sort)}
-          className="rounded-md border px-3 py-2 text-sm outline-none"
-          style={{
-            borderColor: 'var(--color-border)',
-            background: 'rgba(255,255,255,0.04)',
-            color: 'var(--color-text)',
-          }}
+          aria-label="Sort by"
+          className="form-input w-auto shrink-0"
         >
-          <option value="priority">Priority ↓</option>
-          <option value="deadline">Deadline ↑</option>
+          <option value="priority">By priority</option>
+          <option value="deadline">By deadline</option>
           <option value="created">Newest first</option>
-          <option value="title">A → Z</option>
+          <option value="title">By title</option>
         </select>
       </div>
 
-      {/* Tag chips */}
+      {/* Tags: one row you can swipe, so eight tags don't push the list off the screen */}
       {tagCounts.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {activeTags.size > 0 && (
-            <button
-              onClick={() => setActiveTags(new Set())}
-              className="text-xs underline opacity-70"
-              style={{ color: 'var(--color-muted)' }}
-            >
-              clear
-            </button>
-          )}
+        <div className="-mx-4 flex items-center gap-1.5 overflow-x-auto px-4 pb-0.5 [scrollbar-width:none] lg:mx-0 lg:flex-wrap lg:px-0">
           {tagCounts.map(([t, count]) => {
             const active = activeTags.has(t);
             return (
               <button
                 key={t}
                 onClick={() => toggleTag(t)}
-                className="text-xs rounded-md px-2.5 py-1 font-semibold transition-colors"
+                aria-pressed={active}
+                className="shrink-0 rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors"
                 style={{
-                  background: active ? 'var(--color-primary)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                  color: active ? '#fff' : 'var(--color-primary)',
-                  border: '1px solid color-mix(in srgb, var(--color-primary) 40%, transparent)',
+                  background: active ? 'var(--color-primary)' : 'var(--color-surface)',
+                  color: active ? 'var(--color-on-primary)' : 'var(--color-muted)',
                 }}
               >
-                #{t} <span className="opacity-60">{count}</span>
+                #{t} <span className="tnum opacity-70">{count}</span>
               </button>
             );
           })}
+          {activeTags.size > 0 && (
+            <button onClick={() => setActiveTags(new Set())} className="icon-btn h-8 w-8 shrink-0" aria-label="Clear tag filters" title="Clear tag filters">
+              <X size={14} aria-hidden />
+            </button>
+          )}
         </div>
       )}
 
-      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
-        {visible.length === quests.length
-          ? `Showing all ${quests.length} active quests`
-          : `Showing ${visible.length} of ${quests.length} quests`}
-        {' · '}
-        <button onClick={selectAll} className="underline opacity-70 hover:opacity-100">
-          Select all
-        </button>
-      </p>
+      {selecting && visible.length > 0 && (
+        <p className="text-[13px] text-(--color-muted)">
+          Tap quests to pick them.{' '}
+          <button onClick={selectAll} className="font-semibold text-(--color-text) underline underline-offset-2">
+            Select all {visible.length}
+          </button>
+        </p>
+      )}
 
-      <section className="flex flex-col gap-3">
-        <AnimatePresence>
-          {visible.map((quest) => (
-            <motion.div
-              key={quest.id}
-              layout
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.97 }}
-              className="flex items-start gap-2"
-            >
-              <label
-                className="mt-3 cursor-pointer"
-                title="Select for bulk action"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(quest.id)}
-                  onChange={() => toggleSelect(quest.id)}
-                  className="h-4 w-4 cursor-pointer"
-                />
-              </label>
-              <div className="flex-1 min-w-0" data-quest-id={quest.id}>
-                <QuestCard
-                  quest={quest}
-                  onComplete={() => handleComplete(quest.id)}
-                  onEdit={() => {
-                    setEditing(quest);
-                    setModalOpen(true);
-                  }}
-                  onOpen={() => setDetail(quest)}
-                  onDelete={() => {
-                    if (confirm('Remove this quest?')) remove(quest.id);
-                  }}
-                />
-                {/* Tag chips on each card */}
-                {quest.tags && quest.tags.length > 0 && (
-                  <div className="mt-1.5 flex flex-wrap gap-1 pl-2">
-                    {quest.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="text-[0.65rem] rounded-md px-1.5 py-0.5"
-                        style={{
-                          background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                          color: 'var(--color-primary)',
-                        }}
-                      >
-                        #{t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+      <section>
+        {visible.length > 0 && (
+          <div className="panel rows overflow-hidden">
+            <AnimatePresence initial={false}>
+              {visible.map((quest) => (
+                <div key={quest.id} data-quest-id={quest.id}>
+                  <QuestCard
+                    quest={quest}
+                    selecting={selecting}
+                    selected={selected.has(quest.id)}
+                    onToggleSelect={() => toggleSelect(quest.id)}
+                    onComplete={() => handleComplete(quest.id)}
+                    onEdit={() => {
+                      setEditing(quest);
+                      setModalOpen(true);
+                    }}
+                    onOpen={() => setDetail(quest)}
+                    onDelete={() => {
+                      if (confirm('Remove this quest?')) remove(quest.id);
+                    }}
+                  />
+                </div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
 
         {visible.length === 0 && (
-          <div
-            className="rounded-(--radius-card) border px-6 py-12 text-center"
-            style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-          >
+          <div className="panel px-6 py-12 text-center">
             {quests.length === 0
               ? <MapIcon size={40} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />
               : <Search size={40} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />}
@@ -339,10 +307,10 @@ export default function Quests() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-40 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 shadow-xl"
+            className="fixed bottom-20 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-xl border px-3 py-2 shadow-xl shadow-black/50 lg:bottom-6 lg:left-[calc(50%+7.5rem)]"
             style={{
-              background: 'var(--color-surface)',
-              borderColor: 'var(--color-border)',
+              background: 'var(--color-surface2)',
+              borderColor: 'var(--color-border-strong)',
               maxWidth: 'calc(100vw - 2rem)',
             }}
           >

@@ -7,6 +7,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { Info } from 'lucide-react';
 
 interface Props {
   children: React.ReactNode;
@@ -37,15 +38,12 @@ export function InfoTip({ children, trigger }: Props) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold transition-opacity"
-        style={{
-          background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)',
-          color: 'var(--color-primary)',
-          opacity: open ? 1 : 0.7,
-        }}
+        className="inline-grid h-5 w-5 place-items-center rounded-full align-middle transition-colors hover:text-(--color-text)"
+        style={{ color: open ? 'var(--color-text)' : 'var(--color-muted)' }}
         title="What does this do?"
+        aria-label="What does this do?"
       >
-        {trigger ?? 'ⓘ'}
+        {trigger ?? <Info size={14} aria-hidden />}
       </button>
       {open && (
         <div

@@ -5,7 +5,6 @@
  */
 
 import { useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import {
@@ -14,7 +13,7 @@ import {
   TOTAL_ACHIEVEMENTS,
   type AchievementMeta,
 } from '../lib/achievementCatalog';
-import { Check, Lock, Star, Trophy } from 'lucide-react';
+import { Check, Lock, Star } from 'lucide-react';
 
 export default function Trophies() {
   const { unlocked, loaded, load } = useAchievementsStore();
@@ -35,14 +34,9 @@ export default function Trophies() {
   const pct = Math.round((unlockedCount / TOTAL_ACHIEVEMENTS) * 100);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 flex flex-col gap-5 pb-24">
-      <header className="flex items-baseline justify-between gap-3">
-        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2" style={{ color: 'var(--color-text)' }}>
-          <Trophy size={26} aria-hidden /> Trophy Room
-        </h1>
-        <Link to="/" className="text-sm" style={{ color: 'var(--color-primary)' }}>
-          ← Today
-        </Link>
+    <div className="page flex flex-col gap-5">
+      <header>
+        <h1 className="page-title">Trophy Room</h1>
       </header>
 
       {/* Progress hero */}

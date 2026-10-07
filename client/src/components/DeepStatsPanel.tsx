@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
-import { Activity, CircleCheck, Flame, Hourglass, ListChecks, Star, Zap } from 'lucide-react';
+import { CircleCheck, Flame, Hourglass, ListChecks, Star, Zap } from 'lucide-react';
 
 export function DeepStatsPanel() {
   const quests = useQuestStore((s) => s.quests);
@@ -13,8 +13,8 @@ export function DeepStatsPanel() {
   ).toFixed(1);
 
   return (
-    <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) p-4">
-      <div className="flex items-center gap-1.5 text-base font-bold"><Activity size={16} strokeWidth={2} aria-hidden /> Stats</div>
+    <div className="panel p-4">
+      <h2 className="section-label">All time</h2>
       <div className="mt-3 flex flex-col gap-2.5">
         <Row icon={ListChecks} label="Active quests"       value={quests.length} />
         <Row icon={Hourglass} label="Hours in pipeline"    value={`${hoursInPipeline}h`} />

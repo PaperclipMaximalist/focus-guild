@@ -7,6 +7,7 @@ import { StreakHeatmap } from '../components/StreakHeatmap';
 import { LEVELS } from '../lib/levels';
 import { api, type XPEventDTO } from '../lib/api';
 import { ChartColumn, ChartLine, ChartPie, Flame, Medal, Trophy } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { achievementIcon } from '../lib/achievementCatalog';
 
 const XP_WINDOW_DAYS = 14;
@@ -131,9 +132,12 @@ export default function Stats() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 flex flex-col gap-5">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold text-(--color-text)">Your Guild Stats</h1>
+    <div className="page flex flex-col gap-5">
+      <header className="flex items-center gap-2">
+        <h1 className="page-title flex-1">Stats</h1>
+        <Link to="/trophies" className="btn-quiet lg:hidden">
+          <Trophy size={15} aria-hidden /> Trophies
+        </Link>
       </header>
 
       <LevelBadge
@@ -143,7 +147,7 @@ export default function Stats() {
       />
 
       {/* Headline stat row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="panel grid grid-cols-2 gap-y-4 py-4 sm:grid-cols-4">
         <StatCard label="Done this week" value={last7DaysTotal} />
         <StatCard label="Daily avg (7d)" value={last7DaysAvg} />
         <StatCard label="Total done" value={completed.length} />
@@ -479,16 +483,9 @@ function XPTrendChart({ trend }: { trend: XPTrend }) {
 
 function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
-    <div
-      className="rounded-(--radius-card) border px-3 py-3 text-center"
-      style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
-    >
-      <p className="text-lg font-bold" style={{ color: 'var(--color-text)' }}>
-        {value}
-      </p>
-      <p className="text-[0.7rem] uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
-        {label}
-      </p>
+    <div className="px-4">
+      <p className="tnum text-xl font-bold leading-none">{value}</p>
+      <p className="mt-1.5 text-[0.72rem] text-(--color-muted)">{label}</p>
     </div>
   );
 }

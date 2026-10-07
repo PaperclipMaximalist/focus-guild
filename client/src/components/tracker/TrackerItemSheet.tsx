@@ -316,7 +316,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
                   className="rounded-md px-3 py-1.5 font-mono text-xs font-bold"
                   style={{
                     background: codePrefix === p ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
-                    color: codePrefix === p ? '#fff' : 'var(--color-muted)',
+                    color: codePrefix === p ? 'var(--color-on-primary)' : 'var(--color-muted)',
                   }}
                 >
                   {p}
@@ -389,7 +389,7 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
                       className="h-9 w-9 rounded-lg text-xs font-bold"
                       style={{
                         background: outcomes.includes(lo) ? 'var(--color-primary)' : 'rgba(255,255,255,0.06)',
-                        color: outcomes.includes(lo) ? '#fff' : 'var(--color-muted)',
+                        color: outcomes.includes(lo) ? 'var(--color-on-primary)' : 'var(--color-muted)',
                       }}
                     >
                       {lo}

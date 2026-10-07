@@ -20,6 +20,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { startOfDay, sameDay, WEEKDAY_LETTERS } from '../lib/date';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface Props {
   value: Date | null;
@@ -96,20 +97,20 @@ export function MiniCalendar({ value, onChange, markers = [], minDate, intensity
       <div className="flex items-center justify-between mb-2">
         <button
           onClick={() => shift(-1)}
-          className="text-base px-2 opacity-70 hover:opacity-100"
+          className="icon-btn h-8 w-8"
           aria-label="Previous month"
         >
-          ‹
+          <ChevronLeft size={16} aria-hidden />
         </button>
         <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
           {monthLabel}
         </p>
         <button
           onClick={() => shift(1)}
-          className="text-base px-2 opacity-70 hover:opacity-100"
+          className="icon-btn h-8 w-8"
           aria-label="Next month"
         >
-          ›
+          <ChevronRight size={16} aria-hidden />
         </button>
       </div>
 
@@ -136,7 +137,7 @@ export function MiniCalendar({ value, onChange, markers = [], minDate, intensity
           const hasMarker = markerSet.has(d.toISOString());
 
           const baseColor = isSelected
-            ? '#fff'
+            ? 'var(--color-on-primary)'
             : isBlocked
             ? 'rgba(148,163,184,0.3)'
             : isBeforeToday

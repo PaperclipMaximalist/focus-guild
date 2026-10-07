@@ -1,63 +1,53 @@
 /**
- * Header — a status bar, not a hero.
+ * Header — the phone's top bar, rendered once in App.tsx.
  *
- * One compact row: rank emblem, rank name, an XP bar, and a monospace stats
- * line, like a shell prompt showing where you are. It used to be a glowing
- * gradient avatar with stat pills; the information is the same, the chrome is
- * a quarter of the height, so the day's actual work starts higher up.
+ * One slim row: the duck (see MascotDock, which sits in the left slot), the
+ * rank with a thin XP line, the streak, and two quiet icon buttons. It used
+ * to be a tall status block that only three pages rendered, so the app had a
+ * header on some screens and none on others.
  *
- * The rank colour (--color-rank) only tints the emblem and the XP bar, so
- * levelling up is visible without recolouring the rest of the app.
+ * Wide screens don't get it: the sidebar carries the same things.
+ *
+ * The rank colour (--color-rank) only tints the XP line, so levelling up is
+ * visible without recolouring the rest of the app.
  */
 
 import { Link } from 'react-router-dom';
 import { SignedIn, UserButton } from '@clerk/clerk-react';
-import { ScrollText, SettingsIcon, Trophy } from 'lucide-react';
+import { Flame, ScrollText, SettingsIcon } from 'lucide-react';
 import { useUserStore } from '../store/useUserStore';
-import { useQuestStore } from '../store/useQuestStore';
-import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
-import { SoundToggle } from './SoundToggle';
+import { useMascotStore } from '../store/useMascotStore';
+import { levelFromXP, progressToNextLevel } from '../lib/levels';
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
-const iconButton =
-  'flex h-9 w-9 items-center justify-center rounded-md border border-(--color-border) text-(--color-muted) transition-colors hover:border-(--color-muted) hover:text-(--color-text)';
-
 export function Header() {
   const user = useUserStore((s) => s.user);
-  const completedCount = useQuestStore((s) => s.completed.length);
+  const duck = useMascotStore((s) => s.enabled);
   if (!user) return null;
 
   const level = levelFromXP(user.totalXP);
-  const next = nextLevel(user.totalXP);
   const progress = progressToNextLevel(user.totalXP);
 
   return (
-    <header
-      className="sticky top-0 z-50 border-b border-(--color-border) px-4 py-2.5 sm:px-6"
-      style={{ background: 'var(--color-surface)' }}
-    >
-      <div className="mx-auto flex max-w-6xl items-center gap-3">
-        {/* Rank emblem, in the rank colour, with the level number */}
-        <div
-          className="relative grid h-11 w-11 shrink-0 place-items-center rounded-md border-2"
-          style={{ borderColor: 'var(--color-rank)', color: 'var(--color-rank)' }}
-          title={`Level ${level.level} — ${level.title}`}
-        >
-          <level.icon size={22} strokeWidth={1.75} aria-hidden />
-          <span
-            className="absolute -bottom-1.5 -right-1.5 grid h-5 min-w-5 place-items-center rounded-sm px-1 font-mono text-[10px] font-bold"
-            style={{ background: 'var(--color-rank)', color: 'var(--color-on-primary)' }}
-          >
-            {level.level}
+    <header className="sticky top-0 z-30 border-b border-(--color-border) bg-(--color-bg)/95 backdrop-blur lg:hidden">
+      <div className="flex h-13 items-center gap-2.5 pl-4 pr-2">
+        {/* Left slot: the duck floats here; without it, the rank's own icon. */}
+        {duck ? (
+          <span className="w-9 shrink-0" aria-hidden />
+        ) : (
+          <span className="grid h-9 w-9 shrink-0 place-items-center" style={{ color: 'var(--color-rank)' }} aria-hidden>
+            <level.icon size={20} strokeWidth={1.75} />
           </span>
-        </div>
+        )}
 
-        <div className="min-w-0 flex-1">
-          <span className="block truncate text-[15px] font-bold leading-tight">{level.title}</span>
+        <Link to="/stats" className="min-w-0 flex-1" title={`Level ${level.level}: ${level.title}`}>
+          <div className="flex items-baseline gap-1.5">
+            <span className="truncate text-[13px] font-bold leading-tight">{level.title}</span>
+            <span className="tnum shrink-0 text-[11px] text-(--color-muted)">Lv {level.level}</span>
+          </div>
           <div
-            className="mt-1.5 h-1.5 overflow-hidden rounded-sm"
-            style={{ background: 'var(--color-surface2)' }}
+            className="mt-1.5 h-[3px] max-w-40 overflow-hidden rounded-full bg-(--color-surface2)"
             role="progressbar"
             aria-label="Progress to next rank"
             aria-valuemin={0}
@@ -65,39 +55,32 @@ export function Header() {
             aria-valuenow={Math.round(progress.pct)}
           >
             <div
-              className="h-full transition-[width] duration-700"
+              className="h-full rounded-full transition-[width] duration-700"
               style={{ width: `${progress.pct}%`, background: 'var(--color-rank)' }}
             />
           </div>
-          <div className="mt-1 truncate font-mono text-[11px] text-(--color-muted)">
-            <span className="text-(--color-text)">{next ? `${progress.earned}/${progress.needed}` : 'max'}</span>xp
-            <span className="mx-1 opacity-50">·</span>
-            <span className="text-(--color-text)">{user.currentStreak}</span>d streak
-            <span className="mx-1 opacity-50">·</span>
-            <span className="text-(--color-text)">{completedCount}</span> done
-          </div>
-        </div>
+        </Link>
 
-        <div className="flex shrink-0 items-center gap-1.5">
-          <SoundToggle />
-          {/* Hidden on phones to give the stats line room; Stats and the command palette still reach it. */}
-          <Link to="/trophies" className={`${iconButton} max-sm:hidden`} title="Trophy Room" aria-label="Trophy Room">
-            <Trophy size={16} aria-hidden />
-          </Link>
-          <Link to="/chronicle" className={iconButton} title="Chronicle" aria-label="Chronicle">
-            <ScrollText size={16} aria-hidden />
-          </Link>
-          <Link to="/settings" className={iconButton} title="Settings" aria-label="Settings">
-            <SettingsIcon size={16} aria-hidden />
-          </Link>
-          {CLERK_ENABLED && (
-            <SignedIn>
-              <div className="flex h-9 w-9 items-center justify-center">
-                <UserButton afterSignOutUrl="/" appearance={{ elements: { userButtonAvatarBox: 'h-8 w-8' } }} />
-              </div>
-            </SignedIn>
-          )}
-        </div>
+        <span
+          className="tnum flex shrink-0 items-center gap-1 px-1 text-[13px] font-semibold"
+          title={`${user.currentStreak}-day streak`}
+          style={{ color: user.currentStreak > 0 ? 'var(--color-gold)' : 'var(--color-muted)' }}
+        >
+          <Flame size={15} aria-hidden /> {user.currentStreak}
+        </span>
+        <Link to="/chronicle" className="icon-btn" title="Chronicle" aria-label="Chronicle">
+          <ScrollText size={18} aria-hidden />
+        </Link>
+        <Link to="/settings" className="icon-btn" title="Settings" aria-label="Settings">
+          <SettingsIcon size={18} aria-hidden />
+        </Link>
+        {CLERK_ENABLED && (
+          <SignedIn>
+            <div className="flex h-9 w-9 items-center justify-center">
+              <UserButton afterSignOutUrl="/" appearance={{ elements: { userButtonAvatarBox: 'h-7 w-7' } }} />
+            </div>
+          </SignedIn>
+        )}
       </div>
     </header>
   );

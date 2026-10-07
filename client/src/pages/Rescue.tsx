@@ -14,14 +14,13 @@ import { achievementIcon } from '../lib/achievementCatalog';
 import { useEffect, useState } from 'react';
 import { duckReact } from '../store/useMascotStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Header } from '../components/Header';
 import { api, type Quest } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from '../components/Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { levelFromXP } from '../lib/levels';
-import { formatDeadline } from '../lib/formatters';
+import { formatDeadline, formatMinutes } from '../lib/formatters';
 import { Check, ChevronsUp, Hourglass, LifeBuoy, Sparkles, Trash2 } from 'lucide-react';
 
 export default function Rescue() {
@@ -129,18 +128,11 @@ export default function Rescue() {
   };
 
   return (
-    <div className="min-h-screen pb-24" style={{ background: 'var(--color-bg)' }}>
-      <Header />
-
-      <div className="mx-auto max-w-2xl px-4 pt-4">
-        <div className="flex items-center gap-3 mb-4">
-          <h1 className="flex-1 text-xl font-bold" style={{ color: 'var(--color-text)' }}>
-            <span className="inline-flex items-center gap-1.5"><LifeBuoy size={20} aria-hidden /> Rescue Mode</span>
-          </h1>
-        </div>
-
-        <p className="text-sm mb-4" style={{ color: 'var(--color-muted)' }}>
-          Overdue quests, sorted by how long they've been past due. Extend, complete, or drop.
+    <div>
+      <div className="page">
+        <h1 className="page-title">Rescue</h1>
+        <p className="mb-5 mt-1.5 text-sm" style={{ color: 'var(--color-muted)' }}>
+          Overdue quests, longest overdue first. Push the date, finish it, or drop it.
         </p>
 
         {rescue.length > 0 && (
@@ -148,10 +140,9 @@ export default function Rescue() {
             <button
               onClick={handleBulkExtend}
               disabled={busyId === 'bulk'}
-              className="text-sm rounded-md px-4 py-1.5 font-semibold transition disabled:opacity-50"
-              style={{ background: 'var(--color-gold)', color: 'var(--color-on-primary)' }}
+              className="btn-quiet disabled:opacity-50"
             >
-              {busyId === 'bulk' ? '…' : <span className="inline-flex items-center gap-1.5"><Sparkles size={14} aria-hidden /> Rescue all {rescue.length} (+7d)</span>}
+              {busyId === 'bulk' ? '…' : <span className="inline-flex items-center gap-1.5"><ChevronsUp size={14} aria-hidden /> Push all {rescue.length} by a week</span>}
             </button>
           </div>
         )}
@@ -174,78 +165,53 @@ export default function Rescue() {
           </div>
         )}
 
-        <div className="space-y-2">
-          <AnimatePresence>
-            {rescue.map((q) => (
-              <motion.div
-                key={q.id}
-                layout
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 8 }}
-                className="rounded-(--radius-card) border p-3"
-                style={{
-                  background: 'color-mix(in srgb, var(--color-fire) 6%, transparent)',
-                  borderColor: 'color-mix(in srgb, var(--color-fire) 35%, transparent)',
-                }}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
-                      {q.title}
-                    </p>
-                    <p className="text-xs mt-0.5" style={{ color: 'var(--color-fire)' }}>
-                      {formatDeadline(q.deadline)} · {q.estimatedMinutes}m
-                    </p>
+        {rescue.length > 0 && (
+          <div className="panel rows overflow-hidden">
+            <AnimatePresence initial={false}>
+              {rescue.map((q) => (
+                <motion.div
+                  key={q.id}
+                  layout
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: busyId === q.id ? 0.5 : 1 }}
+                  exit={{ opacity: 0 }}
+                  className="px-3.5 py-3"
+                >
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[0.9375rem] font-semibold leading-snug">{q.title}</p>
+                      <p className="tnum mt-0.5 text-[0.78rem] text-(--color-muted)">
+                        <span className="font-medium" style={{ color: 'var(--color-fire)' }}>{formatDeadline(q.deadline)}</span>
+                        {' · '}{formatMinutes(q.estimatedMinutes)}
+                      </p>
+                    </div>
+                    <button onClick={() => handleDelete(q.id)} className="icon-btn -mr-1.5 -mt-1 h-8 w-8" title="Drop this quest" aria-label="Drop this quest">
+                      <Trash2 size={15} aria-hidden />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleDelete(q.id)}
-                    className="text-base opacity-50 hover:opacity-100"
-                    title="Drop"
-                    aria-label="Drop"
-                  >
-                    <Trash2 size={16} aria-hidden />
-                  </button>
-                </div>
 
-                <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                  <button
-                    onClick={() => handleComplete(q.id)}
-                    disabled={busyId === q.id}
-                    className="text-xs rounded-md px-3 py-1 font-semibold text-(--color-on-primary) disabled:opacity-50"
-                    style={{ background: 'var(--color-green)' }}
-                  >
-                    <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
-                  </button>
-                  <button
-                    onClick={() => handleExtend(q.id, 1)}
-                    disabled={busyId === q.id}
-                    className="text-xs rounded-md border px-3 py-1 font-semibold disabled:opacity-50"
-                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                  >
-                    +1d
-                  </button>
-                  <button
-                    onClick={() => handleExtend(q.id, 3)}
-                    disabled={busyId === q.id}
-                    className="text-xs rounded-md border px-3 py-1 font-semibold disabled:opacity-50"
-                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                  >
-                    +3d
-                  </button>
-                  <button
-                    onClick={() => handleExtend(q.id, 7)}
-                    disabled={busyId === q.id}
-                    className="text-xs rounded-md border px-3 py-1 font-semibold disabled:opacity-50"
-                    style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                  >
-                    +7d
-                  </button>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+                    <button onClick={() => handleComplete(q.id)} disabled={busyId === q.id} className="btn-quiet h-8 min-h-0 px-2.5 text-xs disabled:opacity-50">
+                      <Check size={13} strokeWidth={2.5} aria-hidden style={{ color: 'var(--color-green)' }} /> Done
+                    </button>
+                    <span className="mx-1 text-xs text-(--color-muted)">or push</span>
+                    {[1, 3, 7].map((d) => (
+                      <button
+                        key={d}
+                        onClick={() => handleExtend(q.id, d)}
+                        disabled={busyId === q.id}
+                        className="btn-quiet tnum h-8 min-h-0 px-2.5 text-xs disabled:opacity-50"
+                        aria-label={`Push ${d} ${d === 1 ? 'day' : 'days'}`}
+                      >
+                        {d === 1 ? '1 day' : `${d} days`}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
       </div>
     </div>
   );

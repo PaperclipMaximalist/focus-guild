@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useCheckInStore } from '../store/useCheckInStore';
-import { Header } from '../components/Header';
 import { StatsRow } from '../components/StatsRow';
 import { QuestCard } from '../components/QuestCard';
 import { CompletedSection } from '../components/CompletedSection';
@@ -28,8 +27,26 @@ import { spawnConfetti } from '../lib/confetti';
 import { levelFromXP } from '../lib/levels';
 import { sfxComplete, sfxAchievement, sfxLevelUp } from '../lib/sfx';
 import { type Quest } from '../lib/api';
-import { BatteryMedium, CalendarDays, Dices, Flame, LifeBuoy, MapIcon, Star, Swords } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { BatteryMedium, ChevronDown, ChevronRight, Dices, Flame, LifeBuoy, Plus, Star } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
+
+/** How many quests Today lists before "show more". */
+const TOP_N = 7;
+
+/** A slim, tappable line for something that wants attention but isn't an alarm. */
+function NoticeRow({ to, icon: Icon, title, sub, tone }: { to: string; icon: LucideIcon; title: string; sub: string; tone?: string }) {
+  return (
+    <Link to={to} className="flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-white/[0.025]">
+      <Icon size={18} className="shrink-0" style={{ color: tone ?? 'var(--color-primary)' }} aria-hidden />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-semibold">{title}</span>
+        <span className="block truncate text-xs text-(--color-muted)">{sub}</span>
+      </span>
+      <ChevronRight size={16} className="shrink-0 text-(--color-muted)" aria-hidden />
+    </Link>
+  );
+}
 
 export default function Today() {
   const { quests, completed, load, loadCompleted, loadRecurring, complete, remove } = useQuestStore();
@@ -52,6 +69,7 @@ export default function Today() {
   const [spinOpen, setSpinOpen] = useState(false);
   const [overdueCount, setOverdueCount] = useState(0);
   const [detailQuest, setDetailQuest] = useState<Quest | null>(null);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     api.quests.rescue().then((r) => setOverdueCount(r.length)).catch(() => {});
@@ -146,120 +164,120 @@ export default function Today() {
     setModalOpen(true);
   };
 
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const dateLabel = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  // The list here is the short one: what ranks highest right now. The whole
+  // backlog lives on the Quests page.
+  const shown = showAll ? quests : quests.slice(0, TOP_N);
+
   return (
     <>
-      <Header />
+      <div className="page page-wide">
+        <header>
+          <p className="text-[13px] font-medium text-(--color-muted)">{dateLabel}</p>
+          <h1 className="page-title mt-0.5">{greeting}</h1>
+          <p className="mt-1.5 text-sm text-(--color-muted)">
+            {quests.length === 0
+              ? 'Nothing on the list yet.'
+              : `${quests.length} active ${quests.length === 1 ? 'quest' : 'quests'}`}
+            {completionsToday > 0 && ` · ${completionsToday} done today`}
+          </p>
+        </header>
 
-      <div className="mx-auto max-w-6xl px-4 pb-20">
-        <StatsRow />
+        <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,1fr)_288px]">
+          <div className="min-w-0">
+            {/* What should I do right now? The scheduler answers on arrival. */}
+            <UpNextCard onCompleteQuest={handleComplete} />
 
-        {!checkIn && (
-          <Link
-            to="/checkin"
-            className="mt-5 block rounded-(--radius-card) border border-(--color-gold)/40 bg-(--color-gold)/10 p-3 text-(--color-gold) transition hover:bg-(--color-gold)/15"
-          >
-            <span className="flex items-center gap-2"><BatteryMedium size={16} className="shrink-0" aria-hidden /> Daily check-in not done yet — tell the Guild your energy level →</span>
-          </Link>
-        )}
-
-        {/* What should I do right now? — the scheduler answers on arrival. */}
-        <UpNextCard onCompleteQuest={handleComplete} />
-
-        {/* Zero-friction capture: "Write report 2h by fri #work !high" */}
-        <QuickAddBar />
-
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-          <Link
-            to="/feed"
-            className="flex items-center gap-3 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-4 py-3 transition hover:border-(--color-primary)/40 hover:bg-(--color-surface2)"
-          >
-            <CalendarDays size={22} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Guild Feed</p>
-              <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>Auto-scheduled day →</p>
-            </div>
-          </Link>
-
-          <button
-            onClick={() => setSpinOpen(true)}
-            className="flex items-center gap-3 rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-4 py-3 transition hover:border-(--color-gold)/40 hover:bg-(--color-surface2) text-left"
-          >
-            <Dices size={22} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>Spin the Wheel</p>
-              <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>Random quest pick →</p>
-            </div>
-          </button>
-
-          <Link
-            to="/rescue"
-            className="flex items-center gap-3 rounded-(--radius-card) border px-4 py-3 transition hover:bg-(--color-surface2)"
-            style={{
-              background: overdueCount > 0 ? 'color-mix(in srgb, var(--color-fire) 6%, transparent)' : 'var(--color-surface)',
-              borderColor: overdueCount > 0 ? 'color-mix(in srgb, var(--color-fire) 35%, transparent)' : 'var(--color-border)',
-            }}
-          >
-            <LifeBuoy size={22} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm" style={{ color: 'var(--color-text)' }}>
-                Rescue {overdueCount > 0 && <span className="text-(--color-fire)">· {overdueCount}</span>}
-              </p>
-              <p className="text-xs truncate" style={{ color: 'var(--color-muted)' }}>
-                {overdueCount > 0 ? `${overdueCount} overdue →` : 'Overdue triage →'}
-              </p>
-            </div>
-          </Link>
-        </div>
-
-        <EndOfDayReflection completionsToday={completionsToday} />
-
-        <div className="mt-5 grid gap-5 lg:grid-cols-[1fr_300px]">
-          {/* Active quests */}
-          <div>
-            <div className="mb-3.5 flex items-center justify-between gap-2.5">
-              <div className="flex items-center gap-1.5 text-base font-bold"><Swords size={16} aria-hidden /> Active Quests</div>
-              <Link to="/stats" className="text-xs text-(--color-muted) hover:text-(--color-text)">
-                View ranks →
-              </Link>
-            </div>
-
-            <div className="flex flex-col gap-2.5">
-              <AnimatePresence>
-                {quests.map((q) => (
-                  <QuestCard
-                    key={q.id}
-                    quest={q}
-                    onComplete={() => handleComplete(q.id)}
-                    onEdit={() => openEdit(q)}
-                    onOpen={() => setDetailQuest(q)}
-                    onDelete={() => {
-                      if (confirm('Remove this quest?')) remove(q.id);
-                    }}
+            {(!checkIn || overdueCount > 0) && (
+              <div className="panel rows mt-3">
+                {!checkIn && (
+                  <NoticeRow
+                    to="/checkin"
+                    icon={BatteryMedium}
+                    title="Check in for today"
+                    sub="Your energy and free time set how much gets planned"
                   />
-                ))}
-              </AnimatePresence>
-            </div>
-
-            {quests.length === 0 && (
-              <div className="rounded-(--radius-card) border border-(--color-border) bg-(--color-surface) px-5 py-12 text-center text-(--color-muted)">
-                <MapIcon size={48} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />
-                <p>
-                  No active quests yet.
-                  <br />
-                  Tap the <span className="rounded bg-white/10 px-1.5 py-0.5 font-semibold">+</span> button to begin.
-                </p>
+                )}
+                {overdueCount > 0 && (
+                  <NoticeRow
+                    to="/rescue"
+                    icon={LifeBuoy}
+                    tone="var(--color-fire)"
+                    title={`${overdueCount} overdue`}
+                    sub="Push a date, finish one, or drop one"
+                  />
+                )}
               </div>
             )}
+
+            {/* Zero-friction capture: "Write report 2h by fri #work !high" */}
+            <QuickAddBar />
+
+            <EndOfDayReflection completionsToday={completionsToday} />
+
+            <section className="mt-7">
+              <div className="mb-2.5 flex items-center gap-2">
+                <h2 className="section-label flex-1">Top quests</h2>
+                {quests.length > 1 && (
+                  <button type="button" onClick={() => setSpinOpen(true)} className="btn-quiet h-8 min-h-0 px-2.5 text-xs">
+                    <Dices size={14} aria-hidden /> Pick for me
+                  </button>
+                )}
+                <Link to="/quests" className="btn-quiet h-8 min-h-0 px-2.5 text-xs">
+                  All quests <ChevronRight size={14} aria-hidden />
+                </Link>
+              </div>
+
+              {quests.length > 0 ? (
+                <div className="panel rows overflow-hidden">
+                  <AnimatePresence initial={false}>
+                    {shown.map((q) => (
+                      <div key={q.id} data-quest-id={q.id}>
+                        <QuestCard
+                          quest={q}
+                          onComplete={() => handleComplete(q.id)}
+                          onEdit={() => openEdit(q)}
+                          onOpen={() => setDetailQuest(q)}
+                          onDelete={() => {
+                            if (confirm('Remove this quest?')) remove(q.id);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </AnimatePresence>
+                  {quests.length > TOP_N && (
+                    <button
+                      type="button"
+                      onClick={() => setShowAll((v) => !v)}
+                      className="flex w-full items-center justify-center gap-1.5 px-3.5 py-2.5 text-[13px] font-semibold text-(--color-muted) transition-colors hover:bg-white/[0.025] hover:text-(--color-text)"
+                    >
+                      {showAll ? 'Show fewer' : `Show ${quests.length - TOP_N} more`}
+                      <ChevronDown size={14} className={showAll ? 'rotate-180' : ''} aria-hidden />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="panel px-5 py-10 text-center">
+                  <p className="font-semibold">No active quests</p>
+                  <p className="mt-1 text-sm text-(--color-muted)">Type one in the box above, or add one with every detail.</p>
+                  <button type="button" onClick={openNew} className="btn-primary mt-4">
+                    <Plus size={16} strokeWidth={2.5} aria-hidden /> New quest
+                  </button>
+                </div>
+              )}
+            </section>
 
             <DailySection onEdit={openEdit} />
 
             <CompletedSection />
           </div>
 
-          {/* Sidebar */}
-          <aside className="flex flex-col gap-4">
-            <BadgesPanel />
+          <aside className="flex min-w-0 flex-col gap-4">
+            <StatsRow />
             <WeekChart />
+            <BadgesPanel />
             <DeepStatsPanel />
           </aside>
         </div>
@@ -281,14 +299,17 @@ export default function Today() {
         open={spinOpen}
         onClose={() => setSpinOpen(false)}
         onAccept={(id) => {
-          // Scroll the picked quest into view & flash the card.
-          const el = document.querySelector(`[data-quest-id="${id}"]`);
-          if (el instanceof HTMLElement) {
+          // Scroll the picked quest into view and flash its row. It may sit
+          // below the short list, so open the list first.
+          setShowAll(true);
+          setTimeout(() => {
+            const el = document.querySelector(`[data-quest-id="${id}"]`);
+            if (!(el instanceof HTMLElement)) return;
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            el.style.transition = 'box-shadow 0.4s';
-            el.style.boxShadow = '0 0 0 3px var(--color-gold)';
-            setTimeout(() => (el.style.boxShadow = ''), 1600);
-          }
+            el.style.transition = 'background-color 0.4s';
+            el.style.backgroundColor = 'color-mix(in srgb, var(--color-primary) 16%, transparent)';
+            setTimeout(() => (el.style.backgroundColor = ''), 1600);
+          }, 60);
         }}
       />
     </>

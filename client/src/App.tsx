@@ -21,7 +21,8 @@ const Connections = lazy(() => import('./pages/Connections'));
 const Share = lazy(() => import('./pages/Share'));
 const QuestImport = lazy(() => import('./pages/QuestImport'));
 import { ToastContainer } from './components/Toasts';
-import { BottomNav } from './components/BottomNav';
+import { BottomNav, useNavVisible } from './components/BottomNav';
+import { Header } from './components/Header';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
 import { RankThemeController } from './components/RankThemeController';
@@ -134,7 +135,7 @@ function AuthenticatedApp() {
   return (
     <BrowserRouter>
       <RankThemeController />
-      <div className="min-h-screen pb-16">
+      <Shell>
         <Routes>
           <Route path="/" element={<Today />} />
           <Route path="/feed" element={<GuildFeed />} />
@@ -158,8 +159,19 @@ function AuthenticatedApp() {
         <CommandPalette />
         <MascotDock />
         <BottomNav />
-      </div>
+      </Shell>
     </BrowserRouter>
+  );
+}
+
+/** Leaves room for whichever navigation is showing: top bar and bottom bar on a phone, sidebar on a wide screen. */
+function Shell({ children }: { children: React.ReactNode }) {
+  const nav = useNavVisible();
+  return (
+    <div className={nav ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60' : 'min-h-screen'}>
+      {nav && <Header />}
+      {children}
+    </div>
   );
 }
 

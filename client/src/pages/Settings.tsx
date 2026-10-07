@@ -28,7 +28,7 @@ import {
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { Plug, RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
+import { ChevronRight, Plug, RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -179,25 +179,18 @@ export default function Settings() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6 flex flex-col gap-5">
-      <header className="flex items-baseline justify-between">
-        <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: 'var(--color-text)' }}>
-          Settings
-        </h1>
-        <Link to="/" className="text-sm" style={{ color: 'var(--color-primary)' }}>
-          ← Today
-        </Link>
+    <div className="page flex flex-col gap-5">
+      <header>
+        <h1 className="page-title">Settings</h1>
+        <p className="mt-1.5 text-sm text-(--color-muted)">
+          How the planner builds your day. Changes apply the next time the Feed replans. The defaults are good; only
+          move what bothers you.
+        </p>
       </header>
-
-      <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
-        Tune the scheduler. Changes apply on the next <b>Reflow day</b> on the Guild Feed.
-        Every knob has an ⓘ explaining its effect — the defaults are good; only move what bothers you.
-      </p>
 
       <Link
         to="/connections"
-        className="flex items-center gap-3 rounded-xl border px-4 py-3"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
+        className="panel flex items-center gap-3 px-4 py-3 transition-colors hover:bg-(--color-surface2)"
       >
         <Plug size={18} aria-hidden style={{ color: 'var(--color-primary)' }} />
         <span className="flex-1">
@@ -206,7 +199,7 @@ export default function Settings() {
             Calendars the planner works around, and an inbox for Teams, phone shortcuts and more
           </span>
         </span>
-        <span aria-hidden style={{ color: 'var(--color-muted)' }}>›</span>
+        <ChevronRight size={16} aria-hidden style={{ color: 'var(--color-muted)' }} />
       </Link>
 
       {/* Working hours */}

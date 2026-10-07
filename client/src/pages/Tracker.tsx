@@ -351,8 +351,8 @@ export default function Tracker() {
             aria-pressed={tab === t.id}
             className="min-w-0 flex-1 truncate rounded-md px-2 py-2 text-[13px] font-semibold transition-colors"
             style={{
-              background: tab === t.id ? 'var(--color-primary)' : 'transparent',
-              color: tab === t.id ? '#fff' : 'var(--color-muted)',
+              background: tab === t.id ? 'var(--color-surface2)' : 'transparent',
+              color: tab === t.id ? 'var(--color-text)' : 'var(--color-muted)',
             }}
           >
             {t.label}
