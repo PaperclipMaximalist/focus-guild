@@ -586,7 +586,9 @@ export function plan(inputs: PlanInputs): SchedulerResult {
     (t) =>
       t.status !== 'done' &&
       t.remainingMin > EPSILON_MIN &&
-      t.deadline > now &&
+      // By the real clock: a quest due later this very minute can't be
+      // planned any more, and still has to be reported short.
+      t.deadline > inputs.now &&
       depsMet(t, taskMap),
   );
   // Stable priority order used both for budgeting and tie-breaks.

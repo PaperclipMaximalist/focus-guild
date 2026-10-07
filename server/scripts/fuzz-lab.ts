@@ -828,7 +828,9 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
     if (b.type === 'fixed') { if (b.end > b.start) live.push({ b, k: 'fixed' }); continue; }
     if (b.type !== 'work') continue;
     const t = b.taskId ? byId.get(b.taskId) : undefined;
-    const future = (b.end - Math.max(b.start, now)) / MIN;
+    // The planner's clock is the next whole minute: the last 40 seconds of a
+    // block in progress are not minutes anyone can still plan with.
+    const future = Math.max(0, b.end - Math.max(b.start, Math.ceil(now / MIN) * MIN)) / MIN;
     if (b.locked) {
       if (b.end > b.start) live.push({ b, k: 'pinned' });
       // A pin is the user's, so it stays; a pin for a quest that is gone is

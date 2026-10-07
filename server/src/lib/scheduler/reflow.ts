@@ -290,7 +290,9 @@ export function reflow(
       fixedBlocks: fixedFuture,
       lockedBlocks: [...userLockedFuture, ...stable],
       config: { ...config, todayCapMin: capLeft },
-      now,
+      // The real clock: plan() rounds it the same way, and uses the seconds
+      // only to tell which quests are still due.
+      now: clock,
       // Past and dropped blocks keep their ids too; a new block takes none of them.
       reservedIds: currentSchedule.map((b) => b.id),
     });
