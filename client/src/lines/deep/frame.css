@@ -1,0 +1,49 @@
+/* The Abyssal Line's frame: a riveted viewport and plates pressed from one sheet.
+   Everything is a hard edge. */
+@layer components {
+  /* The viewport: a hairline edge, and a dotted seam of rivets 5px inside it.
+     The seam is drawn on a layer above the water, or the scene would cover it. */
+  :root[data-line="deep"] .scene-window {
+    border: 1px solid var(--color-border-strong);
+  }
+  :root[data-line="deep"] .scene-window::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    outline: 1px dotted var(--color-border-strong);
+    outline-offset: -6px;
+    pointer-events: none;
+  }
+
+  /* One mullion, only where the window is wide enough to carry it: a 3px bar
+     of the panel colour with a hairline each side. Hard stops, no fade. */
+  @media (min-width: 600px) {
+    :root[data-line="deep"] .scene-window::after {
+      background: linear-gradient(
+        90deg,
+        transparent calc(74% - 2.5px),
+        var(--color-border) calc(74% - 2.5px),
+        var(--color-border) calc(74% - 1.5px),
+        var(--color-surface) calc(74% - 1.5px),
+        var(--color-surface) calc(74% + 1.5px),
+        var(--color-border) calc(74% + 1.5px),
+        var(--color-border) calc(74% + 2.5px),
+        transparent calc(74% + 2.5px)
+      );
+    }
+  }
+
+  /* The sign and the button are plate, pressed from one sheet: no cut corner,
+     a darker band along one edge. */
+  :root[data-line="deep"] .board-sign {
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    background: var(--color-primary);
+    box-shadow: inset 0 4px 0 var(--color-primary-d);
+  }
+
+  :root[data-line="deep"] .btn-primary {
+    border-radius: var(--radius-md);
+    background: var(--color-primary);
+    box-shadow: inset 0 -3px 0 var(--color-primary-d);
+  }
+}

@@ -1,0 +1,31 @@
+/* The Abyssal Line: teal-black water, sea-white text, and one chartreuse lure. */
+:root[data-line="deep"] {
+  --color-bg: #061014;
+  --color-surface: #0C1A20;
+  --color-surface2: #142730;
+  --color-border: #1A3038;
+  --color-border-strong: #35606C;
+  --color-text: #E2F3F4;
+  --color-muted: #86A9AE;
+
+  --color-primary: #C8F560;
+  --color-primary-d: #A9D640;
+  --color-on-primary: #0B1402;
+
+  --color-rank: #86A9AE;
+
+  --color-gold: #FFA24D;
+  --color-gold-d: #D97F2B;
+  --color-fire: #FF7566;
+  --color-green: #5EE6A8;
+  --color-teal: #57D9C7;
+  --color-blue: #7DB4FF;
+
+  --radius-card: 8px;
+  --radius-sm: 2px;
+  --radius-md: 5px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
+  --radius-3xl: 12px;
+}
