@@ -54,9 +54,8 @@ One block: `@layer components { … }` (so a utility class on the same element s
 | `.board-sign` | The accent-filled sign over a board (page name left, clock right). |
 | `.btn-primary` | The one accent-filled button. |
 | `.panel` | Every raised surface. Touch it lightly or not at all. |
-| `.section-label` | The small capital label over a group of rows. |
 
-At most **two** frame treatments and **one** small motif per line. The brief names them. No margin or padding, no type properties, no animation, no `clip-path` (it cuts off the focus ring), no `url()`. Anything drawn with a pseudo-element must not sit over the top-left of the window, where the words are, and must set `pointer-events: none`.
+At most **two** frame treatments per line, and at most one small motif, which lives on the sign. The brief names them. (The first batch tried a mark before every section label: at 5 px it read as a stray character and it appeared in thirty places. Labels are left alone.) No margin or padding, no type properties, no animation, no `clip-path` (it cuts off the focus ring), no `url()`. Anything drawn with a pseudo-element must not sit over the top-left of the window, where the words are, and must set `pointer-events: none`.
 
 The Night Line's sign and button have one cut corner (see `.board-sign` and `.btn-primary` in `index.css`). If your line does not want it, override `background` and `border-radius` on those hooks.
 
@@ -86,6 +85,7 @@ A line also has a **companion**: one small original creature or object, no more 
 - Ground or horizon line about 80 % down. Things that stand up go right of 58 % (wide) or right of 72 % (narrow).
 - The visitor waits in the lower part of the window and reads at a glance as what it is. Use the accent **at most once** in the scene, on the thing you would step toward.
 - Eight to twelve flat colours, close to the line's tokens. One pale "light" colour for windows and lamps, used sparingly.
+- **Count with objects, not indicators.** A row of filled and hollow dots reads as a carousel's page markers. Draw only the things that are there (lit windows, crates, acorns), where such things would be.
 - It must look finished as a **still frame** (`moving === false`): reduced-motion users and every screenshot see exactly that.
 
 ### Motion budget

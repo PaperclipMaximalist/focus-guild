@@ -1,0 +1,27 @@
+/* The Ring Line: an indigo-black ground, cool lilac text, one pink-magenta accent. */
+:root[data-line="orbital"] {
+  --color-bg: #0A0814;
+  --color-surface: #131022;
+  --color-surface2: #1E1934;
+  --color-border: #272045;
+  --color-border-strong: #4A3F7A;
+  --color-text: #EEE9FA;
+  --color-muted: #9A8FBF;
+  --color-primary: #FF6FB1;
+  --color-primary-d: #E0528F;
+  --color-on-primary: #110309;
+  --color-rank: #9A8FBF;
+  --color-green: #5EE6A8;
+  --color-gold: #FFA24D;
+  --color-gold-d: #D97F2B;
+  --color-fire: #FF6B5E;
+  --color-teal: #57D9C7;
+  --color-blue: #7DB4FF;
+  --radius-card: 10px;
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+  --radius-3xl: 14px;
+}

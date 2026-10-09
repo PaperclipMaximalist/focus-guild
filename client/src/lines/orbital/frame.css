@@ -1,0 +1,48 @@
+/*
+ * The Ring Line's frame. Two treatments and one motif:
+ *   1. The window is a pressure port: a rounder corner, a findable edge and a
+ *      second hairline four pixels inside it (hard inset rings, no blur).
+ *   2. The sign and the Start button are plain rounded plates, with no cut corner.
+ * Motif: a vent of dots (3 rows by 6) at the right end of the sign, left of the clock.
+ */
+@layer components {
+  :root[data-line="orbital"] .scene-window {
+    /* The window's own utility class reads this, so the port is rounder than a card. */
+    --radius-card: 18px;
+  }
+  :root[data-line="orbital"] .scene-window::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0 0 0 1px var(--color-border-strong),
+      inset 0 0 0 4px var(--color-bg),
+      inset 0 0 0 5px var(--color-border);
+  }
+
+  :root[data-line="orbital"] .board-sign {
+    position: relative;
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    background: var(--color-primary);
+  }
+  /* The vent: dots 6 px apart, 2 px across, one hard-stopped gradient, laid over the sign without pushing anything. */
+  :root[data-line="orbital"] .board-sign::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 6.5rem;
+    width: 36px;
+    height: 18px;
+    translate: 0 -50%;
+    pointer-events: none;
+    background-image: radial-gradient(circle at center, color-mix(in srgb, var(--color-on-primary) 35%, transparent) 0 1px, transparent 1px);
+    background-size: 6px 6px;
+  }
+
+  :root[data-line="orbital"] .btn-primary {
+    border-radius: var(--radius-md);
+    background: var(--fill);
+  }
+}

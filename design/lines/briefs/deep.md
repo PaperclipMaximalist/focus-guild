@@ -36,7 +36,7 @@ Keep the accent's hue between 70 and 86: yellow-green, clearly not the green of 
 
 1. **The window is a riveted viewport.** A 1 px `--color-border-strong` edge and, 5 px inside it, a dotted seam (`outline: 1px dotted`, negative `outline-offset`). On windows 560 px and wider only, one vertical mullion at 74 % across: a 3 px bar of `--color-surface` with a hairline each side (`.scene-window::after`, `pointer-events: none`). No mullion on a phone.
 2. **The sign and the button are pressed plate.** No cut corner. The sign gets a 4 px band of `--color-primary-d` along its top edge; the button a 3 px band of `--color-primary-d` along its bottom edge. Both are zero-blur inset box-shadows.
-3. **Motif: a rivet.** A 5 px hollow circle (1 px `--color-border-strong`) before each `.section-label`, vertically centred. It must not change the label's height.
+3. No motif beyond the seam: an earlier rivet before each section label read as a stray character and was cut.
 
 ## Scene
 

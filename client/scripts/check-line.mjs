@@ -125,7 +125,7 @@ function checkColours(c) {
 }
 
 // ── Frame ──
-const HOOKS = ['.scene-window', '.board-sign', '.btn-primary', '.panel', '.section-label'];
+const HOOKS = ['.scene-window', '.board-sign', '.btn-primary', '.panel'];
 const FRAME_BANNED = [
   [/!important/, '!important'],
   [/text-shadow/, 'text-shadow'],
