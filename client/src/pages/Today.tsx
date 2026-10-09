@@ -16,7 +16,7 @@ import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
 import { LevelUpSplash } from '../components/LevelUpSplash';
 import { duckReact } from '../store/useMascotStore';
-import { NightPlatform } from '../components/NightPlatform';
+import { SceneWindow } from '../lines/SceneWindow';
 import { isSceneEnabled, subscribeScene } from '../lib/scene';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
@@ -192,7 +192,7 @@ export default function Today() {
     <>
       <div className="page page-wide">
         {scene ? (
-          <NightPlatform caution={overdueCount > 0}>{masthead}</NightPlatform>
+          <SceneWindow caution={overdueCount > 0} done={completionsToday}>{masthead}</SceneWindow>
         ) : (
           <header>{masthead}</header>
         )}

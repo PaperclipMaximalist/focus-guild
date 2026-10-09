@@ -31,6 +31,8 @@ import { useMascotStore } from '../store/useMascotStore';
 import { ChevronRight, Plug, RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
 import { useArmed } from '../lib/useArmed';
 import { isSceneEnabled, setSceneEnabled } from '../lib/scene';
+import { LinePicker } from '../lines/LinePicker';
+import { currentLine, subscribeLine } from '../lines/current';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -321,6 +323,8 @@ function ExperienceSection() {
   const [haptics, setHaptics] = useState(isHapticsEnabled());
   const [rankTheme, setRankTheme] = useState(isRankThemeEnabled());
   const [scene, setScene] = useState(isSceneEnabled());
+  const [line, setLine] = useState(currentLine());
+  useEffect(() => subscribeLine(() => setLine(currentLine())), []);
 
   useEffect(() => {
     const unsubSfx = subscribeSfx(() => { setSfx(isSfxEnabled()); setHaptics(isHapticsEnabled()); });
@@ -333,9 +337,10 @@ function ExperienceSection() {
       <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
         Saved instantly to this device.
       </p>
+      <LinePicker />
       <Toggle
-        label="Rain and trains"
-        hint="The night platform on Today: a train waits while a block is boarding and leaves when you finish a quest. Off removes it and all of its motion."
+        label="The window"
+        hint={`The view on Today. ${line.windowHint} Off removes it and all of its motion.`}
         on={scene}
         onChange={(v) => { setSceneEnabled(v); setScene(v); }}
       />

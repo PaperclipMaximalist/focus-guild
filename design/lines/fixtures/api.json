@@ -1,0 +1,1005 @@
+{
+ "now": "2026-10-10T02:40:00.000Z",
+ "timezone": "America/Vancouver",
+ "responses": {
+  "POST /users": {
+   "status": 201,
+   "body": {
+    "success": true,
+    "data": {
+     "id": "sample-user",
+     "clerkId": "dev-member-001",
+     "level": 7,
+     "totalXP": 2310,
+     "currentStreak": 12,
+     "multiplier": 1.4,
+     "googleCalendarToken": null,
+     "spinCount": 0,
+     "schedulerSettings": null,
+     "trackerSettings": null,
+     "trackerCodeHighWater": null,
+     "personalTokenHash": null,
+     "createdAt": "2026-07-11T16:00:00.000Z",
+     "updatedAt": "2026-10-10T00:55:00.000Z"
+    }
+   }
+  },
+  "GET /quests": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": [
+     {
+      "id": "q1",
+      "userId": "sample-user",
+      "title": "Draft the methods section",
+      "estimatedMinutes": 120,
+      "mentalLoad": 8,
+      "impact": 9,
+      "deadline": "2026-10-10T06:00:00.000Z",
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [
+       "thesis"
+      ],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "HIGH",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "priorityScore": 8.4,
+      "subQuestTotal": 4,
+      "subQuestDone": 1
+     },
+     {
+      "id": "q2",
+      "userId": "sample-user",
+      "title": "Reply to the landlord about the lease",
+      "estimatedMinutes": 15,
+      "mentalLoad": 3,
+      "impact": 7,
+      "deadline": "2026-10-10T19:00:00.000Z",
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "comms",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "priorityScore": 7.1,
+      "subQuestTotal": 0,
+      "subQuestDone": 0
+     },
+     {
+      "id": "q3",
+      "userId": "sample-user",
+      "title": "Fix the flaky login test",
+      "estimatedMinutes": 90,
+      "mentalLoad": 7,
+      "impact": 8,
+      "deadline": "2026-10-13T00:00:00.000Z",
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [
+       "work"
+      ],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "HIGH",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "priorityScore": 6.8,
+      "subQuestTotal": 0,
+      "subQuestDone": 0
+     },
+     {
+      "id": "q4",
+      "userId": "sample-user",
+      "title": "Sketch three poster ideas",
+      "estimatedMinutes": 45,
+      "mentalLoad": 4,
+      "impact": 5,
+      "deadline": "2026-10-15T01:00:00.000Z",
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [
+       "studio"
+      ],
+      "tediousness": null,
+      "category": "creative",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "priorityScore": 5.2,
+      "subQuestTotal": 0,
+      "subQuestDone": 0
+     },
+     {
+      "id": "q5",
+      "userId": "sample-user",
+      "title": "File the expense report",
+      "estimatedMinutes": 30,
+      "mentalLoad": 2,
+      "impact": 5,
+      "deadline": "2026-10-16T00:00:00.000Z",
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": 0.8,
+      "category": "admin",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "priorityScore": 4.9,
+      "subQuestTotal": 0,
+      "subQuestDone": 0
+     },
+     {
+      "id": "q6",
+      "userId": "sample-user",
+      "title": "Read chapter 6 of the statistics text",
+      "estimatedMinutes": 75,
+      "mentalLoad": 6,
+      "impact": 6,
+      "deadline": null,
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [
+       "thesis"
+      ],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "priorityScore": 4.4,
+      "subQuestTotal": 0,
+      "subQuestDone": 0
+     },
+     {
+      "id": "q7",
+      "userId": "sample-user",
+      "title": "Plan the weekend hike",
+      "estimatedMinutes": 25,
+      "mentalLoad": 2,
+      "impact": 4,
+      "deadline": null,
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "admin",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "LOW",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "priorityScore": 3.1,
+      "subQuestTotal": 0,
+      "subQuestDone": 0
+     }
+    ]
+   }
+  },
+  "GET /quests/rescue": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": [
+     {
+      "id": "q8",
+      "userId": "sample-user",
+      "title": "Renew the library books",
+      "estimatedMinutes": 10,
+      "mentalLoad": 5,
+      "impact": 6,
+      "deadline": "2026-10-07T00:00:00.000Z",
+      "status": "RESCUE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "admin",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z"
+     },
+     {
+      "id": "q9",
+      "userId": "sample-user",
+      "title": "Send the invoice for September",
+      "estimatedMinutes": 20,
+      "mentalLoad": 5,
+      "impact": 6,
+      "deadline": "2026-10-08T19:00:00.000Z",
+      "status": "RESCUE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "admin",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "HIGH",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z"
+     },
+     {
+      "id": "q10",
+      "userId": "sample-user",
+      "title": "Call the dentist",
+      "estimatedMinutes": 10,
+      "mentalLoad": 5,
+      "impact": 6,
+      "deadline": "2026-10-09T22:00:00.000Z",
+      "status": "RESCUE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "comms",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z"
+     }
+    ]
+   }
+  },
+  "GET /quests/recurring": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": [
+     {
+      "id": "q11",
+      "userId": "sample-user",
+      "title": "Stretch for ten minutes",
+      "estimatedMinutes": 10,
+      "mentalLoad": 1,
+      "impact": 6,
+      "deadline": null,
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": 8,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": true,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "doneToday": true
+     },
+     {
+      "id": "q12",
+      "userId": "sample-user",
+      "title": "Clear the inbox to zero",
+      "estimatedMinutes": 20,
+      "mentalLoad": 3,
+      "impact": 6,
+      "deadline": null,
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "comms",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": true,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "doneToday": true
+     },
+     {
+      "id": "q13",
+      "userId": "sample-user",
+      "title": "Twenty minutes of Spanish",
+      "estimatedMinutes": 20,
+      "mentalLoad": 4,
+      "impact": 6,
+      "deadline": null,
+      "status": "ACTIVE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": 21,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": true,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": null,
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z",
+      "doneToday": false
+     }
+    ]
+   }
+  },
+  "GET /quests/completed": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": [
+     {
+      "id": "q14",
+      "userId": "sample-user",
+      "title": "Book the train tickets",
+      "estimatedMinutes": 30,
+      "mentalLoad": 5,
+      "impact": 6,
+      "deadline": null,
+      "status": "COMPLETE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": "2026-10-09T20:05:00.000Z",
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z"
+     },
+     {
+      "id": "q15",
+      "userId": "sample-user",
+      "title": "Outline the methods section",
+      "estimatedMinutes": 30,
+      "mentalLoad": 5,
+      "impact": 6,
+      "deadline": null,
+      "status": "COMPLETE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": "2026-10-09T21:40:00.000Z",
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z"
+     },
+     {
+      "id": "q16",
+      "userId": "sample-user",
+      "title": "Water the plants",
+      "estimatedMinutes": 30,
+      "mentalLoad": 5,
+      "impact": 6,
+      "deadline": null,
+      "status": "COMPLETE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": "2026-10-09T23:10:00.000Z",
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z"
+     },
+     {
+      "id": "q17",
+      "userId": "sample-user",
+      "title": "Push the build to staging",
+      "estimatedMinutes": 30,
+      "mentalLoad": 5,
+      "impact": 6,
+      "deadline": null,
+      "status": "COMPLETE",
+      "parentQuestId": null,
+      "tags": [],
+      "tediousness": null,
+      "category": "deep_work",
+      "preferredHour": null,
+      "minChunkMin": null,
+      "maxChunkMin": null,
+      "setupCost": null,
+      "urgencyMult": 1,
+      "isRecurring": false,
+      "priorityTier": "MED",
+      "actualMinutes": null,
+      "completedAt": "2026-10-10T00:55:00.000Z",
+      "createdAt": "2026-10-03T16:00:00.000Z",
+      "updatedAt": "2026-10-08T16:00:00.000Z"
+     }
+    ]
+   }
+  },
+  "GET /schedule/dev-member-001": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": {
+     "schedule": [
+      {
+       "id": "b1",
+       "start": "2026-10-09T22:00:00.000Z",
+       "end": "2026-10-09T22:50:00.000Z",
+       "durationMin": 50,
+       "type": "work",
+       "taskId": "q3",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"High priority · sharp hours\"}",
+       "reason": "High priority · sharp hours"
+      },
+      {
+       "id": "b2",
+       "start": "2026-10-09T22:50:00.000Z",
+       "end": "2026-10-09T23:00:00.000Z",
+       "durationMin": 10,
+       "type": "break",
+       "taskId": null,
+       "locked": false,
+       "note": null,
+       "reason": null
+      },
+      {
+       "id": "b3",
+       "start": "2026-10-09T23:00:00.000Z",
+       "end": "2026-10-09T23:30:00.000Z",
+       "durationMin": 30,
+       "type": "work",
+       "taskId": "q5",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Tedious · low-energy slot\"}",
+       "reason": "Tedious · low-energy slot"
+      },
+      {
+       "id": "b4",
+       "start": "2026-10-10T01:00:00.000Z",
+       "end": "2026-10-10T01:20:00.000Z",
+       "durationMin": 20,
+       "type": "fixed",
+       "taskId": null,
+       "locked": true,
+       "note": "Daily: Clear the inbox to zero",
+       "reason": null
+      },
+      {
+       "id": "b5",
+       "start": "2026-10-10T02:15:00.000Z",
+       "end": "2026-10-10T03:05:00.000Z",
+       "durationMin": 50,
+       "type": "work",
+       "taskId": "q1",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Due tonight\"}",
+       "reason": "Due tonight"
+      },
+      {
+       "id": "b6",
+       "start": "2026-10-10T03:05:00.000Z",
+       "end": "2026-10-10T03:15:00.000Z",
+       "durationMin": 10,
+       "type": "break",
+       "taskId": null,
+       "locked": false,
+       "note": null,
+       "reason": null
+      },
+      {
+       "id": "b7",
+       "start": "2026-10-10T03:15:00.000Z",
+       "end": "2026-10-10T04:00:00.000Z",
+       "durationMin": 45,
+       "type": "work",
+       "taskId": "q1",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Due tonight\"}",
+       "reason": "Due tonight"
+      },
+      {
+       "id": "b8",
+       "start": "2026-10-10T04:00:00.000Z",
+       "end": "2026-10-10T04:20:00.000Z",
+       "durationMin": 20,
+       "type": "fixed",
+       "taskId": null,
+       "locked": true,
+       "note": "Daily: Twenty minutes of Spanish",
+       "reason": null
+      },
+      {
+       "id": "b9",
+       "start": "2026-10-10T04:25:00.000Z",
+       "end": "2026-10-10T04:40:00.000Z",
+       "durationMin": 15,
+       "type": "work",
+       "taskId": "q2",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Due tomorrow · quick win\"}",
+       "reason": "Due tomorrow · quick win"
+      },
+      {
+       "id": "b10",
+       "start": "2026-10-10T16:30:00.000Z",
+       "end": "2026-10-10T17:20:00.000Z",
+       "durationMin": 50,
+       "type": "work",
+       "taskId": "q3",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"High priority · sharp hours\"}",
+       "reason": "High priority · sharp hours"
+      },
+      {
+       "id": "b11",
+       "start": "2026-10-10T17:20:00.000Z",
+       "end": "2026-10-10T17:30:00.000Z",
+       "durationMin": 10,
+       "type": "break",
+       "taskId": null,
+       "locked": false,
+       "note": null,
+       "reason": null
+      },
+      {
+       "id": "b12",
+       "start": "2026-10-10T17:30:00.000Z",
+       "end": "2026-10-10T18:45:00.000Z",
+       "durationMin": 75,
+       "type": "work",
+       "taskId": "q6",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Steady work · mid-morning\"}",
+       "reason": "Steady work · mid-morning"
+      },
+      {
+       "id": "b13",
+       "start": "2026-10-10T21:00:00.000Z",
+       "end": "2026-10-10T21:45:00.000Z",
+       "durationMin": 45,
+       "type": "work",
+       "taskId": "q4",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Creative · afternoon lift\"}",
+       "reason": "Creative · afternoon lift"
+      },
+      {
+       "id": "b14",
+       "start": "2026-10-11T16:30:00.000Z",
+       "end": "2026-10-11T17:10:00.000Z",
+       "durationMin": 40,
+       "type": "work",
+       "taskId": "q3",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Finish before Monday\"}",
+       "reason": "Finish before Monday"
+      }
+     ],
+     "feasibilityReport": {
+      "ok": true,
+      "issues": []
+     },
+     "insights": null,
+     "generatedAt": "2026-10-09T21:50:00.000Z"
+    }
+   }
+  },
+  "GET /schedule/dev-member-001/energy": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": {
+     "trace": [
+      {
+       "time": "2026-10-09T16:00:00.000Z",
+       "meter": 96
+      },
+      {
+       "time": "2026-10-09T16:15:00.000Z",
+       "meter": 95
+      },
+      {
+       "time": "2026-10-09T16:30:00.000Z",
+       "meter": 94
+      },
+      {
+       "time": "2026-10-09T16:45:00.000Z",
+       "meter": 93
+      },
+      {
+       "time": "2026-10-09T17:00:00.000Z",
+       "meter": 92
+      },
+      {
+       "time": "2026-10-09T17:15:00.000Z",
+       "meter": 91
+      },
+      {
+       "time": "2026-10-09T17:30:00.000Z",
+       "meter": 90
+      },
+      {
+       "time": "2026-10-09T17:45:00.000Z",
+       "meter": 89
+      },
+      {
+       "time": "2026-10-09T18:00:00.000Z",
+       "meter": 88
+      },
+      {
+       "time": "2026-10-09T18:15:00.000Z",
+       "meter": 86
+      },
+      {
+       "time": "2026-10-09T18:30:00.000Z",
+       "meter": 85
+      },
+      {
+       "time": "2026-10-09T18:45:00.000Z",
+       "meter": 84
+      },
+      {
+       "time": "2026-10-09T19:00:00.000Z",
+       "meter": 82
+      },
+      {
+       "time": "2026-10-09T19:15:00.000Z",
+       "meter": 81
+      },
+      {
+       "time": "2026-10-09T19:30:00.000Z",
+       "meter": 78
+      },
+      {
+       "time": "2026-10-09T19:45:00.000Z",
+       "meter": 75
+      },
+      {
+       "time": "2026-10-09T20:00:00.000Z",
+       "meter": 72
+      },
+      {
+       "time": "2026-10-09T20:15:00.000Z",
+       "meter": 69
+      },
+      {
+       "time": "2026-10-09T20:30:00.000Z",
+       "meter": 65
+      },
+      {
+       "time": "2026-10-09T20:45:00.000Z",
+       "meter": 63
+      },
+      {
+       "time": "2026-10-09T21:00:00.000Z",
+       "meter": 61
+      },
+      {
+       "time": "2026-10-09T21:15:00.000Z",
+       "meter": 61
+      },
+      {
+       "time": "2026-10-09T21:30:00.000Z",
+       "meter": 61
+      },
+      {
+       "time": "2026-10-09T21:45:00.000Z",
+       "meter": 62
+      },
+      {
+       "time": "2026-10-09T22:00:00.000Z",
+       "meter": 64
+      },
+      {
+       "time": "2026-10-09T22:15:00.000Z",
+       "meter": 65
+      },
+      {
+       "time": "2026-10-09T22:30:00.000Z",
+       "meter": 66
+      },
+      {
+       "time": "2026-10-09T22:45:00.000Z",
+       "meter": 66
+      },
+      {
+       "time": "2026-10-09T23:00:00.000Z",
+       "meter": 66
+      },
+      {
+       "time": "2026-10-09T23:15:00.000Z",
+       "meter": 65
+      },
+      {
+       "time": "2026-10-09T23:30:00.000Z",
+       "meter": 64
+      },
+      {
+       "time": "2026-10-09T23:45:00.000Z",
+       "meter": 63
+      },
+      {
+       "time": "2026-10-10T00:00:00.000Z",
+       "meter": 62
+      },
+      {
+       "time": "2026-10-10T00:15:00.000Z",
+       "meter": 61
+      },
+      {
+       "time": "2026-10-10T00:30:00.000Z",
+       "meter": 60
+      },
+      {
+       "time": "2026-10-10T00:45:00.000Z",
+       "meter": 59
+      },
+      {
+       "time": "2026-10-10T01:00:00.000Z",
+       "meter": 58
+      },
+      {
+       "time": "2026-10-10T01:15:00.000Z",
+       "meter": 57
+      },
+      {
+       "time": "2026-10-10T01:30:00.000Z",
+       "meter": 56
+      },
+      {
+       "time": "2026-10-10T01:45:00.000Z",
+       "meter": 55
+      },
+      {
+       "time": "2026-10-10T02:00:00.000Z",
+       "meter": 54
+      },
+      {
+       "time": "2026-10-10T02:15:00.000Z",
+       "meter": 53
+      },
+      {
+       "time": "2026-10-10T02:30:00.000Z",
+       "meter": 52
+      },
+      {
+       "time": "2026-10-10T02:45:00.000Z",
+       "meter": 51
+      },
+      {
+       "time": "2026-10-10T03:00:00.000Z",
+       "meter": 50
+      },
+      {
+       "time": "2026-10-10T03:15:00.000Z",
+       "meter": 49
+      },
+      {
+       "time": "2026-10-10T03:30:00.000Z",
+       "meter": 48
+      },
+      {
+       "time": "2026-10-10T03:45:00.000Z",
+       "meter": 47
+      },
+      {
+       "time": "2026-10-10T04:00:00.000Z",
+       "meter": 46
+      },
+      {
+       "time": "2026-10-10T04:15:00.000Z",
+       "meter": 45
+      },
+      {
+       "time": "2026-10-10T04:30:00.000Z",
+       "meter": 44
+      },
+      {
+       "time": "2026-10-10T04:45:00.000Z",
+       "meter": 42
+      },
+      {
+       "time": "2026-10-10T05:00:00.000Z",
+       "meter": 41
+      },
+      {
+       "time": "2026-10-10T05:15:00.000Z",
+       "meter": 40
+      },
+      {
+       "time": "2026-10-10T05:30:00.000Z",
+       "meter": 39
+      },
+      {
+       "time": "2026-10-10T05:45:00.000Z",
+       "meter": 38
+      },
+      {
+       "time": "2026-10-10T06:00:00.000Z",
+       "meter": 37
+      }
+     ]
+    }
+   }
+  },
+  "GET /checkin/today/dev-member-001": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": {
+     "id": "c1",
+     "date": "2026-10-09T16:05:00.000Z",
+     "energyLevel": 4,
+     "availableMinutes": 300
+    }
+   }
+  },
+  "GET /users/dev-member-001/achievements": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": [
+     {
+      "slug": "first-blood",
+      "title": "First Steps",
+      "icon": "",
+      "description": "",
+      "xpReward": 25,
+      "unlockedAt": "2026-07-22T01:00:00.000Z"
+     },
+     {
+      "slug": "dedicated",
+      "title": "Dedicated",
+      "icon": "",
+      "description": "",
+      "xpReward": 50,
+      "unlockedAt": "2026-08-30T01:00:00.000Z"
+     },
+     {
+      "slug": "flow-state",
+      "title": "Flow State",
+      "icon": "",
+      "description": "",
+      "xpReward": 75,
+      "unlockedAt": "2026-09-28T01:00:00.000Z"
+     },
+     {
+      "slug": "week-warrior",
+      "title": "Week Warrior",
+      "icon": "",
+      "description": "",
+      "xpReward": 100,
+      "unlockedAt": "2026-10-05T01:00:00.000Z"
+     }
+    ]
+   }
+  },
+  "GET /settings": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": {
+     "defaults": {
+      "scoreWeights": {
+       "energy": 1.5,
+       "urgency": 2,
+       "batch": 0.5,
+       "monotony": 1.5,
+       "tedium": 0.8,
+       "cooldown": 0.8,
+       "session": 0.5,
+       "prefHour": 0.6
+      },
+      "workingHours": {
+       "startHour": 9,
+       "endHour": 18
+      },
+      "horizonDays": 7,
+      "softMaxBlockMin": 90,
+      "chronotype": "standard"
+     },
+     "overrides": {}
+    }
+   }
+  }
+ }
+}

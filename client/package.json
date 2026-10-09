@@ -9,7 +9,9 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "test": "vitest run",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "line:check": "node scripts/check-line.mjs",
+    "line:shoot": "node scripts/shoot-line.mjs"
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.8",
