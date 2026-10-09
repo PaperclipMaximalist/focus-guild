@@ -175,15 +175,15 @@ function AuthenticatedApp() {
 
 const PAGE_NAMES: Record<string, string> = {
   '/': 'Today',
-  '/feed': 'Feed',
+  '/feed': 'Route',
   '/quests': 'Quests',
   '/quests/import': 'Import quests',
-  '/rescue': 'Rescue',
-  '/checkin': 'Check-in',
-  '/stats': 'Stats',
+  '/rescue': 'Stragglers',
+  '/checkin': 'Fuel check',
+  '/stats': 'Mileage',
   '/trophies': 'Trophy Room',
-  '/tracker': 'Tracker',
-  '/chronicle': 'Chronicle',
+  '/tracker': 'Expeditions',
+  '/chronicle': 'Logbook',
   '/connections': 'Connections',
   '/settings': 'Settings',
 };

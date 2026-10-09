@@ -140,7 +140,7 @@ export default function Stats() {
   return (
     <div className="page flex flex-col gap-5">
       <header className="flex items-center gap-2">
-        <h1 className="page-title flex-1">Stats</h1>
+        <h1 className="page-title flex-1">Mileage</h1>
         <Link to="/trophies" className="btn-quiet lg:hidden">
           <Trophy size={15} aria-hidden /> Trophies
         </Link>

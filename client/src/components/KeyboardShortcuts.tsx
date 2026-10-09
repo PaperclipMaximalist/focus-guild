@@ -129,7 +129,7 @@ export function KeyboardShortcuts() {
               <div className="space-y-1.5 text-sm" style={{ color: 'var(--color-text)' }}>
                 <Row k="⌘ K" desc="Command palette (jump anywhere)" />
                 <Row k="N" desc="New quest" />
-                <Row k="S" desc="Spin the wheel" />
+                <Row k="S" desc="Dealer’s choice" />
                 <Row k="/" desc="Focus search (on Quests page)" />
                 <Row k="?" desc="Show this help" />
                 <Row k="Esc" desc="Close a modal or overlay" />
@@ -137,11 +137,11 @@ export function KeyboardShortcuts() {
                   Navigate (press G then…)
                 </p>
                 <Row k="G T" desc="Today" />
-                <Row k="G F" desc="Guild Feed" />
-                <Row k="G R" desc="Rescue" />
+                <Row k="G F" desc="Route" />
+                <Row k="G R" desc="Stragglers" />
                 <Row k="G Q" desc="Quests" />
-                <Row k="G K" desc="Tracker" />
-                <Row k="G S" desc="Stats" />
+                <Row k="G K" desc="Expeditions" />
+                <Row k="G S" desc="Mileage" />
                 <Row k="G ," desc="Settings" />
               </div>
               <p className="mt-4 text-xs text-center" style={{ color: 'var(--color-muted)' }}>

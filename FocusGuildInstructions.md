@@ -129,10 +129,32 @@ Never hardcode API keys.
 ## Terminology (use consistently everywhere — UI, code, comments)
 - Quest      not Task
 - Guild      not App
-- Rescue     not Overdue
+- Stragglers not Overdue (was "Rescue" until 2026-10-08)
 - Streak Paused  not Failed Streak
 - Member     not User (in UI copy only; variable names use `user`)
 - Complete   not Done / Finish / Mark as done
+
+### The route vocabulary (UI labels, agreed 2026-10-08)
+A day is a route and the planner reroutes it. These are **labels only**: URLs, API routes, database names and code identifiers keep the old words (`/feed`, `/rescue`, `GuildFeed.tsx`, `useTrackerStore`), so search the code by the old word and the screen by the new one.
+
+| On screen | In code / URL | What it is |
+|---|---|---|
+| Route | Feed, `/feed` | Today's plan in order |
+| Reroute | replan | Refit the plan, keeping what's pinned or done |
+| Plot a new route | generate / reflow | Rebuild the plan from scratch |
+| Next stop / Now boarding | up next / active block | The block to do next / the one in progress |
+| Rest stop | break | A break between blocks |
+| Stragglers | Rescue, `/rescue` | Quests past their deadline |
+| Expeditions | Tracker, `/tracker` | Long-horizon items |
+| Stash | parking lot | Unsorted captures |
+| Rounds | daily / recurring quests, routines | Things done every day |
+| Fuel check | check-in, `/checkin` | Today's energy and free time |
+| Mileage | Stats, `/stats` | Progress |
+| Logbook | Chronicle, `/chronicle` | Activity log and permafile |
+| Dealer's choice | spin the wheel | A random pick |
+| Jot | quick add | One-line capture |
+
+Today, Quests, Settings and Trophy Room are unchanged. The status column uses station words: On time, Boarding, Departed, Due today, Tomorrow, Open (no deadline), Round, and "3d late" (`client/src/lib/departure.ts`, unit-tested: the word must be true of the data).
 
 ## Hard UX Rules (never break)
 - Default view shows MAX 5 quests. Full list is one tap away but hidden.
@@ -195,12 +217,13 @@ Rewritten 2026-10-06 after the owner said the app "still screams vibe coded". Wh
 - **The first screen was a dashboard.** Today opens with the next action, then a short list (top 7). Numbers sit beside or below, never first.
 - **Six colours on one card.** Amber means "act here". Other colours only carry status (priority ring on the tick circle, a close deadline), with an icon or label.
 - **Chips and buttons on every row.** One tick circle, a title, one quiet line of facts. Edit and Delete live in the detail sheet (and appear on hover for a mouse). Bulk select is a mode, not a checkbox per row.
-- **Monospace page titles.** One typeface (Atkinson Hyperlegible Next) for reading and headings; Martian Mono only for keys and code. Numbers that line up use `.tnum`.
+- **No identity.** The look is **Departures**: the day as a station board on a wet night (chosen by the owner on 2026-10-08 from four mockups; dark only, no light mode). Night navy ground, board-white text, one signal yellow for "act here". Three faces with one job each: Barlow Condensed for signage (headings, labels, buttons and every number that lines up, `.tnum`), B612 Mono for the status column only (`.status`), Atkinson Hyperlegible for anything read; quest titles are never set in capitals. A board is a yellow sign (`components/BoardSign.tsx`, with a clock whose digits flip when the minute changes) over rows of time, quest and status. Corners are nearly square. The header comment of `index.css` is the source of truth.
+- **The night platform** (`components/NightPlatform.tsx`, on Today): rain, a lamp, and a train that follows what you do. It pulls in while a block is boarding, pulls out when a quest is completed (the store fires `fg:departed`), and an express passes a minute or two apart otherwise. The signal is green with no stragglers and amber with some. It stops when off screen or hidden, holds a still frame under reduced motion, and has a switch in Settings → Experience ("Rain and trains", `lib/scene.ts`). Any further animation must earn its place the same way: tied to something real, rare, and switchable.
 - **A phone layout stretched across a monitor.** `components/BottomNav.tsx` renders a five-tab bar under `lg` and a sidebar (with Rescue, Trophies, Chronicle, Settings, the rank and New quest) from `lg` up. `components/Header.tsx` is the phone's top bar, rendered once in `App.tsx`; pages do not render their own.
 - **Things floating over content.** The duck sits in the top bar's left slot (phone) or the foot of the sidebar; its line appears beside it.
 - Still true from before: Lucide icons and no emoji (arrows and ticks typed as text count as emoji: use an icon), no gradients or glows, `rounded-full` only for real circles, dark ink on amber fills (never white), modals as bottom sheets on a phone, usable one-handed at 375 px.
 - Shared classes, all in `@layer components` so a utility on the same element wins: `.page` (`.page-wide`), `.page-title`, `.section-label`, `.panel`, `.rows`, `.icon-btn`, `.btn-primary`, `.btn-quiet`, `.form-input`, `.tnum`. Use them before inventing a new card.
-- Three more looks are planned on top of these rules (Departures, Guildhall, Margins; mockups: https://claude.ai/artifact/MXtsarUz5jmfTAhNQNBo6B), selectable in Settings.
+- The other mocked-up looks (Guildhall, Margins, Daybook: https://claude.ai/artifact/MXtsarUz5jmfTAhNQNBo6B) were not built. Margins and Daybook are light and the owner wants dark only; Guildhall could become a second theme by swapping the tokens in `index.css`.
 - Not yet brought to the new style: Chronicle, Connections, Tracker presets and markdown, quest detail sheet, focus timer, spin wheel, plan insights and the "won't finish" banner (they inherit the tokens but still draw their own boxes).
 
 ### Craft checklist (researched 2026-10-08; check any new screen or theme against it)

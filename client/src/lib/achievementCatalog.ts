@@ -38,8 +38,8 @@ export const ACHIEVEMENT_CATALOG: AchievementMeta[] = [
   { slug: 'marathon', icon: Footprints, name: 'Marathon', desc: 'Complete a single quest estimated at 2+ hours.', xp: 120, group: 'Mastery' },
 
   // ── Wildcards ──
-  { slug: 'rescue-ranger', icon: LifeBuoy, name: 'Rescue Ranger', desc: 'Clear every Rescue quest in one session.', xp: 125, group: 'Wildcards' },
-  { slug: 'chaos-agent', icon: Dices, name: 'Chaos Agent', desc: 'Use Spin the Wheel 10 times.', xp: 50, group: 'Wildcards' },
+  { slug: 'rescue-ranger', icon: LifeBuoy, name: 'Rescue Ranger', desc: 'Round up every straggler in one session.', xp: 125, group: 'Wildcards' },
+  { slug: 'chaos-agent', icon: Dices, name: 'Chaos Agent', desc: 'Take dealer’s choice 10 times.', xp: 50, group: 'Wildcards' },
   { slug: 'night-owl', icon: Moon, name: 'Night Owl', desc: 'Finish a quest late at night.', xp: 60, group: 'Wildcards' },
 ];
 

@@ -68,7 +68,7 @@ export function Header() {
         >
           <Flame size={15} aria-hidden /> {user.currentStreak}
         </span>
-        <Link to="/chronicle" className="icon-btn" title="Chronicle" aria-label="Chronicle">
+        <Link to="/chronicle" className="icon-btn" title="Logbook" aria-label="Logbook">
           <ScrollText size={18} aria-hidden />
         </Link>
         <Link to="/settings" className="icon-btn" title="Settings" aria-label="Settings">

@@ -83,7 +83,7 @@ export default function Tracker() {
       ]
     : [
         { id: 'items', label: 'Items' },
-        { id: 'lot', label: 'Parking lot' },
+        { id: 'lot', label: 'Stash' },
         { id: 'log', label: 'Decisions' },
       ];
 
@@ -232,7 +232,7 @@ export default function Tracker() {
       <header className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <div className="min-w-0 flex-1">
-            <h1 className="text-2xl font-extrabold leading-tight">{casMode ? 'CAS' : 'Tracker'}</h1>
+            <h1 className="text-2xl font-extrabold leading-tight">{casMode ? 'CAS' : 'Expeditions'}</h1>
             {casMode ? (
               <p className="truncate text-xs" style={{ color: 'var(--color-muted)' }}>
                 Grouped by strand

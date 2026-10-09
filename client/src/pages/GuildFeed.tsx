@@ -12,30 +12,29 @@ import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
 import { formatMinutes } from '../lib/formatters';
+import { blockStatus as boardStatus, TONE_COLOR } from '../lib/departure';
+import { BoardSign } from '../components/BoardSign';
 import { shortfallLine, type ShortfallChoice } from '../lib/shortfall';
 import { blockDetail } from '../lib/blockDetail';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
 import { sfxComplete, sfxAchievement, sfxLevelUp, sfxStart } from '../lib/sfx';
-import { BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock, Clock9, CloudSun, Coffee, Diamond, Lightbulb, Pin, Play, RefreshCw, Repeat, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
+import { BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock9, CloudSun, Coffee, Diamond, Ellipsis, Lightbulb, Pin, Play, RefreshCw, Repeat, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
-/** Pixels per minute for FOCUS blocks. */
-const PX_PER_MIN = 1.1;
-/** Minimum block height: a title and the "why now" line always fit. */
-const MIN_BLOCK_PX = 58;
-/** A long block stops growing here: a 3-hour routine is not 270 px of nothing. */
-const MAX_BLOCK_PX = 128;
-const ROUTINE_MAX_PX = 68;
+/** Pixels per minute for FOCUS blocks. A longer block is a slightly taller row, so time stays visible. */
+const PX_PER_MIN = 0.9;
+/** Minimum row height: a title and the "why now" line always fit. */
+const MIN_BLOCK_PX = 56;
+/** A long block stops growing here: board rows stay rows. */
+const MAX_BLOCK_PX = 92;
+const ROUTINE_MAX_PX = 50;
 /** Width of the time rail to the left of every block. */
 const RAIL_PX = 58;
 /** Number of days in the day-chip strip (today + 2). */
 const DAY_TABS = 3;
 
-const COMPACT_THRESHOLD_PX = 84;
-/** Tall enough for a two-line title AND the "why now" line; shorter tiles clamp the title to one. */
-const TWO_LINE_TITLE_MIN_PX = 104;
 
 // One hue per category, validated as a set against the dark surface: the
 // best four-colour combination of the reference hues (colourblind separation
@@ -47,7 +46,9 @@ const CATEGORY_COLOR: Record<string, string> = {
   admin:     '#C98500',
   creative:  '#D55181',
 };
-const FIXED_COLOR = '#8A8478';
+const FIXED_COLOR = '#8E99B8';
+/** The lines' names, as printed in each row. */
+const CATEGORY_NAME: Record<string, string> = { deep_work: 'Deep work', comms: 'Comms', admin: 'Admin', creative: 'Creative' };
 
 function blockColor(b: ScheduleBlock, quest: Quest | null): string {
   if (b.type === 'fixed') return FIXED_COLOR;
@@ -117,18 +118,16 @@ function blockHeight(b: ScheduleBlock): number {
 
 function BreakLine({ block }: { block: ScheduleBlock }) {
   const isBuffer = block.type === 'buffer';
-  const label = isBuffer ? `${block.durationMin} min free` : `${block.durationMin} min break`;
-  const height = blockHeight(block);
+  const label = isBuffer ? `${block.durationMin} min free` : `${block.durationMin} min rest stop`;
 
   return (
     <div
-      className="flex w-full items-center gap-2 text-[12px] text-(--color-muted)"
-      style={{ height, paddingLeft: RAIL_PX + 12 }}
+      className="tnum flex h-7 w-full items-center gap-2 bg-(--color-bg) text-[11px] text-(--color-muted)"
+      style={{ paddingLeft: RAIL_PX + 24 }}
       title={`${block.durationMin}-minute ${isBuffer ? 'free slot' : 'break'}`}
     >
       {isBuffer ? <Diamond size={10} aria-hidden /> : <Coffee size={11} aria-hidden />}
-      <span className="tnum">{label}</span>
-      <span className="h-px flex-1 border-t border-dashed border-(--color-border)" aria-hidden />
+      {label}
     </div>
   );
 }
@@ -137,21 +136,12 @@ function BreakLine({ block }: { block: ScheduleBlock }) {
 
 function NowMarker({ time }: { time: number }) {
   return (
-    <motion.div
-      layout
-      className="relative w-full flex items-center justify-center my-1"
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-    >
-      <div className="flex-1 h-[2px] bg-(--color-fire)" />
-      <motion.span
-        className="mx-2 px-3 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider"
-        style={{ background: 'var(--color-fire)', color: 'var(--color-on-primary)' }}
-      >
-        <span className="inline-flex items-center gap-1"><Clock size={11} aria-hidden /> Now · {new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
-      </motion.span>
-      <div className="flex-1 h-[2px] bg-(--color-fire)" />
-    </motion.div>
+    <div className="flex h-6 w-full items-center gap-2 bg-(--color-bg) px-3" role="separator" aria-label="Now">
+      <span className="status" style={{ color: 'var(--color-primary)' }}>
+        Now {new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+      </span>
+      <span className="h-px flex-1 bg-(--color-primary)" aria-hidden />
+    </div>
   );
 }
 
@@ -194,7 +184,6 @@ function BlockTile({
 }: BlockTileProps) {
   const hue = blockColor(block, quest);
   const height = blockHeight(block);
-  const isCompact = height < COMPACT_THRESHOLD_PX;
   const isActive = status === 'active' && (block.type === 'work' || block.type === 'fixed');
   const isPast = status === 'past';
   const startD = new Date(block.start);
@@ -210,6 +199,7 @@ function BlockTile({
   const showRemove = !isPast && !isActive && draggable;
   // A routine is always fixed in place; the pin is for work the user pinned.
   const showPin = !!block.locked && !isRoutine && !showRemove;
+  const board = boardStatus(block, quest?.deadline, now);
 
   return (
     <div
@@ -233,16 +223,27 @@ function BlockTile({
           }
         }}
         layout
-        initial={{ opacity: 0, y: 6 }}
-        animate={{ opacity: isDragging ? 0.4 : isPast ? 0.5 : 1, y: 0 }}
-        transition={{ duration: 0.2, ease: 'easeOut' }}
-        className="group flex h-full w-full cursor-pointer items-stretch gap-3 text-left"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: isDragging ? 0.4 : isPast ? 0.55 : 1 }}
+        transition={{ duration: 0.15 }}
+        className="group relative grid h-full w-full cursor-pointer items-center gap-3 px-3 text-left"
+        style={{
+          gridTemplateColumns: `${RAIL_PX}px minmax(0, 1fr) auto`,
+          background: isActive ? 'var(--color-surface2)' : 'var(--color-surface)',
+          // Boarding is marked in signal yellow; a selected row is outlined.
+          boxShadow: isDragOver
+            ? `inset 0 0 0 2px ${hue}`
+            : isSelected
+              ? 'inset 0 0 0 1.5px var(--color-text)'
+              : isActive
+                ? 'inset 3px 0 0 var(--color-primary)'
+                : 'none',
+        }}
       >
-        {/* Time rail: when it starts and how long, outside the card so the
-            eye can run down one column of times. */}
-        <div className="tnum shrink-0 pt-2.5 text-right" style={{ width: RAIL_PX }}>
+        {/* Time column */}
+        <div className="tnum">
           <div
-            className="text-[13px] font-semibold leading-none"
+            className="whitespace-nowrap text-[14px] font-semibold leading-none"
             style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text)' }}
           >
             {formatTime(startD)}
@@ -250,91 +251,71 @@ function BlockTile({
           <div className="mt-1 text-[11px] leading-none text-(--color-muted)">{formatMinutes(block.durationMin)}</div>
         </div>
 
-        <div
-          className="relative min-w-0 flex-1 overflow-hidden rounded-lg"
-          style={{
-            // Work is a filled card; a routine is only outlined, so the day's
-            // real work is what stands out.
-            background: isRoutine ? 'transparent' : 'var(--color-surface2)',
-            // The active block is the one lit in amber; selection is a plain outline.
-            boxShadow: isDragOver
-              ? `inset 0 0 0 2px ${hue}`
-              : isActive
-                ? 'inset 0 0 0 2px var(--color-primary)'
-                : isSelected
-                  ? 'inset 0 0 0 1.5px var(--color-text)'
-                  : isRoutine
-                    ? 'inset 0 0 0 1px var(--color-border)'
-                    : 'none',
-          }}
-        >
-          {/* Category stripe */}
+        {/* Quest column */}
+        <div className="min-w-0">
+          <div className="flex min-w-0 items-center gap-2">
+            {isRoutine ? (
+              <Repeat size={12} className="shrink-0 text-(--color-muted)" aria-label="Round" />
+            ) : (
+              // The line this quest runs on: one colour per kind of work, named in the row below.
+              <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ background: hue }} aria-hidden />
+            )}
+            <span
+              className={`min-w-0 truncate font-semibold leading-snug ${isRoutine ? 'text-[14px] text-(--color-muted)' : 'text-[15px]'}`}
+            >
+              {title}
+            </span>
+          </div>
           {!isRoutine && (
-            <span className="absolute inset-y-2 left-1.5 w-[3px] rounded-full" style={{ background: hue }} aria-hidden />
-          )}
-
-          {/* Progress bar (active only) */}
-          {isActive && (
-            <div
-              className="absolute bottom-0 left-0 h-[3px] transition-[width] duration-1000"
-              style={{ width: `${pctDone}%`, background: 'var(--color-primary)' }}
-            />
-          )}
-
-          <div className={`flex h-full flex-col py-2 pl-4 ${showRemove || showPin ? 'pr-10' : 'pr-3'} ${isCompact ? 'justify-center' : 'justify-between'}`}>
-            <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-1.5">
-                {isRoutine && <Repeat size={12} className="shrink-0 text-(--color-muted)" aria-label="Routine" />}
-                <span
-                  className={`min-w-0 font-semibold leading-snug ${isCompact || (block.reason && height < TWO_LINE_TITLE_MIN_PX) ? 'truncate' : 'line-clamp-2'} ${isRoutine ? 'text-[14px] text-(--color-muted)' : 'text-[15px]'}`}
-                >
-                  {title}
+            <div className="mt-0.5 flex min-w-0 items-center gap-2 text-[12px] text-(--color-muted)">
+              {isActive ? (
+                <span className="tnum inline-flex items-center gap-1 font-bold" style={{ color: 'var(--color-primary)' }}>
+                  <Timer size={12} aria-hidden /> {formatCountdown(msRemaining)} left
                 </span>
-              </div>
-              {/* Most blocks are 25–50 min, i.e. compact: the "why now" has to
-                  live here or nobody ever sees it (it used to need a 70-min block). */}
-              {block.reason && !isActive && !isPast && (
-                <div className="mt-0.5 truncate text-[12px] text-(--color-muted)">{block.reason}</div>
+              ) : (
+                <span className="min-w-0 truncate">
+                  {quest?.category ? CATEGORY_NAME[quest.category] ?? quest.category.replace('_', ' ') : 'Deep work'}
+                  {/* Most blocks are 25–50 min: the "why now" lives here or nobody ever sees it. */}
+                  {block.reason && !isPast ? ` · ${block.reason}` : ''}
+                </span>
               )}
-              {isActive && (
-                <div className="tnum mt-1 inline-flex items-center gap-1 text-[13px] font-bold" style={{ color: 'var(--color-primary)' }}>
-                  <Timer size={13} aria-hidden /> {formatCountdown(msRemaining)} left
-                </div>
+              {quest && (
+                <span className="ml-auto hidden shrink-0 gap-[3px] sm:flex" title="Mental load" aria-hidden>
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <span key={i} className="h-1 w-1 rounded-full" style={{ background: i <= dots ? 'var(--color-muted)' : 'var(--color-border-strong)' }} />
+                  ))}
+                </span>
               )}
             </div>
+          )}
+        </div>
 
-            {!isCompact && (
-              <div className="flex items-center gap-2 text-[12px] text-(--color-muted)">
-                {quest && (
-                  <span className="flex gap-[3px]" title="Mental load" aria-hidden>
-                    {[1, 2, 3, 4, 5].map((i) => (
-                      <span key={i} className="h-1.5 w-1.5 rounded-full" style={{ background: i <= dots ? 'var(--color-muted)' : 'var(--color-border-strong)' }} />
-                    ))}
-                  </span>
-                )}
-                {quest?.category && <span>{quest.category.replace('_', ' ')}</span>}
-                <span className="tnum ml-auto">until {formatTime(endD)}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Remove this block (not for the past, the active one, or routines) */}
+        {/* Status column */}
+        <div className="flex items-center gap-1">
+          <span key={board.label} className="status flap" style={{ color: TONE_COLOR[board.tone] }}>
+            {board.label}
+          </span>
+          {showPin && <Pin size={13} className="text-(--color-muted)" aria-label="Pinned" />}
+          {/* A mouse gets a one-click remove; a finger opens the row, which has Remove. */}
           {showRemove && (
             <button
               onClick={(e) => { e.stopPropagation(); onQuickDelete(); }}
-              className="icon-btn absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2 opacity-60 hover:opacity-100"
+              className="icon-btn h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-lg:hidden"
               title="Remove this block"
               aria-label="Remove this block"
             >
-              <X size={15} aria-hidden />
+              <X size={14} aria-hidden />
             </button>
           )}
-          {showPin && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-(--color-muted)" aria-label="Pinned">
-              <Pin size={14} aria-hidden />
-            </span>
-          )}
         </div>
+
+        {/* Progress along the block that is boarding */}
+        {isActive && (
+          <div
+            className="absolute bottom-0 left-0 h-[2px] transition-[width] duration-1000"
+            style={{ width: `${pctDone}%`, background: 'var(--color-primary)' }}
+          />
+        )}
       </motion.div>
     </div>
   );
@@ -403,7 +384,7 @@ function FeedActionsMenu({
       <button
         onClick={() => setOpen((v) => !v)}
         disabled={loading}
-        className="text-xs px-3 py-1.5 rounded-md font-semibold transition-opacity"
+        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold transition-opacity"
         style={{
           background: 'var(--color-surface2)',
           color: 'var(--color-text)',
@@ -411,7 +392,7 @@ function FeedActionsMenu({
           opacity: loading ? 0.5 : 1,
         }}
       >
-        ⋯ Menu
+        <Ellipsis size={14} aria-hidden /> Menu
       </button>
       {open && (
         <>
@@ -425,9 +406,9 @@ function FeedActionsMenu({
               className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
               style={{ color: 'var(--color-text)' }}
             >
-              <span className="inline-flex items-center gap-1.5"><RotateCw size={14} aria-hidden /> Reflow day</span>
+              <span className="inline-flex items-center gap-1.5"><RotateCw size={14} aria-hidden /> Plot a new route</span>
               <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                Rebuild from scratch in priority order
+                Start over from your quests, in priority order
               </div>
             </button>
             <button
@@ -435,9 +416,9 @@ function FeedActionsMenu({
               className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 border-t"
               style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
             >
-              <span className="inline-flex items-center gap-1.5"><RefreshCw size={14} aria-hidden /> Re-fit remaining</span>
+              <span className="inline-flex items-center gap-1.5"><RefreshCw size={14} aria-hidden /> Reroute</span>
               <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
-                Keep pins + completed; re-flow the rest
+                Keep what’s pinned or done; refit the rest
               </div>
             </button>
             <a
@@ -569,7 +550,7 @@ function FeasibilityBanner({
                           style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)', background: 'var(--color-surface)' }}
                         >
                           {choice.kind === 'deadline' ? <CalendarClock size={14} aria-hidden /> : <Scissors size={14} aria-hidden />}
-                          {busy === `${line.taskId}:${choice.kind}` ? 'Replanning…' : choice.label}
+                          {busy === `${line.taskId}:${choice.kind}` ? 'Rerouting…' : choice.label}
                         </button>
                       ))}
                     </div>
@@ -754,6 +735,11 @@ export default function GuildFeed() {
 
   // Day-chip strip: today + next DAY_TABS-1 days, work-min looked up from
   // the shared workMinByDay map.
+  /** The sign over the board names the day it shows. */
+  const boardTitle = sameDay(new Date(selectedDay), new Date())
+    ? 'Today'
+    : new Date(selectedDay).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'short' });
+
   const dayList = useMemo(() => {
     const out: Array<{ ts: number; date: Date; workMin: number }> = [];
     const t0 = startOfDayMs(now);
@@ -861,7 +847,7 @@ export default function GuildFeed() {
       <div className="page">
         {/* Header row */}
         <div className="mb-1 flex items-center gap-3">
-          <h1 className="page-title flex-1">Guild Feed</h1>
+          <h1 className="page-title flex-1">Route</h1>
           <FeedActionsMenu
             loading={loading}
             onReflow={() => generate()}
@@ -985,7 +971,7 @@ export default function GuildFeed() {
             <CalendarDays size={48} strokeWidth={1.5} className="opacity-60" aria-hidden />
             <p className="font-semibold" style={{ color: 'var(--color-text)' }}>No schedule yet</p>
             <p className="text-sm" style={{ color: 'var(--color-muted)' }}>
-              Hit Regenerate to build today's plan from your quests.
+              Plot a route and your quests get a time each.
             </p>
             <button
               onClick={() => generate()}
@@ -1005,15 +991,26 @@ export default function GuildFeed() {
           <div className="panel px-6 py-10 text-center">
             <CloudSun size={28} strokeWidth={1.5} className="mx-auto mb-2 text-(--color-muted)" aria-hidden />
             <p className="font-semibold">Nothing planned for this day</p>
-            <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or replan from the menu.</p>
+            <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or reroute from the menu.</p>
           </div>
         )}
 
         {/* Stacked timeline */}
         {dayBlocks.length > 0 && (
+          <div>
+            <BoardSign title={boardTitle} />
+            <div
+              className="section-label grid items-center gap-3 border-b border-(--color-border) bg-(--color-surface) px-3 py-1.5 text-[12px]"
+              style={{ gridTemplateColumns: `${RAIL_PX}px minmax(0, 1fr) auto` }}
+              aria-hidden
+            >
+              <span>Time</span>
+              <span>Quest</span>
+              <span>Status</span>
+            </div>
           <div
-            className="flex flex-col"
-            style={{ gap: 6 }}
+            className="flex flex-col overflow-hidden rounded-b-(--radius-card) bg-(--color-border)"
+            style={{ gap: 1 }}
           >
             <AnimatePresence initial={false}>
               {dayBlocks.map((block, i) => {
@@ -1063,11 +1060,12 @@ export default function GuildFeed() {
               {nowMarkerIdx === dayBlocks.length && <NowMarker time={now} />}
             </AnimatePresence>
           </div>
+          </div>
         )}
 
         {generatedAt && (
           <p className="mt-4 text-center text-xs" style={{ color: 'var(--color-muted)' }}>
-            Last generated {new Date(generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            Route plotted {new Date(generatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </p>
         )}
       </div>

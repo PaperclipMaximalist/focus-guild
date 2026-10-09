@@ -1,60 +1,63 @@
 @import "tailwindcss";
 
-/* ── Devcave theme ───────────────────────────────────────────────────────────
- * The room a dev codes in at 1am: warm near-black, panes with hairline
- * borders, monospace chrome, and one amber phosphor accent that means
- * "this is the thing to do".
+/* ── Departures ──────────────────────────────────────────────────────────────
+ * The day as a station board on a wet night. Every quest is a departure with
+ * a time and a status; the board is the only thing lit.
  *
- * Token names are unchanged from the original theme, so every component that
+ * Token names are unchanged from the earlier themes, so every component that
  * reads var(--color-*) re-skins from here. Rules this file enforces:
- *   - no gradients, glows or glass
- *   - separation comes from space and a change of fill first; a border is a
- *     hairline, and a list is rows with dividers, not a stack of boxes
- *   - one accent (amber) means "act here"; other colours only carry status,
- *     and always with an icon or label
- *   - one typeface for reading and headings; mono only for clock times, codes
- *     and keys
- *   - full rounding only for real circles
+ *   - night navy ground, board-white text, and ONE signal yellow that means
+ *     "this is the one to act on" (the header sign, Start, the active row)
+ *   - status is a word in the status column (ON TIME, BOARDING, 3D LATE) with
+ *     a colour to match; a colour never appears without its word
+ *   - three faces, each with one job: Barlow Condensed for signage (headings,
+ *     labels, buttons, and every number that lines up), B612 Mono for the
+ *     status column only, Atkinson Hyperlegible for anything you read (quest
+ *     titles, sentences). Titles are never set in capitals.
+ *   - a list is rows on one board parted by hairlines, not a stack of boxes
+ *   - corners are nearly square, like enamel signs; full rounding only for
+ *     real circles
+ *   - no gradients, glows or glass. The one piece of atmosphere is the
+ *     platform scene (components/NightPlatform.tsx), which can be turned off.
  * ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-bg:        #100F0E;
-  --color-surface:   #191816;
-  --color-surface2:  #22201D;
-  /* Hairline: enough to end a surface, not enough to draw a box around it. */
-  --color-border:    #2B2824;
+  --color-bg:        #070B16;
+  --color-surface:   #0E1526;
+  --color-surface2:  #172038;
+  /* Hairline between rows of the board. */
+  --color-border:    #1D2743;
   /* Things you type into or press need an edge you can find. */
-  --color-border-strong: #3F3A33;
-  --color-text:      #E8E3D8;
-  --color-muted:     #A69F91;
+  --color-border-strong: #34426A;
+  --color-text:      #F2EFE3;
+  --color-muted:     #8E99B8;
 
-  /* Amber phosphor — primary action, current item, the cursor. */
-  --color-primary:    #F2B33D;
-  --color-primary-d:  #C98E22;
-  --color-on-primary: #17110A;
+  /* Signal yellow: the header sign, the primary action, the row now boarding. */
+  --color-primary:    #FFD23A;
+  --color-primary-d:  #DDB21C;
+  --color-on-primary: #0A0F1C;
 
   /* Rank colour: only the rank badge and XP bar wear it (see lib/theme.ts). */
-  --color-rank: #8A8478;
+  --color-rank: #8E99B8;
 
-  /* Status. `gold` is the attention colour (warnings, blocked, review due) —
-     orange rather than yellow so it never reads as the amber accent. */
-  --color-gold:  #EC835A;
-  --color-gold-d: #C9653F;
-  --color-fire:  #EB6A61;
-  --color-green: #3FB950;
-  --color-teal:  #3AB48A;
-  --color-blue:  #5B9EEA;
+  /* Status. `gold` is attention (amber signal), `fire` is late, `green` is on time. */
+  --color-gold:  #FF9F45;
+  --color-gold-d: #D97F2B;
+  --color-fire:  #FF7566;
+  --color-green: #62E08A;
+  --color-teal:  #4FD1B5;
+  --color-blue:  #6AA8FF;
 
-  --radius-card: 12px;
-  --radius-sm: 5px;
-  --radius-md: 8px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 14px;
-  --radius-3xl: 18px;
+  --radius-card: 6px;
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 5px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+  --radius-3xl: 10px;
 
   --font-sans: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
-  --font-mono: 'Martian Mono', 'Cascadia Code', ui-monospace, Consolas, monospace;
-  --font-display: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'B612 Mono', 'Cascadia Mono', ui-monospace, Consolas, monospace;
+  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Segoe UI', system-ui, sans-serif;
 }
 
 /* One easing curve for everything that moves: quick to start, soft to land. */
@@ -91,14 +94,15 @@ html, body, #root {
   overflow-x: hidden;
 }
 
-/* Headings read in the same face as everything else, just heavier and
-   tighter. (They were monospace: every page title looked like a terminal.) */
+/* Headings are signage: condensed capitals, a little open. */
 h1, h2, h3 {
   font-family: var(--font-display);
-  letter-spacing: -0.015em;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+  line-height: 1.05;
   text-wrap: balance;
 }
-h1 { font-weight: 750; letter-spacing: -0.022em; }
 
 /* ── Shared pieces ───────────────────────────────────────────────────────
    The few shapes every page uses, so pages stop inventing their own. */
@@ -116,14 +120,15 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
 @media (min-width: 1024px) { .page { padding: 2.25rem 2rem 4rem; } }
 .page-wide { max-width: 68rem; }
 
-.page-title { font-size: 1.625rem; line-height: 1.15; }
-@media (min-width: 1024px) { .page-title { font-size: 1.875rem; } }
+.page-title { font-size: 2rem; line-height: 1; }
+@media (min-width: 1024px) { .page-title { font-size: 2.375rem; } }
 
 /* Small label over a group of rows. */
 .section-label {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--color-muted);
 }
@@ -158,6 +163,9 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
 }
 
 .btn-primary {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -167,8 +175,8 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
   border-radius: var(--radius-md);
   background: var(--color-primary);
   color: var(--color-on-primary);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 600;
   transition: background-color 120ms var(--ease), scale 120ms var(--ease);
 }
 @media (hover: hover) { .btn-primary:hover { background: color-mix(in srgb, var(--color-primary) 90%, white); } }
@@ -177,6 +185,9 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
 
 /* Strong but not the accent: for "add", so the accent is left for "do this now". */
 .btn-strong {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -186,14 +197,17 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
   border-radius: var(--radius-md);
   background: var(--color-text);
   color: var(--color-bg);
-  font-size: 0.875rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 600;
   transition: opacity 120ms var(--ease), scale 120ms var(--ease);
 }
 @media (hover: hover) { .btn-strong:hover { opacity: 0.9; } }
 .btn-strong:active { scale: 0.97; }
 
 .btn-quiet {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -203,7 +217,7 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
   border-radius: var(--radius-md);
   background: var(--color-surface2);
   color: var(--color-text);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 600;
   transition: background-color 120ms var(--ease), scale 120ms var(--ease);
 }
@@ -217,7 +231,36 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
   animation: skeleton 1.4s ease-in-out infinite;
 }
 
-.tnum { font-variant-numeric: tabular-nums; }
+/* Numbers that line up: times, durations, counts. Signage figures, because a
+   monospace colon leaves a hole in every clock time ("8: 20"). */
+.tnum { font-family: var(--font-display); font-size: 1.12em; font-variant-numeric: tabular-nums; letter-spacing: 0.025em; }
+
+/* The status column. Always a word; the colour only repeats it. */
+.status {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* The sign over a board: page name on the left, the clock on the right. */
+.board-sign {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.875rem;
+  border-radius: var(--radius-card) var(--radius-card) 0 0;
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+.board-sign h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.05em; }
+.board-sign + .panel { border-top-left-radius: 0; border-top-right-radius: 0; }
+
+/* A flap turning over: a digit or a status that has just changed. */
+.flap { display: inline-block; animation: flap 0.22s var(--ease); transform-origin: 50% 50%; }
 }
 
 kbd {
@@ -231,9 +274,6 @@ kbd {
 
 code { font-family: var(--font-mono); font-size: 0.92em; }
 
-/* Martian Mono is wide at its default width; the condensed cut keeps
-   monospace chrome from crowding phone-width rows. */
-.font-mono, code, kbd { font-stretch: 81.25%; }
 
 ::selection { background: var(--color-primary); color: var(--color-on-primary); }
 
@@ -267,6 +307,11 @@ input, select, textarea { accent-color: var(--color-primary); }
 @keyframes skeleton {
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.45; }
+}
+
+@keyframes flap {
+  from { transform: rotateX(88deg); opacity: 0.2; }
+  to   { transform: rotateX(0deg);  opacity: 1; }
 }
 
 /* The tick lands with a small press, once. */

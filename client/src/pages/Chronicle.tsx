@@ -69,7 +69,7 @@ export default function Chronicle() {
     <div className="mx-auto flex max-w-2xl flex-col gap-5 p-4 pb-32">
       <header>
         <h1 className="flex items-center gap-2 text-2xl font-extrabold leading-tight">
-          <ScrollText size={22} aria-hidden /> Chronicle
+          <ScrollText size={22} aria-hidden /> Logbook
         </h1>
         <p className="text-xs" style={muted}>
           What happened, who you are, and one bundle to hand an AI

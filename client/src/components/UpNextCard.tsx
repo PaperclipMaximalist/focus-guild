@@ -75,7 +75,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
         <CalendarDays size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">Nothing planned for the rest of today</span>
-          <span className="block text-xs text-(--color-muted)">Open the Feed to plan the day</span>
+          <span className="block text-xs text-(--color-muted)">Open the Route to plot the day</span>
         </span>
         <ChevronRight size={16} className="shrink-0 text-(--color-muted)" aria-hidden />
       </Link>
@@ -106,7 +106,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
         style={isActive ? { boxShadow: 'inset 0 0 0 1.5px var(--color-primary)' } : undefined}
       >
         <p className="section-label" style={{ color: 'var(--color-primary)' }}>
-          {isActive ? 'Now' : 'Up next'}
+          {isActive ? 'Now boarding' : 'Next stop'}
         </p>
         <p className="mt-1.5 text-[17px] font-bold leading-snug">{quest.title}</p>
         <p className="tnum mt-0.5 text-[13px] text-(--color-muted)">{subtitle}</p>
@@ -121,7 +121,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
             </button>
           )}
           <Link to="/feed" className="btn-quiet min-h-10">
-            See the day
+            See the route
           </Link>
         </div>
       </div>

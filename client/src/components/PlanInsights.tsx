@@ -104,7 +104,7 @@ export function PlanInsights({ insights, onChanged }: { insights: Insights | nul
             <span className="flex-1">{note}</span>
             {overdue && (
               <Link to="/rescue" className="shrink-0 font-bold" style={{ color: 'var(--color-primary)' }}>
-                Rescue
+                Stragglers
               </Link>
             )}
           </div>

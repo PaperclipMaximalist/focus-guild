@@ -60,8 +60,8 @@ export function QuickAddBar() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
-          placeholder="Add a quest… 2h by fri !high"
-          aria-label="Quick add a quest"
+          placeholder="Jot a quest… 2h by fri !high"
+          aria-label="Jot down a quest"
           className="h-9 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-(--color-muted)"
           style={{ color: 'var(--color-text)' }}
           disabled={busy}

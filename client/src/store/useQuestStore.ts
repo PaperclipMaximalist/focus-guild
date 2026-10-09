@@ -107,6 +107,8 @@ export const useQuestStore = create<QuestState>((set, get) => ({
   complete: async (id) => {
     const result = await api.quests.complete(id);
     duckReact('questDone');
+    // A finished quest is a departure: the platform scene lets its train go.
+    window.dispatchEvent(new CustomEvent('fg:departed'));
     const movedQuest = get().quests.find((q) => q.id === id);
     set({
       quests: get().quests.filter((q) => q.id !== id),

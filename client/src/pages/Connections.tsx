@@ -120,7 +120,7 @@ function CalendarsSection({ calendars, onChange, fail }: { calendars: CalendarSo
       if (res.error) {
         pushToast({ title: 'Connected, but the first sync failed', sub: res.error, icon: TriangleAlert, variant: 'error' });
       } else {
-        pushToast({ title: `${res.calendar.name} connected`, sub: `${res.count ?? 0} busy events found. Reflow the Feed to plan around them`, icon: CalendarDays, variant: 'xp' });
+        pushToast({ title: `${res.calendar.name} connected`, sub: `${res.count ?? 0} busy events found. Reroute to plan around them`, icon: CalendarDays, variant: 'xp' });
       }
       onChange();
     } catch (err) {
@@ -168,7 +168,7 @@ function CalendarsSection({ calendars, onChange, fail }: { calendars: CalendarSo
           <CalendarDays size={15} aria-hidden /> Calendars
         </h2>
         <p className="mt-1 text-xs leading-snug" style={muted}>
-          Timed events become fixed blocks on the Feed, and the planner works around them. All-day and "show as free"
+          Timed events become fixed stops on your Route, and the planner works around them. All-day and "show as free"
           events are ignored. Feeds refresh every 15 minutes.
         </p>
       </div>
@@ -344,7 +344,7 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
           <Inbox size={15} aria-hidden /> Inbox
         </h2>
         <p className="mt-1 text-xs leading-snug" style={muted}>
-          A private address other apps can send items to. They land in your Parking Lot, not your active list, so
+          A private address other apps can send items to. They land in your Stash, not your active list, so
           capturing something never commits you to it. The same token publishes your plan as a calendar feed and
           lets the Claude Desktop connector read your Guild.
         </p>
@@ -399,7 +399,7 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
           New flow → trigger "When I am mentioned in a channel message" (or "When a new chat message is added") → add
           action <b>HTTP</b>: method POST, URI = the address, header <code>Authorization</code> = <code>Bearer</code> +
           your token, body <code>{'{"title": "Teams", "body": <message preview>}'}</code>. Add <code>?source=teams</code>{' '}
-          to the address to label it in the Chronicle. The HTTP action may need a premium licence; a school licence often
+          to the address to label it in the Logbook. The HTTP action may need a premium licence; a school licence often
           includes it.
         </HelpItem>
         <HelpItem title="iPhone Shortcuts / Android">

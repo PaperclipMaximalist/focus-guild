@@ -125,7 +125,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
     if (await run(() => scheduleItem(item.id))) {
       sfxStart();
       pushToast({
-        title: 'Sent to the feed',
+        title: 'Added to your route',
         sub: item.nextAction ?? item.title,
         icon: Zap,
         variant: 'xp',
@@ -265,7 +265,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
         >
           {inFeed && (
             <Link to="/feed" className="font-semibold underline-offset-2 hover:underline">
-              <span className="inline-flex items-center gap-1.5"><Zap size={12} aria-hidden /> In the Guild Feed</span>
+              <span className="inline-flex items-center gap-1.5"><Zap size={12} aria-hidden /> On your route</span>
             </Link>
           )}
           {questDone && <span className="inline-flex items-center gap-1.5"><CircleCheck size={12} aria-hidden /> Last scheduled step done</span>}

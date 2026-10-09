@@ -84,7 +84,7 @@ export default function Rescue() {
       pushToast({
         icon: LifeBuoy,
         title: `+${result.xpAwarded} XP`,
-        sub: 'Rescue cleared',
+        sub: 'One less straggler',
         variant: 'xp',
       });
       if (result.newlyUnlocked && result.newlyUnlocked.length > 0) {
@@ -122,7 +122,7 @@ export default function Rescue() {
     try {
       await Promise.all(rescue.map((q) => api.quests.extendDeadline(q.id, 7)));
       setRescue([]);
-      pushToast({ icon: Sparkles, title: 'Rescued', sub: `All ${rescue.length} pushed +7d`, variant: 'xp' });
+      pushToast({ icon: Sparkles, title: 'Rounded up', sub: `All ${rescue.length} pushed a week`, variant: 'xp' });
     } finally {
       setBusyId(null);
     }
@@ -131,9 +131,9 @@ export default function Rescue() {
   return (
     <div>
       <div className="page">
-        <h1 className="page-title">Rescue</h1>
+        <h1 className="page-title">Stragglers</h1>
         <p className="mb-5 mt-1.5 text-sm" style={{ color: 'var(--color-muted)' }}>
-          Overdue quests, longest overdue first. Push the date, finish it, or drop it.
+          Quests that fell behind, longest first. Push the date, finish it, or drop it.
         </p>
 
         {rescue.length > 0 && (

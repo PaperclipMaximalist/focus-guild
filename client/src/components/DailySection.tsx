@@ -38,7 +38,7 @@ export function DailySection({ onEdit }: Props) {
       pushToast({
         icon: Repeat,
         title: `+${result.xpAwarded} XP`,
-        sub: 'Daily quest done',
+        sub: 'Round done',
         variant: 'xp',
       });
       if (result.newlyUnlocked && result.newlyUnlocked.length > 0) {
@@ -70,7 +70,7 @@ export function DailySection({ onEdit }: Props) {
     <section className="mt-7">
       <div className="mb-2.5 flex items-center gap-2">
         <h2 className="section-label flex flex-1 items-center gap-1.5">
-          <Repeat size={13} strokeWidth={2.25} aria-hidden /> Routines
+          <Repeat size={13} strokeWidth={2.25} aria-hidden /> Rounds
         </h2>
         <span className="tnum text-xs text-(--color-muted)">
           {done.length} of {recurring.length} done

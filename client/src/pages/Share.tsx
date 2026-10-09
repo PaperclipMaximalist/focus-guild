@@ -68,7 +68,7 @@ export default function Share() {
 
       {state === 'saved' && (
         <p className="flex items-center gap-2 rounded-(--radius-card) border p-3 text-sm" style={card}>
-          <Check size={16} aria-hidden style={{ color: 'var(--color-green)' }} /> Saved to your parking lot.
+          <Check size={16} aria-hidden style={{ color: 'var(--color-green)' }} /> Saved to your stash.
         </p>
       )}
 
@@ -98,7 +98,7 @@ export default function Share() {
           className="flex-1 rounded-xl py-3 text-sm font-bold disabled:opacity-40"
           style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
-          {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : 'Save to parking lot'}
+          {state === 'saving' ? 'Saving…' : state === 'saved' ? 'Saved' : 'Save to stash'}
         </button>
         <Link
           to="/tracker"

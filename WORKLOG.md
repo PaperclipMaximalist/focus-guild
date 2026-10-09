@@ -217,6 +217,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Audited the client against that list: 19 font sizes with 31 uses under 11 px; 11 browser `confirm()` boxes; "Loading…" as plain text on six screens; several accent-filled buttons per view; hover styles and 22–32 px targets on touch; `transition: all` in eight places; a pop-in that grew from a dot; a can't-connect screen that told the user to run `npm run dev`.
 - Fixed all of it: one type scale; delete with Undo and arm-then-fire instead of confirm boxes (unit-tested); skeletons; a plain-language error screen with Try again; one accent per view; the tick answers instantly; touch targets, tap and hover behaviour; one easing curve; page titles per route. The rules are in the Bible → "Craft checklist".
 - Four candidate looks were mocked up first (Daybook, Departures, Guildhall, Margins); the owner liked the last three. They come next, built on this pass.
+- Later the same day the owner chose: dark only, Departures, "some train in the rainy night animations", and yes to the new words. Built: the Departures theme (navy, board white, signal yellow; Barlow Condensed, B612 Mono, Atkinson); Route and quest lists as board rows with a true status word (On time, Boarding, 3d late), unit-tested; a yellow sign with a clock that flips on the minute; the night platform on Today, where a train waits while a block is boarding and leaves when a quest is completed, with an off switch; and the route vocabulary across every label (Feed → Route, Replan → Reroute, Rescue → Stragglers, Tracker → Expeditions, Check-in → Fuel check, Stats → Mileage, Chronicle → Logbook…), labels only.
 
 
 | Phase | What | When |
@@ -241,6 +242,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 14 | Population lab; triage, reconcile, focus window, chronotypes | Sep 26 |
 | 15 | Agent team: night hours, estimates, quest sessions, replans, honest reasons, fuzz lab | Oct 3 – Oct 6 |
 | 16 | UI refresh: app shell, list rows, calmer theme | Oct 6 |
+| 17 | Design research and craft pass; Departures theme, night platform, route vocabulary | Oct 8 |
 
 ---
 

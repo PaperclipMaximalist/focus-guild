@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { type Quest } from '../lib/api';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
+import { questStatus, TONE_COLOR } from '../lib/departure';
 import { CalendarDays, Check, ListChecks, Pencil, Trash2 } from 'lucide-react';
 
 interface Props {
@@ -61,6 +62,7 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
     Promise.resolve(onComplete()).catch(() => setDone(false));
   };
   const score = quest.priorityScore ?? 0;
+  const status = questStatus(quest.deadline);
   const tier = priorityTier(score);
 
   const deadline = formatDeadline(quest.deadline);
@@ -168,12 +170,13 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
               <Trash2 size={14} aria-hidden />
             </button>
           </span>
-          <span
-            className="tnum w-8 text-right text-[13px] font-semibold"
-            title="Priority score"
-            style={{ color: tier === 'critical' ? 'var(--color-fire)' : tier === 'high' ? 'var(--color-gold)' : 'var(--color-muted)' }}
-          >
-            {score.toFixed(1)}
+          <span className="flex flex-col items-end gap-1">
+            <span className="status" style={{ color: TONE_COLOR[status.tone] }}>
+              {status.label}
+            </span>
+            <span className="tnum text-[11px] leading-none text-(--color-muted)" title="Priority score">
+              {score.toFixed(1)}
+            </span>
           </span>
         </div>
       )}

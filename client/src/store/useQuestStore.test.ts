@@ -7,7 +7,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../lib/api', () => ({
-  api: { quests: { delete: vi.fn(() => Promise.resolve()) } },
+  api: { quests: { delete: vi.fn(() => Promise.resolve(null)) } },
 }));
 
 import { api, type Quest } from '../lib/api';
@@ -21,7 +21,7 @@ const del = vi.mocked(api.quests.delete);
 beforeEach(() => {
   vi.useFakeTimers();
   del.mockClear();
-  del.mockImplementation(() => Promise.resolve());
+  del.mockImplementation(() => Promise.resolve(null));
   useToastStore.setState({ toasts: [] });
   useQuestStore.setState({ quests: [quest('a'), quest('b'), quest('c')], recurring: [], completed: [] });
 });

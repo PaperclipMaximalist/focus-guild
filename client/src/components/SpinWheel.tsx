@@ -89,7 +89,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
             }}
           >
             <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--color-text)' }}>
-              <span className="inline-flex items-center gap-1.5"><Dices size={20} aria-hidden /> Spin the Wheel</span>
+              <span className="inline-flex items-center gap-1.5"><Dices size={20} aria-hidden /> Dealer’s choice</span>
             </h2>
             <p className="text-xs mb-4" style={{ color: 'var(--color-muted)' }}>
               Random quest, weighted by priority. Let the dice decide.

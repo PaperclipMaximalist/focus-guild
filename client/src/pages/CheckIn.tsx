@@ -44,7 +44,7 @@ export default function CheckIn() {
   return (
     <div className="mx-auto max-w-xl px-4 py-8 flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold text-(--color-text)">Daily Check-In</h1>
+        <h1 className="text-3xl font-bold text-(--color-text)">Fuel check</h1>
         <p className="mt-2 text-(--color-muted)">
           How's your brain today? This shapes how the Guild orders your quests.
         </p>

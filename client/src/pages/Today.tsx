@@ -16,6 +16,8 @@ import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
 import { LevelUpSplash } from '../components/LevelUpSplash';
 import { duckReact } from '../store/useMascotStore';
+import { NightPlatform } from '../components/NightPlatform';
+import { isSceneEnabled, subscribeScene } from '../lib/scene';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
 import { UpNextCard } from '../components/UpNextCard';
@@ -31,8 +33,8 @@ import type { LucideIcon } from 'lucide-react';
 import { BatteryMedium, ChevronDown, ChevronRight, Dices, Flame, LifeBuoy, Plus, Star } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
 
-/** How many quests Today lists before "show more". */
-const TOP_N = 7;
+/** How many quests Today lists before "show more": the Bible's hard rule is five. */
+const TOP_N = 5;
 
 /** A slim, tappable line for something that wants attention but isn't an alarm. */
 function NoticeRow({ to, icon: Icon, title, sub, tone }: { to: string; icon: LucideIcon; title: string; sub: string; tone?: string }) {
@@ -70,6 +72,8 @@ export default function Today() {
   const [overdueCount, setOverdueCount] = useState(0);
   const [detailQuest, setDetailQuest] = useState<Quest | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [scene, setScene] = useState(isSceneEnabled());
+  useEffect(() => subscribeScene(() => setScene(isSceneEnabled())), []);
 
   useEffect(() => {
     api.quests.rescue().then((r) => setOverdueCount(r.length)).catch(() => {});
@@ -171,19 +175,27 @@ export default function Today() {
   // backlog lives on the Quests page.
   const shown = showAll ? quests : quests.slice(0, TOP_N);
 
+  const masthead = (
+    <>
+      <p className="section-label">{dateLabel}</p>
+      <h1 className="page-title mt-1">{greeting}</h1>
+      <p className="mt-1.5 text-[13px] text-(--color-muted)">
+        {quests.length === 0
+          ? 'Nothing on the list yet'
+          : `${quests.length} active ${quests.length === 1 ? 'quest' : 'quests'}`}
+        {completionsToday > 0 && ` · ${completionsToday} done today`}
+      </p>
+    </>
+  );
+
   return (
     <>
       <div className="page page-wide">
-        <header>
-          <p className="text-[13px] font-medium text-(--color-muted)">{dateLabel}</p>
-          <h1 className="page-title mt-0.5">{greeting}</h1>
-          <p className="mt-1.5 text-sm text-(--color-muted)">
-            {quests.length === 0
-              ? 'Nothing on the list yet.'
-              : `${quests.length} active ${quests.length === 1 ? 'quest' : 'quests'}`}
-            {completionsToday > 0 && ` · ${completionsToday} done today`}
-          </p>
-        </header>
+        {scene ? (
+          <NightPlatform caution={overdueCount > 0}>{masthead}</NightPlatform>
+        ) : (
+          <header>{masthead}</header>
+        )}
 
         <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,1fr)_288px]">
           <div className="min-w-0">
@@ -196,8 +208,8 @@ export default function Today() {
                   <NoticeRow
                     to="/checkin"
                     icon={BatteryMedium}
-                    title="Check in for today"
-                    sub="Your energy and free time set how much gets planned"
+                    title="Fuel check"
+                    sub="Your energy and free time set how far today’s route goes"
                   />
                 )}
                 {overdueCount > 0 && (
@@ -205,8 +217,8 @@ export default function Today() {
                     to="/rescue"
                     icon={LifeBuoy}
                     tone="var(--color-fire)"
-                    title={`${overdueCount} overdue`}
-                    sub="Push a date, finish one, or drop one"
+                    title={`${overdueCount} ${overdueCount === 1 ? 'straggler' : 'stragglers'}`}
+                    sub="Quests that fell behind. Round them up"
                   />
                 )}
               </div>
@@ -222,7 +234,7 @@ export default function Today() {
                 <h2 className="section-label flex-1">Top quests</h2>
                 {quests.length > 1 && (
                   <button type="button" onClick={() => setSpinOpen(true)} className="btn-quiet h-8 min-h-0 px-2.5 text-xs">
-                    <Dices size={14} aria-hidden /> Pick for me
+                    <Dices size={14} aria-hidden /> Dealer’s choice
                   </button>
                 )}
                 <Link to="/quests" className="btn-quiet h-8 min-h-0 px-2.5 text-xs">

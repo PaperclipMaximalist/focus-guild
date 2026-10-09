@@ -40,17 +40,17 @@ interface Item {
 /** The phone bar: five, because a sixth makes every target too small to hit. */
 const PRIMARY: Item[] = [
   { to: '/', icon: House, label: 'Today' },
-  { to: '/feed', icon: CalendarDays, label: 'Feed' },
+  { to: '/feed', icon: CalendarDays, label: 'Route' },
   { to: '/quests', icon: ListChecks, label: 'Quests' },
-  { to: '/tracker', icon: MapIcon, label: 'Tracker' },
-  { to: '/stats', icon: ChartColumn, label: 'Stats' },
+  { to: '/tracker', icon: MapIcon, label: 'Expeditions' },
+  { to: '/stats', icon: ChartColumn, label: 'Mileage' },
 ];
 
 /** Sidebar only. On a phone these are reached from Today, Stats and the top bar. */
 const SECONDARY: Item[] = [
-  { to: '/rescue', icon: LifeBuoy, label: 'Rescue' },
+  { to: '/rescue', icon: LifeBuoy, label: 'Stragglers' },
   { to: '/trophies', icon: Trophy, label: 'Trophies' },
-  { to: '/chronicle', icon: ScrollText, label: 'Chronicle' },
+  { to: '/chronicle', icon: ScrollText, label: 'Logbook' },
   { to: '/settings', icon: SettingsIcon, label: 'Settings' },
 ];
 

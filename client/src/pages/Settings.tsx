@@ -30,6 +30,7 @@ import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/
 import { useMascotStore } from '../store/useMascotStore';
 import { ChevronRight, Plug, RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
 import { useArmed } from '../lib/useArmed';
+import { isSceneEnabled, setSceneEnabled } from '../lib/scene';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -190,7 +191,7 @@ export default function Settings() {
       <header>
         <h1 className="page-title">Settings</h1>
         <p className="mt-1.5 text-sm text-(--color-muted)">
-          How the planner builds your day. Changes apply the next time the Feed replans. The defaults are good; only
+          How the planner builds your day. Changes apply the next time you reroute. The defaults are good; only
           move what bothers you.
         </p>
       </header>
@@ -319,6 +320,7 @@ function ExperienceSection() {
   const [sfx, setSfx] = useState(isSfxEnabled());
   const [haptics, setHaptics] = useState(isHapticsEnabled());
   const [rankTheme, setRankTheme] = useState(isRankThemeEnabled());
+  const [scene, setScene] = useState(isSceneEnabled());
 
   useEffect(() => {
     const unsubSfx = subscribeSfx(() => { setSfx(isSfxEnabled()); setHaptics(isHapticsEnabled()); });
@@ -331,6 +333,12 @@ function ExperienceSection() {
       <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
         Saved instantly to this device.
       </p>
+      <Toggle
+        label="Rain and trains"
+        hint="The night platform on Today: a train waits while a block is boarding and leaves when you finish a quest. Off removes it and all of its motion."
+        on={scene}
+        onChange={(v) => { setSceneEnabled(v); setScene(v); }}
+      />
       <Toggle
         label="Sound effects"
         hint="Plays a little chime when you finish a quest, level up, or unlock an achievement."

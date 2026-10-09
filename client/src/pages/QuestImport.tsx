@@ -77,7 +77,7 @@ export default function QuestImport() {
       sfxClick();
       pushToast({
         title: `${res.created} quest${res.created === 1 ? '' : 's'} added`,
-        sub: 'Regenerate the Feed to schedule them',
+        sub: 'Reroute to give them a time',
         icon: ListPlus,
         variant: 'xp',
       });
@@ -205,7 +205,7 @@ export default function QuestImport() {
 
       <p className="text-xs leading-snug" style={muted}>
         Everything lands as an active quest with a 30-minute estimate unless a duration says otherwise. Nothing is
-        scheduled until you regenerate the Feed. Either the whole list imports or none of it does.
+        scheduled until you reroute. Either the whole list imports or none of it does.
       </p>
     </div>
   );
