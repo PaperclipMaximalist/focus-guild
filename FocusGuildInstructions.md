@@ -163,7 +163,7 @@ Never commit .env files. Never log API keys.
 ## Current Build Phase
 [Update this at the end of every session. History lives in WORKLOG.md and git; this section is the current state only.]
 
-**As of 2026-10-06: everything below is built, deployed and live.** Production is `main` (merged from `presets-and-chronicle` on 2026-10-06), auto-deployed from `main` (Railway server + Vercel client). The open work, and three parked branches with unfinished work, are in `PLAN.md`.
+**As of 2026-10-08: everything below is built. Production is `main` @ `29783f0` (deployed 2026-10-06), auto-deployed from `main` (Railway server + Vercel client).** The working branch `presets-and-chronicle` is ahead of it and not deployed yet: a quest's max session, routines with no hour (one time of day; they step aside for a short deadline), a meal gap at midday, and `/health` reporting the commit. The open work, and a finished branch that waits on a decision, are in `PLAN.md`.
 
 ### Live
 - Client: https://focus-guild-ten.vercel.app · Server: https://focus-guild-production.up.railway.app (`/health`)
@@ -177,7 +177,7 @@ Never commit .env files. Never log API keys.
 | Quests | CRUD, quick-add grammar (`2h by fri #tag !high`), sub-quests, Not Today (held to tomorrow, revived at the user's midnight), Rescue for overdue, bulk text import (`/quests/import`) | `routes/quests.ts`, `lib/deferral.ts`, `client/src/lib/quickAdd.ts`, `pages/{Today,Quests,QuestImport,Rescue}.tsx` |
 | XP & ranks | XP, streaks, 7 ranks, 14 achievements, Trophy Room, rank theming, SFX/haptics, duck mascot, Lucide icons, "devcave" theme | `lib/{xp,streak,achievements,evalAndUnlock}.ts`, `pages/Trophies.tsx`, `components/mascot` |
 | Guild Feed | Timeline with live countdown, drag/pin/delete, "why now" reason per block, plan insights (overdue, routines crowding, backlog pace, working-hours suggestion, estimate calibration), energy sparkline | `pages/GuildFeed.tsx`, `components/PlanInsights.tsx`, `routes/schedule.ts` |
-| Scheduler | budget → construct → reconcile → reflow; triage when deadlines can't all fit, real sittings, breaks, peak hours and a best-energy window for heavy work, chronotypes, pacing, deadline preemption, calendar + routine fixed blocks, self-correcting estimates | `server/src/lib/scheduler/` (see its README + SCHEDULER_PSEUDOCODE.md), `scripts/scenario-lab.ts`, `scripts/population-lab.ts` |
+| Scheduler | budget → construct → reconcile → reflow; triage when deadlines can't all fit, real sittings, breaks, peak hours and a best-energy window for heavy work, chronotypes, pacing, deadline preemption, calendar + routine fixed blocks (a routine with no hour keeps one time of day and steps aside for a short deadline), a meal gap at midday, self-correcting estimates | `server/src/lib/scheduler/` (see its README + SCHEDULER_PSEUDOCODE.md), `scripts/scenario-lab.ts`, `scripts/population-lab.ts`, `scripts/fuzz-lab.ts` |
 | Focus timer | Persists across refresh; logs focused minutes (pauses excluded) on Done / "Stop for now, keep progress" → `actualMinutes` | `components/FocusTimer.tsx`, `POST /quests/:id/focus` |
 | Tracker + CAS | Long-horizon items with codes, 5 statuses (editable labels), active cap, domains, parking lot, decision log, CAS lens (7×3 matrix, strands, interviews), presets + preset packs (IB Guild / Bad-week minimal / Projects & work), add templates, markdown export/import, "Schedule as quest" | `routes/tracker.ts`, `lib/tracker/*`, `pages/Tracker*.tsx`, `client/src/lib/trackerPacks.ts` |
 | Chronicle | Activity log (written as a side effect of real actions), journal, versioned permafile, AI context bundle, Ask the Guild (Claude, tap-to-apply suggestions) | `routes/chronicle.ts`, `lib/{activity,chronicle}.ts`, `pages/Chronicle.tsx` |
@@ -191,7 +191,7 @@ Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle 
 
 ### How to run, test, ship
 - Local: two terminals. `cd server && npm run dev` (port 3000), `cd client && npm run dev` (open **http://127.0.0.1:5173**, not localhost). No Clerk needed: `server/.env.local` and `client/.env.local` switch to dev auth (`dev-member-001`).
-- Tests: `cd server && npm test` (332 + 1 expected fail, which pins a known bug) · `cd client && npm test` (16) · for the scheduler, from `server/`: **`npm run lab`** (hand-written weeks, 3 findings is the baseline), **`npm run lab:pop -- --week --history`** (simulated people living a week, graded against the best possible) and **`npm run lab:fuzz`** (adversarial inputs and edit/replan sequences). Run all three before and after any scheduler change.
+- Tests: `cd server && npm test` (348) · `cd client && npm test` (16) · for the scheduler, from `server/`: **`npm run lab`** (hand-written weeks, 3 findings is the baseline), **`npm run lab:pop -- --week --history`** (simulated people living a week, graded against the best possible) and **`npm run lab:fuzz`** (adversarial inputs and edit/replan sequences). Run all three before and after any scheduler change.
 - Ship: merge to `main` and push; Railway runs `prisma migrate deploy` on boot. Migrations must be **idempotent** (a failing one takes the server down). The Prisma schema engine can't reach Neon from this Windows machine; the Neon HTTP driver works for reads.
 - AI features (Quest Decomposer, Ask the Guild) need `ANTHROPIC_API_KEY` on the server; without it they return 503 with a clear message. Model: `AI_MODEL` in `server/src/lib/ai.ts` (`claude-opus-5`).
 
@@ -204,7 +204,7 @@ Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle 
 - More in the Claude Code memory file for this project and in `DEPLOY.md`.
 
 ### Open work
-See `PLAN.md` → "Still open": the no-change replan that still adds work, max session, untimed routines and meals, learning the energy curve, plus ops (Neon password rotation, Neon dev branch, Clerk production keys, `ANTHROPIC_API_KEY`).
+See `PLAN.md` → "Still open": the no-change replan (fixed on a branch, waiting on a decision about breaks), what is left of routines and the meal gap (a Settings switch), learning the energy curve, plus ops (Neon password rotation, Neon dev branch, Clerk production keys, `ANTHROPIC_API_KEY`). Deploy check: `GET /health` returns the commit that is running.
 
 ## Live Daily Schedule Engine ("The Guild Feed")
 

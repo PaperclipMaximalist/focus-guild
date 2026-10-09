@@ -206,6 +206,16 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Result on seed 7 (1 000 people, returning users): deadlines met 59.0% → 64.2%; a perfect follower at 94.4% of the best possible (was 90.1%); same quest picked up 3+ times a day 33% → 6%; 8+ switches a day 19% → 5%; finishing the last block adds more work 45% → 1.5%; false reasons ~50% → 0. Night-shift workers: an empty plan → 70% of deadlines met. Tests: 332 server (+1 expected fail) and 16 client. Checked in a browser at phone width (Settings picker, Feed tiles with reasons), then deployed.
 - Not finished, parked on branches: max-session cap, untimed routines and meals, learning the energy curve, and the no-change replan (cause known). See PLAN.md.
 
+### Tue–Thu 2026-10-06 → 10-08 — Follow-up round (one session, no agents; hours not measured)
+- Worked the handover list in order, each step through all three labs before and after.
+- **Max session**: the parked fix held in the labs (population lab unchanged; fuzz 7.4% → 1.1% of cases) and was merged. Its whole-minute clock had two side effects the fuzz lab caught: a quest due later the same minute lost its warning (fixed), and the judge counted the last seconds of a block in progress (judge aligned).
+- **No-change replan**: instrumented both labs to tally what a second replan adds. Not one cause but two: rests after kept blocks, and a budget that hands long-term work one more sitting per pass. Four variants measured. The one that works (rests kept, breaks yield to a meetable deadline, passes repeat until stable) takes the invariants to 0 and `no-break after a replan` from 55% to 16%, and costs half a point of deadlines met, because the lab's people don't tire. Over the limit, so it is parked on `replan-keeps-breaks` for the owner to decide.
+- **Routines**: one time of day for a routine with no hour; it steps aside for a deadline the plan is short on. Deadlines met 64.2% → 65.2%.
+- **Meal gap**: 30 minutes kept free at midday. `no-meal-gap` (new lab check) 16.9% → 0.2% of people; deadlines met 65.2% → 65.0%.
+- `/health` reports the running commit. The planner crash of `e8809fd` reduced to a two-quest repro: any quest with a fractional number of minutes left (every learned estimate) and a later-due quest on the same day.
+- Result on seed 7 (1 000 people): deadlines met 64.2% → 65.0%; a perfect follower 77.5% → 79.1%, 94.4% → 95.0% of the best possible. Fresh seeds, never used for tuning: seed 88 (600 returning users) 64.1% → 65.3%, seed 41 (600 new users) 57.2% → 58.4%, night-shift workers 69.9% → 71.3%; no crashes. Tests: 348 server, 16 client. Not deployed.
+- Another session was editing the same checkout (quick-add grammar, quest import). Its files were left alone; commits here are by explicit path.
+
 ## Phases, as named in the project's own log
 
 | Phase | What | When |
@@ -229,6 +239,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 13 | Scenario lab, scheduler overhaul, insights, self-correcting estimates | Sep 24 – Sep 25 |
 | 14 | Population lab; triage, reconcile, focus window, chronotypes | Sep 26 |
 | 15 | Agent team: night hours, estimates, quest sessions, replans, honest reasons, fuzz lab | Oct 3 – Oct 6 |
+| 16 | Follow-up: max session, routines, meal gap, the replan decision | Oct 6 – Oct 8 |
 
 ---
 
