@@ -44,7 +44,8 @@ function task(id: string, over: Partial<Task> = {}): Task {
   };
 }
 
-const cfg = (over: Partial<UserConfig> = {}): UserConfig => ({ ...defaultConfig(), workingHours: hours, horizonDays: 3, ...over });
+/** No meal gap: these days are about routines and one deadline. */
+const cfg = (over: Partial<UserConfig> = {}): UserConfig => ({ ...defaultConfig(), workingHours: hours, horizonDays: 3, mealGap: undefined, ...over });
 const place = (fillers: DailyFiller[], now: number, existingFixed: Block[] = []) =>
   placeDailyFillers({ fillers, now, horizonDays: 3, workingHours: hours, existingFixed, tzOffsetMin: 0 });
 const timeOfDay = (b: Block) => (b.start - D0) % DAY;

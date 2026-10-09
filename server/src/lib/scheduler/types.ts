@@ -151,6 +151,12 @@ export interface UserConfig {
   workingHours: WorkingHours;
   horizonDays: number;
   /**
+   * Time kept free of quests for a meal: `minutes` somewhere between
+   * `fromHour` and `toHour`, on a day whose quest hours run through that
+   * span. Unset = none.
+   */
+  mealGap?: { fromHour: number; toHour: number; minutes: number };
+  /**
    * Soft cap on work block duration in minutes. Blocks longer than this
    * incur an oversize penalty unless the task has special circumstances
    * (very high urgency, high setupCost, or block exactly fills a tight slot).
