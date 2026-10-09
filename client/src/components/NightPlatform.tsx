@@ -1,16 +1,22 @@
 /**
- * The platform at night, in the rain. The one piece of atmosphere in the app.
+ * The platform at night, in the rain, somewhere that isn't here: a quiet
+ * maglev stop under a ringed moon, a far city, slow lights crossing the sky.
+ * The one piece of atmosphere in the app.
  *
  * It is not decoration running on a loop: the train follows what you are
  * doing.
- *   - A block is boarding (in progress) → a train pulls in and waits.
- *   - You finish a quest → it pulls out. (With nothing waiting, one runs
+ *   - A block is boarding (in progress) → a train glides in and waits.
+ *   - You finish a quest → it leaves. (With nothing waiting, one runs
  *     through instead.)
  *   - Nothing going on → an express passes now and then, a minute or two
  *     apart, and once when you first open the app.
  *   - The signal at the end of the platform is green when nothing has fallen
  *     behind and amber when there are stragglers. The row under the scene
  *     says the same in words.
+ *
+ * The other-worldly parts are kept dim on purpose: the moon is one shade
+ * lighter than the sky, the city is a silhouette, the sky traffic is two
+ * slow points of light. You notice them the third time, not the first.
  *
  * It keeps out of the way: it stops drawing when scrolled off screen or when
  * the tab is hidden, holds a still frame for people who ask for reduced
@@ -25,22 +31,26 @@ import { useScheduleStore } from '../store/useScheduleStore';
 
 type Phase = 'away' | 'arriving' | 'stopped' | 'departing' | 'passing';
 
-const SKY = '#0A1122';
-const PLATFORM = '#111A30';
-const POLE = '#19233F';
+const SKY = '#070920';
+const MOON = '#0E1233';
+const CITY = '#0B0E29';
+const PLATFORM = '#0F1330';
+const POLE = '#1B2150';
 const SIGNAL_YELLOW = '#FFD23A';
-const BODY = '#1C2848';
-const BODY_LIT = '#293763';
-const UNDER = '#080D1A';
-const WINDOW = '#FFE2A6';
-const LAMP = '#FFEFC9';
-const RAIN = '196, 210, 242';
+const BODY = '#1A2152';
+const BODY_LIT = '#2C3680';
+const UNDER = '#04051A';
+/** The cold light everything here runs on. */
+const ICE = '#9FE8FF';
+const LAMP = '#DDEBFF';
+const RAIN = '190, 208, 255';
 
-const CAR_W = 172;
-const CAR_GAP = 5;
+const CAR_W = 186;
+const CAR_GAP = 2;
 const CARS = 3;
-const TRAIN_LEN = CARS * CAR_W + (CARS - 1) * CAR_GAP;
-const STOP_X = 14;
+const NOSE = 40;
+const TRAIN_LEN = NOSE + CARS * CAR_W + (CARS - 1) * CAR_GAP;
+const STOP_X = 12;
 
 const SEEN_KEY = 'fg:platform-greeted';
 
@@ -49,6 +59,8 @@ const easeIn = (k: number) => k ** 3;
 
 interface Drop { x: number; y: number; len: number; v: number; a: number; near: boolean }
 interface Splash { x: number; y: number; born: number }
+interface Tower { x: number; w: number; h: number; lights: Array<{ dx: number; dy: number; a: number }> }
+interface Craft { x: number; y: number; v: number }
 
 export function NightPlatform({ caution, children }: { caution: boolean; children?: ReactNode }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -75,7 +87,8 @@ export function NightPlatform({ caution, children }: { caution: boolean; childre
     let W = 0;
     let H = 0;
     let drops: Drop[] = [];
-    let lights: Array<{ x: number; y: number; w: number; a: number; warm: boolean }> = [];
+    let towers: Tower[] = [];
+    let craft: Craft[] = [];
     let splashes: Splash[] = [];
 
     const layout = () => {
@@ -95,13 +108,26 @@ export function NightPlatform({ caution, children }: { caution: boolean; childre
         a: 0.1 + rnd() * 0.2,
         near: i % 2 === 0,
       }));
-      lights = Array.from({ length: Math.round(W / 26) }, () => ({
-        x: rnd() * W,
-        y: H * 0.5 + rnd() * H * 0.16,
-        w: rnd() < 0.3 ? 2 : 1,
-        a: 0.2 + rnd() * 0.4,
-        warm: rnd() < 0.7,
-      }));
+      // The far city: slabs of slightly lighter night, a few lit floors each.
+      // Kept low on the left, where the words are, and allowed to rise on the right.
+      towers = [];
+      for (let tx = -6; tx < W; ) {
+        const w = 10 + Math.round(rnd() * 26);
+        const reach = tx < W * 0.55 ? 0.16 : 0.34;
+        const h = Math.round(H * (0.05 + rnd() * reach));
+        const n = rnd() < 0.75 ? 1 + Math.floor(rnd() * 3) : 0;
+        towers.push({
+          x: tx,
+          w,
+          h,
+          lights: Array.from({ length: n }, () => ({ dx: 2 + rnd() * (w - 4), dy: 3 + rnd() * (h - 5), a: 0.25 + rnd() * 0.45 })),
+        });
+        tx += w + Math.round(rnd() * 5);
+      }
+      craft = [
+        { x: W * 0.35, y: H * 0.13, v: -7 },
+        { x: W * 0.8, y: H * 0.26, v: 11 },
+      ];
       splashes = [];
     };
 
@@ -129,17 +155,17 @@ export function NightPlatform({ caution, children }: { caution: boolean; childre
       const endX = -TRAIN_LEN - 40;
 
       if (phase === 'arriving') {
-        x = startX + (STOP_X - startX) * easeOut(k(2800));
-        if (k(2800) >= 1) go('stopped', t);
+        x = startX + (STOP_X - startX) * easeOut(k(2600));
+        if (k(2600) >= 1) go('stopped', t);
       } else if (phase === 'stopped') {
         x = STOP_X;
         if (!boarding) go('departing', t);
       } else if (phase === 'departing') {
-        x = STOP_X + (endX - STOP_X) * easeIn(k(3200));
-        if (k(3200) >= 1) go('away', t);
+        x = STOP_X + (endX - STOP_X) * easeIn(k(2800));
+        if (k(2800) >= 1) go('away', t);
       } else if (phase === 'passing') {
-        x = startX + (endX - startX) * k(2300);
-        if (k(2300) >= 1) go('away', t);
+        x = startX + (endX - startX) * k(1700);
+        if (k(1700) >= 1) go('away', t);
       } else if (boarding && t >= holdUntil) {
         go('arriving', t);
       } else if (!boarding && t >= nextPassAt) {
@@ -155,33 +181,47 @@ export function NightPlatform({ caution, children }: { caution: boolean; childre
       ctx.fillRect(Math.round(px), Math.round(py), Math.round(w), Math.round(h));
     };
 
+    /** A maglev: one long low body, a wedge of a nose, a single band of cold light. */
     const drawTrain = (edgeY: number) => {
-      const carH = Math.round(H * 0.28);
-      const carY = edgeY - carH - 3;
-      const winW = 18;
-      const winH = Math.round(carH * 0.36);
-      const winY = carY + Math.round(carH * 0.2);
+      const carH = Math.round(H * 0.17);
+      const floatGap = 5;
+      const carY = edgeY - carH - floatGap - 4;
+      const bandY = carY + Math.round(carH * 0.32);
+      const bandH = Math.max(3, Math.round(carH * 0.14));
+
+      // Nose: a wedge, with the cab glass as a smaller wedge inside it.
+      if (x + NOSE > 0 && x < W) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = BODY;
+        ctx.beginPath();
+        ctx.moveTo(x, carY + carH);
+        ctx.lineTo(x + NOSE, carY);
+        ctx.lineTo(x + NOSE, carY + carH);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 0.85;
+        ctx.fillStyle = ICE;
+        ctx.beginPath();
+        ctx.moveTo(x + NOSE * 0.5, bandY + bandH);
+        ctx.lineTo(x + NOSE * 0.5 + bandH * 1.6, bandY);
+        ctx.lineTo(x + NOSE, bandY);
+        ctx.lineTo(x + NOSE, bandY + bandH);
+        ctx.closePath();
+        ctx.fill();
+        rect('#FFFFFF', x + 3, carY + carH - 4, 6, 2);
+      }
+
       for (let c = 0; c < CARS; c += 1) {
-        const cx = x + c * (CAR_W + CAR_GAP);
+        const cx = x + NOSE + c * (CAR_W + CAR_GAP);
         if (cx > W || cx + CAR_W < 0) continue;
-        rect(UNDER, cx + 10, carY + carH, CAR_W - 20, 3);
         rect(BODY, cx, carY, CAR_W, carH);
-        rect(BODY_LIT, cx, carY, CAR_W, 2);
-        rect(SIGNAL_YELLOW, cx, carY + carH - 9, CAR_W, 3, 0.55);
-        // Two doors and five windows a car; the door panes are narrower.
-        const slots = [10, 34, 62, 90, 114, 142];
-        slots.forEach((off, i) => {
-          const door = i === 0 || i === 5;
-          const w = door ? 12 : winW;
-          rect(WINDOW, cx + off, winY, w, door ? winH + 6 : winH, door ? 0.75 : 0.92);
-          // On the wet platform, each lit window is a long faint smear.
-          rect(WINDOW, cx + off, edgeY + 5, w, H - edgeY - 7, 0.085);
-        });
-        if (c === 0) {
-          rect(SIGNAL_YELLOW, cx + 34, carY + 5, 46, 5, 0.9);
-          rect('#FFFFFF', cx + 2, carY + carH - 17, 5, 5);
-          rect('#FFFFFF', cx - 2, edgeY + 5, 10, H - edgeY - 7, 0.1);
-        }
+        rect(BODY_LIT, cx, carY, CAR_W, 1);
+        // The window band, parted by thin posts.
+        rect(ICE, cx + 6, bandY, CAR_W - 12, bandH, 0.88);
+        for (let m = cx + 50; m < cx + CAR_W - 12; m += 44) rect(BODY, m, bandY, 2, bandH);
+        // It floats: a hairline of light under the body, and the band smeared on the wet platform.
+        rect(ICE, cx + 4, carY + carH + floatGap - 1, CAR_W - 8, 1, 0.5);
+        rect(ICE, cx + 6, edgeY + 5, CAR_W - 12, H - edgeY - 7, 0.06);
       }
       ctx.globalAlpha = 1;
     };
@@ -191,18 +231,46 @@ export function NightPlatform({ caution, children }: { caution: boolean; childre
       // The words sit top-left, so everything that stands up is kept to the right of them.
       const wide = W >= 560;
       const lampX = Math.round(W * (wide ? 0.6 : 0.76));
-      const lampY = Math.round(H * 0.2);
+      const lampY = Math.round(H * 0.22);
       const spread = 50;
 
       rect(SKY, 0, 0, W, H);
-      for (const l of lights) rect(l.warm ? WINDOW : '#A9C2FF', l.x, l.y, l.w, 1, l.a);
 
-      // Overhead wire and its masts, behind the train.
-      const wireY = edgeY - Math.round(H * 0.28) - 18;
-      if (wide) {
-        rect(POLE, Math.round(W * 0.44), wireY, W, 1);
-        rect(POLE, Math.round(W * 0.82), wireY - 6, 2, edgeY - wireY + 6);
+      // A ringed moon, one shade off the sky, half out of frame.
+      const mx = W * (wide ? 0.9 : 0.94);
+      const my = H * 0.2;
+      const mr = H * 0.36;
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = MOON;
+      ctx.beginPath();
+      ctx.arc(mx, my, mr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 0.5;
+      ctx.strokeStyle = POLE;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.ellipse(mx, my, mr * 1.55, mr * 0.2, -0.32, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Two slow lights crossing the sky, each with a short tail.
+      for (const c of craft) {
+        if (moving) {
+          c.x += c.v * dt;
+          if (c.x < -20) c.x = W + 20;
+          if (c.x > W + 20) c.x = -20;
+        }
+        rect(ICE, c.x - Math.sign(c.v) * 7, c.y, 7, 1, 0.16);
+        rect(ICE, c.x, c.y, 2, 1, 0.75);
       }
+
+      // The far city.
+      for (const b of towers) {
+        rect(CITY, b.x, edgeY - b.h, b.w, b.h);
+        for (const l of b.lights) rect(ICE, b.x + l.dx, edgeY - b.h + l.dy, 1, 1, l.a * 0.6);
+      }
+      // One beacon on the tallest tower, breathing slowly.
+      const tall = towers.reduce((a, b) => (b.h > a.h ? b : a), towers[0]!);
+      if (tall && (!moving || Math.floor(t / 1300) % 2 === 0)) rect('#FF7566', tall.x + tall.w / 2, edgeY - tall.h - 3, 2, 2, 0.8);
 
       const rain = (near: boolean) => {
         ctx.lineWidth = near ? 1.2 : 1;
@@ -229,32 +297,35 @@ export function NightPlatform({ caution, children }: { caution: boolean; childre
 
       rain(false);
       rect(PLATFORM, 0, edgeY, W, H - edgeY);
+      // The guideway the train floats over, with a thread of light along it.
+      rect(UNDER, 0, edgeY - 4, W, 4);
+      rect(ICE, 0, edgeY - 4, W, 1, 0.22);
       if (phase !== 'away') drawTrain(edgeY);
       // The yellow line you stand behind.
       rect(SIGNAL_YELLOW, 0, edgeY, W, 2, 0.9);
-      rect(SIGNAL_YELLOW, 0, edgeY + 6, W, 1, 0.18);
+      rect(SIGNAL_YELLOW, 0, edgeY + 6, W, 1, 0.16);
 
       // Platform lamp, its pool of light, and its smear on the wet ground.
-      ctx.globalAlpha = 0.055;
+      ctx.globalAlpha = 0.05;
       ctx.fillStyle = LAMP;
       ctx.beginPath();
-      ctx.moveTo(lampX - 7, lampY + 4);
-      ctx.lineTo(lampX + 7, lampY + 4);
+      ctx.moveTo(lampX - 7, lampY + 3);
+      ctx.lineTo(lampX + 7, lampY + 3);
       ctx.lineTo(lampX + spread, edgeY);
       ctx.lineTo(lampX - spread, edgeY);
       ctx.closePath();
       ctx.fill();
       rect(POLE, lampX - 1, lampY, 2, H - lampY);
-      rect(LAMP, lampX - 8, lampY, 16, 4);
-      rect(LAMP, lampX - 14, edgeY + 5, 28, H - edgeY - 7, 0.06);
+      rect(LAMP, lampX - 9, lampY, 18, 2);
+      rect(LAMP, lampX - 14, edgeY + 5, 28, H - edgeY - 7, 0.05);
 
       // The signal: green when nothing has fallen behind, amber when something has.
       const sigX = W - 26;
-      const sigY = Math.round(H * 0.4);
+      const sigY = Math.round(H * 0.44);
       rect(POLE, sigX + 3, sigY, 2, edgeY - sigY);
       rect(UNDER, sigX, sigY - 20, 8, 20);
       ctx.globalAlpha = 1;
-      ctx.fillStyle = live.current.caution ? '#FF9F45' : '#62E08A';
+      ctx.fillStyle = live.current.caution ? '#FF9F45' : '#5EE6A8';
       ctx.beginPath();
       ctx.arc(sigX + 4, sigY - (live.current.caution ? 13 : 6), 2.6, 0, Math.PI * 2);
       ctx.fill();

@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
 /* ── Departures ──────────────────────────────────────────────────────────────
- * The day as a station board on a wet night. Every quest is a departure with
- * a time and a status; the board is the only thing lit.
+ * The day as a station board on a wet night, a little way into the future and
+ * a long way from here. Every quest is a departure with a time and a status;
+ * the board is the only thing lit.
+ *
+ * The future is in the details, not on the surface: a violet-blue night
+ * instead of black, cold white instead of cream, squared letterforms, one cut
+ * corner on the sign and on the primary button. Nothing glows.
  *
  * Token names are unchanged from the earlier themes, so every component that
  * reads var(--color-*) re-skins from here. Rules this file enforces:
@@ -10,7 +15,7 @@
  *     "this is the one to act on" (the header sign, Start, the active row)
  *   - status is a word in the status column (ON TIME, BOARDING, 3D LATE) with
  *     a colour to match; a colour never appears without its word
- *   - three faces, each with one job: Barlow Condensed for signage (headings,
+ *   - three faces, each with one job: Saira Condensed for signage (headings,
  *     labels, buttons, and every number that lines up), B612 Mono for the
  *     status column only, Atkinson Hyperlegible for anything you read (quest
  *     titles, sentences). Titles are never set in capitals.
@@ -21,15 +26,15 @@
  *     platform scene (components/NightPlatform.tsx), which can be turned off.
  * ─────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-bg:        #070B16;
-  --color-surface:   #0E1526;
-  --color-surface2:  #172038;
+  --color-bg:        #06081A;
+  --color-surface:   #0C1027;
+  --color-surface2:  #151A3B;
   /* Hairline between rows of the board. */
-  --color-border:    #1D2743;
+  --color-border:    #1C2249;
   /* Things you type into or press need an edge you can find. */
-  --color-border-strong: #34426A;
-  --color-text:      #F2EFE3;
-  --color-muted:     #8E99B8;
+  --color-border-strong: #363E78;
+  --color-text:      #E8EEFF;
+  --color-muted:     #8C96C6;
 
   /* Signal yellow: the header sign, the primary action, the row now boarding. */
   --color-primary:    #FFD23A;
@@ -37,15 +42,15 @@
   --color-on-primary: #0A0F1C;
 
   /* Rank colour: only the rank badge and XP bar wear it (see lib/theme.ts). */
-  --color-rank: #8E99B8;
+  --color-rank: #8C96C6;
 
   /* Status. `gold` is attention (amber signal), `fire` is late, `green` is on time. */
-  --color-gold:  #FF9F45;
+  --color-gold:  #FFA24D;
   --color-gold-d: #D97F2B;
   --color-fire:  #FF7566;
-  --color-green: #62E08A;
-  --color-teal:  #4FD1B5;
-  --color-blue:  #6AA8FF;
+  --color-green: #5EE6A8;
+  --color-teal:  #57D9C7;
+  --color-blue:  #7DB4FF;
 
   --radius-card: 6px;
   --radius-sm: 2px;
@@ -57,7 +62,7 @@
 
   --font-sans: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
   --font-mono: 'B612 Mono', 'Cascadia Mono', ui-monospace, Consolas, monospace;
-  --font-display: 'Barlow Condensed', 'Arial Narrow', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Saira Condensed', 'Arial Narrow', 'Segoe UI', system-ui, sans-serif;
 }
 
 /* One easing curve for everything that moves: quick to start, soft to land. */
@@ -172,14 +177,16 @@ h1, h2, h3 {
   gap: 0.4rem;
   min-height: 2.5rem;
   padding: 0 0.95rem;
-  border-radius: var(--radius-md);
-  background: var(--color-primary);
+  border-radius: var(--radius-md) var(--radius-md) 0 var(--radius-md);
+  --fill: var(--color-primary);
+  /* The same cut corner as the sign, bottom right. */
+  background: linear-gradient(315deg, transparent 6px, var(--fill) 6.5px);
   color: var(--color-on-primary);
   font-size: 1rem;
   font-weight: 600;
   transition: background-color 120ms var(--ease), scale 120ms var(--ease);
 }
-@media (hover: hover) { .btn-primary:hover { background: color-mix(in srgb, var(--color-primary) 90%, white); } }
+@media (hover: hover) { .btn-primary:hover { --fill: color-mix(in srgb, var(--color-primary) 88%, white); } }
 .btn-primary:active { scale: 0.97; }
 .btn-primary:disabled { opacity: 0.4; }
 
@@ -252,8 +259,10 @@ h1, h2, h3 {
   gap: 0.75rem;
   min-height: 2.75rem;
   padding: 0.25rem 0.875rem;
-  border-radius: var(--radius-card) var(--radius-card) 0 0;
-  background: var(--color-primary);
+  /* One corner cut off, the way a machined plate would be. A hard-stopped
+     gradient rather than clip-path, so the focus ring is not clipped away. */
+  border-radius: var(--radius-card) 0 0 0;
+  background: linear-gradient(225deg, transparent 9px, var(--color-primary) 9.5px);
   color: var(--color-on-primary);
 }
 .board-sign h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.05em; }
