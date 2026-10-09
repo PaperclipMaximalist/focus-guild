@@ -212,6 +212,12 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - What changed: sidebar on wide screens and five tabs on phones; one slim top bar with the duck in it; Today leads with the next action and a short list; quests, routines, completed and overdue as rows in one surface; the Feed as a time rail with capped heights and outlined routines; the quest editor as a bottom sheet with one-tap deadlines and a three-button priority; softer borders, larger radii, headings in the reading face; arrow and tick glyphs replaced with icons. Rules written into the Bible.
 - Done in a separate worktree because a second session was committing scheduler work in the main checkout at the same time.
 
+### Thu 2026-10-08 — Design research, then the craft pass (≈2 h, branch `ui-refresh`)
+- The owner rejected the refresh too ("looks horrible and vibe coded") and asked for research on what good app design is before any new look. Read Vercel's and Rauno Freiberg's interface guidelines, "Family Values", Refactoring UI, Emil Kowalski on motion, and write-ups of the tells of generated interfaces. The finding that mattered: the tells are not a colour, they are undecided defaults and missing behaviour.
+- Audited the client against that list: 19 font sizes with 31 uses under 11 px; 11 browser `confirm()` boxes; "Loading…" as plain text on six screens; several accent-filled buttons per view; hover styles and 22–32 px targets on touch; `transition: all` in eight places; a pop-in that grew from a dot; a can't-connect screen that told the user to run `npm run dev`.
+- Fixed all of it: one type scale; delete with Undo and arm-then-fire instead of confirm boxes (unit-tested); skeletons; a plain-language error screen with Try again; one accent per view; the tick answers instantly; touch targets, tap and hover behaviour; one easing curve; page titles per route. The rules are in the Bible → "Craft checklist".
+- Four candidate looks were mocked up first (Daybook, Departures, Guildhall, Margins); the owner liked the last three. They come next, built on this pass.
+
 
 | Phase | What | When |
 |---|---|---|

@@ -122,7 +122,7 @@ function BreakLine({ block }: { block: ScheduleBlock }) {
 
   return (
     <div
-      className="flex w-full items-center gap-2 text-[0.7rem] text-(--color-muted)"
+      className="flex w-full items-center gap-2 text-[12px] text-(--color-muted)"
       style={{ height, paddingLeft: RAIL_PX + 12 }}
       title={`${block.durationMin}-minute ${isBuffer ? 'free slot' : 'break'}`}
     >
@@ -145,7 +145,7 @@ function NowMarker({ time }: { time: number }) {
     >
       <div className="flex-1 h-[2px] bg-(--color-fire)" />
       <motion.span
-        className="mx-2 px-3 py-1 rounded-md text-[0.65rem] font-bold uppercase tracking-wider"
+        className="mx-2 px-3 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider"
         style={{ background: 'var(--color-fire)', color: 'var(--color-on-primary)' }}
       >
         <span className="inline-flex items-center gap-1"><Clock size={11} aria-hidden /> Now · {new Date(time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</span>
@@ -242,12 +242,12 @@ function BlockTile({
             eye can run down one column of times. */}
         <div className="tnum shrink-0 pt-2.5 text-right" style={{ width: RAIL_PX }}>
           <div
-            className="text-[0.78rem] font-semibold leading-none"
+            className="text-[13px] font-semibold leading-none"
             style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text)' }}
           >
             {formatTime(startD)}
           </div>
-          <div className="mt-1 text-[0.68rem] leading-none text-(--color-muted)">{formatMinutes(block.durationMin)}</div>
+          <div className="mt-1 text-[11px] leading-none text-(--color-muted)">{formatMinutes(block.durationMin)}</div>
         </div>
 
         <div
@@ -276,7 +276,7 @@ function BlockTile({
           {/* Progress bar (active only) */}
           {isActive && (
             <div
-              className="absolute bottom-0 left-0 h-[3px] transition-all duration-1000"
+              className="absolute bottom-0 left-0 h-[3px] transition-[width] duration-1000"
               style={{ width: `${pctDone}%`, background: 'var(--color-primary)' }}
             />
           )}
@@ -286,7 +286,7 @@ function BlockTile({
               <div className="flex min-w-0 items-center gap-1.5">
                 {isRoutine && <Repeat size={12} className="shrink-0 text-(--color-muted)" aria-label="Routine" />}
                 <span
-                  className={`min-w-0 font-semibold leading-snug ${isCompact || (block.reason && height < TWO_LINE_TITLE_MIN_PX) ? 'truncate' : 'line-clamp-2'} ${isRoutine ? 'text-[0.875rem] text-(--color-muted)' : 'text-[0.9375rem]'}`}
+                  className={`min-w-0 font-semibold leading-snug ${isCompact || (block.reason && height < TWO_LINE_TITLE_MIN_PX) ? 'truncate' : 'line-clamp-2'} ${isRoutine ? 'text-[14px] text-(--color-muted)' : 'text-[15px]'}`}
                 >
                   {title}
                 </span>
@@ -294,17 +294,17 @@ function BlockTile({
               {/* Most blocks are 25–50 min, i.e. compact: the "why now" has to
                   live here or nobody ever sees it (it used to need a 70-min block). */}
               {block.reason && !isActive && !isPast && (
-                <div className="mt-0.5 truncate text-[0.75rem] text-(--color-muted)">{block.reason}</div>
+                <div className="mt-0.5 truncate text-[12px] text-(--color-muted)">{block.reason}</div>
               )}
               {isActive && (
-                <div className="tnum mt-1 inline-flex items-center gap-1 text-[0.8rem] font-bold" style={{ color: 'var(--color-primary)' }}>
+                <div className="tnum mt-1 inline-flex items-center gap-1 text-[13px] font-bold" style={{ color: 'var(--color-primary)' }}>
                   <Timer size={13} aria-hidden /> {formatCountdown(msRemaining)} left
                 </div>
               )}
             </div>
 
             {!isCompact && (
-              <div className="flex items-center gap-2 text-[0.7rem] text-(--color-muted)">
+              <div className="flex items-center gap-2 text-[12px] text-(--color-muted)">
                 {quest && (
                   <span className="flex gap-[3px]" title="Mental load" aria-hidden>
                     {[1, 2, 3, 4, 5].map((i) => (
@@ -426,7 +426,7 @@ function FeedActionsMenu({
               style={{ color: 'var(--color-text)' }}
             >
               <span className="inline-flex items-center gap-1.5"><RotateCw size={14} aria-hidden /> Reflow day</span>
-              <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
+              <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                 Rebuild from scratch in priority order
               </div>
             </button>
@@ -436,7 +436,7 @@ function FeedActionsMenu({
               style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
             >
               <span className="inline-flex items-center gap-1.5"><RefreshCw size={14} aria-hidden /> Re-fit remaining</span>
-              <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
+              <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                 Keep pins + completed; re-flow the rest
               </div>
             </button>
@@ -447,7 +447,7 @@ function FeedActionsMenu({
               style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
             >
               <span className="inline-flex items-center gap-1.5"><Clock9 size={14} aria-hidden /> Working hours…</span>
-              <div className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
+              <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                 Set when the planner places blocks
               </div>
             </a>
@@ -477,14 +477,14 @@ function DayChip({
         minWidth: 60,
       }}
     >
-      <span className="text-[0.65rem] font-bold uppercase tracking-wide" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
+      <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
         {isToday ? 'Today' : wkday}
       </span>
       <span className="text-lg font-bold leading-none" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-text)' }}>
         {day}
       </span>
       {workMin > 0 && (
-        <span className="tnum text-[0.62rem]" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
+        <span className="tnum text-[11px]" style={{ color: active ? 'var(--color-on-primary)' : 'var(--color-muted)' }}>
           {Math.round(workMin / 60 * 10) / 10}h
         </span>
       )}
@@ -623,7 +623,7 @@ function SelectedDrawer({
 
       <div className="p-4">
         <div className="flex items-start gap-2 mb-2">
-          <span className="text-[0.62rem] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', boxShadow: `inset 3px 0 0 ${hue}` }}>
+          <span className="text-[11px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0" style={{ background: 'var(--color-bg)', color: 'var(--color-text)', boxShadow: `inset 3px 0 0 ${hue}` }}>
             {typeLabel(block)}
           </span>
           <div className="flex-1 min-w-0">
@@ -956,7 +956,7 @@ export default function GuildFeed() {
                       return 'color-mix(in srgb, var(--color-primary) 55%, transparent)';
                     }}
                     footer={(
-                      <div className="flex items-center gap-2 text-[0.6rem]" style={{ color: 'var(--color-muted)' }}>
+                      <div className="flex items-center gap-2 text-[11px]" style={{ color: 'var(--color-muted)' }}>
                         <span>Load:</span>
                         <span className="flex items-center gap-1">
                           <span className="w-2 h-2 rounded-sm" style={{ background: 'rgba(58,180,138,0.6)' }} />

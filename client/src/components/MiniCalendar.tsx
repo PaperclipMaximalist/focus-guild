@@ -118,7 +118,7 @@ export function MiniCalendar({ value, onChange, markers = [], minDate, intensity
         {WEEKDAY_LETTERS.map((d, i) => (
           <div
             key={i}
-            className="text-center text-[10px] font-semibold uppercase tracking-wide"
+            className="text-center text-[11px] font-semibold uppercase tracking-wide"
             style={{ color: 'var(--color-muted)' }}
           >
             {d}

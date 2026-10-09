@@ -29,6 +29,7 @@ import {
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
 import { ChevronRight, Plug, RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
+import { useArmed } from '../lib/useArmed';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -84,6 +85,7 @@ export default function Settings() {
   const [overrides, setOverrides] = useState<Partial<SchedulerConfigShape>>({});
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const { armed, fire } = useArmed();
 
   useEffect(() => {
     api.settings
@@ -156,7 +158,6 @@ export default function Settings() {
   };
 
   const handleReset = async () => {
-    if (!confirm('Reset all settings to defaults?')) return;
     setResetting(true);
     try {
       await api.settings.reset();
@@ -168,7 +169,13 @@ export default function Settings() {
   };
 
   if (!loaded || !defaults || !current) {
-    return <div className="p-8" style={{ color: 'var(--color-muted)' }}>Loading…</div>;
+    return (
+      <div className="page flex flex-col gap-5" aria-busy="true" aria-label="Loading settings">
+        <div className="skeleton h-8 w-36" />
+        <div className="skeleton h-16" />
+        <div className="skeleton h-72" />
+      </div>
+    );
   }
 
   const updateWeight = (k: keyof ScoreWeights, v: number) => {
@@ -283,12 +290,12 @@ export default function Settings() {
         </span>
         <div className="flex gap-2">
           <button
-            onClick={handleReset}
+            onClick={() => fire('reset', handleReset)}
             disabled={resetting}
             className="text-xs rounded-md border px-3 py-1.5 font-semibold disabled:opacity-40"
             style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
           >
-            {resetting ? '…' : <span className="inline-flex items-center gap-1.5"><RotateCcw size={12} aria-hidden /> Reset all</span>}
+            {resetting ? '…' : <span className="inline-flex items-center gap-1.5"><RotateCcw size={12} aria-hidden /> {armed === 'reset' ? 'Tap again to reset' : 'Reset all'}</span>}
           </button>
           <button
             onClick={handleSave}
@@ -369,7 +376,7 @@ function Toggle({
         style={{ background: on ? 'var(--color-primary)' : 'rgba(255,255,255,0.12)' }}
       >
         <span
-          className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-all"
+          className="absolute top-0.5 h-5 w-5 rounded-full bg-white transition-[left,transform]"
           style={{ left: on ? '22px' : '2px' }}
         />
       </button>
@@ -418,7 +425,7 @@ function SliderRow({
         <div className="flex items-center gap-1.5">
           <span className="text-sm" style={{ color: 'var(--color-text)' }}>{label}</span>
           <InfoTip>{help}</InfoTip>
-          <span className="text-[0.7rem]" style={{ color: 'var(--color-muted)' }}>
+          <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
             (default {defaultValue})
           </span>
         </div>

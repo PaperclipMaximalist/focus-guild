@@ -62,7 +62,7 @@ export function QuickAddBar() {
           onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
           placeholder="Add a quest… 2h by fri !high"
           aria-label="Quick add a quest"
-          className="h-9 min-w-0 flex-1 bg-transparent text-[0.9375rem] outline-none placeholder:text-(--color-muted)"
+          className="h-9 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-(--color-muted)"
           style={{ color: 'var(--color-text)' }}
           disabled={busy}
         />
@@ -86,13 +86,13 @@ export function QuickAddBar() {
             className="overflow-hidden"
           >
             <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-7">
-              <span className="text-[0.65rem]" style={{ color: 'var(--color-muted)' }}>
+              <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                 {parsed.title || '(no title yet)'}
               </span>
               {parsed.chips.map((c, i) => (
                 <span
                   key={i}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[0.65rem] font-semibold"
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold"
                   style={{ background: 'color-mix(in srgb, var(--color-primary) 14%, transparent)', color: 'var(--color-primary)' }}
                 >
                   <c.icon size={11} aria-hidden /> {c.label}

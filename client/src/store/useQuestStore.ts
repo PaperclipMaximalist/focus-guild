@@ -1,4 +1,9 @@
 import { create } from 'zustand';
+import { Trash2, TriangleAlert } from 'lucide-react';
+import { useToastStore } from '../components/Toasts';
+
+/** How long a deleted quest can still be brought back. Just under the toast's own lifetime. */
+const UNDO_WINDOW_MS = 5500;
 import { api, type Quest, type CompleteQuestResult, type QuestSchedulerHints } from '../lib/api';
 import { useScheduleStore } from './useScheduleStore';
 import { duckReact } from './useMascotStore';
@@ -32,6 +37,12 @@ interface QuestState {
   completeDaily: (id: string) => Promise<CompleteQuestResult>;
   notToday: (id: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  /**
+   * Take quests off the screen now, delete them a few seconds later, and offer
+   * Undo in between. Replaces "Are you sure?" boxes: nothing is lost by a
+   * slip, and nothing asks a question on the way to a deliberate delete.
+   */
+  removeWithUndo: (ids: string | string[], opts?: { onUndo?: () => void }) => void;
 }
 
 export const useQuestStore = create<QuestState>((set, get) => ({
@@ -129,6 +140,51 @@ export const useQuestStore = create<QuestState>((set, get) => ({
       quests: get().quests.filter((q) => q.id !== id),
       recurring: get().recurring.filter((q) => q.id !== id),
       completed: get().completed.filter((q) => q.id !== id),
+    });
+  },
+
+  removeWithUndo: (ids, opts) => {
+    const gone = new Set(Array.isArray(ids) ? ids : [ids]);
+    if (gone.size === 0) return;
+    const before = { quests: get().quests, recurring: get().recurring, completed: get().completed };
+    const keep = <T extends { id: string }>(list: T[]) => list.filter((q) => !gone.has(q.id));
+    set({ quests: keep(before.quests), recurring: keep(before.recurring), completed: keep(before.completed) });
+
+    let undone = false;
+    const timer = setTimeout(() => {
+      if (undone) return;
+      void Promise.all([...gone].map((id) => api.quests.delete(id))).catch(() => {
+        // The server said no: put them back rather than pretend.
+        set(before);
+        opts?.onUndo?.();
+        useToastStore.getState().push({ icon: TriangleAlert, title: "Couldn't delete", sub: 'Nothing was removed. Try again.', variant: 'error' });
+      });
+    }, UNDO_WINDOW_MS);
+
+    const title = [...before.quests, ...before.recurring, ...before.completed].find((q) => gone.has(q.id))?.title;
+    useToastStore.getState().push({
+      icon: Trash2,
+      title: gone.size === 1 ? 'Quest deleted' : `${gone.size} quests deleted`,
+      sub: gone.size === 1 && title ? title : 'Undo to bring them back',
+      variant: 'xp',
+      action: {
+        label: 'Undo',
+        run: () => {
+          undone = true;
+          clearTimeout(timer);
+          // Restore only what this delete took; leave later changes alone.
+          const back = <T extends { id: string }>(now: T[], was: T[]) => {
+            const have = new Set(now.map((q) => q.id));
+            return was.filter((q) => have.has(q.id) || gone.has(q.id)).map((q) => now.find((x) => x.id === q.id) ?? q);
+          };
+          set({
+            quests: back(get().quests, before.quests),
+            recurring: back(get().recurring, before.recurring),
+            completed: back(get().completed, before.completed),
+          });
+          opts?.onUndo?.();
+        },
+      },
     });
   },
 }));

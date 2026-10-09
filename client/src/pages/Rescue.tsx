@@ -21,6 +21,7 @@ import { useToastStore } from '../components/Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { levelFromXP } from '../lib/levels';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
+import { useArmed } from '../lib/useArmed';
 import { Check, ChevronsUp, Hourglass, LifeBuoy, Sparkles, Trash2 } from 'lucide-react';
 
 export default function Rescue() {
@@ -28,7 +29,8 @@ export default function Rescue() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const { complete, remove } = useQuestStore();
+  const { complete, removeWithUndo } = useQuestStore();
+  const { armed, fire } = useArmed();
   const { user, applyXPGain } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
   const addUnlocked = useAchievementsStore((s) => s.addUnlocked);
@@ -109,14 +111,13 @@ export default function Rescue() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Drop this quest entirely?')) return;
-    await remove(id);
+  const handleDelete = (id: string) => {
+    const was = rescue;
     setRescue((r) => r.filter((q) => q.id !== id));
+    removeWithUndo(id, { onUndo: () => setRescue(was) });
   };
 
   const handleBulkExtend = async () => {
-    if (!confirm(`Push all ${rescue.length} overdue quests forward by 7 days?`)) return;
     setBusyId('bulk');
     try {
       await Promise.all(rescue.map((q) => api.quests.extendDeadline(q.id, 7)));
@@ -138,18 +139,24 @@ export default function Rescue() {
         {rescue.length > 0 && (
           <div className="mb-4">
             <button
-              onClick={handleBulkExtend}
+              onClick={() => fire('bulk', handleBulkExtend)}
               disabled={busyId === 'bulk'}
               className="btn-quiet disabled:opacity-50"
             >
-              {busyId === 'bulk' ? '…' : <span className="inline-flex items-center gap-1.5"><ChevronsUp size={14} aria-hidden /> Push all {rescue.length} by a week</span>}
+              {busyId === 'bulk' ? '…' : <span className="inline-flex items-center gap-1.5"><ChevronsUp size={14} aria-hidden /> {armed === 'bulk' ? 'Tap again to push them all' : `Push all ${rescue.length} by a week`}</span>}
             </button>
           </div>
         )}
 
         {loading && (
-          <div className="text-center py-10" style={{ color: 'var(--color-muted)' }}>
-            Loading…
+          <div className="panel rows overflow-hidden" aria-busy="true" aria-label="Loading overdue quests">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="px-3.5 py-3">
+                <div className="skeleton h-4 w-3/5" />
+                <div className="skeleton mt-2 h-3 w-1/3" />
+                <div className="skeleton mt-3 h-8 w-4/5" />
+              </div>
+            ))}
           </div>
         )}
 
@@ -179,8 +186,8 @@ export default function Rescue() {
                 >
                   <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1">
-                      <p className="text-[0.9375rem] font-semibold leading-snug">{q.title}</p>
-                      <p className="tnum mt-0.5 text-[0.78rem] text-(--color-muted)">
+                      <p className="text-[15px] font-semibold leading-snug">{q.title}</p>
+                      <p className="tnum mt-0.5 text-[13px] text-(--color-muted)">
                         <span className="font-medium" style={{ color: 'var(--color-fire)' }}>{formatDeadline(q.deadline)}</span>
                         {' · '}{formatMinutes(q.estimatedMinutes)}
                       </p>

@@ -13,7 +13,7 @@ import { Check, Hourglass, ListPlus, MapIcon, Search, SquareCheck, Star, Trash2,
 type Sort = 'priority' | 'deadline' | 'created' | 'title';
 
 export default function Quests() {
-  const { quests, load, complete, remove } = useQuestStore();
+  const { quests, load, complete, removeWithUndo } = useQuestStore();
   const { applyXPGain } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
 
@@ -126,7 +126,6 @@ export default function Quests() {
 
   const bulkComplete = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`Complete ${selected.size} quests?`)) return;
     setBulkBusy(true);
     try {
       for (const id of selected) {
@@ -144,14 +143,8 @@ export default function Quests() {
 
   const bulkDelete = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} quests permanently?`)) return;
-    setBulkBusy(true);
-    try {
-      await Promise.all([...selected].map((id) => remove(id)));
-      clearSelection();
-    } finally {
-      setBulkBusy(false);
-    }
+    removeWithUndo([...selected]);
+    clearSelection();
   };
 
   const bulkExtend = async (days: number) => {
@@ -273,9 +266,7 @@ export default function Quests() {
                       setModalOpen(true);
                     }}
                     onOpen={() => setDetail(quest)}
-                    onDelete={() => {
-                      if (confirm('Remove this quest?')) remove(quest.id);
-                    }}
+                    onDelete={() => removeWithUndo(quest.id)}
                   />
                 </div>
               ))}

@@ -92,7 +92,7 @@ export default function CheckIn() {
         disabled={saving}
         className="rounded-lg bg-(--color-primary) px-4 py-3 font-medium text-(--color-on-primary) hover:bg-(--color-primary-d) disabled:opacity-40 transition-colors"
       >
-        {saving ? 'Saving…' : 'Save & view today'}
+        {saving ? 'Saving…' : 'Save and see today'}
       </button>
     </div>
   );

@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function DailySection({ onEdit }: Props) {
-  const { recurring, completeDaily, remove } = useQuestStore();
+  const { recurring, completeDaily, removeWithUndo } = useQuestStore();
   const { applyXPGain } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
   const addUnlockedToStore = useAchievementsStore((s) => s.addUnlocked);
@@ -131,9 +131,7 @@ export function DailySection({ onEdit }: Props) {
                   <Pencil size={14} aria-hidden />
                 </button>
                 <button
-                  onClick={() => {
-                    if (confirm('Delete this daily quest?')) remove(q.id);
-                  }}
+                  onClick={() => removeWithUndo(q.id)}
                   className="icon-btn h-8 w-8 max-lg:hidden"
                   title="Delete"
                   aria-label="Delete"

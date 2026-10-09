@@ -176,9 +176,9 @@ function Sidebar({
         Focus Guild
       </Link>
 
-      <button type="button" onClick={newQuest} className="btn-primary mb-4 w-full">
+      <button type="button" onClick={newQuest} className="btn-strong mb-4 w-full">
         <Plus size={16} strokeWidth={2.5} aria-hidden /> New quest
-        <span className="ml-auto rounded-[4px] bg-black/10 px-1.5 py-px text-[11px] font-semibold" aria-hidden>N</span>
+        <span className="ml-auto rounded-[4px] px-1.5 py-px text-[11px] font-semibold opacity-60" aria-hidden>N</span>
       </button>
 
       <nav className="flex flex-col gap-0.5">{PRIMARY.map((i) => row(i))}</nav>

@@ -155,7 +155,7 @@ export function CommandPalette() {
                 className="flex-1 bg-transparent text-sm outline-none"
                 style={{ color: 'var(--color-text)' }}
               />
-              <kbd className="rounded px-1.5 py-0.5 text-[0.62rem] font-mono" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-muted)' }}>
+              <kbd className="rounded px-1.5 py-0.5 text-[11px] font-mono" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-muted)' }}>
                 esc
               </kbd>
             </div>
@@ -176,7 +176,7 @@ export function CommandPalette() {
                   <c.icon size={18} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{c.label}</span>
                   {c.hint && (
-                    <kbd className="rounded px-1.5 py-0.5 text-[0.62rem] font-mono" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-muted)' }}>
+                    <kbd className="rounded px-1.5 py-0.5 text-[11px] font-mono" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-muted)' }}>
                       {c.hint}
                     </kbd>
                   )}

@@ -128,7 +128,13 @@ export default function Stats() {
   const last7DaysAvg = (last7DaysTotal / 7).toFixed(1);
 
   if (!user) {
-    return <div className="p-8 text-(--color-muted)">Loading…</div>;
+    return (
+      <div className="page flex flex-col gap-5" aria-busy="true" aria-label="Loading stats">
+        <div className="skeleton h-8 w-28" />
+        <div className="skeleton h-28" />
+        <div className="skeleton h-20" />
+      </div>
+    );
   }
 
   return (
@@ -168,11 +174,11 @@ export default function Stats() {
             const h = (count / last7Days.max) * 100;
             return (
               <div key={i} className="flex flex-col items-center justify-end gap-1 flex-1">
-                <span className="text-[10px] font-bold" style={{ color: 'var(--color-text)' }}>
+                <span className="text-[11px] font-bold" style={{ color: 'var(--color-text)' }}>
                   {count > 0 ? count : ''}
                 </span>
                 <div
-                  className="w-full rounded-t-md transition-all"
+                  className="w-full rounded-t-md transition-[height]"
                   style={{
                     height: `${Math.max(4, h)}%`,
                     background: count === 0
@@ -184,7 +190,7 @@ export default function Stats() {
                   }}
                 />
                 <span
-                  className="text-[10px]"
+                  className="text-[11px]"
                   style={{ color: isToday ? 'var(--color-gold)' : 'var(--color-muted)' }}
                 >
                   {weekdayLabel(date)}
@@ -469,7 +475,7 @@ function XPTrendChart({ trend }: { trend: XPTrend }) {
           ) : null,
         )}
       </svg>
-      <div className="flex items-center gap-4 mt-1 text-[10px]" style={{ color: 'var(--color-muted)' }}>
+      <div className="flex items-center gap-4 mt-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>
         <span className="flex items-center gap-1">
           <span className="inline-block h-2 w-2 rounded-sm" style={{ background: 'var(--color-primary)' }} /> daily XP
         </span>
@@ -485,7 +491,7 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="px-4">
       <p className="tnum text-xl font-bold leading-none">{value}</p>
-      <p className="mt-1.5 text-[0.72rem] text-(--color-muted)">{label}</p>
+      <p className="mt-1.5 text-[12px] text-(--color-muted)">{label}</p>
     </div>
   );
 }

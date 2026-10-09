@@ -459,7 +459,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
       <div className="text-lg font-extrabold" style={{ color }}>
         {value}
       </div>
-      <div className="text-[10px] uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
+      <div className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
         {label}
       </div>
     </div>

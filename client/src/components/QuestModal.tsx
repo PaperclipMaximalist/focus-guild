@@ -25,6 +25,9 @@ function loadToFive(load: number): number {
 }
 
 const LOAD_LABELS = ['', 'Easy', 'Mild', 'Medium', 'Hard', 'Brutal'];
+/** A mouse or trackpad: safe to focus a field without summoning an on-screen keyboard. */
+const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
+
 const CATEGORIES = [
   { value: 'deep_work', label: 'Deep work', desc: 'High focus, code/writing/design' },
   { value: 'comms', label: 'Comms', desc: 'Email, chats, meetings' },
@@ -281,7 +284,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label={editing ? 'Edit quest' : 'New quest'}
-            className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto rounded-t-2xl bg-(--color-surface) px-5 pt-4 sm:rounded-2xl sm:px-6 sm:pt-5"
+            className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto overscroll-contain rounded-t-2xl bg-(--color-surface) px-5 pt-4 sm:rounded-2xl sm:px-6 sm:pt-5"
           >
             <div className="mb-4 flex items-center gap-2">
               <h2 className="flex-1 text-lg font-bold">{editing ? 'Edit quest' : 'New quest'}</h2>
@@ -296,7 +299,11 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 placeholder="What do you need to do?"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                autoFocus
+                autoFocus={FINE_POINTER}
+                enterKeyHint="done"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && title.trim() && !saving) void save();
+                }}
               />
             </Field>
 
@@ -427,7 +434,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                       }}
                     >
                       <span className="block text-sm font-bold">{o.label}</span>
-                      <span className="block text-[0.68rem] opacity-75">{o.sub}</span>
+                      <span className="block text-[11px] opacity-75">{o.sub}</span>
                     </button>
                   );
                 })}
@@ -454,7 +461,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
               </Field>
               <div className="mb-4">
                 <div className="mb-1.5 flex items-center gap-1.5">
-                  <label className="text-[0.78rem] font-semibold text-(--color-muted)">
+                  <label className="text-[13px] font-semibold text-(--color-muted)">
                     Impact (1–10)
                   </label>
                   <InfoTip>
@@ -508,7 +515,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   >
                     {v}
                     <br />
-                    <span className="text-[0.6rem]">{LOAD_LABELS[v]}</span>
+                    <span className="text-[11px]">{LOAD_LABELS[v]}</span>
                   </button>
                 ))}
               </div>
@@ -699,7 +706,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         onChange={(e) => setTediousness(Number(e.target.value))}
                         className="w-full"
                       />
-                      <p className="text-[0.7rem] mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                      <p className="text-[12px] mt-0.5" style={{ color: 'var(--color-muted)' }}>
                         Higher = avoids stacking with other boring tasks.
                       </p>
                     </div>
@@ -728,7 +735,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         onChange={(e) => setSetupCost(Number(e.target.value))}
                         className="w-full"
                       />
-                      <p className="text-[0.7rem] mt-0.5" style={{ color: 'var(--color-muted)' }}>
+                      <p className="text-[12px] mt-0.5" style={{ color: 'var(--color-muted)' }}>
                         Higher = task hates being interrupted; prefers long chunks (≥0.7 lifts the 1.5h soft cap).
                       </p>
                     </div>
@@ -839,7 +846,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label className="mb-1.5 block text-[0.78rem] font-semibold text-(--color-muted)">
+    <label className="mb-1.5 block text-[13px] font-semibold text-(--color-muted)">
       {children}
     </label>
   );

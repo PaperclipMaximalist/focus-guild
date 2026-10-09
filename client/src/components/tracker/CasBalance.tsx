@@ -59,7 +59,7 @@ export function CasBalance({ balance, showHours }: { balance: StrandBalance[]; s
                 style={{ background: 'rgba(255,255,255,0.06)' }}
               >
                 <div
-                  className="h-full rounded-full transition-all"
+                  className="h-full rounded-full transition-[width]"
                   style={{
                     width: `${(b.totalDurationDays / maxDuration) * 100}%`,
                     background: STRAND_COLOR[b.strand],

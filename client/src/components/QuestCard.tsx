@@ -14,6 +14,7 @@
  * buttons here appear on hover, for a mouse.
  */
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { type Quest } from '../lib/api';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
@@ -21,7 +22,8 @@ import { CalendarDays, Check, ListChecks, Pencil, Trash2 } from 'lucide-react';
 
 interface Props {
   quest: Quest;
-  onComplete: () => void;
+  /** May return a promise; if it rejects, the tick is taken back. */
+  onComplete: () => void | Promise<unknown>;
   onEdit: () => void;
   onDelete: () => void;
   /** Optional: tap on the row opens the detail view. */
@@ -51,6 +53,13 @@ const RING: Record<ReturnType<typeof priorityTier>, string> = {
 const LOAD_LABEL = ['', 'Easy', 'Easy', 'Mild', 'Mild', 'Medium', 'Medium', 'Hard', 'Hard', 'Brutal', 'Brutal'];
 
 export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecting, selected, onToggleSelect }: Props) {
+  // Ticked the moment it is tapped; the server catches up behind it.
+  const [done, setDone] = useState(false);
+  const tick = () => {
+    if (done) return;
+    setDone(true);
+    Promise.resolve(onComplete()).catch(() => setDone(false));
+  };
   const score = quest.priorityScore ?? 0;
   const tier = priorityTier(score);
 
@@ -88,13 +97,18 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
       ) : (
         <button
           type="button"
-          onClick={onComplete}
+          onClick={tick}
           title="Complete"
           aria-label={`Complete ${quest.title}`}
-          className="quest-check mt-px grid h-[22px] w-[22px] shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-colors"
-          style={{ borderColor: RING[tier], color: 'var(--color-green)' }}
+          aria-pressed={done}
+          className={`quest-check mt-px grid h-[22px] w-[22px] shrink-0 cursor-pointer place-items-center rounded-full border-2 transition-colors ${done ? 'is-done' : ''}`}
+          style={
+            done
+              ? { borderColor: 'var(--color-green)', background: 'var(--color-green)', color: 'var(--color-on-primary)' }
+              : { borderColor: RING[tier], color: 'var(--color-green)' }
+          }
         >
-          <Check size={13} strokeWidth={3} className="opacity-0 transition-opacity" aria-hidden />
+          <Check size={13} strokeWidth={3} className={done ? '' : 'opacity-0 transition-opacity'} aria-hidden />
         </button>
       )}
 
@@ -103,8 +117,13 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
         onClick={selecting ? onToggleSelect : onOpen}
         style={{ cursor: selecting || onOpen ? 'pointer' : 'default' }}
       >
-        <div className="text-[0.9375rem] font-semibold leading-snug">{quest.title}</div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[0.78rem] text-(--color-muted)">
+        <div
+          className="text-[15px] font-semibold leading-snug transition-colors duration-200"
+          style={done ? { color: 'var(--color-muted)', textDecoration: 'line-through' } : undefined}
+        >
+          {quest.title}
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-(--color-muted)">
           {hasDeadline && (
             <span
               className="inline-flex items-center gap-1 font-medium"
@@ -150,7 +169,7 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
             </button>
           </span>
           <span
-            className="tnum w-8 text-right text-[0.8rem] font-semibold"
+            className="tnum w-8 text-right text-[13px] font-semibold"
             title="Priority score"
             style={{ color: tier === 'critical' ? 'var(--color-fire)' : tier === 'high' ? 'var(--color-gold)' : 'var(--color-muted)' }}
           >

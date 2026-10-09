@@ -42,7 +42,7 @@ export function BadgesPanel() {
             >
               <b.icon size={20} strokeWidth={1.75} aria-hidden />
               <span
-                className={`text-[0.6rem] font-semibold leading-tight ${
+                className={`text-[11px] font-semibold leading-tight ${
                   isUnlocked ? 'text-(--color-text)' : 'text-(--color-muted)'
                 }`}
               >

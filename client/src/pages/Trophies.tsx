@@ -120,7 +120,7 @@ function TrophyCard({ meta, unlockedAt }: { meta: AchievementMeta; unlockedAt?: 
         <meta.icon size={30} strokeWidth={1.75} className={isUnlocked ? '' : 'opacity-40'} aria-hidden />
         {meta.xp > 0 && (
           <span
-            className="text-[0.62rem] font-bold rounded-md px-1.5 py-0.5"
+            className="text-[11px] font-bold rounded-md px-1.5 py-0.5"
             style={{
               background: isUnlocked ? 'color-mix(in srgb, var(--color-gold) 18%, transparent)' : 'rgba(255,255,255,0.05)',
               color: isUnlocked ? 'var(--color-gold)' : 'var(--color-muted)',
@@ -136,10 +136,10 @@ function TrophyCard({ meta, unlockedAt }: { meta: AchievementMeta; unlockedAt?: 
       >
         {isUnlocked ? meta.name : meta.name}
       </div>
-      <div className="text-[0.7rem] leading-snug" style={{ color: 'var(--color-muted)' }}>
+      <div className="text-[12px] leading-snug" style={{ color: 'var(--color-muted)' }}>
         {meta.desc}
       </div>
-      <div className="mt-0.5 text-[0.62rem] font-semibold" style={{ color: isUnlocked ? 'var(--color-green)' : 'var(--color-muted)' }}>
+      <div className="mt-0.5 text-[11px] font-semibold" style={{ color: isUnlocked ? 'var(--color-green)' : 'var(--color-muted)' }}>
         {isUnlocked ? (
           <span className="inline-flex items-center gap-1"><Check size={11} strokeWidth={3} aria-hidden /> Unlocked{unlockedAt ? ` · ${new Date(unlockedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}` : ''}</span>
         ) : (

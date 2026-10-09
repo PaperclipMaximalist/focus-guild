@@ -112,13 +112,17 @@ function AuthenticatedApp() {
 
   if (error) {
     return (
-      <div className="min-h-screen p-8">
-        <div className="mx-auto max-w-md rounded-lg border border-(--color-fire)/40 bg-(--color-fire)/10 p-6">
-          <h2 className="text-xl font-bold text-(--color-fire)">Cannot reach Focus Guild API</h2>
-          <p className="mt-2 text-sm text-(--color-muted)">{error}</p>
-          <p className="mt-4 text-sm text-(--color-muted)">
-            Make sure the server is running: <code className="rounded bg-white/10 px-1.5 py-0.5">cd server &amp;&amp; npm run dev</code>
+      <div className="grid min-h-screen place-items-center p-6">
+        <div className="panel w-full max-w-sm p-6 text-center">
+          <h1 className="text-xl font-bold">Can’t reach the Guild</h1>
+          <p className="mt-2 text-sm text-(--color-muted)">
+            Your quests are safe. This is usually a dropped connection, or the server waking up.
           </p>
+          <button type="button" onClick={() => init()} className="btn-primary mt-5 w-full">
+            Try again
+          </button>
+          {/* The raw error is for whoever is debugging, not the headline. */}
+          <p className="mt-4 break-words font-mono text-[11px] text-(--color-muted)">{error}</p>
         </div>
       </div>
     );
@@ -126,8 +130,13 @@ function AuthenticatedApp() {
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-(--color-muted)">Loading the Guild…</div>
+      // The shape of the page that is about to appear, so nothing jumps when it does.
+      <div className="page" aria-busy="true" aria-label="Loading">
+        <div className="skeleton h-4 w-32" />
+        <div className="skeleton mt-2 h-9 w-48" />
+        <div className="skeleton mt-6 h-24" />
+        <div className="skeleton mt-3 h-12" />
+        <div className="skeleton mt-8 h-64" />
       </div>
     );
   }
@@ -164,10 +173,32 @@ function AuthenticatedApp() {
   );
 }
 
+const PAGE_NAMES: Record<string, string> = {
+  '/': 'Today',
+  '/feed': 'Feed',
+  '/quests': 'Quests',
+  '/quests/import': 'Import quests',
+  '/rescue': 'Rescue',
+  '/checkin': 'Check-in',
+  '/stats': 'Stats',
+  '/trophies': 'Trophy Room',
+  '/tracker': 'Tracker',
+  '/chronicle': 'Chronicle',
+  '/connections': 'Connections',
+  '/settings': 'Settings',
+};
+
 /** Leaves room for whichever navigation is showing: top bar and bottom bar on a phone, sidebar on a wide screen. */
 function Shell({ children }: { children: React.ReactNode }) {
   // /checkin is a focused full-screen flow: no navigation, so no room left for it.
-  const nav = useLocation().pathname !== '/checkin';
+  const { pathname } = useLocation();
+  const nav = pathname !== '/checkin';
+  // The tab says where you are, so a second tab or the history list is usable.
+  useEffect(() => {
+    const first = `/${pathname.split('/')[1] ?? ''}`;
+    const name = PAGE_NAMES[pathname] ?? PAGE_NAMES[first];
+    document.title = name ? `${name} · Focus Guild` : 'Focus Guild';
+  }, [pathname]);
   return (
     <div className={nav ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60' : 'min-h-screen'}>
       {nav && <Header />}

@@ -164,7 +164,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
         )}
         {item.isCasProject && (
           <span
-            className="rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase"
+            className="rounded-md px-1.5 py-0.5 text-[11px] font-bold uppercase"
             style={{ background: 'color-mix(in srgb, var(--color-primary) 18%, transparent)', color: 'var(--color-primary)' }}
           >
             project
@@ -207,7 +207,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
           {item.casStrands.map((s) => (
             <span
               key={s}
-              className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+              className="rounded-md px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide"
               style={{ background: `${STRAND_COLOR[s]}22`, color: STRAND_COLOR[s] }}
             >
               {s}
@@ -216,7 +216,7 @@ export function TrackerItemCard({ item, config, casMode, onEdit, onReflect, show
           {item.learningOutcomes.map((lo) => (
             <span
               key={lo}
-              className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+              className="rounded px-1.5 py-0.5 text-[11px] font-bold"
               style={{ background: 'rgba(255,255,255,0.07)', color: 'var(--color-muted)' }}
             >
               LO{lo}

@@ -49,7 +49,7 @@ function NoticeRow({ to, icon: Icon, title, sub, tone }: { to: string; icon: Luc
 }
 
 export default function Today() {
-  const { quests, completed, load, loadCompleted, loadRecurring, complete, remove } = useQuestStore();
+  const { quests, completed, load, loadCompleted, loadRecurring, complete, removeWithUndo } = useQuestStore();
   const { user, applyXPGain } = useUserStore();
   const { today: checkIn, load: loadCheckIn } = useCheckInStore();
   const completionsToday = (() => {
@@ -114,14 +114,14 @@ export default function Today() {
     if (result.streakEvent === 'extended' && [3, 5, 7, 10, 14, 21, 30].includes(result.newStreak)) {
       pushToast({
         icon: Flame,
-        title: `${result.newStreak}-day streak!`,
+        title: `${result.newStreak}-day streak`,
         sub: 'Keep the momentum.',
         variant: 'streak',
       });
     } else if (result.streakEvent === 'started') {
       pushToast({
         icon: Flame,
-        title: 'Streak started!',
+        title: 'Streak started',
         sub: 'Show up tomorrow to keep it.',
         variant: 'streak',
       });
@@ -240,9 +240,7 @@ export default function Today() {
                           onComplete={() => handleComplete(q.id)}
                           onEdit={() => openEdit(q)}
                           onOpen={() => setDetailQuest(q)}
-                          onDelete={() => {
-                            if (confirm('Remove this quest?')) remove(q.id);
-                          }}
+                          onDelete={() => removeWithUndo(q.id)}
                         />
                       </div>
                     ))}

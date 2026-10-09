@@ -33,7 +33,7 @@ export function LevelBadge({ totalXP, currentStreak, multiplier }: Props) {
         <div className="mt-3">
           <div className="h-2 w-full overflow-hidden rounded-full bg-(--color-surface2)">
             <div
-              className="h-full rounded-full transition-all"
+              className="h-full rounded-full transition-[width]"
               style={{
                 width: `${progress.pct}%`,
                 background: level.accent,

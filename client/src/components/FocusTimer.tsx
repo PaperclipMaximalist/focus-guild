@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
 import { useTimerStore } from '../store/useTimerStore';
 import { Check, Pause, Play } from 'lucide-react';
+import { useArmed } from '../lib/useArmed';
 
 interface Props {
   open: boolean;
@@ -31,6 +32,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
   const { active, pause, resume, stop, remainingMs } = useTimerStore();
   const [, force] = useState(0);
   const [completing, setCompleting] = useState(false);
+  const { armed, fire } = useArmed();
 
   // 1s tick to drive the countdown.
   useEffect(() => {
@@ -88,10 +90,8 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
   };
 
   const handleDiscard = () => {
-    if (confirm('Drop this focus session without completing the quest?')) {
-      stop();
-      onClose();
-    }
+    stop();
+    onClose();
   };
 
   return (
@@ -156,7 +156,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
             style={{ width: 'clamp(220px, 60vw, 480px)', background: 'rgba(255,255,255,0.08)' }}
           >
             <div
-              className="h-full transition-all duration-1000"
+              className="h-full transition-[width] duration-1000"
               style={{
                 width: `${pctDone}%`,
                 background: overrun ? 'var(--color-fire)' : 'var(--color-primary)',
@@ -192,14 +192,14 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
             {completing ? '…' : <span className="inline-flex items-center gap-2"><Check size={16} strokeWidth={2.5} aria-hidden /> Done</span>}
           </button>
           <button
-            onClick={handleDiscard}
+            onClick={() => fire('drop', handleDiscard)}
             className="rounded-md border px-6 py-2.5 text-sm font-semibold"
             style={{
               borderColor: 'color-mix(in srgb, var(--color-fire) 40%, transparent)',
               color: 'var(--color-fire)',
             }}
           >
-            Drop
+            {armed === 'drop' ? 'Tap again to drop' : 'Drop'}
           </button>
         </div>
         <button

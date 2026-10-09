@@ -47,7 +47,7 @@ function Stat({ value, label }: { value: number | string; label: string }) {
   return (
     <div className="px-2 text-center lg:text-left">
       <div className="tnum text-xl font-bold leading-none">{value}</div>
-      <div className="mt-1.5 text-[0.7rem] leading-tight text-(--color-muted)">{label}</div>
+      <div className="mt-1.5 text-[12px] leading-tight text-(--color-muted)">{label}</div>
     </div>
   );
 }

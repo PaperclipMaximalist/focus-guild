@@ -145,7 +145,7 @@ export function KeyboardShortcuts() {
                 <Row k="G ," desc="Settings" />
               </div>
               <p className="mt-4 text-xs text-center" style={{ color: 'var(--color-muted)' }}>
-                Press <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono text-[0.7rem]">?</kbd> any time to reopen this.
+                Press <kbd className="px-1 py-0.5 rounded bg-white/10 font-mono text-[12px]">?</kbd> any time to reopen this.
               </p>
             </motion.div>
           </motion.div>

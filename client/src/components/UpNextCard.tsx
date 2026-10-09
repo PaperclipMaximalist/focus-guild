@@ -108,7 +108,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
         <p className="section-label" style={{ color: 'var(--color-primary)' }}>
           {isActive ? 'Now' : 'Up next'}
         </p>
-        <p className="mt-1.5 text-[1.0625rem] font-bold leading-snug">{quest.title}</p>
+        <p className="mt-1.5 text-[17px] font-bold leading-snug">{quest.title}</p>
         <p className="tnum mt-0.5 text-[13px] text-(--color-muted)">{subtitle}</p>
         <div className="mt-3.5 flex items-center gap-2">
           {timerActive?.questId === quest.id ? (

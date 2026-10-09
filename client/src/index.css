@@ -57,6 +57,29 @@
   --font-display: 'Atkinson Hyperlegible Next', 'Atkinson Hyperlegible', 'Segoe UI', system-ui, sans-serif;
 }
 
+/* One easing curve for everything that moves: quick to start, soft to land. */
+:root { --ease: cubic-bezier(0.22, 1, 0.36, 1); }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+/* Touch: no 300 ms double-tap wait, no grey flash; controls show their own pressed state. */
+a, button, [role="button"], input, select, textarea, label, summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+button { user-select: none; -webkit-user-select: none; }
+
+/* A mouse page shouldn't rubber-band; a phone keeps its native bounce. */
+@media (pointer: fine) { html { overscroll-behavior: none; } }
+
+/* A field under 16px makes iOS zoom the whole page when it is focused. */
+@media (pointer: coarse) {
+  input, select, textarea { font-size: 16px !important; }
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -123,9 +146,16 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
   flex-shrink: 0;
   border-radius: var(--radius-md);
   color: var(--color-muted);
-  transition: background-color 120ms, color 120ms;
+  transition: background-color 120ms var(--ease), color 120ms var(--ease), scale 120ms var(--ease);
 }
-.icon-btn:hover { background: var(--color-surface2); color: var(--color-text); }
+@media (hover: hover) { .icon-btn:hover { background: var(--color-surface2); color: var(--color-text); } }
+.icon-btn:active { scale: 0.92; background: var(--color-surface2); color: var(--color-text); }
+/* On a touch screen the target is 44px however small the icon is drawn. */
+@media (pointer: coarse) {
+  .icon-btn, .quest-check { position: relative; }
+  .icon-btn::after { content: ''; position: absolute; inset: -5px; }
+  .quest-check::after { content: ''; position: absolute; inset: -11px; }
+}
 
 .btn-primary {
   display: inline-flex;
@@ -139,11 +169,29 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
   color: var(--color-on-primary);
   font-size: 0.875rem;
   font-weight: 700;
-  transition: background-color 120ms, transform 120ms;
+  transition: background-color 120ms var(--ease), scale 120ms var(--ease);
 }
-.btn-primary:hover { background: color-mix(in srgb, var(--color-primary) 90%, white); }
-.btn-primary:active { transform: scale(0.98); }
+@media (hover: hover) { .btn-primary:hover { background: color-mix(in srgb, var(--color-primary) 90%, white); } }
+.btn-primary:active { scale: 0.97; }
 .btn-primary:disabled { opacity: 0.4; }
+
+/* Strong but not the accent: for "add", so the accent is left for "do this now". */
+.btn-strong {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0 0.95rem;
+  border-radius: var(--radius-md);
+  background: var(--color-text);
+  color: var(--color-bg);
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: opacity 120ms var(--ease), scale 120ms var(--ease);
+}
+@media (hover: hover) { .btn-strong:hover { opacity: 0.9; } }
+.btn-strong:active { scale: 0.97; }
 
 .btn-quiet {
   display: inline-flex;
@@ -157,9 +205,17 @@ h1 { font-weight: 750; letter-spacing: -0.022em; }
   color: var(--color-text);
   font-size: 0.8125rem;
   font-weight: 600;
-  transition: background-color 120ms;
+  transition: background-color 120ms var(--ease), scale 120ms var(--ease);
 }
-.btn-quiet:hover { background: color-mix(in srgb, var(--color-surface2) 85%, white); }
+@media (hover: hover) { .btn-quiet:hover { background: color-mix(in srgb, var(--color-surface2) 85%, white); } }
+.btn-quiet:active { scale: 0.97; }
+
+/* A placeholder in the shape of what is loading. */
+.skeleton {
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-text) 7%, transparent);
+  animation: skeleton 1.4s ease-in-out infinite;
+}
 
 .tnum { font-variant-numeric: tabular-nums; }
 }
@@ -201,11 +257,24 @@ input, select, textarea { accent-color: var(--color-primary); }
 }
 .animate-pulse-red { outline: 1px solid transparent; animation: pulse-red 1.6s infinite; }
 
+/* Things arrive from nearly full size, not from a dot. */
 @keyframes pop-in {
-  from { transform: scale(0.6); opacity: 0; }
-  to   { transform: scale(1);   opacity: 1; }
+  from { transform: scale(0.94); opacity: 0; }
+  to   { transform: scale(1);    opacity: 1; }
 }
-.animate-pop-in { animation: pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.animate-pop-in { animation: pop-in 0.2s var(--ease); }
+
+@keyframes skeleton {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.45; }
+}
+
+/* The tick lands with a small press, once. */
+@keyframes tick {
+  0%   { scale: 0.8; }
+  60%  { scale: 1.12; }
+  100% { scale: 1; }
+}
 
 @keyframes confetti-fall {
   0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
@@ -250,6 +319,9 @@ input, select, textarea { accent-color: var(--color-primary); }
 .form-input::placeholder { color: var(--color-muted); opacity: 0.8; }
 
 /* The tick appears as you reach for the circle. */
-.quest-check:hover { border-color: var(--color-green) !important; background: color-mix(in srgb, var(--color-green) 14%, transparent); }
-.quest-check:hover svg { opacity: 1; }
+@media (hover: hover) {
+  .quest-check:not(.is-done):hover { border-color: var(--color-green) !important; background: color-mix(in srgb, var(--color-green) 14%, transparent); }
+  .quest-check:hover svg { opacity: 1; }
+}
+.quest-check.is-done { animation: tick 0.22s var(--ease); }
 }

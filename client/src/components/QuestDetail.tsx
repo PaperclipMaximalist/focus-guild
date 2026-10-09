@@ -34,7 +34,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
-  const { complete, remove, load: loadQuests } = useQuestStore();
+  const { complete, removeWithUndo, load: loadQuests } = useQuestStore();
   const { applyXPGain } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
 
@@ -174,15 +174,13 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
   };
 
   const deleteSub = async (id: string) => {
-    if (!confirm('Delete this sub-quest?')) return;
-    await remove(id);
+    const was = subs;
     setSubs((prev) => prev.filter((s) => s.id !== id));
-    loadQuests();
+    removeWithUndo(id, { onUndo: () => setSubs(was) });
   };
 
   const handleDeleteParent = () => {
-    if (!confirm('Delete this quest (and all sub-quests)?')) return;
-    remove(quest.id);
+    removeWithUndo(quest.id);
     onClose();
   };
 
@@ -377,7 +375,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                   style={{ background: 'rgba(255,255,255,0.08)' }}
                 >
                   <div
-                    className="h-full transition-all duration-500"
+                    className="h-full transition-[width] duration-500"
                     style={{
                       width: `${(doneSubs.length / subs.length) * 100}%`,
                       background: 'var(--color-green)',
@@ -398,7 +396,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 {doneSubs.length > 0 && (
                   <>
                     <p
-                      className="text-[0.65rem] uppercase tracking-wide pt-2"
+                      className="text-[11px] uppercase tracking-wide pt-2"
                       style={{ color: 'var(--color-muted)' }}
                     >
                       Done
@@ -469,7 +467,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                     </div>
                   ))}
                   {xpEvents.length > 5 && (
-                    <p className="text-[0.7rem] pt-1" style={{ color: 'var(--color-muted)' }}>
+                    <p className="text-[12px] pt-1" style={{ color: 'var(--color-muted)' }}>
                       …and {xpEvents.length - 5} more
                     </p>
                   )}
@@ -588,7 +586,7 @@ function Pill({ label, value }: { label: string; value: string }) {
       style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
     >
       <p className="text-sm font-bold" style={{ color: 'var(--color-text)' }}>{value}</p>
-      <p className="text-[0.65rem] uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
+      <p className="text-[11px] uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
         {label}
       </p>
     </div>

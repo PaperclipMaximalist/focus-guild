@@ -200,7 +200,24 @@ Rewritten 2026-10-06 after the owner said the app "still screams vibe coded". Wh
 - **Things floating over content.** The duck sits in the top bar's left slot (phone) or the foot of the sidebar; its line appears beside it.
 - Still true from before: Lucide icons and no emoji (arrows and ticks typed as text count as emoji: use an icon), no gradients or glows, `rounded-full` only for real circles, dark ink on amber fills (never white), modals as bottom sheets on a phone, usable one-handed at 375 px.
 - Shared classes, all in `@layer components` so a utility on the same element wins: `.page` (`.page-wide`), `.page-title`, `.section-label`, `.panel`, `.rows`, `.icon-btn`, `.btn-primary`, `.btn-quiet`, `.form-input`, `.tnum`. Use them before inventing a new card.
+- Three more looks are planned on top of these rules (Departures, Guildhall, Margins; mockups: https://claude.ai/artifact/MXtsarUz5jmfTAhNQNBo6B), selectable in Settings.
 - Not yet brought to the new style: Chronicle, Connections, Tracker presets and markdown, quest detail sheet, focus timer, spin wheel, plan insights and the "won't finish" banner (they inherit the tokens but still draw their own boxes).
+
+### Craft checklist (researched 2026-10-08; check any new screen or theme against it)
+Sources: Vercel's Web Interface Guidelines (vercel.com/design/guidelines), Rauno Freiberg's interface guidelines (interfaces.rauno.me), Benji Taylor's "Family Values" (benji.org/family-values), *Refactoring UI*, Emil Kowalski on animation, and several write-ups of what makes an interface read as generated.
+
+What makes an interface read as generated is **nobody having decided**: the most common font, palette, radius and card on every block, the same treatment for every section, colour and status marks that mean nothing, and behaviour left at the browser's defaults. A theme is not the fix on its own; these are.
+- **Decide once, use everywhere.** One type scale (11, 12, 13, 14, 15, 17 px and the heading sizes; nothing under 11), one spacing rhythm, one easing curve (`--ease`), radii that nest (a child's radius is never larger than its parent's).
+- **Emphasis is a budget.** One accent-filled button per view, and it is the thing to do now (Start). Adding a quest is strong but neutral (`.btn-strong`). If everything is emphasised nothing is. Every colour and every dot maps to a real state, with a label.
+- **Group with space and type before boxes.** A card is for something you can act on by itself. No cards inside cards, no coloured side bars on rounded cards.
+- **Every action answers at once.** Update the screen first and let the server catch up; on failure, put it back and say so. The tick fills the moment it is tapped.
+- **Never ask "Are you sure?" in a browser box.** If it can be undone, do it and offer Undo (`removeWithUndo` in `store/useQuestStore.ts`). If it cannot, arm-then-fire: the first tap changes the label, the second runs it (`lib/useArmed.ts`).
+- **Design every state**, not only the full one: loading is a skeleton in the shape of what is coming (`.skeleton`), empty invites the first item, errors say what happened and what to do in plain words, and nothing is a dead end.
+- **Motion explains, briefly.** Under 200 ms for anything tapped, ease-out, only `transform`/`opacity`/`scale`, never `transition: all`, nothing arrives from a dot (start near 0.95). What is done dozens of times a day gets almost no animation; what is rare (level up, a streak, a trophy) gets the celebration.
+- **Touch is not a small mouse.** 44 px targets whatever the icon size (`.icon-btn` and `.quest-check` grow an invisible hit area on touch), hover styles only where there is hover, fields at 16 px so iOS does not zoom, no autofocus that pops the keyboard, no grey tap flash.
+- **Small things that show care:** numbers that line up (`.tnum`), a real ellipsis (…) and real apostrophes, the tab title naming the page, the browser chrome matching the page colour, long titles that wrap or truncate instead of breaking a row, focus rings you can see.
+- **Words:** sentence case, no exclamation marks, no "please" or "successfully", buttons that say what they do, as few different nouns as possible. A clever name is only clever if it needs no explaining.
+- **For ADHD in particular** (practitioner guidance; the research base is thin): always show the single next step, make time visible, keep the screen calm, and never punish: overdue is information, not an alarm.
 
 ### How to run, test, ship
 - Local: two terminals. `cd server && npm run dev` (port 3000), `cd client && npm run dev` (open **http://127.0.0.1:5173**, not localhost). No Clerk needed: `server/.env.local` and `client/.env.local` switch to dev auth (`dev-member-001`).

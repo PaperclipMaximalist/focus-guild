@@ -44,7 +44,9 @@ NOT merged is listed under "Parked branches" below.
 9. **Banner:** "move the deadline" is +1 day and may need a second tap; compute the first date it fits (additive field on the issue).
 10. Smaller: night-shift users — the Feed groups by calendar date, `planner.meterAt` resets at midnight, the check-in lookup uses the UTC date; daylight-saving changes shift blocks an hour (single `tzOffsetMin`); generate at 200 quests × 30 days takes ~240 ms and grows faster than linearly; on compact Feed tiles the delete button overlaps the load dots; no minimal unit test yet for the reconcile crash fixed in `e8809fd` (repro: `npm run lab:pop -- --n 600 --seed 41 --week --no-night-shift`, people 127 and 555, before that commit).
 
-### UI, after the 2026-10-06 refresh (rules are in the Bible → "UI rules")
+### UI, after the 2026-10-06 refresh (rules are in the Bible → "UI rules" and "Craft checklist")
+- **Next: three selectable looks** the owner chose from mockups (https://claude.ai/artifact/MXtsarUz5jmfTAhNQNBo6B): Departures (station board), Guildhall (16-bit menu), Margins (notebook). Build them as `data-theme` token sets plus the few structural differences each needs, with a picker in Settings; every one must pass the Craft checklist. A route-based vocabulary (Feed → Route, Replan → Reroute, Rescue → Stragglers, Tracker → Expeditions…) was proposed alongside and is not yet agreed.
+- Still to do from the craft audit: filters, sort and the Feed's selected day in the URL; focus trapped inside sheets and returned on close; arrow-key movement through lists.
 - Bring the remaining screens to the list style: Chronicle, Connections, Tracker presets / markdown, the quest detail sheet, focus timer, spin wheel, plan insights and the "won't finish" banner.
 - The quest editor is still one long form: put title, priority, deadline and estimate first and fold the rest under "More".
 - Client lint has ~30 `react-hooks` errors that predate the refresh (set-state-in-effect, purity); none block the build.

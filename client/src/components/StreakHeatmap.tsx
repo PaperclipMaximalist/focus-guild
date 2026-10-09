@@ -105,7 +105,7 @@ export function StreakHeatmap({ completions, weeks = 12 }: Props) {
             {monthLabels.map((m) => (
               <span
                 key={`${m.col}-${m.label}`}
-                className="absolute text-[0.6rem]"
+                className="absolute text-[11px]"
                 style={{ left: m.col * CELL, color: 'var(--color-muted)' }}
               >
                 {m.label}
@@ -115,7 +115,7 @@ export function StreakHeatmap({ completions, weeks = 12 }: Props) {
 
           <div className="flex gap-[3px]">
             {/* Weekday rail */}
-            <div className="flex flex-col gap-[3px] mr-1 text-[0.55rem]" style={{ color: 'var(--color-muted)' }}>
+            <div className="flex flex-col gap-[3px] mr-1 text-[11px]" style={{ color: 'var(--color-muted)' }}>
               {['', 'M', '', 'W', '', 'F', ''].map((l, i) => (
                 <span key={i} style={{ height: 10, lineHeight: '10px' }}>{l}</span>
               ))}
@@ -142,7 +142,7 @@ export function StreakHeatmap({ completions, weeks = 12 }: Props) {
           </div>
 
           {/* Legend */}
-          <div className="flex items-center gap-1 mt-2 ml-6 text-[0.6rem]" style={{ color: 'var(--color-muted)' }}>
+          <div className="flex items-center gap-1 mt-2 ml-6 text-[11px]" style={{ color: 'var(--color-muted)' }}>
             <span>Less</span>
             {RAMP.map((c, i) => (
               <span key={i} className="rounded-[2px]" style={{ width: 10, height: 10, background: c }} />

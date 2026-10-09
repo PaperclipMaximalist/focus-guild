@@ -33,7 +33,7 @@ export function WeekChart() {
           return (
             <div key={day} className="flex flex-1 flex-col items-center gap-0.5">
               <div
-                className="w-full rounded-[3px] transition-all duration-500"
+                className="w-full rounded-[3px] transition-[height] duration-500"
                 style={{
                   height: `${h}px`,
                   background: isToday ? 'var(--color-primary)' : counts[i] ? 'color-mix(in srgb, var(--color-primary) 40%, transparent)' : 'var(--color-surface2)',
@@ -41,7 +41,7 @@ export function WeekChart() {
                 }}
                 title={`${counts[i]} quests`}
               />
-              <div className="text-[0.6rem] text-(--color-muted)">{DAY_LABELS[i]}</div>
+              <div className="text-[11px] text-(--color-muted)">{DAY_LABELS[i]}</div>
             </div>
           );
         })}

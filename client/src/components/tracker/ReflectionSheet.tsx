@@ -148,7 +148,7 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
                     {r.loTags.map((lo) => (
                       <span
                         key={lo}
-                        className="rounded px-1.5 py-0.5 text-[10px] font-bold"
+                        className="rounded px-1.5 py-0.5 text-[11px] font-bold"
                         style={{ background: 'color-mix(in srgb, var(--color-primary) 20%, transparent)', color: 'var(--color-primary)' }}
                       >
                         LO{lo}
