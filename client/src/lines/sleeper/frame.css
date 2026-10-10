@@ -1,0 +1,36 @@
+/*
+ * The Timber Line's frame. Two treatments, no motif:
+ *   1. The window is a carriage window in a timber frame: square corners, a 2 px
+ *      frame in the strong border colour, and a 4 px sill along the bottom edge
+ *      (hard inset shadows on an overlay, no blur).
+ *   2. The sign and the Start button are square-cut boards, with a 2 px band of
+ *      the pressed accent along the bottom edge like the edge of a plank.
+ */
+@layer components {
+  :root[data-line="sleeper"] .scene-window {
+    /* The window's own utility class reads this: a timber frame has square corners. */
+    --radius-card: 0px;
+  }
+  :root[data-line="sleeper"] .scene-window::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      inset 0 0 0 2px var(--color-border-strong),
+      inset 0 -6px 0 0 var(--color-surface2);
+  }
+
+  :root[data-line="sleeper"] .board-sign {
+    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    background: var(--color-primary);
+    box-shadow: inset 0 -2px 0 0 var(--color-primary-d);
+  }
+
+  :root[data-line="sleeper"] .btn-primary {
+    border-radius: var(--radius-md);
+    background: var(--fill);
+    box-shadow: inset 0 -2px 0 0 var(--color-primary-d);
+  }
+}

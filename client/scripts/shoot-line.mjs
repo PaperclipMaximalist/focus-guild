@@ -66,6 +66,8 @@ const PAGES = [
   ['route-1280', '/feed', '', 1280, 900],
   ['route-375', '/feed', '', 375, 812],
   ['settings-1280', '/settings', '', 1280, 900],
+  // The last entry is something to scroll to before the picture is taken.
+  ['picker-1280', '/settings', '', 1280, 900, '[role="radiogroup"][aria-label="Line"]'],
 ];
 const shots = mode === 'scene' ? SCENE : mode === 'record' ? PAGES : [...SCENE, ...PAGES];
 
@@ -203,7 +205,7 @@ try {
     };
   }
 
-  for (const [name, path, query, w, h] of shots) {
+  for (const [name, path, query, w, h, scrollTo] of shots) {
     const url = `${BASE}${path}?line=${id}${query ? `&${query}` : ''}`;
     try {
       const phone = w < 600;
@@ -220,6 +222,7 @@ try {
         ).catch(() => false);
       }
       await evaluate('document.fonts.ready.then(() => true)').catch(() => {});
+      if (scrollTo) await evaluate(`document.querySelector(${JSON.stringify(scrollTo)})?.scrollIntoView({ block: 'center' })`).catch(() => {});
       await sleep(recording ? 6000 : 1500);
       const applied = await evaluate('document.documentElement.dataset.line');
       const shot = await send('Page.captureScreenshot', { format: 'png' });

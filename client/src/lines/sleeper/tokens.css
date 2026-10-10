@@ -1,0 +1,27 @@
+/* The Timber Line: espresso-black ground, warm cream text, one honey accent. */
+:root[data-line="sleeper"] {
+  --color-bg: #0F0B09;
+  --color-surface: #18120F;
+  --color-surface2: #241B16;
+  --color-border: #2E221C;
+  --color-border-strong: #5C4638;
+  --color-text: #F5E9D8;
+  --color-muted: #A8947F;
+  --color-primary: #F2C14E;
+  --color-primary-d: #D4A438;
+  --color-on-primary: #1A1204;
+  --color-rank: #A8947F;
+  --color-green: #7FD99A;
+  --color-gold: #F58A3C;
+  --color-gold-d: #D06E24;
+  --color-fire: #F2645A;
+  --color-teal: #6FCFC0;
+  --color-blue: #8DB6F0;
+  --radius-card: 3px;
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+  --radius-2xl: 4px;
+  --radius-3xl: 6px;
+}
