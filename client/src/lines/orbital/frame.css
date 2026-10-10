@@ -1,48 +1,74 @@
 /*
- * The Ring Line's frame. Two treatments and one motif:
- *   1. The window is a pressure port: a rounder corner, a findable edge and a
- *      second hairline four pixels inside it (hard inset rings, no blur).
- *   2. The sign and the Start button are plain rounded plates, with no cut corner.
- * Motif: a vent of dots (3 rows by 6) at the right end of the sign, left of the clock.
+ * The Ring Line's frame: everything is made like the suitcases in the window.
+ *   .panel        a case: a quarter-round metal cap at each corner, a hairline edge
+ *   .next-card    the one fully stitched case: bigger caps and a dashed seam inside
+ *   .board-sign   a luggage tag: a rounded plate with a line of stitching
+ *   .btn-primary  a rounded plate with a band of the pressed accent along its foot
+ *   .app-sidebar  the bulkhead: a double hairline down its right edge, a rivet every 56 px
+ *   .app-tabbar   the same along its top edge
  */
 @layer components {
   :root[data-line="orbital"] .scene-window {
-    /* The window's own utility class reads this, so the port is rounder than a card. */
-    --radius-card: 18px;
+    --radius-card: 14px;
   }
-  :root[data-line="orbital"] .scene-window::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    box-shadow:
-      inset 0 0 0 1px var(--color-border-strong),
-      inset 0 0 0 4px var(--color-bg),
-      inset 0 0 0 5px var(--color-border);
+
+  :root[data-line="orbital"] .panel {
+    border-radius: var(--radius-sm);
+    background-image:
+      radial-gradient(circle at 0 0, var(--color-border-strong) 0 6px, transparent 6.5px),
+      radial-gradient(circle at 100% 0, var(--color-border-strong) 0 6px, transparent 6.5px),
+      radial-gradient(circle at 0 100%, var(--color-border-strong) 0 6px, transparent 6.5px),
+      radial-gradient(circle at 100% 100%, var(--color-border-strong) 0 6px, transparent 6.5px);
+    background-size: 7px 7px;
+    background-repeat: no-repeat;
+    background-position: left top, right top, left bottom, right bottom;
+    box-shadow: inset 0 0 0 1px var(--color-border);
+  }
+
+  :root[data-line="orbital"] .next-card {
+    border-radius: var(--radius-sm);
+    background-image:
+      radial-gradient(circle at 0 0, var(--color-border-strong) 0 9px, transparent 9.5px),
+      radial-gradient(circle at 100% 0, var(--color-border-strong) 0 9px, transparent 9.5px),
+      radial-gradient(circle at 0 100%, var(--color-border-strong) 0 9px, transparent 9.5px),
+      radial-gradient(circle at 100% 100%, var(--color-border-strong) 0 9px, transparent 9.5px);
+    background-size: 10px 10px;
+    outline: 1px dashed var(--color-border-strong);
+    outline-offset: -6px;
   }
 
   :root[data-line="orbital"] .board-sign {
-    position: relative;
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    border-radius: var(--radius-card);
     background: var(--color-primary);
-  }
-  /* The vent: dots 6 px apart, 2 px across, one hard-stopped gradient, laid over the sign without pushing anything. */
-  :root[data-line="orbital"] .board-sign::after {
-    content: '';
-    position: absolute;
-    top: 50%;
-    right: 6.5rem;
-    width: 36px;
-    height: 18px;
-    translate: 0 -50%;
-    pointer-events: none;
-    background-image: radial-gradient(circle at center, color-mix(in srgb, var(--color-on-primary) 35%, transparent) 0 1px, transparent 1px);
-    background-size: 6px 6px;
+    outline: 1px dashed color-mix(in srgb, var(--color-on-primary) 35%, transparent);
+    outline-offset: -4px;
   }
 
   :root[data-line="orbital"] .btn-primary {
     border-radius: var(--radius-md);
     background: var(--fill);
+    box-shadow: inset 0 -2px 0 var(--color-primary-d);
+  }
+
+  :root[data-line="orbital"] .app-sidebar {
+    box-shadow:
+      inset -1px 0 0 var(--color-border-strong),
+      inset -4px 0 0 var(--color-bg),
+      inset -5px 0 0 var(--color-border);
+    background-image: radial-gradient(circle at 3px 28px, var(--color-border-strong) 0 1.6px, transparent 2px);
+    background-size: 12px 56px;
+    background-repeat: repeat-y;
+    background-position: right top;
+  }
+
+  :root[data-line="orbital"] .app-tabbar {
+    box-shadow:
+      inset 0 1px 0 var(--color-border-strong),
+      inset 0 4px 0 var(--color-bg),
+      inset 0 5px 0 var(--color-border);
+    background-image: radial-gradient(circle at 28px 9px, var(--color-border-strong) 0 1.6px, transparent 2px);
+    background-size: 56px 12px;
+    background-repeat: repeat-x;
+    background-position: left top;
   }
 }

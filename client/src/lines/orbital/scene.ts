@@ -607,17 +607,22 @@ function shuttle(ctx: Ctx, st: State, cx: number, cy: number, sc: number, ang: n
     ctx.fill();
   }
   // Fins behind the hull, and the engine bell.
-  ctx.fillStyle = '#A8442F';
-  ctx.beginPath();
-  ctx.moveTo(-42, -12);
-  ctx.lineTo(-54, -32);
-  ctx.lineTo(-30, -17);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(-40, 15);
-  ctx.lineTo(-50, 27);
-  ctx.lineTo(-28, 18);
-  ctx.fill();
+  for (const [pts, edge] of [[[-40, -13, -49, -24, -29, -17], 1], [[-38, 16, -46, 23, -28, 18], 0]] as const) {
+    ctx.fillStyle = PAPER;
+    ctx.beginPath();
+    ctx.moveTo(pts[0], pts[1]);
+    ctx.lineTo(pts[2], pts[3]);
+    ctx.lineTo(pts[4], pts[5]);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#C2543A';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(pts[0], pts[1]);
+    ctx.lineTo(pts[2], pts[3]);
+    ctx.stroke();
+    if (edge) { ctx.fillStyle = '#CBB78A'; ctx.fillRect(-36, -16, 6, 3); }
+  }
   ctx.fillStyle = '#5A4A38';
   ctx.fillRect(-56, -4, 9, 14);
   ctx.fillStyle = '#8A7A62';
