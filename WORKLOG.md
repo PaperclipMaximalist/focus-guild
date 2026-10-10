@@ -220,6 +220,15 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Later the same day the owner chose: dark only, Departures, "some train in the rainy night animations", and yes to the new words. Built: the Departures theme (navy, board white, signal yellow; Barlow Condensed, B612 Mono, Atkinson); Route and quest lists as board rows with a true status word (On time, Boarding, 3d late), unit-tested; a yellow sign with a clock that flips on the minute; the night platform on Today, where a train waits while a block is boarding and leaves when a quest is completed, with an off switch; and the route vocabulary across every label (Feed → Route, Replan → Reroute, Rescue → Stragglers, Tracker → Expeditions, Check-in → Fuel check, Stats → Mileage, Chronicle → Logbook…), labels only.
 
 
+
+### Fri 2026-10-09 — Lines: five journeys from the owner's reference stills (≈4 h, branch `ui-refresh`)
+
+- The owner brought 25 stills from the "Infinite Journeys" montage, each described by Gemini (palette, borders, mascot, what to drop), and asked for "one smarter executive officer agent" directing several Sonnet coders in batches.
+- What the stills share became the rule: a seat by a window, a table in front, somewhere else going by outside. Grouped by the world outside the window into five lines rather than 25 near-identical palettes.
+- Built first, by the director: the engine (`client/src/lines/`: the scene's canvas, pausing, reduced motion and the visitor's comings and goings are shared; a line only draws), a picker in Settings, the contract, a checker (`npm run line:check`), and a screenshot harness (`npm run line:shoot`) that drives headless Chrome over its debugging port, answers the API from fixed sample data and pins the clock, so coders can see their own work and nothing touches the database. The Night Line is the old look moved into that shape.
+- Then four Sonnet coders, two at a time, one line each, four files each, in their own folders. Each got a written brief with the decisions made; each was sent back once with numbered corrections from the pictures (the first whale read as an eel, the first shuttle as a railway carriage, a "quests done" row as carousel dots, a 5 px mark before section labels as a stray character in thirty places).
+- Found on the way: the local API server had lost its database connection after a day of running, which is what made the harness answer from sample data instead.
+
 | Phase | What | When |
 |---|---|---|
 | 1–2 | Schema, priority/XP/streak logic, routes, 48 tests | May 17 |
@@ -243,6 +252,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 15 | Agent team: night hours, estimates, quest sessions, replans, honest reasons, fuzz lab | Oct 3 – Oct 6 |
 | 16 | UI refresh: app shell, list rows, calmer theme | Oct 6 |
 | 17 | Design research and craft pass; Departures theme, night platform, route vocabulary | Oct 8 |
+| 18 | Lines: theme engine, checker, screenshot harness, four new lines by a director-and-coders pipeline | Oct 9 |
 
 ---
 

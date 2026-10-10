@@ -1,0 +1,27 @@
+/* The Salvage Line: an oxide-black ground, parchment text, one enamel-blue accent, phosphor green for "on time". */
+:root[data-line="dispatch"] {
+  --color-bg: #0F0D0A;
+  --color-surface: #191511;
+  --color-surface2: #26201A;
+  --color-border: #302820;
+  --color-border-strong: #615240;
+  --color-text: #F1E6D4;
+  --color-muted: #A59682;
+  --color-primary: #7CB7FF;
+  --color-primary-d: #5B9AE6;
+  --color-on-primary: #06101F;
+  --color-rank: #A59682;
+  --color-green: #4BE083;
+  --color-gold: #FFA640;
+  --color-gold-d: #D9842B;
+  --color-fire: #FF6A55;
+  --color-teal: #5FD6C4;
+  --color-blue: #B7A6FF;
+  --radius-card: 4px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+  --radius-3xl: 8px;
+}

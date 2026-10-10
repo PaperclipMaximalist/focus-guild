@@ -46,7 +46,9 @@ NOT merged is listed under "Parked branches" below.
 
 ### UI, after the 2026-10-06 refresh (rules are in the Bible → "UI rules" and "Craft checklist")
 - **Departures is built** (2026-10-08, branch `ui-refresh`, not merged or deployed until the owner has seen it): theme, board rows with a status column on Route and the quest lists, the yellow sign with a flip clock, the night platform scene, and the route vocabulary. Not yet in board style: Stragglers, Expeditions, Mileage, Logbook, Settings, the block drawer and the quest editor wear the colours and type but keep their earlier layouts.
-- Ideas the owner may want next: a second theme (Guildhall) behind a picker; a sound for the departing train; the scene on the sign-in screen.
+- **Lines are built** (2026-10-09, branch `ui-refresh`, not merged or deployed): the theme engine, a picker in Settings, and five lines (Night, Ring, Abyssal, Timber, Salvage) made from the owner's 25 reference stills by the director-and-coders pipeline in `design/lines/PIPELINE.md`. **Waiting on the owner:** which line is the default, which to keep or cut, and anything in a window that looks wrong. Gallery of real screenshots: see WORKLOG, Oct 9.
+- Open on lines: the Night Line has no companion yet (the others do); the passing visitor on the Abyssal Line is small; nothing has been checked on a real phone, only at phone width in a headless browser; the scenes have been reviewed as posed stills and not watched in motion for long.
+- Ideas the owner may want next: a sound for the departing visitor; the window on the sign-in screen; a line per season.
 - Still to do from the craft audit: filters, sort and the Feed's selected day in the URL; focus trapped inside sheets and returned on close; arrow-key movement through lists.
 - Bring the remaining screens to the list style: Chronicle, Connections, Tracker presets / markdown, the quest detail sheet, focus timer, spin wheel, plan insights and the "won't finish" banner.
 - The quest editor is still one long form: put title, priority, deadline and estimate first and fold the rest under "More".
