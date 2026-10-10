@@ -1,70 +1,100 @@
-# Timber Line (`sleeper`)
+# Timber Line (`sleeper`), second pass: the lantern cabin
 
-**Journey:** "A night sleeper through birch country, stopping at lamp-lit halts."
+**Journey:** "A log-cabin sleeper rolling through birch country at dusk, fairy lights up and something hot on the table."
 
 **Window hint (for Settings):** "The train stops at a lamp-lit halt while a block is boarding and pulls out when you finish a quest."
 
 **Order:** 3
 
-## Where it comes from
+## Why this is being redone
 
-Open these in `design/lines/sources/`:
+The first pass was a night view in browns. The owner: "it's just a different colorway each time … bring the app's vibes to life". This pass is built around `08-autumn-sleeper.png`: the window **blazes**, and the cabin around it is a cabin.
 
-- `08-autumn-sleeper.png` — honey light on dark timber, birch trunks striping the window. Take: pale trunks against dark; honey as the only warm light.
-- `05-coastal-berth.png` — a wide rounded window over a work table. Take: the clean split between the view above and the table below.
-- `07-woodland-berth.png` — square-cut beams framing a forest. Take: heavy square timber framing; an acorn as a small countable thing.
-- `15-rainy-hearth.png` — one amber glow outside a dark, book-lined nook. Take: how little light is needed.
-- `20-alpine-chess.png` — a sleeper compartment, patient and quiet. Take: the mood.
+## The world
 
-Leave out: fairy lights, vines, mugs, laptops, cushions, food, every animal character, daylight skies.
+Open these in `design/lines/sources/` and look hard at the first:
+
+- `08-autumn-sleeper.png` — **the primary.** Take: the **window on fire with autumn**: orange and gold behind **white birch trunks**, with cold blue in the shadows between them; **fairy lights** sagging across the top of the frame; **grey-blue curtains** gathered at the sides; a dark **table with a rounded corner**, a **steaming mug** and a book on it; **hanging plants**; log walls; red upholstery.
+- `07-woodland-berth.png` — square-cut log framing, a pendant lamp, a slab table, an **acorn**.
+- `15-rainy-hearth.png` — shelves of books in near darkness, one amber glow.
+- `05-coastal-berth.png` — a rounded window over a work table at sunset; brass and wood.
+
+What makes it this place: **a wall of orange light with white trunks in it, seen from a warm dark room with small lights strung up.**
+
+Leave out: the raccoon and every other character, the laptop, the lettered cushion.
 
 ## Colours
 
-Espresso-black ground, warm cream text, **honey** accent. Start from these and let the checker correct lightness:
+Tokens stay as they are (espresso ground, cream text, honey accent); adjust only if the checker asks.
 
-```
-bg #0F0B09  surface #18120F  surface2 #241B16
-border #2E221C  border-strong #5C4638
-text #F5E9D8  muted #A8947F
-primary #F2C14E  primary-d #D4A438  on-primary #1A1204
-gold #F58A3C  gold-d #D06E24  fire #F2645A  green #7FD99A  teal #6FCFC0  blue #8DB6F0
-radius: card 3  sm 1  md 2  lg 3  xl 3  2xl 4  3xl 6
-```
+Scene colours (not tokens): dusk bands `#3A1508 #7A2B0C #C4521A #F0872A #FFB648 #FFD98A`, birch whites `#F4EAD8 #D9CDB8` with notches `#3A2A20`, shadow blues `#2B4A6E #3E6C96`, curtain grey-blues `#3C4A5C #52647A #2A3442`, log browns `#1C130E #2A1C14 #3A281C`, table `#241812 #34241A`, upholstery red `#7A2318`, leaf greens `#3F5A2A #5E7F38`, mug cream `#E8DCC6`, bulb `#FFE2A0`.
 
-The accent is honey-yellow, hue 40 to 48. "Attention" (`gold`) is deliberately pushed toward orange so the two cannot be confused: keep them at least 14° apart.
+## scene.ts: the cabin
 
-## Frame
+Rebuild it as a cabin corner (see the contract). Keep what worked in the first pass: the halt as the visitor, the sparrow, the acorns, the scrolling that eases to a stop.
 
-1. **The window is a carriage window in a timber frame.** Square corners, a 2 px `--color-border-strong` frame, and a sill: a 4 px band of `--color-surface2` along the bottom edge (zero-blur inset box-shadow).
-2. **The sign and the button are square-cut boards.** No cut corner, radius from the tokens. Each gets a 2 px band of `--color-primary-d` along its bottom edge (zero-blur inset box-shadow), like the edge of a plank.
-3. No motif on this line: the timber frame is enough.
+**`back` (painted once): the glow**
+- Sky as five or six horizontal flat bands from deep burnt orange at the top to pale gold near the ground. No fade: clear steps.
+- Over the upper bands, **foliage as stipple**: clouds of orange, gold and rust dots, dense at the top and thinning downward.
+- Low down, broken shapes of cold blue shadow between where the trunks will be, as in the still.
+- A far line of pale thin trunks, small and still.
 
-## Scene
+**`draw` (every frame): what moves outside**
+- **Birches** scrolling left in two depths: bright cream trunks with dark notches, the near ones wide (10 to 16 px) and brilliant against the orange. About 6 px/s far and 18 px/s near while under way, easing to zero as the halt arrives and back up as it leaves.
+- A few **leaves** falling.
+- **The visitor: the halt**, as before, but now a **dark silhouette against the glow** with its one honey lamp lit (the lamp's shade is the one use of the accent), a clock, a nameboard with nothing on it, and a pale platform edge. It slides in from the right and rests in the right half of the opening (about 3.8 s); slides off left (about 3.4 s); goes by without stopping (about 2.2 s). Its position comes from `visitor.phase` and `visitor.k` alone.
 
-You are aboard, looking out of a sleeper carriage at night. The country goes by; when the train stops, it stops.
+**`front` (painted once): the cabin**
+- **The wall**, where the words are: horizontal logs, each course about 26 px, a darker seam between courses, grain as fine stipple and a few long hairlines. Dark and quiet.
+- **The window**: a wide opening in a square timber frame with a deep sill. No mullions.
+- **Curtains**: grey-blue, gathered and tied back at both sides of the opening, each drawn as four or five flat vertical folds with a tie. They overlap the opening's edges by 20 to 30 px.
+- **The fairy-light wire**: a thin dark line sagging in two swags across the top of the opening, hooked at the middle.
+- **A hanging plant** in the top-right corner: a pot on cords with trailing leaves.
+- **The table**: a dark slab across the bottom with a rounded front corner and a paler bevelled edge. On it, painted once: a **mug** (cream, with a handle) and a closed **book**.
 
-On this line the visitor is not something that comes to you: it is **the halt the train pulls into**. The whole view scrolls slowly left while under way and comes to rest while the visitor is `stopped`.
+**`over` (every frame): what is alive**
+- **Fairy bulbs** along the wire, about 14, warm. Each is a 3 px dot with a 1 px brighter centre. They twinkle slowly and never more than one or two at a time.
+- **Steam** from the mug: three short curved strokes rising and fading over about three seconds.
+- **Done:** acorns in a row on the table, one per quest finished.
+- **The signal:** a small brass lamp on the table at the far right with a coloured glass: green; amber with stragglers.
+- **The companion: the sparrow**, on the table left of the acorns. Idle: turns its head every several seconds. While stopped at the halt: settles, lower and rounder. On departure: one hop.
+- One trailing leaf of the plant sways a pixel.
 
-Back to front:
+**Phone:** log wall across the top with the words; the opening below, glowing; curtain on the right side only; the table with mug, sparrow, acorns and signal all in frame; bulbs along the top of the opening.
 
-- **Sky.** One flat plum-black, a shade off the ground colour. A thin low moon on the right if it helps; no stars in the words' region.
-- **Far hills.** Two flat ridgelines, the farther one barely off the sky, scrolling very slowly.
-- **Birches.** Pale, narrow trunks with a few dark notches each, in two depths (thin and dim behind, wider and paler in front), scrolling left. Sparse and low-contrast on the left under the words; denser on the right. Speed about 6 px/s far and 18 px/s near while under way, easing to zero as the halt arrives and back up as it leaves. Keep your own speed in the scene's state and ease it with `dt`.
-- **Leaves.** A handful of small leaves falling slowly. No rain.
-- **The trackside.** A dark bank from about 80 % down, with a hairline along its top.
-- **The visitor: a halt.** A short wooden platform with a low canopy on two posts, one lamp and a blank nameboard. The lamp's small flat shade is the **one use of the accent**; its light is a faint flat cone and a faint smear on the platform, as on the Night Line. It slides in from the right and comes to rest filling roughly the right 40 % of the window (about 3.8 s, easing out). Departing, it slides off to the left as the train pulls away (about 3.4 s, easing in). Passing, it goes by without stopping (about 2.2 s).
-- **Inside, fixed, along the bottom right:** the window sill, a flat band a shade lighter than the frame. On it:
-  - **The signal:** a small cabin lantern at the far right of the sill. Green; amber when there are stragglers.
-  - **Done:** acorns in a row on the sill, one per quest finished, left of the lantern. Simple: a round body and a darker cap.
-  - **The companion: a sparrow.** A plain small bird, about 16 px, standing on the sill left of the acorns. Idle: it turns its head every several seconds. While the train is stopped: it settles, lower and rounder. On departure: one small hop.
+Timing: `{ arriving: 3800, departing: 3400, passing: 2200 }`.
 
-Suggested timing: `{ arriving: 3800, departing: 3400, passing: 2200 }`.
+## charm.ts: the shelf
 
-In a still frame (`moving === false`) nothing scrolls; draw the trees where `layout` put them.
+A plank shelf on two brackets near the bottom edge, and on it an **oil lantern** (glass chimney, brass base, wire handle), a **steaming mug** and a few **acorns**. Above, a swag of **fairy lights** from one side of the canvas to the other.
+
+- `progress`: bulbs on the swag light up left to right, 10 bulbs in all; unlit ones are dark glass, still visible.
+- `done`: acorns on the shelf, one per quest, up to 12, in two rows if needed.
+- `boarding`: the lantern's flame is tall and its flat pool of light on the shelf is wide; otherwise the flame is low.
+- `caution`: a small tag hanging from the shelf's edge turns amber (it is plain wood otherwise).
+- Always: the flame leans a pixel side to side, slowly; steam rises from the mug.
+- Under 110 px tall: the lantern alone.
+
+## backdrop.ts: the room's own wood and air
+
+- `back`: long horizontal grain lines across the page two shades above the ground, broken and uneven, with a knot here and there; fine stipple over them.
+- `draw`: about 12 leaves drifting down and sideways, slowly, in dim amber and rust; each turns as it falls.
+
+## frame.css: joinery
+
+The app's surfaces are built like the cabin's woodwork.
+
+1. **`.panel`: pegged boards.** A 1 px `--color-border` edge, and a small square peg (3 px, `--color-border-strong`) set 6 px in from each corner. Works from 44 px tall upward.
+2. **`.next-card`: a framed board.** A 2 px timber frame in `--color-border-strong` (inset box-shadow), pegs at the corners (4 px), and a second hairline 5 px inside the frame.
+3. **`.board-sign`: a hung sign.** Square-cut board, no cut corner, a 2 px band of `--color-primary-d` along the bottom, and a round nail head (4 px, `--color-on-primary` at about 45 %) near each end, vertically centred. Keep the title and the clock clear of them.
+4. **`.btn-primary`:** square-cut, a 2 px band of `--color-primary-d` along the bottom.
+5. **`.app-sidebar`: a log wall.** Faint horizontal seams every 52 px across its whole height, each within two shades of the surface, and a 2 px post in `--color-border-strong` down its right edge. **`.app-tabbar`:** a double rule along its top edge.
+6. **`.scene-window`:** radius 3 px, no extra frame: the scene draws its own.
 
 ## Checklist for the pictures
 
-- Birches must read as birches, not as a barcode: vary width, spacing and height, and keep them few.
-- The halt must read as a small station at a glance: canopy, lamp, platform edge.
-- The sill objects are tiny. Check them on the phone shot: lantern, acorns and sparrow must all be in frame and not collide.
-- Warm, but dark. If the picture looks brown rather than night, darken it.
+- At a glance, `scene-stopped` is a dark room with a **blazing orange window**. If the window is dark, it is wrong.
+- White trunks, orange light, blue shadows: all three must be there.
+- The fairy lights and the curtains must be obvious in `window-2x`.
+- The words sit on plain dark log wall with nothing bright behind them.
+- With the window covered, `quests-1280` still says "cabin": pegged boards, the log-wall sidebar, the lantern shelf.

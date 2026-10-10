@@ -1,64 +1,106 @@
-# Ring Line (`orbital`)
+# Ring Line (`orbital`), second pass: the cosmic compartment
 
-**Journey:** "A slow orbit past a ringed giant, where shuttles dock at the spur."
+**Journey:** "A worn, cosy compartment on a slow train through space, with a crystal for company."
 
-**Window hint (for Settings):** "A shuttle docks while a block is boarding and casts off when you finish a quest."
+**Window hint (for Settings):** "A shuttle draws alongside while a block is boarding and peels away when you finish a quest."
 
 **Order:** 1
 
-## Where it comes from
+## Why this is being redone
 
-Open these in `design/lines/sources/`:
+The first pass was a dark panel with a dim planet. The owner: "the crystal and … the space orbital ship elements aren't present and it's just a different colorway". This pass is built around `01-cosmic-compartment.png`, and it should be unmistakable.
 
-- `01-cosmic-compartment.png` — the grain of deep space, ringed planets, one magenta light in a dark cabin. Take: the planet half out of frame; a single pink light against indigo.
-- `04-orbital-lounge.png` — the long low window with a modular bulkhead under it and a dot-matrix vent. Take: the vent grille (3 × 6 dots) and the stadium-ended window.
-- `11-orbital-bunk.png` — a rounded pressure window with a docking arm outside. Take: the window's soft corners; a truss reaching across the view.
-- `24-orbital-capsule.png` — Earth filling the lower window. Take: how big and how dark a planet can be and still read.
+## The world
 
-Leave out: nebula clouds and coloured gas, foliage, loose objects, any character, the decals and lettering.
+Open these in `design/lines/sources/` and look hard at the first:
+
+- `01-cosmic-compartment.png` — **the primary.** A cluttered train compartment in space. Take: the **magenta crystal** hovering over a small round table; **tan suitcases** with straps, buckles and stitched patches; **monstera leaves** crowding in from the corners; a **purple** sky with ringed and striped planets; sheets of paper adrift outside; and above all the **stipple**: every surface shaded with grain like a risograph print.
+- `04-orbital-lounge.png` — violet and magenta deep space behind a long low window; a dot-matrix vent in the bulkhead.
+- `24-orbital-capsule.png` — a planet filling the lower window; warm interior against cold space.
+- `14-dining-car.png` — a marquee over a panoramic window; curtains; dusk pink and violet together.
+
+What makes it this place and no other: **purple space, warm tan luggage, a pink crystal, olive leaves, and grain over everything.** Four colour families, not one.
+
+Leave out: the man, the cat, the clock, the neon lettering, the cigarette.
 
 ## Colours
 
-Indigo-black ground, cool lilac-white text, **pink-magenta** accent. Start from these and let the checker correct lightness:
+Aubergine ground, **warm parchment text** (not cold white: this cabin is lit by a lamp), pink-magenta accent. Start here and let the checker correct lightness:
 
 ```
-bg #0A0814  surface #131022  surface2 #1E1934
-border #272045  border-strong #4A3F7A
-text #EEE9FA  muted #9A8FBF
-primary #FF6FB1  primary-d #E0528F  on-primary #1A0612
+bg #0D0A17  surface #171226  surface2 #231C38
+border #2D2446  border-strong #55467F
+text #F3E7CC  muted #A99BBE
+primary #FF6FB1  primary-d #E0528F  on-primary #110309
 gold #FFA24D  gold-d #D97F2B  fire #FF6B5E  green #5EE6A8  teal #57D9C7  blue #7DB4FF
 radius: card 10  sm 3  md 6  lg 8  xl 10  2xl 12  3xl 14
 ```
 
-Keep the accent's hue between 322 and 338. It must stay clearly pink beside the red of "late".
+Scene colours (not tokens; use freely on the canvases): space violets `#241A52 #2E2168 #3B2A80`, nebula plum and magenta `#5A2A78 #8A2F86`, planet lilacs `#6C56B8 #8F7ADB #B9A8F0`, luggage tans `#B89B6A #D2B98A #8C7448`, table rust `#9A3A2A #C2543A`, leaf olives `#6E7A2C #9AA63C #C8CF6A`, crystal pinks `#7A1458 #C02A8C #FF6FB1 #FFC2E0`, paper cream `#E9DDB8`.
 
-## Frame
+## scene.ts: the compartment
 
-1. **The window is a pressure port.** Radius 18 px, a 1 px `--color-border-strong` edge, and a second hairline 4 px inside it (two zero-blur inset box-shadows: a ring of `--color-bg`, then a ring of `--color-border`).
-2. **The sign and the button lose the cut corner** and become plain rounded plates (sign: top corners `--radius-card`, bottom square; button: `--radius-md` all round).
-3. **Motif: a vent.** At the right end of the sign, just left of the clock, a 3-row by 6-column grid of 2 px dots in `--color-on-primary` at about 35 % strength, drawn with one hard-stopped radial gradient on `.board-sign::after`. It must not push the clock or the title.
+Rebuild it as a cabin corner (see the contract). The first pass's station spur and drone are gone.
 
-## Scene
+**`back` (painted once): outside**
+- Space in three or four broad flat bands of violet, darkest at the top. Over them, **stipple**: a river of fine dots sweeping diagonally across the view, like the tan dust trail in the still, in pale lilac and cream. This is the texture that makes the picture; give it thousands of dots.
+- A **giant ringed planet**, low and right of centre in the opening, about 60 % of the opening's height, partly cut by the frame. Lilac, with five or six flat stripes, a hard-edged lighter crescent on its lit side and stippled shadow on the other. A broad flat ring crossing in front of it.
+- A second, smaller planet, blue-grey and mottled, high up.
 
-You are at an observation port on a station. It is quiet out there.
+**`draw` (every frame): what moves outside**
+- Three or four **sheets of paper** tumbling slowly past, cream, each a tilted rectangle that changes its tilt as it drifts. Unmistakably from the still.
+- **The visitor: a shuttle.** Keep the capsule from the first pass (rounded nose, one window strip) but paint it for this world: cream hull, a rust stripe, lilac window. It draws alongside from the right and holds level in the lower right of the opening (about 5 s, easing out); leaves by climbing away to the right (about 4 s); a small one passes far off (about 4 s).
 
-Back to front:
+**`front` (painted once): the cabin**
+- **The wall**, where the words are: deep aubergine, vertical panel seams every 70 px or so, faint stipple. Dark and quiet.
+- **The window frame**: a wide opening with generously rounded corners in a thick, slightly lighter frame, split by one horizontal bar a quarter of the way down, as in the still.
+- **Monstera leaves** coming in from the top-right corner and the right edge, in front of the frame: three or four big split leaves in the olives, stippled. Bold. They are the first thing that says "this cabin".
+- **The table**: a round café table top seen from slightly above (a wide ellipse), rust red, low in the picture at about 55 % across on a wide window, with its far edge darker. A short stem below it running off the bottom.
+- **Two stacked suitcases** at the bottom right, tan, each with two straps, buckles, corner caps, and one **stitched patch** (a lighter square sewn on with dashes). Stippled shading on their shadowed side.
 
-- **Space.** One flat colour a little bluer than the ground. A few dozen fixed stars at three strengths; in the words' region none above the dimmest strength.
-- **The giant.** A very large disc, lower right, more than half out of frame, two shades lighter than space, with two or three flat bands a shade apart and one thin tilted ring that passes behind it. It is the night side: dim. It should be the thing you notice third.
-- **A small moon** crossing the upper right over several minutes.
-- **Dust.** Six to ten flecks drifting slowly left, as if the station is turning.
-- **The spur.** A docking boom along the bottom of the window at about 80 % down: a flat dark truss with a hairline of pale lilac along its top edge, a docking collar at about 62 % across, and a short mast at the far right.
-- **The visitor: a shuttle.** A rounded-nose capsule about three times as long as it is tall, no taller than 18 % of the window, one band of pale lilac windows, two small thruster marks at the back. It arrives from the right, slowing all the way in (about 5 s), and docks nose-to-collar. While docked, a short boarding tube joins it to the spur: that tube's edge is the **one use of the accent**. Departing, it backs off a little, then pulls away up and to the left (about 4 s). Passing, a smaller one crosses the middle distance on the right half, below the words (about 4 s).
-- **The signal:** a beacon at the top of the mast. Green and steady; amber when there are stragglers.
-- **Done:** portholes along the spur, one lit per quest finished, in a single row left of the collar.
-- **The companion: a capsule drone.** A pill about 14 by 8 px with a visor line, hovering just above the spur at the right. Idle: it bobs one pixel, slowly. While the shuttle is docked: it stops bobbing and sits level. On departure: its visor slides toward the leaving shuttle for a second, then back.
+**`over` (every frame): what is alive**
+- **The crystal** (this line's companion and its one use of the accent): a tall diamond hovering about 14 px above the table, around 22 by 46 px, in four flat facets from deep to pale pink with one hard white glint. Under it, on the table, a flat pink ellipse of its light. Around it, one thin tilted orbit ring.
+  - Idle: it bobs 2 px over four seconds and turns slowly (swap which facets are light on a slow cycle).
+  - While the shuttle waits: a second ring appears and two bright motes circle it.
+  - When the shuttle leaves: the glint flashes across all four facets once.
+- **Done:** small pink shards lying on the table around the crystal's foot, one per quest finished, scattered but countable (fixed positions, filled in order).
+- **The signal:** a small wall lamp on the frame's left post, between the words and the opening: a dome with a flat pool of light on the wall below it. Green; amber with stragglers.
+- The lowest leaf sways a pixel or two.
 
-Suggested timing: `{ arriving: 5200, departing: 4200, passing: 4000 }`.
+**Phone:** wall across the top with the words; the opening below; table, crystal, shards and signal all in frame; suitcases may be half cut by the right edge; one leaf.
+
+Timing: `{ arriving: 5200, departing: 4200, passing: 4000 }`.
+
+## charm.ts: the crystal
+
+The crystal again, larger (about 44 by 96 px), hovering over **a stack of two suitcases** that stands on the bottom edge. Same stitching and straps as in the scene.
+
+- `progress` fills it: the crystal is dim plum at 0 and lights from its lower point upward to full pink at 1, with a hard line between lit and unlit.
+- `done`: one mote in orbit per quest finished (up to 12), on two tilted rings.
+- `boarding`: it bobs a little faster and the glint travels round the facets.
+- Always: a slow bob.
+- Under 110 px tall: the crystal alone, no suitcases.
+
+## backdrop.ts: space through the cabin's gaps
+
+- `back`: stipple grain across the whole page in a violet two shades above the ground, denser toward the bottom right; and one enormous faint ring arc, a hairline two shades up, sweeping across the lower right corner as if a planet sat just off the page.
+- `draw`: about 30 stars drifting left at 2 to 5 px a second, three sizes, the largest twinkling slowly; and, rarely, one sheet of paper tumbling across.
+
+## frame.css: luggage
+
+The app's surfaces are made like the suitcases.
+
+1. **`.panel`: corner caps.** A small quarter-round cap in `--color-border-strong` at each corner (about 7 px), like the metal corners on a case. A 1 px `--color-border` edge all round. Works from 44 px tall upward.
+2. **`.next-card`: a stitched case.** The corner caps, larger (10 px), plus a dashed line of stitching 6 px inside the edge all the way round in `--color-border-strong`. This is the one fully stitched surface on the page.
+3. **`.board-sign`: a luggage tag.** Rounded plate, no cut corner, with a line of stitching (dashes in `--color-on-primary` at about 35 %) 4 px inside its edge. Keep the title and the clock clear of it.
+4. **`.btn-primary`:** rounded plate, no cut corner, a 2 px band of `--color-primary-d` along the bottom.
+5. **`.app-sidebar`: a bulkhead.** Along its right edge, a double hairline with a rivet every 56 px. **`.app-tabbar`:** the same along its top edge.
+6. **`.scene-window`:** radius 14 px, no extra frame: the scene draws its own.
 
 ## Checklist for the pictures
 
-- The giant must not look like a glowing ball. Flat, dim, cropped.
-- The shuttle must read as a shuttle at a glance on the phone shot, where it will be small.
-- Pink appears exactly once in the window.
-- With the greeting over it, the upper left is nearly empty space.
+- At a glance from across the room, `scene-stopped` should be purple, tan, pink and olive. If it is mostly near-black, it is wrong.
+- The stipple must be visible in `window-2x`. If the surfaces look like flat vector fills, add grain.
+- The crystal is the brightest thing in the window and the only pink.
+- The words sit on plain dark wall with nothing behind them.
+- With the window covered, `quests-1280` still says "luggage": corner caps, the stitched tag, the crystal in the sidebar.

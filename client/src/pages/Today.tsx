@@ -17,6 +17,7 @@ import { QuestDetail } from '../components/QuestDetail';
 import { LevelUpSplash } from '../components/LevelUpSplash';
 import { duckReact } from '../store/useMascotStore';
 import { SceneWindow } from '../lines/SceneWindow';
+import { reportOverdue } from '../lines/live';
 import { isSceneEnabled, subscribeScene } from '../lib/scene';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
@@ -76,7 +77,7 @@ export default function Today() {
   useEffect(() => subscribeScene(() => setScene(isSceneEnabled())), []);
 
   useEffect(() => {
-    api.quests.rescue().then((r) => setOverdueCount(r.length)).catch(() => {});
+    api.quests.rescue().then((r) => { setOverdueCount(r.length); reportOverdue(r.length); }).catch(() => {});
   }, []);
 
   // Global keyboard shortcuts fire custom events; wire them here.
@@ -192,7 +193,7 @@ export default function Today() {
     <>
       <div className="page page-wide">
         {scene ? (
-          <SceneWindow caution={overdueCount > 0} done={completionsToday}>{masthead}</SceneWindow>
+          <SceneWindow>{masthead}</SceneWindow>
         ) : (
           <header>{masthead}</header>
         )}

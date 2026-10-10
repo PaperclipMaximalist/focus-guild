@@ -102,7 +102,7 @@ export function UpNextCard({ onCompleteQuest }: Props) {
     <>
       {/* The one thing on the page that is allowed to be loud. */}
       <div
-        className="panel p-4"
+        className="panel next-card p-4"
         style={isActive ? { boxShadow: 'inset 0 0 0 1.5px var(--color-primary)' } : undefined}
       >
         <p className="section-label" style={{ color: 'var(--color-primary)' }}>

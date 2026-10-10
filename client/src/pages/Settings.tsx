@@ -339,8 +339,8 @@ function ExperienceSection() {
       </p>
       <LinePicker />
       <Toggle
-        label="The window"
-        hint={`The view on Today. ${line.windowHint} Off removes it and all of its motion.`}
+        label="Scenery"
+        hint={`The window on Today, the object in the sidebar and the specks drifting behind the page. ${line.windowHint} Off removes all of it and its motion.`}
         on={scene}
         onChange={(v) => { setSceneEnabled(v); setScene(v); }}
       />

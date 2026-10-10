@@ -15,6 +15,8 @@ import type { LucideIcon } from 'lucide-react';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useUserStore } from '../store/useUserStore';
 import { api } from '../lib/api';
+import { Charm } from '../lines/Dressing';
+import { reportOverdue } from '../lines/live';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
 import {
   CalendarDays,
@@ -74,7 +76,7 @@ export function BottomNav() {
     <>
       <nav
         aria-label="Main"
-        className="fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-(--color-border) bg-(--color-surface) px-1 pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="app-tabbar fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-(--color-border) bg-(--color-surface) px-1 pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {PRIMARY.map((item) => {
           const active = isActive(pathname, item.to);
@@ -116,7 +118,7 @@ function Sidebar({
   const [overdue, setOverdue] = useState(0);
 
   useEffect(() => {
-    api.quests.rescue().then((r) => setOverdue(r.length)).catch(() => {});
+    api.quests.rescue().then((r) => { setOverdue(r.length); reportOverdue(r.length); }).catch(() => {});
   }, [pathname]);
 
   // The quest editor lives on Today; go there first when we're elsewhere.
@@ -163,7 +165,7 @@ function Sidebar({
   return (
     <aside
       aria-label="Main"
-      className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-(--color-border) bg-(--color-surface) px-3 py-4 lg:flex"
+      className="app-sidebar fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-(--color-border) bg-(--color-surface) px-3 py-4 lg:flex"
     >
       <Link to="/" className="mb-4 flex items-center gap-2 px-2.5 text-[15px] font-bold tracking-tight">
         <span
@@ -188,11 +190,14 @@ function Sidebar({
         {SECONDARY.map((i) => row(i, i.to === '/rescue' ? overdue : undefined))}
       </nav>
 
+      {/* The line's signature object takes whatever height is left over. */}
+      <Charm className="mt-3 min-h-0 flex-1" />
+
       {/* Rank, and room underneath for the duck (see MascotDock). */}
       {level && progress && (
         <Link
           to="/stats"
-          className="mt-auto mb-[76px] block rounded-md px-2.5 py-2 transition-colors hover:bg-(--color-surface2)"
+          className="mb-[76px] mt-2 block rounded-md px-2.5 py-2 transition-colors hover:bg-(--color-surface2)"
           title={`Level ${level.level}: ${level.title}`}
         >
           <div className="flex items-center gap-2 text-[13px] font-semibold">

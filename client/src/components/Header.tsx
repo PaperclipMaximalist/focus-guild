@@ -30,7 +30,7 @@ export function Header() {
   const progress = progressToNextLevel(user.totalXP);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-(--color-border) bg-(--color-bg)/95 backdrop-blur lg:hidden">
+    <header className="app-topbar sticky top-0 z-30 border-b border-(--color-border) bg-(--color-bg) lg:hidden">
       <div className="flex h-13 items-center gap-2.5 pl-4 pr-2">
         {/* Left slot: the duck floats here; without it, the rank's own icon. */}
         {duck ? (

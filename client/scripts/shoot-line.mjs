@@ -51,23 +51,34 @@ if (!browser) {
   process.exit(2);
 }
 
+// name, path, query, width, height, and optionally { scrollTo, clip }: a selector to
+// scroll to first, and a selector to photograph alone at twice the size.
 const SCENE = [
-  ['scene-away', '/', 'scene=away&done=0&caution=0', 1280, 330],
-  ['scene-arriving', '/', 'scene=arriving&k=0.55&done=2&caution=0', 1280, 330],
-  ['scene-stopped', '/', 'scene=stopped&done=4&caution=0', 1280, 330],
-  ['scene-caution', '/', 'scene=stopped&done=7&caution=1', 1280, 330],
-  ['scene-departing', '/', 'scene=departing&k=0.45&done=5&caution=0', 1280, 330],
-  ['scene-passing', '/', 'scene=passing&k=0.5&done=1&caution=0', 1280, 330],
-  ['scene-phone', '/', 'scene=stopped&done=4&caution=0', 375, 330],
+  ['scene-away', '/', 'scene=away&done=0&caution=0&progress=0', 1280, 380],
+  ['scene-arriving', '/', 'scene=arriving&k=0.55&done=2&caution=0&progress=0.3', 1280, 380],
+  ['scene-stopped', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 380],
+  ['scene-caution', '/', 'scene=stopped&done=7&caution=1&progress=0.8', 1280, 380],
+  ['scene-departing', '/', 'scene=departing&k=0.45&done=5&caution=0&progress=0.6', 1280, 380],
+  ['scene-passing', '/', 'scene=passing&k=0.5&done=1&caution=0&progress=0.1', 1280, 380],
+  ['scene-phone', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 375, 380],
+  // Close-ups, because small things cannot be judged at 1x.
+  ['window-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.scene-window' }],
+  ['window-away-2x', '/', 'scene=away&done=0&caution=1&progress=0', 1280, 900, { clip: '.scene-window' }],
+  ['window-phone-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 375, 812, { clip: '.scene-window' }],
+  ['charm-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.line-charm' }],
+  ['charm-idle-2x', '/', 'scene=away&done=0&caution=1&progress=0', 1280, 900, { clip: '.line-charm' }],
+  ['charm-short-2x', '/', 'scene=stopped&done=9&caution=0&progress=0.9', 1280, 700, { clip: '.line-charm' }],
 ];
 const PAGES = [
-  ['today-1280', '/', 'scene=stopped&done=4&caution=0', 1280, 1300],
-  ['today-375', '/', 'scene=stopped&done=4&caution=0', 375, 812],
+  ['today-1280', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 1300],
+  ['today-375', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 375, 812],
+  ['today-1600', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1600, 900],
   ['route-1280', '/feed', '', 1280, 900],
+  ['route-1600', '/feed', '', 1600, 900],
   ['route-375', '/feed', '', 375, 812],
+  ['quests-1280', '/quests', '', 1280, 900],
   ['settings-1280', '/settings', '', 1280, 900],
-  // The last entry is something to scroll to before the picture is taken.
-  ['picker-1280', '/settings', '', 1280, 900, '[role="radiogroup"][aria-label="Line"]'],
+  ['picker-1280', '/settings', '', 1280, 900, { scrollTo: '[role="radiogroup"][aria-label="Line"]' }],
 ];
 const shots = mode === 'scene' ? SCENE : mode === 'record' ? PAGES : [...SCENE, ...PAGES];
 
@@ -205,7 +216,8 @@ try {
     };
   }
 
-  for (const [name, path, query, w, h, scrollTo] of shots) {
+  for (const [name, path, query, w, h, extra = {}] of shots) {
+    const { scrollTo, clip } = extra;
     const url = `${BASE}${path}?line=${id}${query ? `&${query}` : ''}`;
     try {
       const phone = w < 600;
@@ -225,7 +237,16 @@ try {
       if (scrollTo) await evaluate(`document.querySelector(${JSON.stringify(scrollTo)})?.scrollIntoView({ block: 'center' })`).catch(() => {});
       await sleep(recording ? 6000 : 1500);
       const applied = await evaluate('document.documentElement.dataset.line');
-      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      let region;
+      if (clip) {
+        const box = await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(clip)})?.getBoundingClientRect(); return r && r.width && r.height ? { x: r.x, y: r.y, width: r.width, height: r.height } : null; })()`);
+        if (!box) {
+          console.log(`skip ${name}.png  (nothing matches ${clip})`);
+          continue;
+        }
+        region = { ...box, scale: 2 };
+      }
+      const shot = await send('Page.captureScreenshot', { format: 'png', ...(region ? { clip: region } : {}) });
       writeFileSync(join(outDir, `${name}.png`), Buffer.from(shot.data, 'base64'));
       const note = !ready ? '  (still loading when taken)' : applied !== id ? `  (line "${id}" did not load; this is "${applied}")` : '';
       if (note) failed += 1;

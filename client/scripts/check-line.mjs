@@ -125,7 +125,7 @@ function checkColours(c) {
 }
 
 // ── Frame ──
-const HOOKS = ['.scene-window', '.board-sign', '.btn-primary', '.panel'];
+const HOOKS = ['.scene-window', '.board-sign', '.btn-primary', '.panel', '.next-card', '.app-sidebar', '.app-tabbar', '.app-topbar'];
 const FRAME_BANNED = [
   [/!important/, '!important'],
   [/text-shadow/, 'text-shadow'],
@@ -185,21 +185,26 @@ const SCENE_BANNED = [
   [/\bwindow\b|\bdocument\b|localStorage|sessionStorage|\bfetch\(|\bimport\(/, 'the page or the network'],
 ];
 
-function checkScene() {
-  const src = read('scene.ts');
-  if (src === null) return fail('scene.ts is missing');
-  const code = noComments(src);
-  for (const [re, what] of SCENE_BANNED) if (re.test(code)) fail(`scene.ts uses ${what}`);
-  for (const [, from] of code.matchAll(/import[^;]*from\s*['"]([^'"]+)['"]/g)) {
-    if (from !== '../types') fail(`scene.ts imports "${from}"; a scene may only import ../types`);
+/** One of the three canvases. `needs` are the frame fields it must answer to. */
+function checkCanvas(file, define, needs, maxLines, required) {
+  const src = read(file);
+  if (src === null) {
+    if (required) fail(`${file} is missing`);
+    else notes.push(`${file} is missing: this line has not been dressed beyond its window yet`);
+    return;
   }
-  if (!/export default defineScene</.test(code)) fail('scene.ts must `export default defineScene<State>({ … })`');
-  for (const word of ['visitor', 'caution', 'done', 'moving', 'wide']) {
-    if (!new RegExp(`\\b${word}\\b`).test(code)) fail(`scene.ts never reads "${word}"; every scene answers to it (see the contract)`);
+  const code = noComments(src);
+  for (const [re, what] of SCENE_BANNED) if (re.test(code)) fail(`${file} uses ${what}`);
+  for (const [, from] of code.matchAll(/import[^;]*from\s*['"]([^'"]+)['"]/g)) {
+    if (from !== '../types') fail(`${file} imports "${from}"; a canvas may only import ../types`);
+  }
+  if (!new RegExp(`export default ${define}<`).test(code)) fail(`${file} must \`export default ${define}<State>({ … })\``);
+  for (const word of needs) {
+    if (!new RegExp(`\\b${word}\\b`).test(code)) fail(`${file} never reads "${word}"; it must answer to it (see the contract)`);
   }
   const lines = src.split('\n').length;
-  if (lines > 560) fail(`scene.ts is ${lines} lines; keep it under 560 (a scene is a few flat shapes)`);
-  if (!builtIn && !/^\/\*\*[\s\S]{200,}?\*\//.test(src.trim())) fail('scene.ts must open with a comment saying what is outside the window and what each state looks like');
+  if (lines > maxLines) fail(`${file} is ${lines} lines; keep it under ${maxLines}`);
+  if (!builtIn && !/^\/\*\*[\s\S]{200,}?\*\//.test(src.trim())) fail(`${file} must open with a comment saying what it shows and what each state looks like`);
 }
 
 // ── Index ──
@@ -225,9 +230,12 @@ if (!existsSync(dir)) {
 const colours = readTokens();
 if (colours) checkColours(colours);
 if (!builtIn) checkFrame();
-checkScene();
+checkCanvas('scene.ts', 'defineScene', ['visitor', 'caution', 'done', 'moving', 'wide'], 950, true);
+if (!builtIn && read('scene.ts') && !/front\s*[(:]/.test(noComments(read('scene.ts')))) notes.push('scene.ts has no front layer: it is still a bare view, not a cabin corner');
+checkCanvas('charm.ts', 'defineCharm', ['boarding', 'moving'], 380, false);
+checkCanvas('backdrop.ts', 'defineBackdrop', ['moving'], 260, false);
 checkIndex(colours);
-for (const name of ['index.ts', 'tokens.css', 'frame.css', 'scene.ts']) {
+for (const name of ['index.ts', 'tokens.css', 'frame.css', 'scene.ts', 'charm.ts', 'backdrop.ts']) {
   const src = read(name);
   if (src && /\p{Extended_Pictographic}/u.test(src.replace(/[©®™]/g, ''))) fail(`${name} contains an emoji or pictograph`);
 }

@@ -88,10 +88,12 @@ button { user-select: none; -webkit-user-select: none; }
   input, select, textarea { font-size: 16px !important; }
 }
 
+/* Only <html> paints the ground, so a line's backdrop (a fixed canvas behind
+   everything) shows through wherever a page has no surface of its own. */
+html { background: var(--color-bg); }
 html, body, #root {
   height: 100%;
   margin: 0;
-  background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
