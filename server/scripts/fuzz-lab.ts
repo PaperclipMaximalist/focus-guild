@@ -41,7 +41,7 @@ import { performance } from 'node:perf_hooks';
 import { generateSchedule, replan } from '../src/lib/scheduler/replan.js';
 import { applyEdit } from '../src/lib/scheduler/edits.js';
 import { questsToTasks, type QuestLike } from '../src/lib/scheduler/adapter.js';
-import { placeDailyFillers, type DailyFiller } from '../src/lib/scheduler/dailyFiller.js';
+import { isUntimed, placeDailyFillers, type DailyFiller } from '../src/lib/scheduler/dailyFiller.js';
 import { CHRONOTYPE_CURVES, defaultConfig } from '../src/lib/scheduler/config.js';
 import { eventsToFixedBlocks, isCalendarBlock } from '../src/lib/calendar/ics.js';
 import { calibrateEstimates, computeInsights, type Calibration, type CompletedSample } from '../src/lib/scheduler/insights.js';
@@ -765,6 +765,8 @@ interface PlanCheckInput {
   now: number;
   result: SchedulerResult;
   add: (cls: string, detail: string) => void;
+  /** The routines this call was given, when the route gives them. */
+  routines?: DailyFiller[];
 }
 
 /**
@@ -773,14 +775,25 @@ interface PlanCheckInput {
  * where it was) and new (work this call placed). The planner answers for
  * kept and new; pins are the user's responsibility.
  */
-function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInput): void {
+function checkPlan({ kind, before, tasks, cfg, now, result, add, routines }: PlanCheckInput): void {
   const tz = cfg.tzOffsetMin ?? 0;
   const out = result.schedule;
   const byId = new Map(tasks.map((t) => [t.id, t]));
   const at = (b: Block) => `${b.id} ${clock(b.start, tz)}–${clock(b.end, tz).slice(6)} task=${b.taskId}`;
 
   // Every fixed, pinned and past block comes back exactly as it went in.
+  // One exception, and only when the call was given the routines: a routine
+  // with no hour of its own may step aside for a deadline. It is still the
+  // same block, the same length, later the same day, and on nothing fixed.
   const outKeys = new Set(out.map(stayKey));
+  const untimed = new Set((routines ?? []).filter((f) => isUntimed(f, cfg.workingHours)).map((f) => `Daily: ${f.name}`));
+  const steppedAside = (b: Block): boolean => {
+    if (b.type !== 'fixed' || !b.note || !untimed.has(b.note) || b.end <= now) return false;
+    const o = out.find((x) => x.id === b.id);
+    return !!o && o.type === 'fixed' && o.note === b.note && o.end - o.start === b.end - b.start
+      && o.start > b.start && o.start - b.start < DAY
+      && !out.some((x) => x !== o && x.type === 'fixed' && x.start < o.end && o.start < x.end);
+  };
   for (const b of before) {
     if (!Number.isFinite(b.start) || !Number.isFinite(b.end)) continue; // judged by block:non-finite below
     const group = kind === 'generate' ? 'fixed' : b.end <= now ? 'past' : b.type === 'fixed' ? 'fixed' : b.locked ? 'pinned' : null;
@@ -789,7 +802,7 @@ function checkPlan({ kind, before, tasks, cfg, now, result, add }: PlanCheckInpu
     // it goes left the scheduler no right answer.
     const owner = b.taskId ? byId.get(b.taskId) : undefined;
     if (group === 'pinned' && b.type === 'work' && b.taskId && (!owner || owner.status === 'done')) continue;
-    if (group && !outKeys.has(stayKey(b))) add(`preserve:${group}-block-lost-or-changed (${kind})`, at(b));
+    if (group && !outKeys.has(stayKey(b)) && !steppedAside(b)) add(`preserve:${group}-block-lost-or-changed (${kind})`, at(b));
   }
 
   const ids = new Set<string>();
@@ -1030,11 +1043,11 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
     }
   };
 
-  const afterPlan = (fn: 'generate' | 'replan', tasks: Task[], before: Block[], result: SchedulerResult | undefined, ms: number) => {
+  const afterPlan = (fn: 'generate' | 'replan', tasks: Task[], before: Block[], result: SchedulerResult | undefined, ms: number, routines?: DailyFiller[]) => {
     timings.push({ ms, fn, tasks: tasks.length, blocks: before.length, horizon: cfg.horizonDays });
     if (ms > SLOW_MS) add(`slow:${fn} over ${SLOW_MS} ms`, `${ms.toFixed(0)} ms, ${tasks.length} tasks, ${before.length} blocks in, horizon ${cfg.horizonDays} d`);
     if (!result) { if (opt.dump) dumps.push({ step, fn, now, tasks, blocks: before, out: null, issues: null }); return; }
-    checkPlan({ kind: fn, before, tasks, cfg, now, result, add });
+    checkPlan({ kind: fn, before, tasks, cfg, now, result, add, routines });
 
     // What the Feed shows next to the plan.
     const quests = [
@@ -1077,16 +1090,16 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
     return [r, performance.now() - t0];
   };
 
-  const plan = (fn: 'generate' | 'replan', tasks: Task[], before: Block[]): SchedulerResult | undefined => {
+  const plan = (fn: 'generate' | 'replan', tasks: Task[], before: Block[], routines?: DailyFiller[]): SchedulerResult | undefined => {
     failedThisCall = false;
     call = fn;
     const tasksJson = JSON.stringify(tasks);
     const beforeJson = JSON.stringify(before);
-    const invoke = () => (fn === 'generate' ? generateSchedule(tasks, before, cfg, now) : replan(before, tasks, cfg, now));
+    const invoke = () => (fn === 'generate' ? generateSchedule(tasks, before, cfg, now, routines) : replan(before, tasks, cfg, now, { routines }));
     let ms = 0;
     const result = guard(fn, () => { const [r, t] = timed(invoke); ms = t; return r; });
     if (JSON.stringify(tasks) !== tasksJson || JSON.stringify(before) !== beforeJson) add(`mutates-input:${fn}`, 'tasks or blocks changed in place');
-    afterPlan(fn, tasks, before, result, ms);
+    afterPlan(fn, tasks, before, result, ms, routines);
     if (result && !opt.light) {
       // Same input twice, same answer.
       const again = guard(fn, invoke);
@@ -1095,12 +1108,16 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
         if (d.gone || d.added || JSON.stringify(result.feasibilityReport) !== JSON.stringify(again.feasibilityReport)) add(`determinism:${fn}-differs-on-same-input`, `${d.gone} gone, ${d.added} added`);
       }
       // A replan with nothing changed, at the same instant, changes nothing.
-      const settled = guard('replan', () => replan(result.schedule, tasks, cfg, now));
+      const settled = guard('replan', () => replan(result.schedule, tasks, cfg, now, { routines }));
       if (settled) {
         const d = diffSchedules(result.schedule, settled.schedule, stayKey);
         const label = fn === 'generate' ? 'no-change:replan-right-after-generate' : 'no-change:replan-not-idempotent';
         if (d.gone) add(`${label}, moves or drops blocks`, `${d.gone} gone, ${d.added} added`);
-        else if (d.added) add(`${label}, adds blocks`, `${d.added} added`);
+        else if (d.added) {
+          const hadKeys = new Set(result.schedule.map(stayKey));
+          const fresh = settled.schedule.filter((b) => !hadKeys.has(stayKey(b)));
+          add(`${label}, adds blocks`, `${d.added} added: ${fresh.slice(0, 3).map((b) => `${clock(b.start, tz())}–${clock(b.end, tz()).slice(6)} ${b.taskId}`).join(', ')}`);
+        }
         else if (JSON.stringify(result.feasibilityReport) !== JSON.stringify(settled.feasibilityReport)) {
           add(`${label}, report changes`, `${JSON.stringify(result.feasibilityReport.issues)} → ${JSON.stringify(settled.feasibilityReport.issues)}`);
         }
@@ -1124,7 +1141,7 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
       placeDailyFillers({ fillers: c.fillers, now, horizonDays: cfg.horizonDays, workingHours: cfg.workingHours, existingFixed: existing, tzOffsetMin: cfg.tzOffsetMin })) ?? [];
     call = 'placeDailyFillers';
     checkFillers(fillerBlocks, existing);
-    plan('generate', tasks, [...existing, ...fillerBlocks]);
+    plan('generate', tasks, [...existing, ...fillerBlocks], c.fillers);
   };
 
   // routes/schedule.ts: POST /replan (tops routines up) and POST /edit, /insert (don't)
@@ -1142,7 +1159,7 @@ function runCase(c0: Case, opt: RunOptions = {}): RunResult {
       checkFillers(placed, existing);
       routines = placed.filter((b) => !have.has(`${b.note}|${dayOf(b.start)}`));
     }
-    plan('replan', tasks, [...current, ...routines]);
+    plan('replan', tasks, [...current, ...routines], topUp ? c.fillers : undefined);
   };
 
   const pool = (p: Pool): Block[] =>

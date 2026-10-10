@@ -20,7 +20,7 @@
  */
 
 import { idealSessionRange, priorityScore } from './planner.js';
-import { dayKey, userMidnightUtc, workDayMidnightUtc, workWindowUtc } from './tz.js';
+import { crossesMidnight, dayKey, userHourUtc, userMidnightUtc, workDayMidnightUtc, workWindowUtc } from './tz.js';
 import type { Block, Task, UserConfig } from './types.js';
 
 const MS_PER_MIN = 60_000;
@@ -105,6 +105,7 @@ export function buildDayInfo(
       cursor = Math.max(cursor, be);
     }
     if (cursor < wEnd) free.push({ start: cursor, end: wEnd, day: key });
+    if (config.mealGap && !crossesMidnight(config.workingHours)) keepMealFree(free, todayImmov, midnight, wStart, wEnd, config.mealGap);
 
     const freeMinutes = free.reduce((s, iv) => s + (iv.end - iv.start) / MS_PER_MIN, 0);
     out.push({
@@ -115,6 +116,52 @@ export function buildDayInfo(
     });
   }
   return out;
+}
+
+/**
+ * Take the meal out of a day's free time. A day of quests from 9 to 6 was
+ * planned straight through midday: a third of simulated people had no half
+ * hour without a quest between 11:30 and 14:00 on such a day. Nothing is
+ * taken when the span is mostly gone or outside quest hours, or when
+ * something that isn't quest work already breaks it (a class, a lunch
+ * date, a routine). The meal sits as near the middle of the span as the
+ * day allows, so a replan finds the same half hour between its kept blocks.
+ */
+function keepMealFree(
+  free: FreeInterval[],
+  immovable: Block[],
+  midnight: number,
+  wStart: number,
+  wEnd: number,
+  meal: { fromHour: number; toHour: number; minutes: number },
+): void {
+  const len = meal.minutes * MS_PER_MIN;
+  const spanStart = userHourUtc(midnight, meal.fromHour);
+  const spanEnd = userHourUtc(midnight, meal.toHour);
+  const from = Math.max(spanStart, wStart);
+  const to = Math.min(spanEnd, wEnd);
+  if (len <= 0 || to - from < 2 * len) return;
+  const busy = immovable.reduce(
+    (m, b) => (b.type === 'work' ? m : m + Math.max(0, Math.min(b.end, to) - Math.max(b.start, from))),
+    0,
+  );
+  if (busy >= len) return;
+
+  const ideal = spanStart + (spanEnd - spanStart - len) / 2;
+  let best: { i: number; start: number } | null = null;
+  for (let i = 0; i < free.length; i += 1) {
+    const lo = Math.max(free[i]!.start, from);
+    const hi = Math.min(free[i]!.end, to) - len;
+    if (hi < lo) continue;
+    const start = Math.min(hi, Math.max(lo, ideal));
+    if (!best || Math.abs(start - ideal) < Math.abs(best.start - ideal)) best = { i, start };
+  }
+  if (!best) return;
+  const iv = free[best.i]!;
+  const parts: FreeInterval[] = [];
+  if (best.start > iv.start) parts.push({ ...iv, end: best.start });
+  if (best.start + len < iv.end) parts.push({ ...iv, start: best.start + len });
+  free.splice(best.i, 1, ...parts);
 }
 
 /**

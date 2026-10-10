@@ -135,6 +135,9 @@ export const DEFAULT_WORKING_HOURS: WorkingHours = {
 
 export const DEFAULT_HORIZON_DAYS = 7;
 
+/** Half an hour for lunch, somewhere between 11:30 and 14:00. */
+export const DEFAULT_MEAL_GAP = { fromHour: 11.5, toHour: 14, minutes: 30 };
+
 export function defaultConfig(): UserConfig {
   return {
     weights: { ...DEFAULT_WEIGHTS },
@@ -144,6 +147,7 @@ export function defaultConfig(): UserConfig {
     horizonDays: DEFAULT_HORIZON_DAYS,
     softMaxBlockMin: DEFAULT_SOFT_MAX_BLOCK_MIN,
     scoreWeights: { ...DEFAULT_SCORE_WEIGHTS },
+    mealGap: { ...DEFAULT_MEAL_GAP },
   };
 }
 

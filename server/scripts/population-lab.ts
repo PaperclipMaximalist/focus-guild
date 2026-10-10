@@ -525,9 +525,11 @@ function build(p: Person, quests: QuestLike[], now: number, cfg: UserConfig = p.
   const fixed = [...cal, ...fillersFor(p, now, cal, quests, new Set())];
   const tasks = questsToTasks(quests, {}, now, p.tz, calibration, cfg.workingHours);
   const t0 = performance.now();
-  const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, cfg, now);
+  // As the route does: the routines go along, so an untimed one can step
+  // aside for a deadline. The fixed blocks are read back from the plan.
+  const { schedule, feasibilityReport } = generateSchedule(tasks, fixed, cfg, now, p.dailies);
   hashPlan(schedule);
-  return { tasks, fixed, schedule, issues: feasibilityReport.issues, ms: performance.now() - t0 };
+  return { tasks, fixed: schedule.filter((b) => b.type === 'fixed'), schedule, issues: feasibilityReport.issues, ms: performance.now() - t0 };
 }
 
 // ─── Grading one plan ─────────────────────────────────────────────────────────
@@ -898,6 +900,23 @@ function gradePlan(p: Person, b: Built): Finding[] {
     if (total > 480) f.push({ flag: 'overload-day', detail: `${wd(ws[0]!.start, tz)}: ${total} min of quests` });
     else if (loadRatio < 0.6 && cap > 0 && movable / cap > 0.6 && total > 240)
       f.push({ flag: 'crowded-day', detail: `${wd(ws[0]!.start, tz)} ${total}/${Math.round(cap)} min used (${movable} movable) on a light week (${Math.round(loadRatio * 100)}% load)` });
+    // A meal: on a day worked through midday, half an hour between 11:30
+    // and 14:00 with no quest in it. (Not for hours that run past midnight.)
+    if (!pastMidnight(cfg)) {
+      const noon = baseMidnight(tz) + k * DAY;
+      const from = noon + 11.5 * HOUR;
+      const to = noon + 14 * HOUR;
+      if (ws.some((w) => w.start < from) && ws.some((w) => w.end > to)) {
+        let cursor = from;
+        let gap = 0;
+        for (const w of ws.filter((x) => x.end > from && x.start < to)) {
+          gap = Math.max(gap, w.start - cursor);
+          cursor = Math.max(cursor, w.end);
+        }
+        gap = Math.max(gap, to - cursor);
+        if (gap < 30 * MIN) f.push({ flag: 'no-meal-gap', detail: `${wd(ws[0]!.start, tz)}: longest pause from quests 11:30–14:00 is ${Math.round(gap / MIN)} min` });
+      }
+    }
     const switches = ws.slice(1).filter((w, i) => w.taskId !== ws[i]!.taskId).length;
     if (switches >= 8) f.push({ flag: 'thrash', detail: `${wd(ws[0]!.start, tz)}: ${switches} quest switches` });
     // Interleaved: the same quest picked up again after another one (A B A B A).
@@ -961,6 +980,41 @@ function gradePlan(p: Person, b: Built): Finding[] {
     if (asked > d.durationMin) f.push({ flag: 'daily-clipped', detail: `"${d.name}" ${asked} min → ${d.durationMin}` });
   }
   const dailyBlocks = fixed.filter((x) => x.note?.startsWith('Daily:'));
+  // A routine with no hour, set or in its name: the planner picks its time.
+  const untimed = p.dailies.filter((d) => d.preferredHour === null && !/morning|evening|night|bed|lunch|afternoon/i.test(d.name));
+  const ownMidnight = (k: number) => baseMidnight(tz) + k * DAY;
+  /** Where a routine sits on the days after today, as ms after midnight (the median), or null with under two such days. */
+  const usualTime = (d: DailyFiller): number | null => {
+    const later = dailyBlocks
+      .filter((x) => x.note === `Daily: ${d.name}` && ownDayOf(x.start, cfg) !== ownDayOf(now, cfg))
+      .map((x) => x.start - ownMidnight(ownDayOf(x.start, cfg)))
+      .sort((x, y) => x - y);
+    return later.length >= 2 ? later[Math.floor(later.length / 2)]! : null;
+  };
+  // Routine time stability: today's occurrence of an untimed routine sits
+  // somewhere else than on every other day, because it was dropped at "now".
+  for (const d of untimed) {
+    const usual = usualTime(d);
+    const todays = dailyBlocks.find((x) => x.note === `Daily: ${d.name}` && ownDayOf(x.start, cfg) === ownDayOf(now, cfg));
+    if (usual === null || !todays) continue;
+    const off = Math.abs(todays.start - ownMidnight(ownDayOf(now, cfg)) - usual) / MIN;
+    if (off > 30) { f.push({ flag: 'routine-drifts-today', detail: `"${d.name}" today at ${fmt(todays.start, tz)}, other days at ${fmt(ownMidnight(0) + usual, tz)} (opened ${at(now)})`, weight: off }); break; }
+  }
+  // An untimed routine in quest hours, ahead of a deadline the plan is short
+  // on, on the deadline's own day: 45 minutes of piano at 19:00 while the lab
+  // report due at 20:00 is an hour short.
+  routineBlocks: for (const is of issues) {
+    const t = byId.get(is.taskId);
+    if (!t || is.shortfallMin <= 0) continue;
+    for (const x of dailyBlocks) {
+      if (!untimed.some((d) => x.note === `Daily: ${d.name}`)) continue;
+      if (x.start < now || x.start >= t.deadline || ownDayOf(x.start, cfg) !== ownDayOf(t.deadline - 1, cfg)) continue;
+      const h = localHourOf(x.start, tz);
+      if (!pastMidnight(cfg) && (h < cfg.workingHours.startHour - 0.01 || h >= cfg.workingHours.endHour - 0.01)) continue;
+      f.push({ flag: 'routine-blocks-deadline', detail: `"${x.note!.slice(7)}" ${at(x.start)}–${fmt(x.end, tz)} before "${t.name}" due ${at(t.deadline)}, short ${is.shortfallMin}m` });
+      break routineBlocks;
+    }
+  }
   // Days with real free time (calendar only) where a routine didn't land.
   // Today is exempt for routines with a time: once it's long gone, skipping is right.
   const calendarOnly = fixed.filter((x) => !x.note?.startsWith('Daily:'));
@@ -968,6 +1022,12 @@ function gradePlan(p: Person, b: Built): Finding[] {
     const k = ownDayOf(info.workStart, cfg);
     for (const d of p.dailies) {
       if (k === ownDayOf(now, cfg) && (d.preferredHour !== null || /morning|evening|night|bed|lunch|afternoon/i.test(d.name))) continue;
+      // The same exemption for a routine with no hour of its own, now that it
+      // keeps one time of day: when that time (read off its other days) was
+      // gone two hours before the app was opened, skipping today is the rule,
+      // exactly as for "Morning meds" opened at 16:30.
+      const usual = usualTime(d);
+      if (k === ownDayOf(now, cfg) && usual !== null && ownMidnight(k) + usual < now - 2 * HOUR) continue;
       const on = dailyBlocks.some((x) => x.note === `Daily: ${d.name}` && ownDayOf(x.start, cfg) === k);
       const room = info.freeIntervals.reduce((a, iv) => Math.max(a, (iv.end - iv.start) / MIN), 0);
       if (!on && room >= d.durationMin + 60) { f.push({ flag: 'daily-dropped', detail: `"${d.name}"${d.preferredHour !== null ? ` @${d.preferredHour}` : ''} ${d.durationMin}m missing on ${wd(info.workStart, tz)} (hours ${cfg.workingHours.startHour}–${cfg.workingHours.endHour}, opened ${at(now)})` }); break; }
@@ -1098,7 +1158,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     }
 
     // The same replan again, at the same instant, changes nothing.
-    const again = replan(schedule, tasks, cfg, t).schedule.filter((b) => b.end > t && isWork(b)).map(blockKey).sort();
+    const again = replan(schedule, tasks, cfg, t, { routines: p.dailies }).schedule.filter((b) => b.end > t && isWork(b)).map(blockKey).sort();
     const first = work.map(blockKey).sort();
     if (again.length !== first.length || again.some((k, i) => k !== first[i])) {
       const gone = first.filter((k) => !again.includes(k)).length;
@@ -1164,7 +1224,7 @@ function liveWeek(p: Person, verbose = false, compliance = p.compliance): Life {
     const cfg = cfgAt(t);
     const tasks = tasksAt(t);
     // The insert route names the quest the user just added.
-    schedule = replan([...current, ...routines], tasks, cfg, t, { addTaskIds }).schedule;
+    schedule = replan([...current, ...routines], tasks, cfg, t, { addTaskIds, routines: p.dailies }).schedule;
     hashPlan(schedule);
     life.replans++;
     if (!falseFirstSeen) {

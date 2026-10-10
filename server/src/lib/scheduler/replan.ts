@@ -13,17 +13,55 @@
  * continuity by treating stable blocks as additional locked blocks.
  */
 
+import { routinesAside, type DailyFiller } from './dailyFiller.js';
 import { plan } from './planner.js';
 import { reflow } from './reflow.js';
 import type { Block, Schedule, SchedulerResult, Task, UserConfig, ReplanOptions } from './types.js';
+
+const shortfall = (r: SchedulerResult) => r.feasibilityReport.issues.reduce((m, i) => m + i.shortfallMin, 0);
+
+/**
+ * A plan that is short on a deadline gets one more try with the untimed
+ * routines in its way moved aside. Kept only when it is less short: a
+ * routine doesn't move for nothing.
+ */
+function aroundRoutines(
+  first: SchedulerResult,
+  blocks: Block[],
+  routines: readonly DailyFiller[] | undefined,
+  tasks: Task[],
+  config: UserConfig,
+  now: number,
+  again: (blocks: Block[]) => SchedulerResult,
+): SchedulerResult {
+  if (!routines?.length || !first.feasibilityReport.issues.length) return first;
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  const moved = routinesAside({
+    blocks,
+    shortfalls: first.feasibilityReport.issues.flatMap((i) => {
+      const t = byId.get(i.taskId);
+      return t ? [{ deadline: t.deadline, shortMin: i.shortfallMin, notBefore: t.notBefore }] : [];
+    }),
+    fillers: [...routines],
+    now,
+    workingHours: config.workingHours,
+    tzOffsetMin: config.tzOffsetMin,
+  });
+  if (!moved) return first;
+  const second = again(moved);
+  return shortfall(second) < shortfall(first) ? second : first;
+}
 
 export function generateSchedule(
   tasks: Task[],
   fixedBlocks: Block[],
   config: UserConfig,
   now: number,
+  /** The user's routines, so untimed ones can step aside for a deadline. */
+  routines?: readonly DailyFiller[],
 ): SchedulerResult {
-  return plan({ tasks, fixedBlocks, lockedBlocks: [], config, now });
+  const build = (fixed: Block[]) => plan({ tasks, fixedBlocks: fixed, lockedBlocks: [], config, now });
+  return aroundRoutines(build(fixedBlocks), fixedBlocks, routines, tasks, config, now, build);
 }
 
 /**
@@ -42,5 +80,6 @@ export function replan(
   now: number,
   options: ReplanOptions = {},
 ): SchedulerResult {
-  return reflow(currentSchedule, tasks, config, now, options);
+  const flow = (blocks: Block[]) => reflow(blocks, tasks, config, now, options);
+  return aroundRoutines(flow(currentSchedule), currentSchedule, options.routines, tasks, config, now, flow);
 }

@@ -3,6 +3,8 @@
  * lives outside this module.
  */
 
+import type { DailyFiller } from './dailyFiller.js';
+
 export type TaskStatus = 'pending' | 'in_progress' | 'done';
 export type BlockType = 'work' | 'break' | 'fixed' | 'buffer';
 
@@ -149,6 +151,12 @@ export interface UserConfig {
   workingHours: WorkingHours;
   horizonDays: number;
   /**
+   * Time kept free of quests for a meal: `minutes` somewhere between
+   * `fromHour` and `toHour`, on a day whose quest hours run through that
+   * span. Unset = none.
+   */
+  mealGap?: { fromHour: number; toHour: number; minutes: number };
+  /**
    * Soft cap on work block duration in minutes. Blocks longer than this
    * incur an oversize penalty unless the task has special circumstances
    * (very high urgency, high setupCost, or block exactly fills a tight slot).
@@ -203,6 +211,11 @@ export interface ReplanOptions {
    * has its plan; these may land today whatever their deadline.
    */
   addTaskIds?: readonly string[];
+  /**
+   * The user's routines. Given them, an untimed routine standing in front
+   * of a deadline the plan is short on steps aside (see `routinesAside`).
+   */
+  routines?: readonly DailyFiller[];
 }
 
 // ---------- Edits ----------

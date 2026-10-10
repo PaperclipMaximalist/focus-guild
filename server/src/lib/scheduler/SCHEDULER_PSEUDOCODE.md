@@ -132,6 +132,12 @@ buildDayInfo:
     free intervals = window minus immovable (fixed + locked) blocks
     after a fixed block ≥ 90 min, the next free time starts 20 min later
       (TRANSITION — nobody walks out of school straight into an essay)
+    a meal (config.mealGap, default 30 min between 11:30 and 14:00): taken
+      out of the free time as near 12:30 as the day allows, so it is never
+      planned and nothing shows in the Feed. Not when quest hours leave under
+      an hour of the span, when something that isn't quest work already takes
+      ≥ 30 min of it (a class, a lunch date, a routine), or for hours past
+      midnight. A replan finds the same half hour between its kept blocks.
 
 capacity per interval = workableMin(length, breakPolicy)
   work  = length − floor(length / (on + off)) × off  # per interval, not a flat %
@@ -370,6 +376,16 @@ replan route also tops up routines on days that don't have them yet
   **nearest** free slot, earlier or later. A routine whose hour passed more
   than 2 h ago is skipped for today rather than run late. When routines take
   at most half the day, each gets 10 min of space around it.
+  A routine with no hour at all gets one from its place in the list, spread
+  over the whole window (not what is left of today), so it is at the same
+  time every day and is skipped the same way once that time is gone.
+  **Stepping aside** (`routinesAside`, called from `replan.ts` when
+  `generateSchedule` / `replan` are given the routines): if the plan is short
+  on a quest, untimed routines inside quest hours before its deadline move,
+  latest first and only as many as the shortfall needs, to the first free
+  time after the quest can no longer use it (its deadline or the end of
+  quest hours), the same day. The plan is made again and kept only if it is
+  less short. A routine with an hour never moves.
 - **Chronotype** (`config.CHRONOTYPE_CURVES`, Settings → "Sharpest time of
   day"): standard (the office curve), lark (peak 7–11), afternoon (13–17),
   owl (19–24). `userConfig.ts` picks it from `schedulerSettings.chronotype`.
@@ -505,9 +521,17 @@ put" ignores it (`stayKey`).
 
 `fuzz-repros.test.ts` holds a minimal repro per class. A bug that is known
 and not yet fixed is an `it.fails(...)`; fixing it means flipping it to `it`.
-As of 2026-10-06 one is left (a quest's max session is ignored), and the
-largest open class is a replan with nothing changed that still adds work
-(see PLAN.md).
+As of 2026-10-08 none is left. The largest open class is a replan with
+nothing changed that still adds work; a fix is parked on a branch (see
+PLAN.md). The labs pass the routines to generate and replan, as the route
+does, and the judge lets an untimed routine move later the same day.
+
+The clock: `plan()` and `reflow()` round `now` up to the whole minute, so
+blocks start and end on minutes. Which quests are still due is read from
+the real clock: a quest due later this very minute is reported short, not
+dropped. A quest's own max session (`maxChunkMin`) caps the constructor's
+sittings and the reconcile fill alike, plus the 20-minute tail that may be
+absorbed to finish.
 
 ## Population lab (`server/scripts/population-lab.ts`, `npm run lab:pop`)
 
@@ -522,7 +546,10 @@ quests, and a true energy curve that may not match the configured one.
   quests could be on time (`fewer-on-time`); `idle-while-short`;
   `false-infeasible`; empty or idle today; crowded and overloaded days;
   interleaving; tiny and huge blocks; breaks; energy against the person's
-  real curve; routines clipped, dropped or misplaced; HIGH quests left out.
+  real curve; routines clipped, dropped or misplaced; HIGH quests left out;
+  an untimed routine off its usual time today (`routine-drifts-today`) or in
+  front of a deadline the plan is short on (`routine-blocks-deadline`); no
+  half hour without a quest between 11:30 and 14:00 (`no-meal-gap`).
 - **`--week`**: each person lives seven days the way the app works (the Feed
   replans on the first open of a day and after every focus session; routines
   are topped up; Not Today ends at midnight). People skip blocks, overrun
@@ -538,6 +565,12 @@ quests, and a true energy curve that may not match the configured one.
   `--examples <k>`. Old behaviour for A/B: `--clip`, `--no-morning-refresh`,
   `--no-chronotype`. New scheduler exports are imported optionally, so
   `git stash` the scheduler to measure a before on the same people.
+
+**The people don't tire.** A planned block is done with the person's
+compliance, whatever came before it. Work planned into break time therefore
+counts as work done, and "deadlines met" rises when a plan drops its breaks
+(measured 2026-10-06: about half a point). Read it next to `no-break` and
+`no-break after a replan`.
 
 Result on 2 000 people it was never tuned on (seed 7, `--week --history`),
 before → after the 2026-09-26 changes: deadlines met 43.0% → 57.4%; perfect
