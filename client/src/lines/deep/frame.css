@@ -1,49 +1,85 @@
-/* The Abyssal Line's frame: a riveted viewport and plates pressed from one sheet.
-   Everything is a hard edge. */
+/*
+ * The Abyssal Line's frame: riveted iron plate, the way the submersible's bridge is built.
+ *   .panel        a plate: a hairline edge and a rivet 6 px in from each corner
+ *   .next-card    a framed plate: a double rule, a row of rivets along the top and bottom, corner rivets
+ *   .board-sign   a maker's plate: pressed flat, a band of the darker accent along the top, a rivet at each end
+ *   .btn-primary  pressed plate with a band of the darker accent along the bottom
+ *   .app-sidebar  the hull: plate seams every 120 px, rivets along each seam, a rib down the right edge
+ *   .app-tabbar   a row of rivets along its top edge
+ */
 @layer components {
-  /* The viewport: a hairline edge, and a dotted seam of rivets 5px inside it.
-     The seam is drawn on a layer above the water, or the scene would cover it. */
   :root[data-line="deep"] .scene-window {
-    border: 1px solid var(--color-border-strong);
+    --radius-card: 10px;
   }
-  :root[data-line="deep"] .scene-window::after {
+
+  :root[data-line="deep"] .panel {
+    box-shadow: inset 0 0 0 1px var(--color-border);
+    background-color: var(--color-surface);
+    background-image:
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px);
+    background-repeat: no-repeat;
+    background-size: 5px 5px, 5px 5px, 5px 5px, 5px 5px;
+    background-position: 6px 6px, calc(100% - 6px) 6px, 6px calc(100% - 6px), calc(100% - 6px) calc(100% - 6px);
+  }
+
+  :root[data-line="deep"] .next-card {
+    box-shadow:
+      inset 0 0 0 1px var(--color-border-strong),
+      inset 0 0 0 3px var(--color-surface),
+      inset 0 0 0 4px var(--color-border-strong);
+    background-image:
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 35% 35%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 50% 50%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px),
+      radial-gradient(circle at 50% 50%, #7FA894 0 0.9px, var(--color-border-strong) 1px 2.2px, transparent 2.4px);
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, repeat-x, repeat-x;
+    background-size: 6px 6px, 6px 6px, 6px 6px, 6px 6px, 28px 5px, 28px 5px;
+    background-position: 8px 8px, calc(100% - 8px) 8px, 8px calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), 24px 8px, 24px calc(100% - 8px);
+  }
+
+  :root[data-line="deep"] .board-sign {
+    position: relative;
+    border-radius: 0;
+    background: var(--color-primary);
+    box-shadow: inset 0 4px 0 0 var(--color-primary-d);
+  }
+  :root[data-line="deep"] .board-sign::before,
+  :root[data-line="deep"] .board-sign::after {
     content: '';
     position: absolute;
-    inset: 0;
-    outline: 1px dotted var(--color-border-strong);
-    outline-offset: -6px;
+    top: calc(50% - 1px);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
     pointer-events: none;
+    background: radial-gradient(circle at 35% 35%, color-mix(in srgb, var(--color-primary) 70%, white) 0 0.8px, color-mix(in srgb, var(--color-on-primary) 55%, transparent) 1px);
   }
-
-  /* One mullion, only where the window is wide enough to carry it: a 3px bar
-     of the panel colour with a hairline each side. Hard stops, no fade. */
-  @media (min-width: 600px) {
-    :root[data-line="deep"] .scene-window::after {
-      background: linear-gradient(
-        90deg,
-        transparent calc(74% - 2.5px),
-        var(--color-border) calc(74% - 2.5px),
-        var(--color-border) calc(74% - 1.5px),
-        var(--color-surface) calc(74% - 1.5px),
-        var(--color-surface) calc(74% + 1.5px),
-        var(--color-border) calc(74% + 1.5px),
-        var(--color-border) calc(74% + 2.5px),
-        transparent calc(74% + 2.5px)
-      );
-    }
-  }
-
-  /* The sign and the button are plate, pressed from one sheet: no cut corner,
-     a darker band along one edge. */
-  :root[data-line="deep"] .board-sign {
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
-    background: var(--color-primary);
-    box-shadow: inset 0 4px 0 var(--color-primary-d);
-  }
+  :root[data-line="deep"] .board-sign::before { left: 5px; }
+  :root[data-line="deep"] .board-sign::after { right: 5px; }
 
   :root[data-line="deep"] .btn-primary {
     border-radius: var(--radius-md);
-    background: var(--color-primary);
-    box-shadow: inset 0 -3px 0 var(--color-primary-d);
+    background: var(--fill);
+    box-shadow: inset 0 -3px 0 0 var(--color-primary-d);
+  }
+
+  :root[data-line="deep"] .app-sidebar {
+    background-image:
+      radial-gradient(circle at 12px 117px, color-mix(in srgb, var(--color-surface) 78%, white) 0 1.4px, color-mix(in srgb, var(--color-surface) 70%, black) 1.5px 2.5px, transparent 2.6px),
+      linear-gradient(to bottom, transparent 110px, color-mix(in srgb, var(--color-surface) 70%, black) 110px 112px, color-mix(in srgb, var(--color-surface) 92%, white) 112px 113px, transparent 113px);
+    background-size: 24px 120px, 24px 120px;
+    box-shadow: inset -2px 0 0 0 var(--color-border-strong);
+  }
+
+  :root[data-line="deep"] .app-tabbar {
+    background-image: radial-gradient(circle at 12px 6px, color-mix(in srgb, var(--color-surface) 70%, white) 0 1.4px, color-mix(in srgb, var(--color-surface) 70%, black) 1.5px 2.5px, transparent 2.6px);
+    background-repeat: repeat-x;
+    background-size: 24px 12px;
+    box-shadow: inset 0 1px 0 0 var(--color-border-strong);
   }
 }

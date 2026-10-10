@@ -1,18 +1,18 @@
-/* The Abyssal Line: teal-black water, sea-white text, and one chartreuse lure. */
+/* The Abyssal Line: emerald-black iron, sea-white text, and one chartreuse frog. */
 :root[data-line="deep"] {
-  --color-bg: #061014;
-  --color-surface: #0C1A20;
-  --color-surface2: #142730;
-  --color-border: #1A3038;
-  --color-border-strong: #35606C;
-  --color-text: #E2F3F4;
-  --color-muted: #86A9AE;
+  --color-bg: #06110E;
+  --color-surface: #0C1B16;
+  --color-surface2: #142A22;
+  --color-border: #1B3A2E;
+  --color-border-strong: #3A6E58;
+  --color-text: #E4F4EC;
+  --color-muted: #8BB3A0;
 
   --color-primary: #C8F560;
   --color-primary-d: #A9D640;
   --color-on-primary: #0B1402;
 
-  --color-rank: #86A9AE;
+  --color-rank: #8BB3A0;
 
   --color-gold: #FFA24D;
   --color-gold-d: #D97F2B;
