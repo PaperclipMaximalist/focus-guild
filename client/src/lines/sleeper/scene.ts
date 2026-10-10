@@ -308,16 +308,16 @@ export default defineScene<State>({
     }
     dots(c, rnd, ox, oy, ow, oh * 0.66, g.wide ? 2300 : 900, ['#F0872A', '#FFB648', '#C4521A', '#7A2B0C', '#FFD98A'], 1, (_x, y) => 0.12 + 0.88 * (1 - (y - oy) / (oh * 0.66)));
     dots(c, rnd, ox, oy, ow, oh * 0.5, g.wide ? 300 : 110, ['#FFD98A', '#FFB648', '#C4521A'], 2, (_x, y) => 0.8 - (y - oy) / (oh * 0.6));
-    // Cold blue shade standing between the trunks: thin ragged spikes, never a skyline.
+    // Cold blue shade pooled low between the trunk bases: wide, irregular, rounded patches, never towers.
     const gy = g.gy;
-    for (let x = ox - 4; x < ox + ow; ) {
-      const cw = (2.5 + rnd() * 6) * sx;
-      const hh = oh * (0.05 + rnd() ** 2 * 0.4);
+    for (let x = ox - 10; x < ox + ow; ) {
+      const cw = (8 + rnd() * 20) * sx;
+      const hh = oh * (0.03 + rnd() ** 2 * 0.15);
       const r = rnd();
-      const col = r < 0.4 ? BLUES[1]! : r < 0.7 ? BLUES[2]! : r < 0.85 ? BLUES[0]! : '#7DB8E6';
-      block(c, col, x, gy - hh, cw, hh + 3);
-      block(c, col, x + cw * 0.25, gy - hh * 1.18, cw * 0.5, hh * 0.2 + 1);
-      x += cw * (0.6 + rnd() * 2.2);
+      const col = r < 0.4 ? BLUES[1]! : r < 0.7 ? BLUES[2]! : r < 0.88 ? BLUES[0]! : '#7DB8E6';
+      oval(c, col, x + cw, gy + 2, cw, hh);
+      oval(c, BLUES[1 + Math.floor(rnd() * 2)]!, x + cw * (0.6 + rnd() * 0.8), gy + 2, cw * 0.5, hh * (1.2 + rnd() * 0.5));
+      x += cw * (0.9 + rnd() * 1.2);
     }
     dots(c, rnd, ox, gy - oh * 0.4, ow, oh * 0.4, g.wide ? 500 : 200, ['#6FA3CF', '#2B4A6E', '#F0872A'], 1, (_x, y) => (y - (gy - oh * 0.4)) / (oh * 0.4));
     // The ground: blue shade with leaf litter.

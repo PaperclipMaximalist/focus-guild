@@ -1,36 +1,83 @@
 /*
- * The Timber Line's frame. Two treatments, no motif:
- *   1. The window is a carriage window in a timber frame: square corners, a 2 px
- *      frame in the strong border colour, and a 4 px sill along the bottom edge
- *      (hard inset shadows on an overlay, no blur).
- *   2. The sign and the Start button are square-cut boards, with a 2 px band of
- *      the pressed accent along the bottom edge like the edge of a plank.
+ * The Timber Line's frame: joinery. The app's surfaces are built like the
+ * cabin's woodwork.
+ *   .panel        pegged boards: a hairline edge and a square peg near each corner
+ *   .next-card    a framed board: a 2 px timber frame, pegs, a second hairline inside
+ *   .board-sign   a hung sign: square-cut, a band of pressed accent along the bottom, a nail head at each end
+ *   .btn-primary  square-cut, the same band
+ *   .app-sidebar  a log wall: faint seams every 52 px and a post down the right edge
+ *   .app-tabbar   a double rule along the top edge
  */
 @layer components {
   :root[data-line="sleeper"] .scene-window {
-    /* The window's own utility class reads this: a timber frame has square corners. */
-    --radius-card: 0px;
+    --radius-card: 3px;
   }
-  :root[data-line="sleeper"] .scene-window::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
+
+  :root[data-line="sleeper"] .panel {
+    box-shadow: inset 0 0 0 1px var(--color-border);
+    background-color: var(--color-surface);
+    background-image:
+      linear-gradient(var(--color-border-strong), var(--color-border-strong)),
+      linear-gradient(var(--color-border-strong), var(--color-border-strong)),
+      linear-gradient(var(--color-border-strong), var(--color-border-strong)),
+      linear-gradient(var(--color-border-strong), var(--color-border-strong));
+    background-repeat: no-repeat;
+    background-size: 3px 3px, 3px 3px, 3px 3px, 3px 3px;
+    background-position: 6px 6px, calc(100% - 6px) 6px, 6px calc(100% - 6px), calc(100% - 6px) calc(100% - 6px);
+  }
+
+  :root[data-line="sleeper"] .next-card {
     box-shadow:
       inset 0 0 0 2px var(--color-border-strong),
-      inset 0 -6px 0 0 var(--color-surface2);
+      inset 0 0 0 5px var(--color-surface),
+      inset 0 0 0 6px var(--color-border);
+    background-size: 4px 4px, 4px 4px, 4px 4px, 4px 4px;
+    background-position: 8px 8px, calc(100% - 8px) 8px, 8px calc(100% - 8px), calc(100% - 8px) calc(100% - 8px);
   }
 
   :root[data-line="sleeper"] .board-sign {
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    position: relative;
+    border-radius: 0;
     background: var(--color-primary);
     box-shadow: inset 0 -2px 0 0 var(--color-primary-d);
   }
+  :root[data-line="sleeper"] .board-sign::before,
+  :root[data-line="sleeper"] .board-sign::after {
+    content: '';
+    position: absolute;
+    top: calc(50% - 3px);
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    pointer-events: none;
+    background: color-mix(in srgb, var(--color-on-primary) 45%, transparent);
+  }
+  :root[data-line="sleeper"] .board-sign::before { left: 5px; }
+  :root[data-line="sleeper"] .board-sign::after { right: 5px; }
 
   :root[data-line="sleeper"] .btn-primary {
     border-radius: var(--radius-md);
     background: var(--fill);
     box-shadow: inset 0 -2px 0 0 var(--color-primary-d);
+  }
+
+  :root[data-line="sleeper"] .app-sidebar {
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 50px,
+      color-mix(in srgb, var(--color-surface) 84%, black) 50px,
+      color-mix(in srgb, var(--color-surface) 84%, black) 51px,
+      color-mix(in srgb, var(--color-surface) 97%, white) 51px,
+      color-mix(in srgb, var(--color-surface) 97%, white) 52px
+    );
+    box-shadow: inset -2px 0 0 0 var(--color-border-strong);
+  }
+
+  :root[data-line="sleeper"] .app-tabbar {
+    box-shadow:
+      inset 0 1px 0 0 var(--color-border-strong),
+      inset 0 3px 0 0 var(--color-surface),
+      inset 0 4px 0 0 var(--color-border-strong);
   }
 }
