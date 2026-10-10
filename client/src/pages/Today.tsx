@@ -253,6 +253,7 @@ export default function Today() {
                           onEdit={() => openEdit(q)}
                           onOpen={() => setDetailQuest(q)}
                           onDelete={() => removeWithUndo(q.id)}
+                          onStepsChanged={load}
                         />
                       </div>
                     ))}

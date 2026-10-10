@@ -3,7 +3,10 @@
  *
  *   GET  /chronicle/log?days=7              entries, newest first
  *   GET  /chronicle/log/markdown?days=&tz=  grouped-by-day markdown
+ *   GET  /chronicle/journal?before=&limit=  what was written by hand, newest first
  *   POST /chronicle/journal                 free-text entry
+ *   PATCH /chronicle/journal/:id            reword an entry
+ *   DELETE /chronicle/journal/:id           take an entry out
  *   GET  /chronicle/permafile               current body + version list
  *   PUT  /chronicle/permafile               save (new version if changed)
  *   POST /chronicle/permafile/restore/:id   make an old version current
@@ -19,11 +22,15 @@ import { z } from 'zod';
 import { db } from '../db/client.js';
 import { logActivity } from '../lib/activity.js';
 import {
+  BY_HAND_KINDS,
   GUILD_SYSTEM_PROMPT,
+  JOURNAL_KIND,
   PERMAFILE_TEMPLATE,
   buildAiBundle,
+  journalLine,
   parseGuildReply,
   renderLogMarkdown,
+  toJournalItem,
 } from '../lib/chronicle.js';
 import { AI_ENABLED, AI_MODEL, getClient } from '../lib/ai.js';
 import { getTrackerConfig } from '../lib/tracker/config.js';
@@ -78,10 +85,30 @@ chronicle.get('/log/markdown', async (c) => {
   return c.json({ success: true, data: { markdown, chars: markdown.length } });
 });
 
+/** A page of a notebook, not a tweet: long enough to think in. */
+const JOURNAL_MAX = 5000;
+
 const JournalSchema = z.object({
-  text: z.string().trim().min(1).max(2000),
+  text: z.string().trim().min(1).max(JOURNAL_MAX),
   /** 1–5 mood rating, from the end-of-day reflection. */
   rating: z.number().int().min(1).max(5).optional(),
+});
+
+// What the Journal page reads: only what a person wrote. `before` is the `at`
+// of the oldest entry already shown, so "earlier" pages back without a count.
+chronicle.get('/journal', async (c) => {
+  const user = c.get('user');
+  const limitRaw = Number(c.req.query('limit') ?? 40);
+  const limit = Number.isFinite(limitRaw) ? Math.min(100, Math.max(1, Math.round(limitRaw))) : 40;
+  const beforeRaw = c.req.query('before');
+  const before = beforeRaw && !Number.isNaN(Date.parse(beforeRaw)) ? new Date(beforeRaw) : null;
+  const rows = await db.activityEntry.findMany({
+    where: { userId: user.id, kind: { in: [...BY_HAND_KINDS] }, ...(before ? { at: { lt: before } } : {}) },
+    orderBy: { at: 'desc' },
+    take: limit + 1,
+  });
+  const entries = rows.slice(0, limit).map(toJournalItem).filter((e) => e !== null);
+  return c.json({ success: true, data: { entries, hasMore: rows.length > limit } });
 });
 
 chronicle.post('/journal', async (c) => {
@@ -92,12 +119,47 @@ chronicle.post('/journal', async (c) => {
   const entry = await db.activityEntry.create({
     data: {
       userId: user.id,
-      kind: 'journal',
-      line: (rating ? `Journal (mood ${rating}/5): ${text}` : `Journal: ${text}`).slice(0, 2100),
-      data: rating ? { rating } : undefined,
+      kind: JOURNAL_KIND,
+      line: journalLine(text, rating),
+      // The words on their own, so an entry can be shown and reworded
+      // without unpicking the sentence above.
+      data: rating ? { text, rating } : { text },
     },
   });
   return c.json({ success: true, data: entry }, 201);
+});
+
+/** The caller's own journal entry, or null: the app's lines are not theirs to rewrite. */
+async function ownJournalEntry(userId: string, id: string) {
+  const entry = await db.activityEntry.findUnique({ where: { id } });
+  return entry && entry.userId === userId && entry.kind === JOURNAL_KIND ? entry : null;
+}
+
+const noEntry = { success: false as const, error: { code: 'NOT_FOUND', message: 'Entry not found' } };
+
+chronicle.patch('/journal/:id', async (c) => {
+  const user = c.get('user');
+  const parsed = z.object({ text: z.string().trim().min(1).max(JOURNAL_MAX) }).safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json(bad(parsed.error.message), 400);
+  const entry = await ownJournalEntry(user.id, c.req.param('id'));
+  if (!entry) return c.json(noEntry, 404);
+  const rating = toJournalItem(entry)?.rating ?? null;
+  const updated = await db.activityEntry.update({
+    where: { id: entry.id },
+    data: {
+      line: journalLine(parsed.data.text, rating),
+      data: rating ? { text: parsed.data.text, rating } : { text: parsed.data.text },
+    },
+  });
+  return c.json({ success: true, data: toJournalItem(updated) });
+});
+
+chronicle.delete('/journal/:id', async (c) => {
+  const user = c.get('user');
+  const entry = await ownJournalEntry(user.id, c.req.param('id'));
+  if (!entry) return c.json(noEntry, 404);
+  await db.activityEntry.delete({ where: { id: entry.id } });
+  return c.json({ success: true, data: null });
 });
 
 // ─── Permafile ────────────────────────────────────────────────────────────────

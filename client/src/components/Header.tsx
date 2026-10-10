@@ -14,7 +14,7 @@
 
 import { Link } from 'react-router-dom';
 import { SignedIn, UserButton } from '@clerk/clerk-react';
-import { Flame, ScrollText, SettingsIcon } from 'lucide-react';
+import { Flame, NotebookPen, SettingsIcon } from 'lucide-react';
 import { useUserStore } from '../store/useUserStore';
 import { useMascotStore } from '../store/useMascotStore';
 import { levelFromXP, progressToNextLevel } from '../lib/levels';
@@ -68,8 +68,8 @@ export function Header() {
         >
           <Flame size={15} aria-hidden /> {user.currentStreak}
         </span>
-        <Link to="/chronicle" className="icon-btn" title="Logbook" aria-label="Logbook">
-          <ScrollText size={18} aria-hidden />
+        <Link to="/chronicle" className="icon-btn" title="Journal" aria-label="Journal">
+          <NotebookPen size={18} aria-hidden />
         </Link>
         <Link to="/settings" className="icon-btn" title="Settings" aria-label="Settings">
           <SettingsIcon size={18} aria-hidden />

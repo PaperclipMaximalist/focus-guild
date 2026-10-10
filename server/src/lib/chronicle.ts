@@ -80,6 +80,72 @@ export function renderLogMarkdown(entries: LogEntry[], tzOffsetMin: number): str
     .concat('\n');
 }
 
+// ─── Journal ──────────────────────────────────────────────────────────────────
+
+/**
+ * The Journal is the part of the log a person wrote themselves: lines typed
+ * into it, and hours written against an hour log. Everything else in the
+ * activity log is the app talking (quest completed, plan rebuilt, calendar
+ * synced) and belongs to the records screen, not to a notebook.
+ */
+export const JOURNAL_KIND = 'journal';
+export const BY_HAND_KINDS = [JOURNAL_KIND, 'quest.hours'] as const;
+
+/** The sentence kept in the log for a journal entry. */
+export function journalLine(text: string, rating?: number | null): string {
+  return rating ? `Journal (mood ${rating}/5): ${text}` : `Journal: ${text}`;
+}
+
+export interface JournalItem {
+  id: string;
+  at: Date;
+  /** `note`: something written. `hours`: time written against an hour log. */
+  kind: 'note' | 'hours';
+  /** The entry's own words (for hours, the note that went with them). */
+  text: string;
+  /** 1–5, from the end-of-day reflection. */
+  rating: number | null;
+  minutes: number | null;
+  questId: string | null;
+  questTitle: string | null;
+}
+
+/**
+ * A log row as the Journal shows it, or null for a row that is not by hand.
+ * The words are read from `data.text`; rows from before that was kept have
+ * them only inside the finished sentence, so the prefix is taken off instead.
+ */
+export function toJournalItem(row: {
+  id: string;
+  at: Date;
+  kind: string;
+  line: string;
+  subjectId: string | null;
+  data: unknown;
+}): JournalItem | null {
+  const data = (row.data ?? {}) as { text?: unknown; rating?: unknown; minutes?: unknown; note?: unknown; title?: unknown };
+  if (row.kind === JOURNAL_KIND) {
+    const rating = typeof data.rating === 'number' && data.rating >= 1 && data.rating <= 5 ? data.rating : null;
+    const text = typeof data.text === 'string' ? data.text : row.line.replace(/^Journal(?: \(mood \d\/5\))?: /, '');
+    return { id: row.id, at: row.at, kind: 'note', text, rating, minutes: null, questId: null, questTitle: null };
+  }
+  if (row.kind === 'quest.hours') {
+    const minutes = typeof data.minutes === 'number' && data.minutes > 0 ? Math.round(data.minutes) : 0;
+    if (!minutes) return null;
+    return {
+      id: row.id,
+      at: row.at,
+      kind: 'hours',
+      text: typeof data.note === 'string' ? data.note : '',
+      rating: null,
+      minutes,
+      questId: row.subjectId,
+      questTitle: typeof data.title === 'string' ? data.title : (row.line.match(/ on "(.*?)"/)?.[1] ?? null),
+    };
+  }
+  return null;
+}
+
 export interface BundleInput {
   permafile: string;
   trackerMarkdown: string;

@@ -238,6 +238,15 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - All five pass the checker; typecheck, lint on the new code, the 26 client tests and a production build are clean. Reviewed as posed stills and a short live run each; not watched in motion for long, and not on a real phone. Gallery for the owner to choose from: https://claude.ai/artifact/KWThCeaU1vBQwErydtjx9f
 - Found on the way: the local API server had lost its database connection after a day of running, which is what made the harness answer from sample data instead.
 
+### Sat 2026-10-10: Steps as a dropdown, hour logs, and a journal (one session; hours not measured)
+- The owner's words: the sub-quest UI was wrong and should be a dropdown; a tracker "where I can simply log my hours without an estimated total"; the Logbook was confusing, wanted "the human, by hand tracker", "more journal style", with the Logbook's features moved "somewhere more obscure as an advanced and generally not important setting".
+- Built on `main` @ `91edada` (the Departures UI another session had deployed that day) in its own worktree, branch `quests-hours-journal`. An earlier version of the sub-quest work sat uncommitted in the old-UI checkout; its server half (`lib/questTree.ts`) was carried over, its tree-in-a-sheet UI was dropped.
+- **Steps**: `QuestCard` gained one quiet control in its line of facts, "Steps" (or `2/6` once there are some), which opens `SubQuestList` under the row; a step with steps of its own opens the same way. Three tiers, closed by default at each. The editor's "Part of" menu files a quest under another; the server checks the fit, including the steps a quest brings with it.
+- **Hour logs**: no new tables. A log is a quest with `estimatedMinutes = 0`; every reader of that column was checked (the planner, the priority list and Dealer's choice skip it; calibration and the estimate achievements already ignored a zero). Entries are activity-log rows, the total is `actualMinutes`. One field reads the time the way people write it.
+- **Journal**: `/chronicle` shows only what was written by hand. The activity log, permafile, Ask and bundle are `pages/Records.tsx` at `/advanced/records` (the hub at `/advanced` is the parallel session's, branch `quickstart-connections`).
+- Checked by clicking through the real client against a stand-in API fed by the line fixtures (nothing written to the shared database), at 1280 and 375 px; and the new read routes and every refusal path against the real database, read-only.
+- Tests: 386 server (38 new), 34 client (8 new). The scheduler labs were not rerun: the one planner change is the list `routes/schedule.ts` hands over, and the labs load `lib/scheduler/*` only.
+
 ## Phases, as named in the project's own log
 
 | Phase | What | When |
