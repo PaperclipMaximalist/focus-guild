@@ -229,7 +229,8 @@ if (!existsSync(dir)) {
 }
 const colours = readTokens();
 if (colours) checkColours(colours);
-if (!builtIn) checkFrame();
+// The built-in line's frame is the app's own; it only has a frame.css if it adds to that.
+if (!builtIn || read('frame.css') !== null) checkFrame();
 checkCanvas('scene.ts', 'defineScene', ['visitor', 'caution', 'done', 'moving', 'wide'], 950, true);
 if (!builtIn && read('scene.ts') && !/front\s*[(:]/.test(noComments(read('scene.ts')))) notes.push('scene.ts has no front layer: it is still a bare view, not a cabin corner');
 checkCanvas('charm.ts', 'defineCharm', ['boarding', 'moving'], 380, false);
