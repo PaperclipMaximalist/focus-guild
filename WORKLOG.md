@@ -238,6 +238,15 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - All five pass the checker; typecheck, lint on the new code, the 26 client tests and a production build are clean. Reviewed as posed stills and a short live run each; not watched in motion for long, and not on a real phone. Gallery for the owner to choose from: https://claude.ai/artifact/KWThCeaU1vBQwErydtjx9f
 - Found on the way: the local API server had lost its database connection after a day of running, which is what made the harness answer from sample data instead.
 
+### Sat 2026-10-10 — Lines deployed, rejected as recolours, rebuilt (≈5 h, branch `ui-refresh`)
+
+- Morning: the owner said "just deploy these to start". `ui-refresh` was merged with main's scheduler round and pushed (`91edada`); server and client verified live.
+- The owner's verdict on seeing it: "I don't want it to be this plain … it's just a different colorway each time … bring the app's vibes to life". Looking again at the stills at full size settled why: they are dark cabins around bright, colourful views with the cabin's own things in front, and the first contract had asked for dim, empty views.
+- Rewrote the contract around one test (name the line with the window covered) and extended the engine: scenes in four layers (two painted once, so texture is free), a charm in the sidebar, a backdrop behind the page, and new border hooks. Rewrote all five briefs, each around a single still.
+- Five Sonnet coders, two at a time. Both of the first pair were cut off by the account's usage limit an hour in; their scene files were on disk, so they were resumed with what was left to do. Every line passed review on its first full report, with small fixes: this time the briefs named the colours, the objects and the composition instead of asking for restraint.
+- Added `npm run line:shoot <id> live` after noticing the posed stills never run the moving code: all five run with no errors at full frame rate.
+- A backspace character had got into one of the checker's patterns from a Python heredoc (the trap already noted in this log); found when a coder reported a note that could not be true.
+
 ## Phases, as named in the project's own log
 
 | Phase | What | When |
@@ -265,6 +274,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 17 | UI refresh: app shell, list rows, calmer theme | Oct 6 |
 | 18 | Design research and craft pass; Departures theme, night platform, route vocabulary | Oct 8 |
 | 19 | Lines: theme engine, checker, screenshot harness, four new lines by a director-and-coders pipeline | Oct 9 |
+| 20 | Lines deployed, then rebuilt as cabins: layered scenes, sidebar charm, backdrop, patterned borders | Oct 10 |
 
 ---
 
