@@ -1,9 +1,9 @@
 /**
  * The Night Line: the default. Its colours are the app's own (@theme in
- * index.css), so it has no tokens.css; frame.css only adds enamel-sign
- * screws, a tiled sidebar wall and studs to what index.css already does.
- * The waiting room is in scene.ts, the line map in charm.ts and the rain
- * against the building in backdrop.ts.
+ * index.css), so it has no tokens.css; frame.css only adds a tiled sidebar
+ * wall to what index.css already does. The waiting room is in scene.ts, the
+ * line map in charm.ts, the rain against the building in backdrop.ts and the
+ * station fittings (plates, ticket, route line, platform studs) in ornaments.ts.
  */
 
 import './frame.css';

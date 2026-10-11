@@ -401,9 +401,13 @@ input, select, textarea { accent-color: var(--color-primary); }
    knows which line it is. */
 @layer components {
 .panel, .board-sign { position: relative; }
+/* Older pages draw their boxes by hand (a radius and a border) instead of with
+   .panel. They are the same thing to the eye, so they get the same frame. */
+:root[data-ornate~="panel"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"]) { position: relative; }
 
 /* A drawn frame, laid over the outer edge of the surface it belongs to. */
 :root[data-ornate~="panel"] .panel::after,
+:root[data-ornate~="panel"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"])::after,
 :root[data-ornate~="card"] .next-card::after,
 :root[data-ornate~="sign"] .board-sign::after {
   content: '';
@@ -414,7 +418,8 @@ input, select, textarea { accent-color: var(--color-primary); }
   border-color: transparent;
   border-image-repeat: round;
 }
-:root[data-ornate~="panel"] .panel::after {
+:root[data-ornate~="panel"] .panel::after,
+:root[data-ornate~="panel"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"])::after {
   border-width: var(--frame-panel-w);
   border-image-source: var(--frame-panel);
   border-image-slice: var(--frame-panel-s);
@@ -456,7 +461,7 @@ input, select, textarea { accent-color: var(--color-primary); }
 :root[data-ornate~="horizontal"] .app-topbar::after { bottom: 0; }
 
 /* A symbol before a section label, a rule under a page title, a tailpiece at the foot of a page. */
-:root[data-ornate~="mark"] .section-label:not(.flex):not(.grid)::before {
+:root[data-ornate~="mark"] .section-label:where(:not(.flex):not(.grid))::before {
   content: '';
   display: inline-block;
   width: var(--sprite-mark-w);
