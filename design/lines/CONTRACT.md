@@ -10,7 +10,10 @@ client/src/lines/<id>/
   scene.ts     the cabin corner on Today: a wall, a window, what is outside it
   charm.ts     the line's one signature object, in the sidebar on every page
   backdrop.ts  texture, and a few drifting specks, behind the whole app
+  ornaments.ts the small drawn things: frames, trims, a badge, marks, flourishes
 ```
+
+`ornaments.ts` has its own guide, `ORNAMENTS.md`: what the ten pieces are, how a frame is painted, and each line's kit. Since it was added, `frame.css` is nearly empty on every line: the app draws frames and trims from the kit, and `frame.css` keeps only the sign's and button's shape and the window's radius.
 
 Every line comes from what the reference stills share: **a seat by a window in a small, lived-in cabin, a table in front of you, and somewhere else going by outside.**
 
