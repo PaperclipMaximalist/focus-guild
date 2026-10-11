@@ -494,7 +494,6 @@ input, select, textarea { accent-color: var(--color-primary); }
   height: var(--sprite-emblem-h);
   background: var(--sprite-emblem) center / contain no-repeat;
 }
-:root[data-ornate~="emblem"] .brand-mark { display: none; }
 :root[data-ornate~="spot"] .line-spot {
   display: block;
   width: var(--sprite-spot-w);
@@ -505,3 +504,6 @@ input, select, textarea { accent-color: var(--color-primary); }
 }
 :root[data-ornate~="spot"] .spot-fallback { display: none; }
 }
+
+/* Outside the layers, because it has to beat the utility that lays the plain badge out. */
+:root[data-ornate~="emblem"] .brand-mark { display: none; }
