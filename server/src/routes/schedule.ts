@@ -40,6 +40,8 @@ import { reviveDeferred } from '../lib/deferral.js';
 import { calibrateEstimates, computeInsights, type PlanInsights } from '../lib/scheduler/insights.js';
 import { syncStaleForUser, upcomingEvents } from '../lib/calendar/sync.js';
 import { workDayKey, workDayMidnightUtc, workWindowUtc } from '../lib/scheduler/tz.js';
+import { parentIds } from '../lib/questTree.js';
+import { isOpenEnded } from '../lib/hourLog.js';
 
 export const schedule = new Hono();
 
@@ -143,7 +145,12 @@ async function loadQuestsForUser(user: { id: string }) {
     select: { questId: true },
   });
   const completedSet = new Set(completionsToday.map((r) => r.questId));
-  const regular = all.filter((q) => !q.isRecurring);
+  // A quest that has been broken into sub-quests is planned through them, not
+  // alongside them: its steps carry the real minutes (see lib/questTree.ts),
+  // so planning the parent too would book the same work twice. Leaves only,
+  // at any tier. An hour log has no estimate to plan at all.
+  const hasSteps = parentIds(all);
+  const regular = all.filter((q) => !q.isRecurring && !hasSteps.has(q.id) && !isOpenEnded(q));
   const recurring = all.filter((q) => q.isRecurring && !completedSet.has(q.id));
   // Finished quests with logged focus time teach the planner how long
   // things really take (see insights.calibrateEstimates).

@@ -1,13 +1,12 @@
 /**
  * QuestDetail — tap a quest card → opens this overlay.
  *
- * Shows: full metadata, sub-quest checklist (with inline add), XP history,
- * and shortcut buttons (Edit → QuestModal, Complete, Delete, Start timer).
+ * Shows: full metadata, the quest's steps, XP history, and shortcut buttons
+ * (Edit → QuestModal, Complete, Delete, Start timer).
  *
- * Sub-quests are fully editable here:
- *   - Add: type a title, Enter to create with sane defaults.
- *   - Complete: checkbox → fires standard complete pipeline.
- *   - Delete: ✕ on each row.
+ * The steps are the same dropdown list a quest's row opens (SubQuestList):
+ * three tiers, ticked and added in place. What this sheet adds is "Break
+ * down", which asks the AI for steps and files the ones you keep.
  */
 
 import { useEffect, useState } from 'react';
@@ -17,6 +16,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from './Toasts';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
+import { SubQuestList } from './SubQuestList';
 import { Check, Pencil, Star, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
 
 interface Props {
@@ -38,26 +38,25 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
   const { applyXPGain } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
 
-  const [subs, setSubs] = useState<Quest[]>([]);
   const [xpEvents, setXpEvents] = useState<XPEventDTO[]>([]);
   const [loading, setLoading] = useState(false);
-  const [newSubTitle, setNewSubTitle] = useState('');
   const [savingSub, setSavingSub] = useState(false);
+  /** Bumped when steps are added from here, so the list reads them. */
+  const [stepsKey, setStepsKey] = useState(0);
   const [aiBusy, setAiBusy] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<
     Array<{ title: string; estimatedMinutes: number; rationale: string; keep: boolean }>
   >([]);
 
-  // Load sub-quests + xp history on open.
+  // Load the XP history on open; the steps load themselves.
   useEffect(() => {
     if (!open || !quest) return;
     setLoading(true);
-    Promise.all([api.quests.subquests(quest.id), api.quests.xpEvents(quest.id)])
-      .then(([s, x]) => {
-        setSubs(s);
-        setXpEvents(x);
-      })
+    api.quests
+      .xpEvents(quest.id)
+      .then(setXpEvents)
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, [open, quest?.id]);
 
@@ -73,48 +72,10 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
 
   if (!quest) return null;
 
-  const addSubQuest = async () => {
-    const title = newSubTitle.trim();
-    if (!title || savingSub) return;
-    setSavingSub(true);
-    try {
-      // Inherit category + tags from parent for context-continuity.
-      const created = await api.quests.create({
-        title,
-        estimatedMinutes: 30,
-        mentalLoad: quest.mentalLoad,
-        impact: quest.impact,
-        parentQuestId: quest.id,
-        category: quest.category ?? undefined,
-        tags: quest.tags ?? [],
-      });
-      setSubs((prev) => [...prev, created]);
-      setNewSubTitle('');
-      // Parent counts on the main quest list need to refresh.
-      loadQuests();
-    } catch (e) {
-      pushToast({ icon: TriangleAlert, title: 'Could not add', sub: String(e), variant: 'xp' });
-    } finally {
-      setSavingSub(false);
-    }
-  };
-
-  const completeSub = async (id: string) => {
-    try {
-      const result = await complete(id);
-      applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-      pushToast({ icon: Star, title: `+${result.xpAwarded} XP`, sub: 'Sub-quest done', variant: 'xp' });
-      setSubs((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, status: 'COMPLETE', completedAt: new Date().toISOString() } : s,
-        ),
-      );
-      // Refresh history.
-      api.quests.xpEvents(quest.id).then(setXpEvents).catch(() => {});
-      loadQuests();
-    } catch (e) {
-      pushToast({ icon: TriangleAlert, title: 'Could not complete', sub: String(e), variant: 'xp' });
-    }
+  const stepsChanged = () => {
+    // Counts on the quest lists, and what the steps have earned.
+    loadQuests();
+    api.quests.xpEvents(quest.id).then(setXpEvents).catch(() => {});
   };
 
   const askAi = async () => {
@@ -159,8 +120,8 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
           }),
         ),
       );
-      setSubs((prev) => [...prev, ...created]);
       setAiSuggestions([]);
+      setStepsKey((k) => k + 1);
       loadQuests();
       pushToast({
         icon: WandSparkles,
@@ -173,20 +134,12 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
     }
   };
 
-  const deleteSub = async (id: string) => {
-    const was = subs;
-    setSubs((prev) => prev.filter((s) => s.id !== id));
-    removeWithUndo(id, { onUndo: () => setSubs(was) });
-  };
-
   const handleDeleteParent = () => {
     removeWithUndo(quest.id);
     onClose();
   };
 
   const totalXP = xpEvents.reduce((s, e) => s + e.amount, 0);
-  const activeSubs = subs.filter((s) => s.status !== 'COMPLETE');
-  const doneSubs = subs.filter((s) => s.status === 'COMPLETE');
 
   return (
     <AnimatePresence>
@@ -219,7 +172,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                   {quest.title}
                 </h2>
                 <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>
-                  {formatMinutes(quest.estimatedMinutes)}
+                  {formatMinutes(quest.rolledUpMinutes ?? quest.estimatedMinutes)}
                   {quest.deadline && ` · ${formatDeadline(quest.deadline)}`}
                   {quest.category && ` · ${CATEGORY_LABEL[quest.category] ?? quest.category}`}
                 </p>
@@ -263,7 +216,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                   className="text-xs uppercase font-bold tracking-wide"
                   style={{ color: 'var(--color-muted)' }}
                 >
-                  Sub-quests {subs.length > 0 && `(${doneSubs.length}/${subs.length})`}
+                  Steps
                 </h3>
                 <button
                   onClick={askAi}
@@ -368,76 +321,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 </div>
               )}
 
-              {/* Progress bar */}
-              {subs.length > 0 && (
-                <div
-                  className="h-1 mb-3 rounded-full overflow-hidden"
-                  style={{ background: 'rgba(255,255,255,0.08)' }}
-                >
-                  <div
-                    className="h-full transition-[width] duration-500"
-                    style={{
-                      width: `${(doneSubs.length / subs.length) * 100}%`,
-                      background: 'var(--color-green)',
-                    }}
-                  />
-                </div>
-              )}
-
-              <div className="space-y-1.5">
-                {activeSubs.map((s) => (
-                  <SubRow
-                    key={s.id}
-                    quest={s}
-                    onComplete={() => completeSub(s.id)}
-                    onDelete={() => deleteSub(s.id)}
-                  />
-                ))}
-                {doneSubs.length > 0 && (
-                  <>
-                    <p
-                      className="text-[11px] uppercase tracking-wide pt-2"
-                      style={{ color: 'var(--color-muted)' }}
-                    >
-                      Done
-                    </p>
-                    {doneSubs.map((s) => (
-                      <SubRow
-                        key={s.id}
-                        quest={s}
-                        onComplete={() => {}}
-                        onDelete={() => deleteSub(s.id)}
-                      />
-                    ))}
-                  </>
-                )}
-              </div>
-
-              {/* Add inline */}
-              <div className="mt-2 flex items-center gap-2">
-                <input
-                  type="text"
-                  value={newSubTitle}
-                  onChange={(e) => setNewSubTitle(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      addSubQuest();
-                    }
-                  }}
-                  placeholder="+ break this into a smaller step…"
-                  className="flex-1 rounded-lg border bg-white/4 px-3 py-1.5 text-sm outline-none"
-                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                />
-                <button
-                  onClick={addSubQuest}
-                  disabled={!newSubTitle.trim() || savingSub}
-                  className="text-xs rounded-md px-3 py-1.5 font-semibold text-(--color-on-primary) disabled:opacity-40"
-                  style={{ background: 'var(--color-primary)' }}
-                >
-                  Add
-                </button>
-              </div>
+              <SubQuestList quest={quest} reloadKey={stepsKey} onChanged={stepsChanged} />
             </section>
 
             {/* XP history */}
@@ -525,57 +409,6 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
         </motion.div>
       )}
     </AnimatePresence>
-  );
-}
-
-function SubRow({
-  quest,
-  onComplete,
-  onDelete,
-}: {
-  quest: Quest;
-  onComplete: () => void;
-  onDelete: () => void;
-}) {
-  const done = quest.status === 'COMPLETE';
-  return (
-    <div
-      className="flex items-center gap-2 rounded-lg border px-3 py-1.5"
-      style={{
-        borderColor: done ? 'color-mix(in srgb, var(--color-green) 30%, transparent)' : 'var(--color-border)',
-        background: done ? 'color-mix(in srgb, var(--color-green) 5%, transparent)' : 'var(--color-surface)',
-      }}
-    >
-      <button
-        onClick={() => !done && onComplete()}
-        disabled={done}
-        className="h-4 w-4 shrink-0 rounded-full border-2 flex items-center justify-center"
-        style={{
-          borderColor: done ? 'var(--color-green)' : 'var(--color-primary)',
-          background: done ? 'var(--color-green)' : 'transparent',
-        }}
-      >
-        {done && <Check size={10} strokeWidth={3.5} className="text-(--color-on-primary)" aria-hidden />}
-      </button>
-      <span
-        className="text-sm flex-1 truncate"
-        style={{
-          color: 'var(--color-text)',
-          textDecoration: done ? 'line-through' : 'none',
-          opacity: done ? 0.5 : 1,
-        }}
-      >
-        {quest.title}
-      </span>
-      <button
-        onClick={onDelete}
-        className="text-xs opacity-30 hover:opacity-100"
-        title="Delete"
-        aria-label="Delete sub-quest"
-      >
-        <X size={14} aria-hidden />
-      </button>
-    </div>
   );
 }
 

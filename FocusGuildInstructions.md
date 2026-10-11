@@ -150,7 +150,10 @@ A day is a route and the planner reroutes it. These are **labels only**: URLs, A
 | Rounds | daily / recurring quests, routines | Things done every day |
 | Fuel check | check-in, `/checkin` | Today's energy and free time |
 | Mileage | Stats, `/stats` | Progress |
-| Logbook | Chronicle, `/chronicle` | Activity log and permafile |
+| Journal | Chronicle, `/chronicle` | What you wrote by hand: journal entries, and hours on an hour log (was "Logbook" for two days; the owner found it confusing) |
+| Records | `/advanced/records` | The app's own activity log, the permafile, Ask the Guild, the AI bundle: the Logbook's old tabs, moved out of the way |
+| Steps | sub-quests | The parts of a quest, three tiers deep, opened as a dropdown under its row |
+| Hour log | a quest with `estimatedMinutes = 0` | Something with no finish line: time is written down, never planned |
 | Dealer's choice | spin the wheel | A random pick |
 | Jot | quick add | One-line capture |
 
@@ -196,19 +199,22 @@ Never commit .env files. Never log API keys.
 ### What exists (feature map → where it lives)
 | Area | What | Where |
 |---|---|---|
-| Quests | CRUD, quick-add grammar (`2h by fri #tag !high`), sub-quests, Not Today (held to tomorrow, revived at the user's midnight), Rescue for overdue, bulk text import (`/quests/import`) | `routes/quests.ts`, `lib/deferral.ts`, `client/src/lib/quickAdd.ts`, `pages/{Today,Quests,QuestImport,Rescue}.tsx` |
+| Quests | CRUD, quick-add grammar (`2h by fri #tag !high`), Not Today (held to tomorrow, revived at the user's midnight), Rescue for overdue, bulk text import (`/quests/import`) | `routes/quests.ts`, `lib/deferral.ts`, `client/src/lib/quickAdd.ts`, `pages/{Today,Quests,QuestImport,Rescue}.tsx` |
+| Steps (sub-quests) | Three tiers (`MAX_QUEST_DEPTH`: main quest, step, sub-step), enforced by the route. A parent's count and minutes are its whole subtree; the planner schedules leaves only; completing a parent closes its open steps and bills only unclaimed minutes; deleting one takes its subtree. "Steps" on a quest's row is a dropdown that opens them in place; the editor's "Part of" menu files a quest under another | `lib/questTree.ts`, `GET /quests/:id/subquests` (a tree), `GET /quests/parents`, `components/SubQuestList.tsx`, `QuestCard.tsx`, `QuestModal.tsx` |
+| Hour logs | A quest with no estimate (`estimatedMinutes = 0`, no migration): never planned, prioritised or late. Time is written by hand (`1.5`, `1:30`, `90m`, `45`), for today or an earlier day, with an optional note; it earns XP as it is written. Entries are activity-log rows (`quest.hours`); the total is `actualMinutes`, shared with the focus timer | `lib/hourLog.ts`, `GET /quests/hours`, `GET/POST /quests/:id/hours`, `DELETE /quests/:id/hours/:entryId`, `components/HourLogs.tsx` (on the Quests page), `client/src/lib/hours.ts` |
 | XP & ranks | XP, streaks, 7 ranks, 14 achievements, Trophy Room, rank theming, SFX/haptics, duck mascot, Lucide icons, "devcave" theme | `lib/{xp,streak,achievements,evalAndUnlock}.ts`, `pages/Trophies.tsx`, `components/mascot` |
 | Guild Feed | Timeline with live countdown, drag/pin/delete, "why now" reason per block, plan insights (overdue, routines crowding, backlog pace, working-hours suggestion, estimate calibration), energy sparkline | `pages/GuildFeed.tsx`, `components/PlanInsights.tsx`, `routes/schedule.ts` |
 | Scheduler | budget → construct → reconcile → reflow; triage when deadlines can't all fit, real sittings, breaks, peak hours and a best-energy window for heavy work, chronotypes, pacing, deadline preemption, calendar + routine fixed blocks (a routine with no hour keeps one time of day and steps aside for a short deadline), a meal gap at midday, self-correcting estimates | `server/src/lib/scheduler/` (see its README + SCHEDULER_PSEUDOCODE.md), `scripts/scenario-lab.ts`, `scripts/population-lab.ts`, `scripts/fuzz-lab.ts` |
 | Focus timer | Persists across refresh; logs focused minutes (pauses excluded) on Done / "Stop for now, keep progress" → `actualMinutes` | `components/FocusTimer.tsx`, `POST /quests/:id/focus` |
 | Tracker + CAS | Long-horizon items with codes, 5 statuses (editable labels), active cap, domains, parking lot, decision log, CAS lens (7×3 matrix, strands, interviews), presets + preset packs (IB Guild / Bad-week minimal / Projects & work), add templates, markdown export/import, "Schedule as quest" | `routes/tracker.ts`, `lib/tracker/*`, `pages/Tracker*.tsx`, `client/src/lib/trackerPacks.ts` |
-| Chronicle | Activity log (written as a side effect of real actions), journal, versioned permafile, AI context bundle, Ask the Guild (Claude, tap-to-apply suggestions) | `routes/chronicle.ts`, `lib/{activity,chronicle}.ts`, `pages/Chronicle.tsx` |
+| Journal | `/chronicle`: a notebook. Today's page to write on (kept on the device as you type), earlier days below in your own words, hours written on an hour log, reword or remove an entry (Undo, no confirm box). Nothing the app wrote itself | `GET/POST /chronicle/journal`, `PATCH/DELETE /chronicle/journal/:id`, `lib/chronicle.ts` (`toJournalItem`), `pages/Chronicle.tsx` |
+| Records | `/advanced/records`: the activity log (written as a side effect of real actions), versioned permafile, AI context bundle, Ask the Guild (Claude, tap-to-apply suggestions). Reached from the foot of the Journal, the command palette and the Advanced hub; old `/chronicle?tab=…` links are sent on | `routes/chronicle.ts`, `lib/{activity,chronicle}.ts`, `pages/Records.tsx` |
 | Connections | ICS calendar import (Google / Outlook-Teams / iCloud) the planner routes around; personal access token (`fgpat_…`) for the inbox, REST API and MCP; `POST /inbox` → Parking Lot; plan published as `/calendar/<token>.ics` | `routes/{integrations,inbox,calendarFeed}.ts`, `lib/calendar/*`, `lib/tokens.ts`, `pages/Connections.tsx` |
 | PWA | Installable, offline shell, shortcuts, Android share target → Parking Lot (`/share`) | `client/public/{manifest.webmanifest,sw.js}`, `client/scripts/generate-icons.mjs` |
 | MCP | Claude Desktop / Code connector: 6 reads + additive writes | `mcp/` (see its README) |
 | Settings | Scheduler weights, working hours (half hours allowed), "sharpest time of day" (chronotype), experience toggles, Connections link | `pages/Settings.tsx`, `routes/settings.ts` |
 
-Client routes: `/ /feed /rescue /checkin /quests /quests/import /stats /settings /trophies /tracker /tracker/presets /tracker/markdown /chronicle /connections /share`.
+Client routes: `/ /feed /rescue /checkin /quests /quests/import /stats /settings /trophies /tracker /tracker/presets /tracker/markdown /chronicle /advanced/records /connections /share`.
 Server routes: `/users /quests /checkin /schedule /settings /tracker /chronicle /integrations` (Clerk or `fgpat_` token), plus token-in-URL `/inbox` and `/calendar/<token>.ics`.
 
 ### UI rules (the shell and `client/src/index.css`)

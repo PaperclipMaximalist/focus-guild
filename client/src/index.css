@@ -233,6 +233,19 @@ h1, h2, h3 {
 @media (hover: hover) { .btn-quiet:hover { background: color-mix(in srgb, var(--color-surface2) 85%, white); } }
 .btn-quiet:active { scale: 0.97; }
 
+/* A fact in a row's quiet line that opens something (a quest's steps). It
+   reads as text until pointed at; on touch it has a target a thumb can hit. */
+.fact-btn {
+  position: relative;
+  margin: -0.125rem -0.25rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
+}
+@media (hover: hover) { .fact-btn:hover { background: var(--color-surface2); color: var(--color-text); } }
+.fact-btn:active { background: var(--color-surface2); color: var(--color-text); }
+@media (pointer: coarse) { .fact-btn::after { content: ''; position: absolute; inset: -12px -8px; } }
+
 /* A placeholder in the shape of what is loading. */
 .skeleton {
   border-radius: var(--radius-md);

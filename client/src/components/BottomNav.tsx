@@ -3,7 +3,7 @@
  *
  * Phones get a bottom bar with the five places you go every day. Wide
  * screens get a sidebar instead, which has room for the rest (Rescue,
- * Trophies, Chronicle, Settings), the rank, and a New quest button, so the
+ * Trophies, Journal, Settings), the rank, and a New quest button, so the
  * page itself stops being a phone layout stretched across a monitor.
  *
  * Both hide on /checkin, a focused full-screen flow.
@@ -28,7 +28,7 @@ import {
   ListChecks,
   MapIcon,
   Plus,
-  ScrollText,
+  NotebookPen,
   SettingsIcon,
   Trophy,
 } from 'lucide-react';
@@ -52,7 +52,7 @@ const PRIMARY: Item[] = [
 const SECONDARY: Item[] = [
   { to: '/rescue', icon: LifeBuoy, label: 'Stragglers' },
   { to: '/trophies', icon: Trophy, label: 'Trophies' },
-  { to: '/chronicle', icon: ScrollText, label: 'Logbook' },
+  { to: '/chronicle', icon: NotebookPen, label: 'Journal' },
   { to: '/settings', icon: SettingsIcon, label: 'Settings' },
 ];
 

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { PERMAFILE_TEMPLATE, buildAiBundle, localDayKey, parseGuildReply, renderLogMarkdown } from './chronicle.js';
+import {
+  PERMAFILE_TEMPLATE,
+  buildAiBundle,
+  journalLine,
+  localDayKey,
+  parseGuildReply,
+  renderLogMarkdown,
+  toJournalItem,
+} from './chronicle.js';
 
 // Vancouver in September: getTimezoneOffset() === 420 (UTC-7).
 const PDT = 420;
@@ -121,5 +129,42 @@ describe('parseGuildReply', () => {
     expect(parseGuildReply('')).toEqual({ error: 'The AI returned nothing.' });
     expect(parseGuildReply('{"actions":[]}')).toEqual({ error: 'The AI returned no answer.' });
     expect(parseGuildReply('[1,2]')).toHaveProperty('error');
+  });
+});
+
+describe('toJournalItem: the log as a notebook shows it', () => {
+  const row = (over: Record<string, unknown>) => ({
+    id: 'e1',
+    at: new Date('2026-10-09T20:00:00Z'),
+    kind: 'journal',
+    line: 'Journal: slow start',
+    subjectId: null,
+    data: null,
+    ...over,
+  });
+
+  it('reads the words of an entry kept with them', () => {
+    const item = toJournalItem(row({ line: journalLine('two\nlines', 4), data: { text: 'two\nlines', rating: 4 } }));
+    expect(item).toMatchObject({ kind: 'note', text: 'two\nlines', rating: 4, minutes: null });
+  });
+
+  it('takes the prefix off an entry from before the words were kept apart', () => {
+    expect(toJournalItem(row({}))?.text).toBe('slow start');
+    expect(toJournalItem(row({ line: 'Journal (mood 2/5): rough', data: { rating: 2 } }))).toMatchObject({
+      text: 'rough',
+      rating: 2,
+    });
+  });
+
+  it('shows hours written by hand, with the quest they were for', () => {
+    const item = toJournalItem(
+      row({ kind: 'quest.hours', line: 'Logged 1 h 30 on "Piano": scales', subjectId: 'q1', data: { minutes: 90, note: 'scales', title: 'Piano' } }),
+    );
+    expect(item).toMatchObject({ kind: 'hours', minutes: 90, text: 'scales', questId: 'q1', questTitle: 'Piano' });
+  });
+
+  it('leaves out everything the app wrote itself', () => {
+    expect(toJournalItem(row({ kind: 'quest.completed', line: 'Completed quest "X"' }))).toBeNull();
+    expect(toJournalItem(row({ kind: 'focus', line: 'Focused 25 min on "X"', data: { minutes: 25 } }))).toBeNull();
   });
 });

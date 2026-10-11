@@ -130,9 +130,96 @@ export interface Quest {
   parentQuestId?: string | null;
   doneToday?: boolean; // populated by GET /quests/recurring
 
-  // Sub-quest aggregates populated by GET /quests
+  // Sub-quest aggregates populated by GET /quests: the whole subtree, not
+  // just the first tier (server/src/lib/questTree.ts).
   subQuestTotal?: number;
   subQuestDone?: number;
+  /** Leaf minutes beneath this quest; its own estimate when it has no steps. */
+  rolledUpMinutes?: number;
+
+  /** Time written against the quest so far (focus timer and by hand). */
+  actualMinutes?: number | null;
+}
+
+/** Main quest, step, sub-step. Matches MAX_QUEST_DEPTH on the server. */
+export const MAX_QUEST_DEPTH = 3;
+
+/** An hour log: no estimate, time is written down as it is spent. */
+export const isHourLog = (q: Pick<Quest, 'estimatedMinutes'>): boolean => q.estimatedMinutes === 0;
+
+export interface QuestRollup {
+  /** Sub-quests anywhere beneath this one, and how many are complete. */
+  total: number;
+  done: number;
+  /** Direct children only. */
+  childCount: number;
+  /** Leaf minutes beneath this quest, or its own estimate when it has none. */
+  estimatedMinutes: number;
+  doneMinutes: number;
+  /** 1 for a main quest, up to MAX_QUEST_DEPTH. */
+  depth: number;
+  /** False at the deepest tier: no "add a step" there. */
+  canNest: boolean;
+}
+
+/** One node of the tree returned by GET /quests/:id/subquests. */
+export interface QuestNode extends Quest {
+  subQuests: QuestNode[];
+  rollup: QuestRollup;
+}
+
+export interface SubQuestTree {
+  subQuests: QuestNode[];
+  /** Totals for the quest the tree hangs from. */
+  rollup?: QuestRollup;
+}
+
+/** A quest another can be filed under, for the "Part of" menu. */
+export interface ParentChoice {
+  id: string;
+  title: string;
+  /** 1 for a main quest, 2 for a step. */
+  depth: number;
+}
+
+/** An hour log with what has been written against it. */
+export interface HourLog extends Quest {
+  loggedMinutes: number;
+  todayMinutes: number;
+  /** Since Monday. */
+  weekMinutes: number;
+  lastLoggedAt: string | null;
+}
+
+export interface TimeEntry {
+  id: string;
+  at: string;
+  minutes: number;
+  note: string | null;
+  /** Written by hand, or left by the focus timer. */
+  source: 'hand' | 'timer';
+}
+
+export interface LogHoursResult {
+  entry: TimeEntry;
+  loggedMinutes: number;
+  xpAwarded: number;
+  totalXP: number;
+  newStreak: number;
+  newMultiplier: number;
+}
+
+/** One thing written by hand, as the Journal shows it. */
+export interface JournalItem {
+  id: string;
+  at: string;
+  /** `note`: something written. `hours`: time written against an hour log. */
+  kind: 'note' | 'hours';
+  text: string;
+  rating: number | null;
+  minutes: number | null;
+  questId: string | null;
+  questTitle: string | null;
 }
 
 export interface XPEventDTO {
@@ -172,6 +259,8 @@ export interface UnlockedAchievement {
 export interface CompleteQuestResult {
   quest: Quest;
   xpAwarded: number;
+  /** Open sub-quests closed out alongside this one. */
+  closedSubQuests?: number;
   streakEvent: 'extended' | 'started' | 'paused' | 'unchanged';
   newStreak: number;
   newMultiplier: number;
@@ -218,8 +307,24 @@ export const api = {
         '/quests/spin-wheel',
         { method: 'POST', body: '{}' },
       ),
+    /** The nested sub-quest tree beneath a quest, MAX_QUEST_DEPTH tiers in all. */
     subquests: (id: string) =>
-      request<Quest[]>(`/quests/${id}/subquests`),
+      request<SubQuestTree>(`/quests/${id}/subquests`),
+    /** Quests a quest can be filed under; pass `forId` when re-filing an existing one. */
+    parents: (forId?: string) =>
+      request<ParentChoice[]>(`/quests/parents${forId ? `?for=${forId}` : ''}`),
+    hourLogs: () =>
+      request<HourLog[]>(`/quests/hours?tz=${new Date().getTimezoneOffset()}`),
+    hours: (id: string) =>
+      request<{ loggedMinutes: number; entries: TimeEntry[] }>(`/quests/${id}/hours`),
+    /** Write down time spent. `date` is a local `YYYY-MM-DD`; leave it out for now. */
+    logHours: (id: string, input: { minutes: number; note?: string; date?: string }) =>
+      request<LogHoursResult>(`/quests/${id}/hours`, {
+        method: 'POST',
+        body: JSON.stringify({ ...input, tz: new Date().getTimezoneOffset() }),
+      }),
+    removeHours: (id: string, entryId: string) =>
+      request<{ loggedMinutes: number; totalXP: number }>(`/quests/${id}/hours/${entryId}`, { method: 'DELETE' }),
     xpEvents: (id: string) =>
       request<XPEventDTO[]>(`/quests/${id}/xp-events`),
     decompose: (id: string) =>
@@ -250,6 +355,8 @@ export const api = {
         impact?: number;
         deadline?: string | null;
         parentQuestId?: string;
+        /** An hour log: no estimate. */
+        openEnded?: boolean;
         tags?: string[];
       } & QuestSchedulerHints,
       clerkId = getCurrentClerkId(),
@@ -258,7 +365,7 @@ export const api = {
     update: (
       id: string,
       fields: Partial<Pick<Quest, 'title' | 'estimatedMinutes' | 'mentalLoad' | 'impact' | 'deadline' | 'tags'>> &
-        QuestSchedulerHints,
+        QuestSchedulerHints & { parentQuestId?: string | null; openEnded?: boolean },
     ) => request<Quest>(`/quests/${id}`, { method: 'PATCH', body: JSON.stringify(fields) }),
     complete: (id: string) =>
       request<CompleteQuestResult>(`/quests/${id}/complete`, { method: 'POST' }),
@@ -456,6 +563,14 @@ export const api = {
     log: (days = 7) => request<ActivityEntry[]>(`/chronicle/log?days=${days}`),
     journal: (text: string, rating?: number) =>
       request<ActivityEntry>('/chronicle/journal', { method: 'POST', body: JSON.stringify({ text, rating }) }),
+    /** What was written by hand, newest first. `before` pages back from the oldest entry shown. */
+    journalPage: (before?: string) =>
+      request<{ entries: JournalItem[]; hasMore: boolean }>(
+        `/chronicle/journal${before ? `?before=${encodeURIComponent(before)}` : ''}`,
+      ),
+    editJournal: (id: string, text: string) =>
+      request<JournalItem>(`/chronicle/journal/${id}`, { method: 'PATCH', body: JSON.stringify({ text }) }),
+    deleteJournal: (id: string) => request<null>(`/chronicle/journal/${id}`, { method: 'DELETE' }),
     permafile: () => request<PermafileState>('/chronicle/permafile'),
     savePermafile: (body: string) =>
       request<{ changed: boolean; id?: string }>('/chronicle/permafile', { method: 'PUT', body: JSON.stringify({ body }) }),

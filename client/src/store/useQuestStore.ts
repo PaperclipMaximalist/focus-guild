@@ -26,12 +26,14 @@ interface QuestState {
       impact?: number;
       deadline?: string | null;
       tags?: string[];
+      parentQuestId?: string;
+      openEnded?: boolean;
     } & QuestSchedulerHints,
   ) => Promise<Quest>;
   update: (
     id: string,
     fields: Partial<Pick<Quest, 'title' | 'estimatedMinutes' | 'mentalLoad' | 'impact' | 'deadline' | 'tags'>> &
-      QuestSchedulerHints,
+      QuestSchedulerHints & { parentQuestId?: string | null; openEnded?: boolean },
   ) => Promise<Quest>;
   complete: (id: string) => Promise<CompleteQuestResult>;
   completeDaily: (id: string) => Promise<CompleteQuestResult>;
@@ -84,6 +86,9 @@ export const useQuestStore = create<QuestState>((set, get) => ({
     const quest = await api.quests.create(input);
     if (input.isRecurring) {
       await get().loadRecurring();
+    } else if (input.openEnded) {
+      // An hour log is never planned, so there is nothing to slot into the feed.
+      window.dispatchEvent(new CustomEvent('fg:hour-logs-changed'));
     } else {
       await get().load();
       // Live-slot the new quest into the feed if a schedule already exists.

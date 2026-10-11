@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { useQuestStore } from '../store/useQuestStore';
-import { type Quest, type PriorityTier } from '../lib/api';
+import { api, isHourLog, type ParentChoice, type Quest, type PriorityTier } from '../lib/api';
 import { MiniCalendar } from './MiniCalendar';
 import { InfoTip } from './InfoTip';
 import { BookOpen, Brush, ChevronDown, ChevronRight, Dumbbell, Inbox, Phone, CalendarDays, Target, X } from 'lucide-react';
@@ -154,6 +154,11 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
   // Scheduler hints
   const [isRecurring, setIsRecurring] = useState(false);
+  /** An hour log: no estimate, time is written down as it is spent. */
+  const [openEnded, setOpenEnded] = useState(false);
+  /** The quest this one is a step of; '' for a main quest. */
+  const [parentId, setParentId] = useState('');
+  const [parents, setParents] = useState<ParentChoice[]>([]);
   const [priorityTier, setPriorityTier] = useState<PriorityTier>('MED');
   const [category, setCategory] = useState('deep_work');
   const [preferredHour, setPreferredHour] = useState<string>(''); // '' = no preference
@@ -173,10 +178,12 @@ export function QuestModal({ open, onClose, editing }: Props) {
     if (editing) {
       setTitle(editing.title);
       setDeadline(editing.deadline ? new Date(editing.deadline) : null);
-      setHours((editing.estimatedMinutes / 60).toString());
+      setHours(isHourLog(editing) ? '' : (editing.estimatedMinutes / 60).toString());
       setLoad5(loadToFive(editing.mentalLoad));
       setImpact(editing.impact);
       setIsRecurring(editing.isRecurring ?? false);
+      setOpenEnded(isHourLog(editing));
+      setParentId(editing.parentQuestId ?? '');
       setPriorityTier(editing.priorityTier ?? 'MED');
       setCategory(editing.category ?? 'deep_work');
       setPreferredHour(editing.preferredHour != null ? String(editing.preferredHour) : '');
@@ -199,6 +206,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setLoad5(3);
       setImpact(5);
       setIsRecurring(false);
+      setOpenEnded(false);
+      setParentId('');
       setPriorityTier('MED');
       setCategory('deep_work');
       setPreferredHour('');
@@ -212,6 +221,20 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setShowAdvanced(false);
     }
   }, [open, editing]);
+
+  // What the "Part of" menu offers. For a quest being edited, the server
+  // leaves out the quest itself and anywhere its own steps would not fit.
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    api.quests
+      .parents(editing?.id)
+      .then((list) => live && setParents(list))
+      .catch(() => live && setParents([]));
+    return () => {
+      live = false;
+    };
+  }, [open, editing?.id]);
 
   useEffect(() => {
     if (!open) return;
@@ -240,8 +263,9 @@ export function QuestModal({ open, onClose, editing }: Props) {
         estimatedMinutes,
         mentalLoad: LOAD_5_TO_10[load5]!,
         impact,
-        deadline: deadline ? deadline.toISOString() : null,
-        isRecurring,
+        deadline: deadline && !openEnded ? deadline.toISOString() : null,
+        isRecurring: isRecurring && !openEnded,
+        openEnded,
         priorityTier,
         category,
         preferredHour: preferredHour === '' ? null : Number(preferredHour),
@@ -253,11 +277,16 @@ export function QuestModal({ open, onClose, editing }: Props) {
         tags: allTags,
       };
 
+      // A routine or an hour log is never a step of something.
+      const under = isRecurring || openEnded ? '' : parentId;
       if (editing) {
-        await update(editing.id, fields);
+        const moved = under !== (editing.parentQuestId ?? '');
+        await update(editing.id, { ...fields, ...(moved ? { parentQuestId: under || null } : {}) });
       } else {
-        await add(fields);
+        await add({ ...fields, parentQuestId: under || undefined });
       }
+      // The hour-log list is not part of the quest store; tell it to read again.
+      if (openEnded || (editing && isHourLog(editing))) window.dispatchEvent(new CustomEvent('fg:hour-logs-changed'));
       onClose();
     } finally {
       setSaving(false);
@@ -372,6 +401,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
             </details>
 
             {/* Recurring toggle */}
+            {!openEnded && (
             <div
               className="mb-4 flex items-start gap-3 rounded-lg p-3"
               style={{
@@ -394,6 +424,34 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 </p>
               </div>
             </div>
+            )}
+
+            {/* Hour log toggle */}
+            {!isRecurring && (
+              <label
+                className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg p-3"
+                style={{
+                  background: 'var(--color-surface2)',
+                  boxShadow: openEnded ? 'inset 0 0 0 1.5px var(--color-primary)' : 'none',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={openEnded}
+                  onChange={(e) => setOpenEnded(e.target.checked)}
+                  className="mt-1 h-4 w-4 cursor-pointer"
+                />
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                    No estimate, just log hours
+                  </span>
+                  <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+                    For practice, reading, anything with no finish line. It is never planned or late; you write
+                    down the time you put in.
+                  </span>
+                </span>
+              </label>
+            )}
 
             {/* Priority tier — 3-stop slider/dragger */}
             <div className="mb-4">
@@ -441,12 +499,39 @@ export function QuestModal({ open, onClose, editing }: Props) {
               </div>
             </div>
 
-            {/* Deadline picker (hidden for recurring) */}
-            {!isRecurring && (
+            {/* Part of: file this quest under another, as one of its steps. */}
+            {!isRecurring && !openEnded && (parents.length > 0 || parentId) && (
+              <Field label="Part of">
+                <select
+                  className="form-input"
+                  value={parentId}
+                  onChange={(e) => setParentId(e.target.value)}
+                  aria-label="Part of"
+                >
+                  <option value="">Nothing: a quest of its own</option>
+                  {parents.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {/* A step is set in under its main quest. */}
+                      {p.depth > 1 ? '\u00A0\u00A0\u00A0\u00A0' : ''}
+                      {p.title}
+                    </option>
+                  ))}
+                </select>
+                {parentId && (
+                  <p className="mt-1.5 text-xs" style={{ color: 'var(--color-muted)' }}>
+                    It becomes a step of that quest and counts towards its total.
+                  </p>
+                )}
+              </Field>
+            )}
+
+            {/* Deadline picker (hidden for recurring and for hour logs) */}
+            {!isRecurring && !openEnded && (
               <DeadlineField value={deadline} onChange={setDeadline} />
             )}
 
             <div className="grid grid-cols-2 gap-3">
+              {!openEnded && (
               <Field label="Est. hours">
                 <input
                   type="number"
@@ -459,6 +544,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   onChange={(e) => setHours(e.target.value)}
                 />
               </Field>
+              )}
               <div className="mb-4">
                 <div className="mb-1.5 flex items-center gap-1.5">
                   <label className="text-[13px] font-semibold text-(--color-muted)">

@@ -6,6 +6,7 @@ import { useToastStore } from '../components/Toasts';
 import { QuestCard } from '../components/QuestCard';
 import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
+import { HourLogs } from '../components/HourLogs';
 import { api, type Quest } from '../lib/api';
 import { Link } from 'react-router-dom';
 import { Check, Hourglass, ListPlus, MapIcon, Search, SquareCheck, Star, Trash2, X } from 'lucide-react';
@@ -267,6 +268,7 @@ export default function Quests() {
                     }}
                     onOpen={() => setDetail(quest)}
                     onDelete={() => removeWithUndo(quest.id)}
+                    onStepsChanged={load}
                   />
                 </div>
               ))}
@@ -290,6 +292,14 @@ export default function Quests() {
           </div>
         )}
       </section>
+
+      {/* Under the quests: things you log time on rather than finish. */}
+      <HourLogs
+        onEdit={(q) => {
+          setEditing(q);
+          setModalOpen(true);
+        }}
+      />
 
       {/* Bulk action bar — floats above bottom nav */}
       <AnimatePresence>
