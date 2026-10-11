@@ -847,3 +847,24 @@ export interface ImportApplyResult {
   untouched: number;
   warnings: string[];
 }
+
+// ─── Quest manifest (bulk import and export) ──────────────────────────────────
+// The tree is `ManifestQuest` in lib/manifest.ts; the server's copy of the
+// shape is server/src/lib/questImport.ts.
+
+import type { ManifestQuest } from './manifest';
+
+export interface ManifestCounts {
+  quests: number;
+  steps: number;
+  hourLogs: number;
+  routines: number;
+}
+
+export const manifestApi = {
+  /** All of it or none of it: one transaction on the server. */
+  import: (quests: ManifestQuest[]) =>
+    request<ManifestCounts & { created: number }>('/manifest/import', { method: 'POST', body: JSON.stringify({ quests }) }),
+  /** Every unfinished quest, with its steps. */
+  export: () => request<{ quests: ManifestQuest[]; count: number }>('/manifest/export'),
+};

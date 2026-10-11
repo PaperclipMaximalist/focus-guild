@@ -11,6 +11,7 @@ import { settings } from './routes/settings.js';
 import { tracker } from './routes/tracker.js';
 import { chronicle } from './routes/chronicle.js';
 import { integrations } from './routes/integrations.js';
+import { manifest } from './routes/manifest.js';
 import { inbox } from './routes/inbox.js';
 import { calendarFeed } from './routes/calendarFeed.js';
 import { startCalendarSyncLoop } from './lib/calendar/sync.js';
@@ -64,6 +65,7 @@ app.route('/settings', settings);
 app.route('/tracker', tracker);
 app.route('/chronicle', chronicle);
 app.route('/integrations', integrations);
+app.route('/manifest', manifest);
 
 startCalendarSyncLoop();
 

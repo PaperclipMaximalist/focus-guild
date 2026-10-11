@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
+import { Rocket } from 'lucide-react';
 import { isSfxEnabled, setSfxEnabled, sfxClick } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
@@ -66,6 +67,7 @@ export function CommandPalette() {
       { id: 'go-chronicle', label: 'Logbook: log and permafile', icon: ScrollText, keywords: 'chronicle activity log journal history permafile ai bundle context', run: go('/chronicle') },
       { id: 'go-ai-bundle', label: 'Copy AI context bundle', icon: Sparkles, keywords: 'claude ai bundle context export permafile log', run: go('/chronicle?tab=bundle') },
       { id: 'go-connections', label: 'Connections: calendars & inbox', icon: Plug, keywords: 'google calendar outlook teams ics webhook power automate shortcut integrations', run: go('/connections') },
+      { id: 'go-quickstart', label: 'Quickstart: Google Calendar and quests in bulk', icon: Rocket, keywords: 'quickstart setup connect google calendar manifest import export bulk ai port advanced', run: go('/advanced/quickstart') },
       { id: 'go-trophies', label: 'Open Trophy Room', icon: Trophy, keywords: 'achievements badges awards', run: go('/trophies') },
       { id: 'go-settings', label: 'Open Settings', icon: SettingsIcon, keywords: 'config tune preferences', run: go('/settings') },
       { id: 'go-checkin', label: 'Daily check-in', icon: BatteryMedium, keywords: 'energy mood available', run: go('/checkin') },

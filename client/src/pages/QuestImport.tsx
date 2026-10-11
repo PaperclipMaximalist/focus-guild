@@ -1,10 +1,11 @@
 /**
- * Bulk quest import: paste a list, get quests.
+ * Bulk quest import: paste a manifest, get quests.
  *
- * Each line is parsed with the same grammar as the Today quick-add bar
+ * Each line is parsed with the same grammar as the Jot bar on Today
  * (`lib/quickAdd.ts`), so there is one syntax to learn and the preview here
- * cannot disagree with what the bar would make. Blank lines and common list
- * markers ("- ", "* ", "1. ") are ignored, because most pasted lists have them.
+ * cannot disagree with what the bar would make. The page around the lines
+ * (steps by indent, hour logs, quoted titles, comments) is `lib/manifest.ts`.
+ * A line can set everything the quest editor can; only the title is required.
  *
  * The preview is the safety rail: nothing is created until you can see every
  * row, and the server writes them in one transaction so a bad line can't leave
@@ -13,71 +14,58 @@
 
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { api } from '../lib/api';
-import { parseQuickAdd, type QuickAddParse } from '../lib/quickAdd';
+import { manifestApi } from '../lib/api';
+import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manifestGuide, parseManifest } from '../lib/manifest';
 import { sfxClick } from '../lib/sfx';
 import { useQuestStore } from '../store/useQuestStore';
 import { useToastStore } from '../components/Toasts';
-import { fieldClass, fieldStyle } from '../components/tracker/Sheet';
-import { ArrowLeft, ListPlus, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Check, ChevronDown, Copy, CornerDownRight, ListPlus, TriangleAlert } from 'lucide-react';
 
-const MAX = 100;
-const muted = { color: 'var(--color-muted)' };
-const card = { borderColor: 'var(--color-border)', background: 'var(--color-surface)' };
-
-const EXAMPLE = `Finish chem IA analysis 2h by fri #chem !high
-Read two history sources 45m by mon #history
-Email the CAS coordinator 10m #cas
-Maths past paper 1.5h by wed !high`;
-
-/** Strip bullets and numbering so a pasted list works as-is. */
-function cleanLine(raw: string): string {
-  return raw.replace(/^\s*(?:[-*•–]|\d+[.)])\s+/, '').trim();
-}
-
-interface Row {
-  line: number;
-  raw: string;
-  parsed: QuickAddParse;
-}
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 export default function QuestImport() {
   const navigate = useNavigate();
   const pushToast = useToastStore((s) => s.push);
   const loadQuests = useQuestStore((s) => s.load);
+  const loadRecurring = useQuestStore((s) => s.loadRecurring);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  const rows = useMemo<Row[]>(() => {
-    const now = new Date();
-    return text
-      .split('\n')
-      .map((raw, i) => ({ line: i + 1, raw: cleanLine(raw) }))
-      .filter((r) => r.raw.length > 0)
-      .map((r) => ({ ...r, parsed: parseQuickAdd(r.raw, now) }));
-  }, [text]);
+  const copyGuide = async () => {
+    try {
+      await navigator.clipboard.writeText(manifestGuide());
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      pushToast({ title: 'Could not copy', sub: 'The browser blocked the clipboard', icon: TriangleAlert, variant: 'error' });
+    }
+  };
 
-  const usable = rows.filter((r) => r.parsed.title.trim().length > 0);
-  const skipped = rows.length - usable.length;
-  const tooMany = usable.length > MAX;
+  const parsed = useMemo(() => parseManifest(text), [text]);
+  const { rows, counts } = parsed;
+  const skipped = rows.filter((r) => r.skipped).length;
+  const warned = rows.filter((r) => r.warnings.length > 0).length;
+  const tooMany = counts.total > MAX_IMPORT;
+
+  // "12 quests, 5 steps, 1 hour log and 2 rounds", with only the parts there are.
+  const summary = [
+    counts.quests > 0 && plural(counts.quests, 'quest'),
+    counts.steps > 0 && plural(counts.steps, 'step'),
+    counts.hourLogs > 0 && plural(counts.hourLogs, 'hour log'),
+    counts.routines > 0 && plural(counts.routines, 'round'),
+  ].filter((s): s is string => typeof s === 'string');
 
   const doImport = async () => {
     setBusy(true);
     try {
-      const res = await api.quests.import(
-        usable.map((r) => ({
-          title: r.parsed.title,
-          ...(r.parsed.estimatedMinutes ? { estimatedMinutes: r.parsed.estimatedMinutes } : {}),
-          ...(r.parsed.deadline ? { deadline: r.parsed.deadline } : {}),
-          ...(r.parsed.priorityTier ? { priorityTier: r.parsed.priorityTier } : {}),
-          ...(r.parsed.tags.length ? { tags: r.parsed.tags } : {}),
-        })),
-      );
-      await loadQuests();
+      const res = await manifestApi.import(parsed.quests);
+      await Promise.all([loadQuests(), counts.routines > 0 ? loadRecurring() : null]);
       sfxClick();
       pushToast({
-        title: `${res.created} quest${res.created === 1 ? '' : 's'} added`,
-        sub: 'Reroute to give them a time',
+        title: `${plural(res.created, 'quest')} added`,
+        sub: res.steps > 0 ? `${plural(res.steps, 'step')} among them. Reroute to give them a time` : 'Reroute to give them a time',
         icon: ListPlus,
         variant: 'xp',
       });
@@ -85,7 +73,7 @@ export default function QuestImport() {
     } catch (err) {
       pushToast({
         title: 'Nothing was imported',
-        sub: String(err).replace(/^ApiRequestError:\s*/, ''),
+        sub: String(err).replace(/^\w*Error:\s*/, ''),
         icon: TriangleAlert,
         variant: 'error',
       });
@@ -95,71 +83,102 @@ export default function QuestImport() {
   };
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-4 p-4 pb-32">
-      <header className="flex items-center gap-3">
-        <Link
-          to="/quests"
-          aria-label="Back to quests"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-md border"
-          style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
-        >
-          <ArrowLeft size={18} aria-hidden />
+    <div className="page flex flex-col gap-4">
+      <header>
+        <Link to="/quests" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
+          <ArrowLeft size={14} aria-hidden /> Quests
         </Link>
-        <div>
-          <h1 className="text-2xl font-extrabold leading-tight">Import quests</h1>
-          <p className="text-xs" style={muted}>
-            One quest per line, same shorthand as quick-add
-          </p>
-        </div>
+        <h1 className="page-title">Import quests</h1>
+        <p className="mt-1.5 text-sm text-(--color-muted)">
+          One quest per line. Indent a line to make it a step of the quest above. Only the title is required.
+        </p>
       </header>
 
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder={EXAMPLE}
+        onKeyDown={(e) => {
+          // Tab indents here: it is how a step is written.
+          if (e.key !== 'Tab' || e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+          e.preventDefault();
+          const el = e.currentTarget;
+          const { selectionStart: a, selectionEnd: b } = el;
+          setText(`${text.slice(0, a)}  ${text.slice(b)}`);
+          requestAnimationFrame(() => el.setSelectionRange(a + 2, a + 2));
+        }}
+        placeholder={MANIFEST_EXAMPLE}
         aria-label="Quests to import, one per line"
         spellCheck={false}
-        className={`${fieldClass} min-h-48 font-mono text-[13px] leading-relaxed`}
-        style={fieldStyle}
+        // A wrapped line would look like a new one with no indent, and indent is what makes a step.
+        wrap="off"
+        className="form-input min-h-56 text-[13px] leading-relaxed"
+        style={{ fontFamily: MANIFEST_FONT }}
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setText(EXAMPLE)}
-          disabled={text.trim().length > 0}
-          className="rounded-full border px-3 py-1 text-xs font-semibold disabled:opacity-40"
-          style={{ borderColor: 'var(--color-border)', color: 'var(--color-muted)' }}
-        >
+        <button type="button" onClick={() => setText(MANIFEST_EXAMPLE)} disabled={text.trim().length > 0} className="btn-quiet disabled:opacity-40">
           Paste an example
         </button>
-        <span className="text-xs" style={muted}>
-          <b>2h</b> or <b>45m</b> duration · <b>by fri</b> deadline · <b>!high</b> priority · <b>#tag</b>
-        </span>
+        <button type="button" onClick={() => setShowGuide((v) => !v)} aria-expanded={showGuide} className="btn-quiet">
+          Everything a line can set
+          <ChevronDown size={14} aria-hidden style={{ transform: showGuide ? 'rotate(180deg)' : undefined }} />
+        </button>
+        <button type="button" onClick={copyGuide} className="btn-quiet">
+          {copied ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
+          {copied ? 'Copied' : 'Copy the guide for an AI'}
+        </button>
       </div>
 
+      {showGuide && (
+        <section className="panel px-4 py-3">
+          <p className="text-[13px] leading-snug text-(--color-muted)">
+            Put any of these after the title, in any order. Anything you leave out keeps its default. If a title
+            itself contains one of them, put the title in "double quotes". A line that starts with // is a comment.
+          </p>
+          <dl className="rows mt-2 text-[13px]">
+            {MANIFEST_PARAMETERS.map((p) => (
+              <div key={p.token} className="flex gap-3 py-2">
+                <dt className="w-28 shrink-0 text-[12.5px] font-bold" style={{ fontFamily: MANIFEST_FONT }}>{p.token}</dt>
+                <dd className="min-w-0 flex-1">
+                  <span className="font-semibold">{p.means}</span>
+                  <span className="text-(--color-muted)"> · {p.values}</span>
+                  <span className="block text-(--color-muted)">Left out: {p.fallback}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      )}
+
       {rows.length > 0 && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-xs font-bold uppercase tracking-wide" style={muted}>
-            Preview — {usable.length} quest{usable.length === 1 ? '' : 's'}
-            {skipped > 0 && `, ${skipped} line${skipped === 1 ? '' : 's'} skipped`}
+        <section className="flex flex-col gap-2" aria-live="polite">
+          <h2 className="section-label">
+            Preview: {summary.length > 0 ? summary.join(', ') : 'nothing to import'}
+            {skipped > 0 && `, ${plural(skipped, 'line')} left out`}
           </h2>
 
-          <ul className="flex flex-col divide-y rounded-(--radius-card) border" style={card}>
-            {rows.slice(0, 120).map((r) => {
-              const ok = r.parsed.title.trim().length > 0;
-              return (
-                <li key={r.line} className="flex gap-3 px-3 py-2 text-sm" style={{ borderColor: 'var(--color-border)' }}>
-                  <span className="w-6 shrink-0 pt-0.5 text-right font-mono text-[11px] tabular-nums" style={muted}>
-                    {r.line}
-                  </span>
+          {parsed.notes.map((note) => (
+            <p key={note} className="panel flex items-start gap-2 px-4 py-3 text-sm" style={{ color: 'var(--color-gold)' }}>
+              <TriangleAlert size={15} aria-hidden className="mt-0.5 shrink-0" />
+              {note}
+            </p>
+          ))}
+
+          <ul className="panel rows overflow-hidden">
+            {rows.slice(0, 250).map((r) => (
+              <li key={r.line} className="flex gap-3 px-4 py-2.5 text-sm">
+                <span className="tnum w-6 shrink-0 pt-0.5 text-right text-[12px] text-(--color-muted)" title={`Line ${r.line}`}>
+                  {r.line}
+                </span>
+                <span className="flex min-w-0 flex-1 gap-1.5" style={{ paddingLeft: (r.tier - 1) * 18 }}>
+                  {r.tier > 1 && <CornerDownRight size={14} aria-label="Step of the quest above" className="mt-0.5 shrink-0 text-(--color-muted)" />}
                   <span className="min-w-0 flex-1">
-                    {ok ? (
+                    {r.quest ? (
                       <>
-                        <span className="block break-words font-semibold">{r.parsed.title}</span>
-                        {r.parsed.chips.length > 0 && (
-                          <span className="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[11px]" style={muted}>
-                            {r.parsed.chips.map((chip, i) => (
+                        <span className={`block break-words ${r.tier === 1 ? 'font-semibold' : ''}`}>{r.quest.title}</span>
+                        {r.chips.length > 0 && (
+                          <span className="mt-0.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[12px] text-(--color-muted)">
+                            {r.chips.map((chip, i) => (
                               <span key={i} className="flex items-center gap-1">
                                 <chip.icon size={11} aria-hidden />
                                 {chip.label}
@@ -167,45 +186,39 @@ export default function QuestImport() {
                             ))}
                           </span>
                         )}
+                        {r.warnings.map((w) => (
+                          <span key={w} className="mt-0.5 flex items-start gap-1 text-[12px]" style={{ color: 'var(--color-gold)' }}>
+                            <TriangleAlert size={11} aria-hidden className="mt-0.5 shrink-0" />
+                            {w}
+                          </span>
+                        ))}
                       </>
                     ) : (
-                      <span style={{ color: 'var(--color-gold)' }}>
-                        Skipped — nothing left after the shorthand: “{r.raw}”
-                      </span>
+                      <>
+                        <span className="block break-words text-(--color-muted) line-through">{r.raw}</span>
+                        <span className="mt-0.5 flex items-start gap-1 text-[12px]" style={{ color: 'var(--color-gold)' }}>
+                          <TriangleAlert size={11} aria-hidden className="mt-0.5 shrink-0" />
+                          {r.skipped}
+                        </span>
+                      </>
                     )}
                   </span>
-                </li>
-              );
-            })}
+                </span>
+              </li>
+            ))}
           </ul>
 
-          {rows.length > 120 && (
-            <p className="text-xs" style={muted}>
-              Showing the first 120 lines.
-            </p>
-          )}
-
-          {tooMany && (
-            <p className="rounded-(--radius-card) border p-3 text-sm" style={{ ...card, color: 'var(--color-gold)' }}>
-              That's {usable.length} quests. Import at most {MAX} at a time — split the list and run it twice.
-            </p>
-          )}
+          {rows.length > 250 && <p className="text-[13px] text-(--color-muted)">Showing the first 250 lines.</p>}
         </section>
       )}
 
-      <button
-        type="button"
-        onClick={doImport}
-        disabled={busy || usable.length === 0 || tooMany}
-        className="rounded-xl py-3 text-sm font-bold disabled:opacity-40"
-        style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
-      >
-        {busy ? 'Importing…' : `Import ${usable.length || ''} quest${usable.length === 1 ? '' : 's'}`.trim()}
+      <button type="button" onClick={doImport} disabled={busy || counts.total === 0 || tooMany} className="btn-primary min-h-11">
+        {busy ? 'Importing…' : counts.total === 0 ? 'Import' : `Import ${plural(counts.total, 'quest')}`}
       </button>
 
-      <p className="text-xs leading-snug" style={muted}>
-        Everything lands as an active quest with a 30-minute estimate unless a duration says otherwise. Nothing is
-        scheduled until you reroute. Either the whole list imports or none of it does.
+      <p className="text-[13px] leading-snug text-(--color-muted)">
+        Nothing is given a time until you reroute. Either the whole list imports or none of it does.
+        {warned > 0 && ` ${warned === 1 ? '1 line has' : `${warned} lines have`} a note above: those parts were left at their default.`}
       </p>
     </div>
   );
