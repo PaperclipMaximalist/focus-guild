@@ -193,19 +193,14 @@ function parseLine(body: string, now: Date): LineParse {
   return { quest, chips, warnings };
 }
 
-export function parseManifest(text: string, now: Date = new Date()): ManifestParse {
-  const rows: ManifestRow[] = [];
-  const quests: ManifestQuest[] = [];
-  const notes: string[] = [];
-  let version: number | null = null;
-  /** The quests the next line could be a step of, outermost first. */
-  const open: Array<{ indent: number; quest: ManifestQuest }> = [];
+const isFence = (l: string) => l.trim().startsWith('```');
 
-  // Which lines are the manifest: the first code block when there is one, and
-  // from the header down when there is one. What an AI says around its answer
-  // ("Here is your manifest:") is not a quest.
-  const lines = text.split(/\r?\n/);
-  const isFence = (l: string) => l.trim().startsWith('```');
+/**
+ * Which lines of a text are the manifest: the first code block when there is
+ * one, and from the header down when there is one. What an AI says around its
+ * answer ("Here is your manifest:") is not a quest.
+ */
+function manifestSpan(lines: string[]): { from: number; to: number; fenced: boolean } {
   let from = 0;
   let to = lines.length;
   const fence = lines.findIndex(isFence);
@@ -216,10 +211,30 @@ export function parseManifest(text: string, now: Date = new Date()): ManifestPar
   }
   const headerAt = lines.findIndex((l, i) => i >= from && i < to && HEADER.test(l.trim()));
   if (headerAt >= 0) from = headerAt;
+  return { from, to, fenced: fence >= 0 };
+}
+
+/** Just the manifest out of a reply: no code fence, nothing said before or after it. */
+export function manifestBody(text: string): string {
+  const lines = text.split(/\r?\n/);
+  const { from, to } = manifestSpan(lines);
+  return lines.slice(from, to).join('\n').replace(/^\n+|\s+$/g, '');
+}
+
+export function parseManifest(text: string, now: Date = new Date()): ManifestParse {
+  const rows: ManifestRow[] = [];
+  const quests: ManifestQuest[] = [];
+  const notes: string[] = [];
+  let version: number | null = null;
+  /** The quests the next line could be a step of, outermost first. */
+  const open: Array<{ indent: number; quest: ManifestQuest }> = [];
+
+  const lines = text.split(/\r?\n/);
+  const { from, to, fenced } = manifestSpan(lines);
   const outside = lines.filter((l, i) => (i < from || i >= to) && l.trim() && !isFence(l)).length;
   if (outside > 0) {
     notes.push(
-      `${outside === 1 ? '1 line' : `${outside} lines`} outside the ${fence >= 0 ? 'code block' : 'manifest (above its first line)'} ${outside === 1 ? 'was' : 'were'} not read.`,
+      `${outside === 1 ? '1 line' : `${outside} lines`} outside the ${fenced ? 'code block' : 'manifest (above its first line)'} ${outside === 1 ? 'was' : 'were'} not read.`,
     );
   }
 

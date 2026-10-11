@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
-import { Rocket } from 'lucide-react';
+import { Bot, Rocket } from 'lucide-react';
 import { isSfxEnabled, setSfxEnabled, sfxClick } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
@@ -68,6 +68,7 @@ export function CommandPalette() {
       { id: 'go-records', label: 'Records: activity log and permafile', icon: ScrollText, keywords: 'records advanced activity log history permafile ask guild logbook chronicle', run: go('/advanced/records') },
       { id: 'go-ai-bundle', label: 'Copy AI context bundle', icon: Sparkles, keywords: 'claude ai bundle context export permafile log', run: go('/advanced/records?tab=bundle') },
       { id: 'go-connections', label: 'Connections: calendars & inbox', icon: Plug, keywords: 'google calendar outlook teams ics webhook power automate shortcut integrations', run: go('/connections') },
+      { id: 'go-ai', label: 'Your AI: connect Claude, ChatGPT, Gemini', icon: Bot, keywords: 'ai api key openai anthropic google gemini grok mistral deepseek openrouter model connect llm', run: go('/advanced/ai') },
       { id: 'go-quickstart', label: 'Quickstart: Google Calendar and quests in bulk', icon: Rocket, keywords: 'quickstart setup connect google calendar manifest import export bulk ai port advanced', run: go('/advanced/quickstart') },
       { id: 'go-trophies', label: 'Open Trophy Room', icon: Trophy, keywords: 'achievements badges awards', run: go('/trophies') },
       { id: 'go-settings', label: 'Open Settings', icon: SettingsIcon, keywords: 'config tune preferences', run: go('/settings') },

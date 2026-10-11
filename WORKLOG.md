@@ -269,6 +269,16 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Checked: photographed at 1280 and 375 px against sample data (nothing sent to a server); the export read from the real dev account (78 quests) and sent back as a dry run, which writes nothing; that export written as text and parsed again gives the same 78 quests. Not exercised against the database: a real import, because local dev shares production's database. Its rows are built by a pure function that is tested, and written by the same transaction call the old import used.
 - Tests: 360 server (12 in `questImport.test.ts`), 77 client (30 for the manifest, 7 for the Google link, 24 for the grammar).
 
+### Sun 2026-10-11: Your AI, and getting Quickstart out (one session; hours not measured)
+- The owner's words: "now set up some way for the popular AIs to be API connected into the app by the user. deploy this is complete". Read as: let a person plug their own AI account into the app with an API key, then deploy.
+- First the Quickstart branch was committed and merged with `main`, which had moved on by twenty commits (steps and hour logs, the rebuilt lines, ornaments). One conflict, this file. A third session was about to build indented-step import a second time; it was pointed at this branch and dropped its own. It also spotted that rows written in one transaction share a timestamp, so imported steps could come back in any order: fixed (each row stamped a millisecond after the last).
+- **Your AI** (`/advanced/ai`): one row per AI by the name people know it by. Opening one says where to get a key and that a chat subscription is not an API key. Connect asks the provider what the key can use (the check; nothing is stored on failure), picks a model from that list, then asks the AI one question so "connected" means key, model and billing all work.
+- Two adapters cover eight providers: Anthropic's SDK for Claude, and the chat-completions API for everyone else, sent with no sampling settings and no token cap because current models reject one or the other. Model names are read from the provider, not written into the code, since they go stale within months.
+- Keys are sealed with AES-256-GCM under a secret the database does not hold, opened only for the length of a request, and never returned; the page shows the last four characters. If the secret changes the key reads as gone and is pasted again.
+- Break down and Ask the Guild had been off in production for want of a server key. They now use whatever the person connects, and the importer gained a box that turns notes into a manifest with it.
+- Checked: 51 new server tests, among them the routes run end to end against a stand-in database, asserting that a key is never stored as typed and never appears in a response; the migration compared line for line with what Prisma generates for the schema; the screens photographed at 1280 and 375 px against sample answers. **Not checked: a real call to any provider.** There was no key to test with.
+- Tests: 449 server, 86 client.
+
 
 ## Phases, as named in the project's own log
 

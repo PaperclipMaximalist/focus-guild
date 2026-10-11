@@ -4,7 +4,7 @@ import { db } from '../db/client.js';
 import { computePriorityScore } from '../lib/priority.js';
 import { computeXP } from '../lib/xp.js';
 import { updateStreak, computeMultiplier } from '../lib/streak.js';
-import { AI_ENABLED, AI_MODEL, getClient } from '../lib/ai.js';
+import { aiFailure, completeFor } from '../lib/ai.js';
 import { logActivity } from '../lib/activity.js';
 import { reviveDeferred } from '../lib/deferral.js';
 import { getUserConfig } from '../lib/userConfig.js';
@@ -490,19 +490,6 @@ quests.delete('/:id/hours/:entryId', async (c) => {
 // Returns suggestions only; the client is responsible for creating the
 // approved sub-quests (lets the user edit titles/durations first).
 quests.post('/:id/decompose', async (c) => {
-  if (!AI_ENABLED) {
-    return c.json(
-      {
-        success: false,
-        error: {
-          code: 'AI_NOT_CONFIGURED',
-          message:
-            'ANTHROPIC_API_KEY is not set on the server. Add it to your server env to enable AI quest decomposition.',
-        },
-      },
-      503,
-    );
-  }
   const user = c.get('user');
   const id = c.req.param('id');
   const quest = await db.quest.findUnique({ where: { id } });
@@ -528,22 +515,11 @@ Respond ONLY with valid JSON, no prose, of this exact shape:
 { "subQuests": [ { "title": "string", "estimatedMinutes": number, "rationale": "string" }, ... ] }`;
 
   try {
-    const client = getClient();
-    const response = await client.messages.create({
-      model: AI_MODEL,
-      // Opus 5 thinks by default and thinking counts against max_tokens.
-      max_tokens: 16000,
-      messages: [{ role: 'user', content: prompt }],
-    });
-    const textBlock = response.content.find((b) => b.type === 'text');
-    if (!textBlock || textBlock.type !== 'text') {
-      return c.json(
-        { success: false, error: { code: 'AI_EMPTY', message: 'AI returned no text' } },
-        502,
-      );
-    }
-    // Be forgiving — strip markdown code fences if Claude wrapped the JSON.
-    const raw = textBlock.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+    // Whichever AI this person connected, or the server's own (lib/ai.ts).
+    const { text } = await completeFor(user.id, { prompt });
+    // Be forgiving: take the JSON out of a code fence, or out of a sentence around it.
+    const fenced = text.replace(/^```(?:json)?\s*/i, '').replace(/```$/, '').trim();
+    const raw = fenced.startsWith('{') ? fenced : fenced.slice(fenced.indexOf('{'), fenced.lastIndexOf('}') + 1);
     let parsed: { subQuests?: Array<{ title?: string; estimatedMinutes?: number; rationale?: string }> };
     try {
       parsed = JSON.parse(raw);
@@ -563,11 +539,8 @@ Respond ONLY with valid JSON, no prose, of this exact shape:
 
     return c.json({ success: true, data: { suggestions } });
   } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return c.json(
-      { success: false, error: { code: 'AI_ERROR', message: msg } },
-      502,
-    );
+    const { body, status } = aiFailure(e);
+    return c.json(body, status);
   }
 });
 

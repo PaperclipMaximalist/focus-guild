@@ -8,7 +8,7 @@
 
 import { Link } from 'react-router-dom';
 import type { LucideIcon } from 'lucide-react';
-import { ArrowLeft, ChevronRight, Plug, Rocket, ScrollText } from 'lucide-react';
+import { ArrowLeft, Bot, ChevronRight, Plug, Rocket, ScrollText } from 'lucide-react';
 
 const ROWS: Array<{ to: string; icon: LucideIcon; title: string; sub: string }> = [
   {
@@ -16,6 +16,12 @@ const ROWS: Array<{ to: string; icon: LucideIcon; title: string; sub: string }> 
     icon: Rocket,
     title: 'Quickstart',
     sub: 'Connect Google Calendar, and bring in a whole list of quests at once',
+  },
+  {
+    to: '/advanced/ai',
+    icon: Bot,
+    title: 'Your AI',
+    sub: 'Plug in Claude, ChatGPT, Gemini or another AI with your own API key',
   },
   {
     to: '/connections',

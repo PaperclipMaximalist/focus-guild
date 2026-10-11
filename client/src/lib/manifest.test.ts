@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MANIFEST_EXAMPLE, MANIFEST_HEADER, MAX_IMPORT, manifestGuide, parseManifest, toManifest, type ManifestQuest } from './manifest';
+import { MANIFEST_EXAMPLE, MANIFEST_HEADER, MAX_IMPORT, manifestBody, manifestGuide, parseManifest, toManifest, type ManifestQuest } from './manifest';
 
 // A Wednesday, mid-morning, local time.
 const NOW = new Date(2026, 9, 7, 10, 0, 0);
@@ -36,6 +36,13 @@ describe('lines', () => {
     const r = parse(['Sure, here it is.', MANIFEST_HEADER, 'Read chapter 4'].join('\n'));
     expect(r.quests).toEqual([{ title: 'Read chapter 4' }]);
     expect(r.notes).toEqual(['1 line outside the manifest (above its first line) was not read.']);
+  });
+
+  it('lifts just the manifest out of a reply, to put in the box', () => {
+    const reply = ['Here you go:', '```text', MANIFEST_HEADER, 'Read chapter 4 45m', '  Take notes', '```', 'Anything else?'].join('\n');
+    expect(manifestBody(reply)).toBe(`${MANIFEST_HEADER}\nRead chapter 4 45m\n  Take notes`);
+    expect(manifestBody('Buy milk\n  Oat\n')).toBe('Buy milk\n  Oat');
+    expect(manifestBody(`Sure.\n${MANIFEST_HEADER}\nA quest\n\n`)).toBe(`${MANIFEST_HEADER}\nA quest`);
   });
 
   it('reads every line of a plain list with no header', () => {

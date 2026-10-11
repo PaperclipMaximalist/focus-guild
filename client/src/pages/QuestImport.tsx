@@ -12,14 +12,14 @@
  * half an import behind.
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { manifestApi } from '../lib/api';
-import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manifestGuide, parseManifest } from '../lib/manifest';
+import { aiApi, manifestApi } from '../lib/api';
+import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manifestBody, manifestGuide, parseManifest } from '../lib/manifest';
 import { sfxClick } from '../lib/sfx';
 import { useQuestStore } from '../store/useQuestStore';
 import { useToastStore } from '../components/Toasts';
-import { ArrowLeft, Check, ChevronDown, Copy, CornerDownRight, ListPlus, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Bot, Check, ChevronDown, Copy, CornerDownRight, ListPlus, TriangleAlert } from 'lucide-react';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -32,6 +32,46 @@ export default function QuestImport() {
   const [busy, setBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [copied, setCopied] = useState(false);
+  // The AI the person connected, if any: it can write the list from their notes.
+  const [ai, setAi] = useState<string | null | undefined>(undefined);
+  const [showAi, setShowAi] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [writing, setWriting] = useState(false);
+  const [wrote, setWrote] = useState<string | null>(null);
+
+  useEffect(() => {
+    let live = true;
+    aiApi
+      .get()
+      .then((s) => live && setAi(s.inUse))
+      .catch(() => live && setAi(null));
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const writeWithAi = async () => {
+    setWriting(true);
+    setWrote(null);
+    try {
+      const res = await aiApi.writeManifest(notes.trim(), manifestGuide());
+      const body = manifestBody(res.text);
+      // Added under whatever is already in the box, never over it.
+      setText((t) => (t.trim() ? `${t.replace(/\s+$/, '')}\n\n${body}` : body));
+      setWrote(res.via);
+      setShowAi(false);
+      sfxClick();
+    } catch (err) {
+      pushToast({
+        title: 'The AI did not write a list',
+        sub: String(err).replace(/^\w*Error:\s*/, '').replace(/^[A-Z_]+:\s*/, ''),
+        icon: TriangleAlert,
+        variant: 'error',
+      });
+    } finally {
+      setWriting(false);
+    }
+  };
 
   const copyGuide = async () => {
     try {
@@ -93,6 +133,57 @@ export default function QuestImport() {
           One quest per line. Indent a line to make it a step of the quest above. Only the title is required.
         </p>
       </header>
+
+      {ai && (
+        <section className="panel">
+          <button
+            type="button"
+            onClick={() => setShowAi((v) => !v)}
+            aria-expanded={showAi}
+            className="flex w-full items-center gap-3 px-4 py-3 text-left"
+          >
+            <Bot size={18} aria-hidden className="shrink-0 text-(--color-muted)" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-semibold">Have your AI write the list</span>
+              <span className="block truncate text-[13px] text-(--color-muted)">From your notes, by {ai}</span>
+            </span>
+            <ChevronDown size={16} aria-hidden className="shrink-0 text-(--color-muted)" style={{ transform: showAi ? 'rotate(180deg)' : undefined }} />
+          </button>
+          {showAi && (
+            <div className="flex flex-col gap-3 border-t border-(--color-border) px-4 py-4">
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Say what is on your plate, or paste a syllabus, an email or a to-do list as it is. Mention deadlines if you know them."
+                aria-label="Notes for your AI to turn into quests"
+                maxLength={20000}
+                className="form-input min-h-36 text-[15px] leading-relaxed"
+              />
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                <button type="button" onClick={writeWithAi} disabled={writing || notes.trim().length < 3} className="btn-strong disabled:opacity-40">
+                  {writing ? 'Writing…' : 'Write the list'}
+                </button>
+                <p className="min-w-0 flex-1 basis-56 text-[13px] leading-snug text-(--color-muted)">
+                  Your notes go to that AI and nowhere else. What comes back lands in the box below for you to check;
+                  nothing is created yet.
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+      {ai === null && (
+        <p className="text-[13px] text-(--color-muted)">
+          <Link to="/advanced/ai" className="underline underline-offset-2">Connect an AI</Link> and it can write this
+          list from your notes.
+        </p>
+      )}
+      {wrote && (
+        <p className="flex items-start gap-2 text-[13px] text-(--color-muted)" aria-live="polite">
+          <Bot size={14} aria-hidden className="mt-0.5 shrink-0" />
+          Written by {wrote}. Read the preview before importing: an AI can misjudge a duration or invent a deadline.
+        </p>
+      )}
 
       <textarea
         value={text}
