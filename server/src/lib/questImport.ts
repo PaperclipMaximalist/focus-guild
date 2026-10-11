@@ -143,12 +143,19 @@ export interface ManifestRows {
   counts: { quests: number; steps: number; hourLogs: number; routines: number };
 }
 
-/** One quest row per quest in the manifest. Only what the manifest said is set. */
-export function manifestRows(userId: string, quests: ManifestQuest[], newId: () => string): ManifestRows {
+/**
+ * One quest row per quest in the manifest. Only what the manifest said is set.
+ *
+ * Each row is stamped a millisecond after the one before. Lists are read back
+ * oldest first, and rows written in one transaction would otherwise all carry
+ * the transaction's single timestamp, leaving the order of steps to chance.
+ */
+export function manifestRows(userId: string, quests: ManifestQuest[], newId: () => string, now: Date = new Date()): ManifestRows {
   const out: ManifestRows = { rows: [], counts: { quests: 0, steps: 0, hourLogs: 0, routines: 0 } };
   const ids = new Map<ManifestQuest, string>();
   walk(quests, (q, { parent }) => {
     const id = newId();
+    const createdAt = new Date(now.getTime() + out.rows.length);
     ids.set(q, id);
     const { title, estimatedMinutes, trackHours, loggedMinutes, deadline, tags, steps: _steps, isRecurring, ...said } = q;
     out.rows.push({
@@ -160,6 +167,7 @@ export function manifestRows(userId: string, quests: ManifestQuest[], newId: () 
       tags: tags ?? [],
       status: 'ACTIVE',
       parentQuestId: parent ? ids.get(parent)! : null,
+      createdAt,
       ...(loggedMinutes ? { actualMinutes: loggedMinutes } : {}),
       ...(isRecurring ? { isRecurring: true } : {}),
       ...said,

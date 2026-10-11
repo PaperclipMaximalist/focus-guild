@@ -15,16 +15,18 @@ const ids = () => {
   let n = 0;
   return () => `id${(n += 1)}`;
 };
+const NOW = new Date('2026-10-11T12:00:00.000Z');
+const at = (ms: number) => new Date(NOW.getTime() + ms);
 const rowsOf = (quests: unknown[]) => {
   const r = parse(quests);
   if (!r.success) throw new Error(describeIssues(r.error));
-  return manifestRows('u1', r.data.quests, ids());
+  return manifestRows('u1', r.data.quests, ids(), NOW);
 };
 
 describe('a manifest coming in', () => {
   it('needs nothing but a title, and leaves the rest to the defaults', () => {
     expect(rowsOf([{ title: '  Email the coordinator  ' }]).rows).toEqual([
-      { id: 'id1', userId: 'u1', title: 'Email the coordinator', estimatedMinutes: 30, deadline: null, tags: [], status: 'ACTIVE', parentQuestId: null },
+      { id: 'id1', userId: 'u1', title: 'Email the coordinator', estimatedMinutes: 30, deadline: null, tags: [], status: 'ACTIVE', parentQuestId: null, createdAt: NOW },
     ]);
   });
 
@@ -51,8 +53,14 @@ describe('a manifest coming in', () => {
       userId: 'u1',
       status: 'ACTIVE',
       parentQuestId: null,
+      createdAt: NOW,
       deadline: new Date('2026-10-15T21:00:00.000Z'),
     });
+  });
+
+  it('stamps each row a millisecond after the last, so the order written is the order read', () => {
+    const { rows } = rowsOf([{ title: 'a', steps: [{ title: 'a1' }, { title: 'a2' }] }, { title: 'b' }]);
+    expect(rows.map((r) => [r.title, r['createdAt']])).toEqual([['a', at(0)], ['a1', at(1)], ['a2', at(2)], ['b', at(3)]]);
   });
 
   it('turns away values the editor could not have made', () => {
@@ -88,7 +96,7 @@ describe('a manifest coming in', () => {
 
   it('makes an hour log a quest with no estimate, its time so far in the total', () => {
     const { rows, counts } = rowsOf([{ title: 'Piano', trackHours: true, loggedMinutes: 750, tags: ['music'] }]);
-    expect(rows[0]).toEqual({ id: 'id1', userId: 'u1', title: 'Piano', estimatedMinutes: 0, actualMinutes: 750, deadline: null, tags: ['music'], status: 'ACTIVE', parentQuestId: null });
+    expect(rows[0]).toEqual({ id: 'id1', userId: 'u1', title: 'Piano', estimatedMinutes: 0, actualMinutes: 750, deadline: null, tags: ['music'], status: 'ACTIVE', parentQuestId: null, createdAt: NOW });
     expect(counts).toEqual({ quests: 0, steps: 0, hourLogs: 1, routines: 0 });
   });
 
