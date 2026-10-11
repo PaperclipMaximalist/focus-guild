@@ -1,112 +1,30 @@
 /*
  * The Salvage Line's frame: bolted plate, as in the cockpit.
- *   .panel        a plate: a hairline edge and a bolt head 6 px in from each corner
- *   .next-card    the hazard frame: bigger bolts, a 14 px triangle of hazard stripes
- *                 in two corners, a dashed weld seam inside the edge
- *   .board-sign   a plain plate with the hazard stripe block at its left end
- *   .btn-primary  a plain plate with a 2 px band of the pressed accent along its foot
- *   .app-sidebar  a riveted pillar: a seam 10 px from its edge, a rivet every 32 px
- *   .app-tabbar   tread plate: a band of small diagonal dashes along its top edge
- *   .scene-window the scene draws its own canopy; only the radius is set here
+ * The borders, bolts, hazard corners, pipe run and tread plate are drawn in ornaments.ts;
+ * this file keeps only the shapes and fills that picture does not do.
+ *   .panel / .next-card  square-ish corners, so the drawn frame sits flush
+ *   .board-sign          the accent plate, its top corners cut square for the stencilled frame
+ *   .btn-primary         a plain plate with a 2 px band of the pressed accent along its foot
+ *   .scene-window        the scene draws its own canopy; only the radius is set here
  */
 @layer components {
   :root[data-line="dispatch"] .scene-window {
     --radius-card: 6px;
   }
 
-  /* A plate: four bolt heads, each a 4 px dot with a lighter pixel at its top left. */
-  :root[data-line="dispatch"] .panel {
-    border-radius: var(--radius-sm);
-    box-shadow: inset 0 0 0 1px var(--color-border);
-    background-image:
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 0.9px, transparent 1.3px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2px, transparent 2.5px),
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 0.9px, transparent 1.3px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2px, transparent 2.5px),
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 0.9px, transparent 1.3px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2px, transparent 2.5px),
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 0.9px, transparent 1.3px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2px, transparent 2.5px);
-    background-size: 16px 16px;
-    background-repeat: no-repeat;
-    background-position:
-      left top, left top,
-      right top, right top,
-      left bottom, left bottom,
-      right bottom, right bottom;
-  }
-
-  /* The hazard frame: stripe triangles top left and bottom right (the cover layers cut each stripe field in two), then bolts. */
+  :root[data-line="dispatch"] .panel,
   :root[data-line="dispatch"] .next-card {
     border-radius: var(--radius-sm);
-    outline: 1px dashed var(--color-border-strong);
-    outline-offset: -5px;
-    background-image:
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 1px, transparent 1.4px),
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 1px, transparent 1.4px),
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 1px, transparent 1.4px),
-      radial-gradient(circle at 7px 7px, color-mix(in srgb, var(--color-border-strong) 60%, white) 0 1px, transparent 1.4px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2.5px, transparent 3px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2.5px, transparent 3px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2.5px, transparent 3px),
-      radial-gradient(circle at 8px 8px, var(--color-border-strong) 0 2.5px, transparent 3px),
-      linear-gradient(135deg, transparent 0 50%, var(--color-surface) 50% 100%),
-      linear-gradient(315deg, transparent 0 50%, var(--color-surface) 50% 100%),
-      repeating-linear-gradient(-45deg, var(--color-border-strong) 0 2px, var(--color-surface) 2px 4px),
-      repeating-linear-gradient(-45deg, var(--color-border-strong) 0 2px, var(--color-surface) 2px 4px);
-    background-size: 16px 16px, 16px 16px, 16px 16px, 16px 16px, 16px 16px, 16px 16px, 16px 16px, 16px 16px, 14px 14px, 14px 14px, 14px 14px, 14px 14px;
-    background-repeat: no-repeat;
-    background-position:
-      left top, right top, left bottom, right bottom,
-      left top, right top, left bottom, right bottom,
-      left top, right bottom,
-      left top, right bottom;
   }
 
   :root[data-line="dispatch"] .board-sign {
-    position: relative;
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     background: var(--color-primary);
-  }
-  /* The hazard block: 10 px of 45-degree stripes, hard-stopped, sitting in the sign's left padding. */
-  :root[data-line="dispatch"] .board-sign::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 10px;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      -45deg,
-      var(--color-on-primary) 0 3px,
-      var(--color-primary) 3px 6px
-    );
   }
 
   :root[data-line="dispatch"] .btn-primary {
     border-radius: var(--radius-md);
     background: var(--fill);
     box-shadow: inset 0 -2px 0 var(--color-primary-d);
-  }
-
-  /* The pillar: a 2 px edge, a seam 10 px in from it and a rivet on the seam every 32 px. */
-  :root[data-line="dispatch"] .app-sidebar {
-    box-shadow: inset -2px 0 0 var(--color-border-strong);
-    background-image:
-      radial-gradient(circle at 50% 16px, var(--color-border) 0 1.8px, transparent 2.3px),
-      linear-gradient(var(--color-border), var(--color-border));
-    background-size: 7px 32px, 1px 100%;
-    background-repeat: repeat-y, no-repeat;
-    background-position: right 8px top, right 11px top;
-  }
-
-  /* Tread plate: small diagonal dashes along the top edge. */
-  :root[data-line="dispatch"] .app-tabbar {
-    box-shadow: inset 0 1px 0 var(--color-border-strong);
-    background-image: repeating-linear-gradient(-45deg, var(--color-border) 0 1px, transparent 1px 4px);
-    background-size: 100% 6px;
-    background-repeat: no-repeat;
-    background-position: left 0 top 2px;
   }
 }
