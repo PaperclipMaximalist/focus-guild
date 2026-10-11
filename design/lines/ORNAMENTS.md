@@ -1,5 +1,7 @@
 # Ornaments: the small drawn things
 
+> **Changed since this was written** (see `TEXTURE.md`, which wins where the two disagree): the tailpiece (`sprites.tail`) is gone, because the owner did not want pictures filling space; `edges.crown` is new; and a `Sprite` may now have `frames` and `seconds`, in which case it moves. `mark`, `rule` and `crown` must.
+
 Added 2026-10-10, after the owner saw the cabin windows and said: "I don't need a picture header exactly but I need small elements to be incorporated around the UI, I mean the borders, symbols, small pictures that are unique, maybe borders that aren't a single line and have more style."
 
 So each line paints a kit of small pieces in `client/src/lines/<id>/ornaments.ts`, and the app puts them on **every page** by itself (`client/src/lines/dress.ts` turns each piece into a picture; the last block of `client/src/index.css` places them). A line writes no CSS for any of this.
@@ -8,7 +10,7 @@ So each line paints a kit of small pieces in `client/src/lines/<id>/ornaments.ts
 export default defineOrnaments({
   frames:  { panel, card, sign },        // FramePiece: { slice, edge, paint }
   edges:   { vertical, horizontal },     // Sprite:     { w, h, paint }
-  sprites: { emblem, mark, rule, tail, spot },
+  sprites: { emblem, mark, rule, spot },
 });
 ```
 
@@ -23,10 +25,10 @@ export default defineOrnaments({
 | `frames.sign` | Over the accent-filled sign above a board | `slice` 8 to 12 | Drawn in dark ink on the accent: `--color-on-primary` at part strength, or a darker shade of the accent. |
 | `edges.vertical` | Repeats down the sidebar's right edge | 8 to 16 wide, any height | A trim with a rhythm: a route with stops, a rib with rivets, a stack of log ends. |
 | `edges.horizontal` | Repeats along the top of the phone's tab bar and the bottom of its top bar | any width, 6 to 12 tall | The same idea turned on its side: a railing, a garland, a row of studs. |
+| `edges.crown` | Repeats along the top of the one loud card, between its frame's corners and over its top edge | about 64 by 12 | A run of something small that moves: lights, lamps, studs, bubbles. |
 | `sprites.emblem` | Beside "Focus Guild" in the sidebar, replacing the plain square; and in the line picker | 24 by 24 | The line's badge. One object, bold enough to read at 24 px. |
 | `sprites.mark` | Before every section label ("Top quests", "Now boarding", "More") | about 14 by 14 | A symbol. Two or three flat colours, a clear silhouette. It appears dozens of times, so it must be quiet and crisp. |
 | `sprites.rule` | Under every page title | about 140 by 12 | A drawn rule with one small motif on it. |
-| `sprites.tail` | At the foot of every page, centred | about 150 by 56 | A tailpiece, as at the end of a chapter in an old book. A small picture from the line's world. |
 | `sprites.spot` | In empty states ("No active quests", "Nothing planned for this day") | about 180 by 120 | A small scene with a little charm. The one place for a picture with some story in it. |
 
 ## How a frame is painted
@@ -79,7 +81,6 @@ Material: blue enamel plate, steel, the line map. Tones `#1C2249 #363E78 #5A66B8
 - **emblem**: the ringed moon in a rounded square of night blue.
 - **mark**: a stop ring with a short tail of line, in cold white with a yellow centre.
 - **rule**: a route line with three stops and a terminus bar at its right end.
-- **tail**: the maglev in silhouette on its line, the ringed moon behind, a few strokes of rain.
 - **spot**: an empty platform bench under a lamp in the rain, an umbrella leaning on it.
 
 ### Ring Line (`orbital`): luggage
@@ -94,7 +95,6 @@ Material: tan leather, brass, stitching, and the crystal. Tans `#8C7448 #B89B6A 
 - **emblem**: the crystal with its tilted orbit ring.
 - **mark**: a four-point sparkle with a small crystal shard at its centre, in pink.
 - **rule**: an orbit: a fine line with a small ringed planet at the left end and three star dots along it.
-- **tail**: two stacked suitcases with a monstera leaf across them and the crystal hovering above.
 - **spot**: an open, empty suitcase with the crystal floating out of it and a few sheets of paper drifting up.
 
 ### Abyssal Line (`deep`): brasswork
@@ -109,7 +109,6 @@ Material: brass and iron, rope, glass. Brass `#6A5222 #8A6A2C #B8923E #E0C070`, 
 - **emblem**: a ship's wheel in brass.
 - **mark**: a small anchor in brass.
 - **rule**: a length of rope ending in a knot at the left and frayed at the right.
-- **tail**: the whale in silhouette with a trail of bubbles and a jellyfish below it.
 - **spot**: a diving helmet on the seabed with a jellyfish drifting past and bubbles rising; the frog sitting on the helmet (the one use of chartreuse).
 
 ### Timber Line (`sleeper`): joinery
@@ -124,7 +123,6 @@ Material: wood in three tones, pegs, a little brass, leaves. Wood `#2A1C14 #3A28
 - **emblem**: an acorn.
 - **mark**: a birch leaf in autumn orange.
 - **rule**: a twig with three small leaves and a bud.
-- **tail**: the sparrow on a branch with two acorns and a few leaves.
 - **spot**: a steaming mug beside the oil lantern and a closed book, on a plank.
 
 ### Salvage Line (`dispatch`): bolted plate
@@ -139,5 +137,4 @@ Material: copper, rust, hazard paint, and the green screen. Copper `#3A2418 #4E3
 - **emblem**: the green CRT: a bulbous monitor with three lines of readout.
 - **mark**: a block cursor and a prompt chevron in phosphor green.
 - **rule**: a pipe with a flange at each end and a valve wheel a third of the way along.
-- **tail**: a stack of three taped parcels with the courier skiff hovering behind.
 - **spot**: a crane hook lowering a parcel onto a pile of crates, a moth circling a small lamp.

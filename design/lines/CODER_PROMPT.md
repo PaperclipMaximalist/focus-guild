@@ -1,5 +1,7 @@
 # Brief for a line coder
 
+> This is the brief the cabin corners were built from. `charm.ts` has since been replaced by `texture.ts` and `wall.ts`: a new line needs `CODER_PROMPT_TEXTURE.md` and `CODER_PROMPT_ORNAMENTS.md` as well, and `TEXTURE.md` wins where they disagree.
+
 Paste this to a coder agent, with `<id>` filled in. One coder builds one line.
 
 ---

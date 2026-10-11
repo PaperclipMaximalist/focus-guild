@@ -35,9 +35,8 @@ const HZ = '#C9A227', HZ_HI = '#F0CF55', HZ_LO = '#8A6E14', HB = '#1A1410';
 const PH0 = '#0D3A1C', PH1 = '#124A26', PH2 = '#2F7A4A', PH = '#4BE083', PHH = '#A8F5C4';
 // Paper, parcels, haze, wood, lamp
 const PAR = '#E8E0D0', PAR_HI = '#F4EEE0', PAR_LO = '#C9BFA8', PAR_DK = '#8A7C62';
-const HZE = '#C8AE80', HZE_LO = '#A88A5C', HZE_DK = '#7A5C3A';
 const WD = '#6A4A2A', WD_LO = '#4E3620', WD_HI = '#A07040';
-const AMB = '#FFA640', AMB_HI = '#FFD060', FLAME = '#E0802A';
+const AMB = '#FFA640', AMB_HI = '#FFD060';
 // Ink for the sign, on the accent
 const INK = '#06101F', INK2 = '#16355F';
 
@@ -487,50 +486,6 @@ function parcel(p: Paint, x: number, y: number, w: number, h: number, tapeX: num
     for (const [bx, bw] of [[4.5, 1], [6.5, 0.5], [7.5, 1.5], [10, 0.5], [11, 1], [12.5, 0.5]] as const) R(p, K0, x + bx, y + 4.5, bw, 3.5);
   }
 }
-
-const tail = {
-  w: 150,
-  h: 56,
-  paint: (p: Paint) => {
-    // The courier skiff, far off and hazed, nose to the left, hovering above and behind the stack.
-    const sx = 104;
-    const sy = 22;
-    ell(p, K2, sx + 4, 53.5, 22, 1.2);
-    ell(p, K1, sx + 4, 53.5, 12, 0.6);
-    poly(p, FLAME, [[sx + 29, sy - 1], [sx + 40, sy + 1.5], [sx + 29, sy + 4]]);
-    poly(p, AMB_HI, [[sx + 29, sy + 0.5], [sx + 35, sy + 1.5], [sx + 29, sy + 3]]);
-    rrect(p, HZE_DK, sx - 22, sy + 8, 46, 2, 1);
-    R(p, HZE_DK, sx - 12, sy + 6, 2, 3);
-    R(p, HZE_DK, sx + 12, sy + 6, 2, 3);
-    rrect(p, HZE_DK, sx + 22, sy - 3, 8, 8, 2);
-    rrect(p, HZE_DK, sx - 28, sy - 4, 56, 12.5, 6);
-    rrect(p, HZE, sx - 27.5, sy - 3.5, 55, 11, 5.5);
-    cells(p, HZE_LO, sx - 28, sy - 4, sx + 28, sy + 8.5, (_x, y) => y > sy + 5);
-    cells(p, RU2, sx - 28, sy - 4, sx + 28, sy + 8.5, (x, y) => y > sy + 1.5 && y < sy + 4.5 && x > sx - 26);
-    R(p, RU0, sx - 26, sy + 3.5, 52, 0.5);
-    R(p, PAR_HI, sx - 22, sy - 3.5, 40, 0.5);
-    // Canopy: dark glass with a lit streak.
-    poly(p, HZE_DK, [[sx - 24, sy - 1], [sx - 19, sy - 6], [sx - 8, sy - 6.5], [sx - 6, sy - 1]]);
-    poly(p, PAR, [[sx - 22.5, sy - 1.5], [sx - 18.5, sy - 5], [sx - 9, sy - 5.5], [sx - 8, sy - 1.5]]);
-    R(p, PAR_HI, sx - 20, sy - 4.5, 5, 0.5);
-    // A crate on the bed, and a nav light.
-    rrect(p, PAR, sx + 2, sy - 9, 16, 6, 1);
-    R(p, PAR_LO, sx + 2, sy - 5, 16, 1.5);
-    R(p, RU2, sx + 8, sy - 9, 3, 6);
-    R(p, PH, sx - 27, sy + 1, 1, 1);
-    // The stack: three parcels, each a little off the one below.
-    parcel(p, 22, 39.5, 62, 13.5, 52);
-    parcel(p, 30, 27, 44, 12.5, 54, true);
-    parcel(p, 38, 15.5, 27, 11.5, 48);
-    // The ground: a line of dust, and a few specks of it kicked up.
-    R(p, K3, 6, 53.5, 138, 0.5);
-    R(p, K1, 6, 54, 138, 0.5);
-    for (let x = 10; x < 142; x += 6) R(p, K2, x + ((x * 7) % 5), 55, 2 + (x % 3), 0.5);
-    for (const [x, y] of [[96, 46], [118, 49], [92, 50], [128, 51], [10, 48], [140, 46]] as const) R(p, K4, x, y, 0.5, 0.5);
-    for (const [x, y] of [[14, 8], [136, 10], [100, 6], [8, 28]] as const) R(p, PH, x, y, 0.5, 0.5);
-    R(p, HZ, 120, 14, 1, 1);
-  },
-};
 
 /** A wooden crate with corner plates, a brace and nails. */
 function crate(p: Paint, x: number, y: number, w: number, h: number, band = false) {

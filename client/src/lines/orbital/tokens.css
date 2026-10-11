@@ -1,16 +1,16 @@
-/* The Ring Line: an aubergine ground, warm parchment text (a lamp-lit cabin), one pink-magenta accent. */
+/* The Ring Line: sprayed violet panels on deep space, warm parchment text (a lamp-lit cabin), one pink-magenta accent. */
 :root[data-line="orbital"] {
-  --color-bg: #0D0A17;
-  --color-surface: #171226;
-  --color-surface2: #231C38;
-  --color-border: #2D2446;
-  --color-border-strong: #55467F;
+  --color-bg: #120B24;
+  --color-surface: #20163D;
+  --color-surface2: #36265C;
+  --color-border: #40306A;
+  --color-border-strong: #6E58A8;
   --color-text: #F3E7CC;
-  --color-muted: #A99BBE;
+  --color-muted: #B4A6CC;
   --color-primary: #FF6FB1;
   --color-primary-d: #E0528F;
   --color-on-primary: #110309;
-  --color-rank: #A99BBE;
+  --color-rank: #B4A6CC;
   --color-green: #5EE6A8;
   --color-gold: #FFA24D;
   --color-gold-d: #D97F2B;

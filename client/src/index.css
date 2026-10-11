@@ -405,17 +405,21 @@ input, select, textarea { accent-color: var(--color-primary); }
    .panel. They are the same thing to the eye, so they get the same frame. */
 :root[data-ornate~="panel"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"]) { position: relative; }
 
-/* What the surfaces are made of. A tile each, repeated. */
+/* What the surfaces are made of. A tile each, repeated. Anything filled with the
+   surface colour is a surface, however the page came to fill it: by .panel, by
+   a utility, or by an inline style (which only !important can reach past). */
 :root[data-ornate~="panel-tile"] .panel,
-:root[data-ornate~="panel-tile"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"]) {
-  background-image: var(--tile-panel);
-  background-size: var(--tile-panel-w) var(--tile-panel-h);
+:root[data-ornate~="panel-tile"] [class~="bg-(--color-surface)"],
+:root[data-ornate~="panel-tile"] [style*="background: var(--color-surface);"] {
+  background-image: var(--tile-panel) !important;
+  background-size: var(--tile-panel-w) var(--tile-panel-h) !important;
 }
 :root[data-ornate~="wall-tile"] .app-sidebar,
 :root[data-ornate~="wall-tile"] .app-tabbar,
 :root[data-ornate~="wall-tile"] .app-topbar {
-  background-image: var(--tile-wall);
-  background-size: var(--tile-wall-w) var(--tile-wall-h);
+  /* !important only to outrank the rule above: the sidebar is surface-coloured too. */
+  background-image: var(--tile-wall) !important;
+  background-size: var(--tile-wall-w) var(--tile-wall-h) !important;
 }
 /* A pattern over the accent, under the words on it. */
 :root[data-ornate~="accent-tile"] .board-sign,

@@ -29,7 +29,6 @@ const BR = ['#6A5222', '#8A6A2C', '#B8923E', '#E0C070'];
 const IR = ['#0C1210', '#16201C', '#2E3C34', '#4A5E52'];
 const IRL = '#8CA898', IRM = '#506A5C';
 const WATER = ['#0E4A3A', '#17705A', '#25A07A', '#5FD0A0', '#B9F2D0'];
-const WH = ['#154A42', '#1E5C52', '#2E7C6C', '#8FD6C0'];
 const ROPE = ['#3E3520', '#7A6C40', '#A89868', '#D8C896'];
 const FROG = '#C8F560', FROG_LT = '#E6FF9A', FROG_DK = '#8FB82E', INK = '#0B1402';
 const JELLY = ['#6ECFA4', '#C8F2DC', '#E4FAEC'];
@@ -63,16 +62,6 @@ const spans = (pts: number[], cb: (a: number, b: number, y: number) => void) => 
   }
 };
 const poly = (p: Paint, c: string, pts: number[]) => spans(pts, (a, b, y) => R(p, c, a, y, b - a, 0.5));
-/** Run `fn` with painting limited to the inside of a polygon. */
-const within = (p: Paint, pts: number[], fn: () => void) => {
-  p.ctx.save();
-  p.ctx.beginPath();
-  spans(pts, (a, b, y) => p.ctx.rect(a, y, b - a, 0.5));
-  p.ctx.clip();
-  fn();
-  p.ctx.restore();
-};
-
 type Clip = [number, number, number, number];
 const ell = (p: Paint, c: string, cx: number, cy: number, rx: number, ry: number, clip: Clip = [-1e4, 1e4, -1e4, 1e4]) => {
   for (let y = Math.floor((cy - ry) * 2) / 2; y < cy + ry; y += 0.5) {
@@ -105,15 +94,6 @@ const line = (p: Paint, c: string, x0: number, y0: number, x1: number, y1: numbe
 const trace = (p: Paint, c: string, pts: number[], t: number, ox = 0, oy = 0) => {
   for (let i = 2; i < pts.length; i += 2) line(p, c, pts[i - 2]! + ox, pts[i - 1]! + oy, pts[i]! + ox, pts[i + 1]! + oy, t);
 };
-const bz = (a: number[], b: number[], c: number[], d: number[], n = 14) => {
-  const o: number[] = [];
-  for (let i = 1; i <= n; i += 1) {
-    const t = i / n, m = 1 - t;
-    for (const k of [0, 1]) o.push(m * m * m * a[k]! + 3 * m * m * t * b[k]! + 3 * m * t * t * c[k]! + t * t * t * d[k]!);
-  }
-  return o;
-};
-
 /** Light from the upper left: -1 (shade) to 1 (lit) for a surface normal. */
 const lum = (nx: number, ny: number, nz: number) => -0.5 * nx - 0.6 * ny + 0.62 * nz;
 const BAYER = [0, 2, 3, 1];
@@ -472,48 +452,6 @@ const jelly = (p: Paint, x: number, y: number, r: number, len: number, ph: numbe
   ell(p, JELLY[0]!, x, y, r * 0.62, r * 0.5, [-1e4, 1e4, -1e4, y]);
   ell(p, WATER[1]!, x + r * 0.15, y, r * 0.4, r * 0.3, [-1e4, 1e4, -1e4, y]);
   R(p, JELLY[2]!, q(x - r * 0.55), q(y - r * 0.55), q(r * 0.4), 0.5);
-};
-
-const tail = {
-  w: 150,
-  h: 56,
-  paint: (p: Paint) => {
-    const x0 = 18, cy = 31, L = 104, T = 22;
-    const P = (u: number, v: number): number[] => [x0 + u * L, cy + v * T - T * 0.4 * u * u * u];
-    const body = [
-      ...P(0, 0.14),
-      ...bz(P(0, 0.14), P(0, -0.16), P(0.07, -0.47), P(0.25, -0.5)),
-      ...bz(P(0.25, -0.5), P(0.5, -0.53), P(0.72, -0.2), P(0.96, -0.05)),
-      ...P(0.96, 0.05),
-      ...bz(P(0.96, 0.05), P(0.72, 0.22), P(0.5, 0.52), P(0.27, 0.5)),
-      ...bz(P(0.27, 0.5), P(0.12, 0.49), P(0, 0.36), P(0, 0.14)),
-    ];
-    // The fluke: two lobes raised on the end of the tail stock.
-    const E = P(0.98, 0), th = -0.95, ax = Math.cos(th), ay = Math.sin(th);
-    const F = (n: number, a: number) => [E[0]! + ax * a - ay * n, E[1]! + ay * a + ax * n];
-    poly(p, WH[0]!, [...F(2.5, -6), ...F(2.5, 0), ...F(8, 1), ...F(14, 5), ...F(15, 10), ...F(10, 9.5), ...F(4, 6.5), ...F(0, 8), ...F(-4, 6.5), ...F(-10, 9.5), ...F(-15, 10), ...F(-14, 5), ...F(-8, 1), ...F(-2.5, 0), ...F(-2.5, -6)]);
-    poly(p, WH[1]!, body);
-    within(p, body, () => {
-      poly(p, WH[2]!, [...P(-0.05, 0.1), ...P(0.2, 0.07), ...P(0.5, 0.13), ...P(0.9, 0), ...P(1, 0.2), ...P(1, 0.9), ...P(-0.05, 0.9)]);
-      poly(p, WH[3]!, [...P(-0.05, 0.3), ...P(0.15, 0.26), ...P(0.4, 0.34), ...P(0.66, 0.5), ...P(0.66, 0.9), ...P(-0.05, 0.9)]);
-      for (let i = 0; i < 6; i += 1) trace(p, WH[2]!, [...P(0.02, 0.34 + i * 0.05), ...bz(P(0.02, 0.34 + i * 0.05), P(0.15, 0.34 + i * 0.06), P(0.3, 0.38 + i * 0.07), P(0.5 - i * 0.02, 0.44 + i * 0.07), 8)], 0.5);
-      for (let i = 0; i < 46; i += 1) {
-        const u = p.rnd(), v = -0.45 + p.rnd() * 0.9;
-        const [fx, fy] = P(u, v);
-        R(p, v > 0.1 ? WH[1]! : WH[2]!, q(fx!), q(fy!), 0.5, 0.5);
-      }
-    });
-    // The flipper, the eye and the line of the mouth.
-    poly(p, WH[0]!, [...P(0.24, 0.44), ...bz(P(0.24, 0.44), P(0.3, 0.68), P(0.42, 0.9), P(0.52, 1.04), 8), ...bz(P(0.52, 1.04), P(0.45, 0.76), P(0.4, 0.6), P(0.37, 0.48), 8)]);
-    trace(p, WH[0]!, [...P(0, 0.14), ...bz(P(0, 0.14), P(0.1, 0.25), P(0.18, 0.27), P(0.23, 0.27), 8)], 0.5);
-    const [ex, ey] = P(0.2, 0.18);
-    disc(p, WH[3]!, ex!, ey!, 1.6);
-    disc(p, IR[0]!, ex! - 0.2, ey!, 0.9);
-    // Bubbles streaming up from the head, and a jellyfish well below the tail.
-    for (const [x, y, r] of [[11, 27, 2.8], [6.5, 19, 2], [11.5, 13.5, 1.6], [7, 8.5, 1.1], [3.5, 33, 1.2]] as const) bubble(p, x, y, r);
-    jelly(p, 114, 40, 6.5, 14, 0.4);
-    for (const [x, y] of [[58, 4], [92, 7], [136, 28], [138, 50], [30, 50]] as const) R(p, WATER[3]!, x, y, 0.5, 0.5);
-  },
 };
 
 // ── spot: a diving helmet on the seabed ──

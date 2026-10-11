@@ -8,8 +8,10 @@ client/src/lines/<id>/
   tokens.css   colours and corner radii
   frame.css    borders and patterns for the app's surfaces
   scene.ts     the cabin corner on Today: a wall, a window, what is outside it
-  charm.ts     the line's one signature object, in the sidebar on every page
-  backdrop.ts  texture, and a few drifting specks, behind the whole app
+  texture.ts   what its surfaces are made of: a tile for panels, one for the
+               sidebar and the phone's bars, a pattern for the accent
+  wall.ts      whatever is alive on the sidebar: rain, bubbles, lights
+  backdrop.ts  the room behind the whole app, in its real material, and a few drifting specks
   ornaments.ts the small drawn things: frames, trims, a badge, marks, flourishes
 ```
 
@@ -24,7 +26,11 @@ The first version of this contract kept everything dim and put all of a line's c
 - **A line must be recognisable from any page with the window covered.** That is the test. Colours alone fail it.
 - **The window is a picture, and may be as vivid as the still it comes from.** The cabin around it is dark; the world outside is lit. That contrast is the look.
 - **The cabin's own things come into the app**: its luggage, lantern, crystal, rivets, planks. In the window's foreground, in the sidebar, and in the borders.
-- **Small, slow movement is welcome** in three places: the window, the charm, the backdrop. Not inside panels, and never behind text.
+- **Small, slow movement is welcome**: in the window, on the sidebar, in the backdrop, and in the small drawn pieces (a mark, a rule, a run of lights).
+
+## What changed again the same day
+
+The cabins and the ornament kits still got: "they all still look kinda the same. I don't want a random image to fill space, I want texture and pattern … small animations as well." Flat near-black boxes in five tints were the cause. So every surface is now made of a material (`texture.ts`), the colours have a real hue, the sidebar object and the page tailpiece are gone, the backdrop is bold, and small pieces move. All of that is in `TEXTURE.md`, which wins wherever it disagrees with this file.
 
 ## Rules that hold on every line
 
@@ -32,7 +38,7 @@ The first version of this contract kept everything dim and put all of a line's c
 2. **One accent, and it means "act here".** It fills the sign, the Start button and the active row. Red means late, green means on time, amber means attention, on every line.
 3. **Drawn, not rendered.** Flat shapes. No fades, no blur, no glow, no soft shadows, no glass. Shade the way a printed comic does: stepped bands of flat colour, stipple (fields of small dots), hatching, a hard-edged highlight. A lamp's light is a flat pale shape, not a halo. This is what keeps five lines looking like one hand drew them.
 4. **Type does not change.** Same three faces, same sizes, on every line.
-5. **Text always wins.** Nothing patterned, bright or moving sits behind words. A pattern lives at an edge or a corner, or stays within two shades of the surface.
+5. **Text always wins.** Words sit on a material now, so the material stays close-toned where words are: on a panel, every tone within about 14 per channel of the surface, thin lines excepted. Nothing bright sits behind words, and what moves behind the menu is small and faint.
 6. **Original work.** The stills give the world, the materials, the light and the kinds of object. Do not reproduce a character, a logo, lettering or a whole composition from any of them. A crystal, a suitcase, a lantern are fair; that crystal on that table beside that man is not.
 7. **No emoji, no text drawn on a canvas.**
 8. **It all switches off.** Scenery is one switch in Settings, and everything holds still for reduced motion. The engine does this for you; do not work around it.
@@ -137,24 +143,20 @@ The line's **companion** lives here too: one small original creature or object w
 
 Use the accent **at most once**, on the thing the brief names.
 
-### charm.ts: the signature object
+### texture.ts and wall.ts
 
-`export default defineCharm<State>({ layout, draw, front?, over?, back? })`.
+`texture.ts` is three tiles (`panel`, `wall`, `accent`), painted once and repeated by CSS. `wall.ts` is a clear canvas over the whole sidebar, above the wall tile and under the menu: `export default defineWall<State>({ layout, draw })`. It must be visibly alive, must change with `boarding`, and must not be a picture of an object. Sizes, the zones the menu and the rank take, and the rules for both are in `TEXTURE.md`.
 
-One object that says which line this is, in the sidebar's spare room on every page. The canvas is about 216 px wide and as tall as the screen leaves: anywhere from 0 to 500 px. Draw it standing on the bottom edge, centred, designed for about 200 px of height. Under 110 px, draw only its smallest recognisable form; under 70 px, draw nothing. The sidebar's colour is `--color-surface`; do not fill the canvas, let it show.
-
-It must change with at least two of `boarding`, `done`, `progress`, `caution`, in a way someone would notice and understand after a few days. It may move a little, always: this is the one place on most pages that does.
-
-### backdrop.ts: the air in the cabin
+### backdrop.ts: the room behind the app
 
 `export default defineBackdrop<State>({ back, layout, draw })`.
 
-A canvas behind the whole app, the full size of the viewport (up to about 2560 by 1440). It shows in the margins and gaps between panels, mostly on wide screens.
+A canvas behind the whole app, the full size of the viewport (up to about 2560 by 1440). It shows wherever there is no panel, which on a wide screen is most of the page.
 
-- `back`: texture across the page, within two shades of `--color-bg`. Grain, stipple, a material's lines, one or two very large faint shapes anchored to a corner. Keep it under about 20 000 fill calls however big the canvas is.
+- `back`: the room's wall or the world outside, in its real material: logs, hull plates, a curtain, open water. Bold, so long as every tone is darker than `--color-surface`, so panels stand off it. Under about 20 000 fill calls however big the canvas is.
 - `draw`: at most 40 specks (dust, snow, leaves, motes, stars), each slower than 15 px a second and fainter than 35 %. Clear nothing: the engine does.
 
-On a phone, and for reduced motion, it is painted once and left. Nothing in it may be mistaken for part of the interface.
+On a phone, and for reduced motion, it is painted once and left.
 
 ## How to check your work
 
@@ -167,9 +169,9 @@ npm run line:shoot <id> scene  the window in every state, plus close-ups at twic
 npm run line:shoot <id>        those plus Today, Route, Quests and Settings, desktop, wide and phone
 ```
 
-Pictures land in `design/lines/shots/<id>/`. **Open them and look**, the close-ups first (`window-2x`, `window-phone-2x`, `charm-2x`, `charm-idle-2x`, `charm-short-2x`). Then ask:
+Pictures land in `design/lines/shots/<id>/`. **Open them and look**, the close-ups first (`window-2x`, `window-phone-2x`, `wall-2x`, `wall-caution-2x`, `kit-2x`). Then ask:
 
-1. Cover the window with a hand. On `route-1600` and `quests-1280`, could I name the line from the borders, the sidebar and the backdrop alone?
+1. Shrink `quests-1280` to a 300 px thumbnail beside another line's. Can I tell them apart by more than tint, and name what the panel, the sidebar and the page are made of?
 2. Does the window look like it came from the same world as the stills: the same light, the same materials, the same warmth or strangeness?
 3. Can I read the date, the greeting and the line under it without effort, on desktop and phone?
 4. Is the visitor obviously arriving, waiting, leaving, passing?

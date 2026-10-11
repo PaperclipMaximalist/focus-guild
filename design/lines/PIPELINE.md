@@ -47,6 +47,14 @@ The first briefs asked for restraint: dim, flat, "noticed the third time". The c
 
 Two smaller lessons: a coder can be cut off at any moment by a usage limit, so its work must be files on disk, not plans in its head, and the director should commit a snapshot before resuming it; and stills cannot show that moving code works, so run `npm run line:shoot <id> live` before accepting a line.
 
+## What the third and fourth passes taught
+
+The ornament kits (frames, marks, a tailpiece) all passed review and the owner still said the lines looked the same. Frames a few pixels wide round flat near-black boxes cannot carry a theme: at arm's length a page is its *surfaces*, and the surfaces were identical. The fourth pass gave every surface a material and a real hue, and the difference was visible in a thumbnail at once.
+
+- **Judge at thumbnail size, side by side.** Close-ups at twice the size are for finding faults, and they flatter: every kit looked rich at 2x. Whether two lines differ is only visible small and together.
+- **Look at the stills again when the owner says to.** The text descriptions of them said "dark, moody, one accent" 25 times. The pictures show logs, stippled leather, rust and buttoned benches.
+- **The director builds the first one.** The shared layer and one whole line (Timber) were written and photographed before any coder was briefed, so the brief could point at a result instead of describing one.
+
 ## Where the first set came from
 
 Twenty-five stills from the "Infinite Journeys" community montage (February 2022), described one by one, then grouped. What they share became the rule every line follows: a seat by a window, a table in front, somewhere else going by outside.

@@ -37,7 +37,6 @@ const INK = '#0A0F1C';
 // The moon
 const M0 = '#4A58B8', M1 = '#8A98F0', M2 = '#C4CEFF', M3 = '#EEF2FF', MC = '#6C7ADA';
 // The train
-const B0 = '#171E52', B1 = '#26307A', B2 = '#4654B0', B3 = '#7482C0';
 const RAIN = '#5A66B8', RAIN_HI = '#BED0FF';
 
 type Pt = readonly [number, number];
@@ -457,90 +456,6 @@ const rule = {
 
 /** One strokes of rain: a slanted dash. */
 const drop = (p: Paint, x: number, y: number, len: number, c: string) => path(p, c, [[x, y], [x - len * 0.25, y + len]], 0.25);
-
-const tail = {
-  w: 150,
-  h: 56,
-  paint: (p: Paint) => {
-    // The moon, far behind and above the nose: ringed, a step quieter than the train.
-    moon(p, 112, 17, 10, -0.35, 19, 4.5, 1.5, true);
-    for (const [x, y] of [[20, 8], [44, 16], [68, 6], [140, 22], [6, 22], [92, 14], [60, 22]] as const) R(p, ICE, x, y, 0.5, 0.5);
-    R(p, ICE, 30, 12, 1, 1);
-    R(p, LAMP, 134, 6, 1, 1);
-
-    // The guideway: a beam with a lit top, on piers.
-    const top = 47;
-    R(p, N0, 2, top, 146, 4);
-    R(p, N4, 2, top + 0.5, 146, 0.5);
-    R(p, N3, 2, top + 1, 146, 1.5);
-    R(p, N2, 2, top + 2.5, 146, 1);
-    for (const x of [12, 52, 92, 132]) {
-      R(p, N0, x - 3, top + 4, 6, 4.5);
-      R(p, N3, x - 2.5, top + 4, 5, 4.5);
-      R(p, N4, x - 2.5, top + 4, 1, 4.5);
-      R(p, N2, x + 1, top + 4, 1.5, 4.5);
-      R(p, N0, x - 4, top + 8, 8, 1);
-      R(p, N3, x - 3.5, top + 8, 7, 0.5);
-    }
-
-    // The maglev, hovering a pixel above the beam: three cars, the nose to the right.
-    const by = 44;
-    const ty = 28;
-    const win = (x: number) => {
-      R(p, B0, x - 0.5, ty + 2.5, 5, 5.5);
-      R(p, ICE, x, ty + 3, 4, 4.5);
-      R(p, LAMP, x, ty + 3, 4, 1);
-    };
-    const car = (x0: number, x1: number) => {
-      R(p, B0, x0, ty, x1 - x0, by - ty);
-      R(p, B1, x0 + 0.5, ty + 0.5, x1 - x0 - 1, by - ty - 1);
-      R(p, B2, x0 + 0.5, ty + 0.5, x1 - x0 - 1, 1);
-      R(p, B0, x0 + 0.5, by - 4, x1 - x0 - 1, 1.5);
-      R(p, B3, x0 + 0.5, by - 2.5, x1 - x0 - 1, 0.5);
-      for (let x = x0 + 4; x + 4 <= x1 - 2; x += 6) win(x);
-    };
-    car(8, 38);
-    car(40, 70);
-    // The nose: the roof sweeps down in one long curve to a rounded tip.
-    const NX0 = 72;
-    const NX1 = 126;
-    const roof = (x: number) => ty + (by - ty - 1) * Math.pow(Math.max(0, (x - 100) / (NX1 - 100)), 2.2);
-    cells(p, B0, NX0, ty, NX1 + 1, by, (x, y) => x <= NX1 && y >= roof(x));
-    cells(p, B1, NX0, ty, NX1 + 1, by, (x, y) => x <= NX1 - 0.5 && y >= roof(x) + 0.5 && y < by - 0.5);
-    cells(p, B2, NX0, ty, NX1 + 1, by, (x, y) => x <= NX1 - 0.5 && y >= roof(x) + 0.5 && y < roof(x) + 1.5);
-    cells(p, B0, NX0, by - 4, NX1 + 1, by, (x, y) => x <= NX1 - 0.5 && y >= by - 4 && y < by - 2.5);
-    cells(p, B3, NX0, by - 4, NX1 + 1, by, (x, y) => x <= NX1 - 1.5 && y >= by - 2.5 && y < by - 2);
-    for (let x = NX0 + 4; x + 4 <= 96; x += 6) win(x);
-    // The windscreen: one long pane that follows the roof down.
-    cells(p, B0, 98, ty, NX1, by, (x, y) => y >= roof(x) + 1 && y < ty + 9 && x < 118);
-    cells(p, ICE, 98, ty, NX1, by, (x, y) => y >= roof(x) + 1.5 && y < ty + 8.5 && x < 117.5 && x >= 98.5);
-    cells(p, LAMP, 98, ty, NX1, by, (x, y) => y >= roof(x) + 1.5 && y < roof(x) + 2.5 && x < 117 && x >= 98.5);
-    // The joins between cars, and the glow under the train.
-    for (const x of [38, 70]) {
-      R(p, B0, x, ty + 2, 2, by - ty - 3);
-      R(p, B2, x + 0.5, ty + 2, 0.5, 2);
-    }
-    R(p, ICE, 12, by + 0.5, 112, 0.5);
-    R(p, N4, 22, by + 1, 92, 0.5);
-    // A head lamp on the tip.
-    R(p, LAMP, NX1 - 1.5, by - 3.5, 1.5, 1);
-
-    // Rain, slanted, in two depths.
-    for (let i = 0; i < 16; i += 1) {
-      const x = 4 + p.rnd() * 144;
-      const y = p.rnd() * 20;
-      const near = i % 3 === 0;
-      drop(p, x, y, near ? 5 : 3.5, near ? RAIN_HI : RAIN);
-    }
-    for (let i = 0; i < 6; i += 1) drop(p, 4 + p.rnd() * 20 + i * 24, 30 + p.rnd() * 6, 3.5, RAIN);
-    // A little splash where it lands on the beam.
-    for (const x of [28, 62, 100, 142]) {
-      R(p, ICE, x - 1.5, top - 0.5, 0.5, 0.5);
-      R(p, ICE, x + 1, top - 0.5, 0.5, 0.5);
-      R(p, ICE, x - 0.5, top - 1, 1, 0.5);
-    }
-  },
-};
 
 const spot = {
   w: 180,

@@ -1,16 +1,16 @@
-/* The Salvage Line: an oxide-black ground, parchment text, one enamel-blue accent, phosphor green for "on time". */
+/* The Salvage Line: olive-brass instrument plate on a hull of rust, parchment text, one enamel-blue accent, phosphor green for "on time". */
 :root[data-line="dispatch"] {
-  --color-bg: #0F0D0A;
-  --color-surface: #191511;
-  --color-surface2: #26201A;
-  --color-border: #302820;
-  --color-border-strong: #615240;
+  --color-bg: #12100A;
+  --color-surface: #2A2614;
+  --color-surface2: #3A3420;
+  --color-border: #4A4226;
+  --color-border-strong: #7A6C3C;
   --color-text: #F1E6D4;
-  --color-muted: #A59682;
+  --color-muted: #B5A98A;
   --color-primary: #7CB7FF;
   --color-primary-d: #5B9AE6;
   --color-on-primary: #06101F;
-  --color-rank: #A59682;
+  --color-rank: #B5A98A;
   --color-green: #4BE083;
   --color-gold: #FFA640;
   --color-gold-d: #D9842B;
