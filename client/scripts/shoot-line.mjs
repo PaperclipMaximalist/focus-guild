@@ -4,6 +4,7 @@
  *
  *   npm run line:shoot <id>            every shot
  *   npm run line:shoot <id> scene      only the window poses (quick)
+ *   npm run line:shoot <id> live       let it run: arrive, wait, leave. Reports errors and frame rate.
  *   npm run line:shoot night record    save what the real API answers, to check the sample data's shapes against
  *
  * Needs only the client dev server (5173). The API is not called: every
@@ -28,8 +29,8 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const id = process.argv[2];
 const mode = process.argv[3] ?? 'all';
-if (!id || !['all', 'scene', 'record'].includes(mode)) {
-  console.error('usage: npm run line:shoot <id> [scene|record]');
+if (!id || !['all', 'scene', 'record', 'live'].includes(mode)) {
+  console.error('usage: npm run line:shoot <id> [scene|record|live]');
   process.exit(2);
 }
 
@@ -80,7 +81,7 @@ const PAGES = [
   ['settings-1280', '/settings', '', 1280, 900],
   ['picker-1280', '/settings', '', 1280, 900, { scrollTo: '[role="radiogroup"][aria-label="Line"]' }],
 ];
-const shots = mode === 'scene' ? SCENE : mode === 'record' ? PAGES : [...SCENE, ...PAGES];
+const shots = mode === 'scene' ? SCENE : mode === 'record' ? PAGES : mode === 'live' ? [] : [...SCENE, ...PAGES];
 
 const recording = mode === 'record';
 let fixtures = null;
@@ -165,6 +166,9 @@ try {
 
   await send('Page.enable');
   await send('Runtime.enable');
+  // Anything the page throws while it runs, for the live mode.
+  const thrown = [];
+  on['Runtime.exceptionThrown'] = ({ exceptionDetails: d }) => thrown.push(d.exception?.description?.split('\n').slice(0, 3).join(' | ') ?? d.text);
 
   if (recording) {
     // Keep every answer the API gives while the pages load.
@@ -255,6 +259,25 @@ try {
       failed += 1;
       console.log(`FAIL ${name}: ${e.message}`);
     }
+  }
+  if (mode === 'live') {
+    // The stills never run the moving code, so run it: the sample day has a block in progress,
+    // which brings the visitor in; finishing a quest sends it away again.
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+    await send('Page.navigate', { url: `${BASE}/?line=${id}` });
+    await sleep(9000);
+    const snap = async (name) => writeFileSync(join(outDir, `${name}.png`), Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+    await snap('live-waiting');
+    const fps = await evaluate(`new Promise((done) => { let n = 0; const t0 = performance.now(); const tick = () => { n += 1; performance.now() - t0 < 3000 ? requestAnimationFrame(tick) : done(Math.round(n / 3)); }; requestAnimationFrame(tick); })`);
+    await evaluate(`window.dispatchEvent(new CustomEvent('fg:departed'))`);
+    await sleep(1600);
+    await snap('live-leaving');
+    await sleep(5000);
+    await snap('live-after');
+    const applied = await evaluate('document.documentElement.dataset.line');
+    console.log(`line ${applied}: ${fps} frames a second while animating; ${thrown.length} error${thrown.length === 1 ? '' : 's'} thrown`);
+    for (const t of thrown.slice(0, 5)) console.log(`  ${t}`);
+    if (thrown.length || applied !== id) failed += 1;
   }
   ws.close();
 } catch (e) {
