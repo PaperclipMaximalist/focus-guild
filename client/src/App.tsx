@@ -17,6 +17,7 @@ const Tracker = lazy(() => import('./pages/Tracker'));
 const TrackerPresets = lazy(() => import('./pages/TrackerPresets'));
 const TrackerMarkdown = lazy(() => import('./pages/TrackerMarkdown'));
 const Chronicle = lazy(() => import('./pages/Chronicle'));
+const Records = lazy(() => import('./pages/Records'));
 const Connections = lazy(() => import('./pages/Connections'));
 const Share = lazy(() => import('./pages/Share'));
 const QuestImport = lazy(() => import('./pages/QuestImport'));
@@ -29,6 +30,7 @@ import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
 import { RankThemeController } from './components/RankThemeController';
 import { MascotDock } from './components/mascot/MascotDock';
+import { Backdrop } from './lines/Dressing';
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
@@ -160,6 +162,8 @@ function AuthenticatedApp() {
           <Route path="/tracker/presets" element={<TrackerRoute><TrackerPresets /></TrackerRoute>} />
           <Route path="/tracker/markdown" element={<TrackerRoute><TrackerMarkdown /></TrackerRoute>} />
           <Route path="/chronicle" element={<TrackerRoute><Chronicle /></TrackerRoute>} />
+          {/* The Logbook's old tabs: activity log, permafile, Ask, AI bundle. */}
+          <Route path="/advanced/records" element={<TrackerRoute><Records /></TrackerRoute>} />
           <Route path="/connections" element={<TrackerRoute><Connections /></TrackerRoute>} />
           {/* Android share-sheet target; see share_target in the manifest. */}
           <Route path="/share" element={<TrackerRoute><Share /></TrackerRoute>} />
@@ -170,6 +174,7 @@ function AuthenticatedApp() {
         <ToastContainer />
         <KeyboardShortcuts />
         <CommandPalette />
+        <Backdrop />
         <MascotDock />
         <BottomNav />
       </Shell>
@@ -187,7 +192,8 @@ const PAGE_NAMES: Record<string, string> = {
   '/stats': 'Mileage',
   '/trophies': 'Trophy Room',
   '/tracker': 'Expeditions',
-  '/chronicle': 'Logbook',
+  '/chronicle': 'Journal',
+  '/advanced/records': 'Records',
   '/connections': 'Connections',
   '/advanced': 'Advanced',
   '/advanced/quickstart': 'Quickstart',

@@ -17,6 +17,7 @@ import { QuestDetail } from '../components/QuestDetail';
 import { LevelUpSplash } from '../components/LevelUpSplash';
 import { duckReact } from '../store/useMascotStore';
 import { SceneWindow } from '../lines/SceneWindow';
+import { reportOverdue } from '../lines/live';
 import { isSceneEnabled, subscribeScene } from '../lib/scene';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
@@ -76,7 +77,7 @@ export default function Today() {
   useEffect(() => subscribeScene(() => setScene(isSceneEnabled())), []);
 
   useEffect(() => {
-    api.quests.rescue().then((r) => setOverdueCount(r.length)).catch(() => {});
+    api.quests.rescue().then((r) => { setOverdueCount(r.length); reportOverdue(r.length); }).catch(() => {});
   }, []);
 
   // Global keyboard shortcuts fire custom events; wire them here.
@@ -192,7 +193,7 @@ export default function Today() {
     <>
       <div className="page page-wide">
         {scene ? (
-          <SceneWindow caution={overdueCount > 0} done={completionsToday}>{masthead}</SceneWindow>
+          <SceneWindow>{masthead}</SceneWindow>
         ) : (
           <header>{masthead}</header>
         )}
@@ -253,6 +254,7 @@ export default function Today() {
                           onEdit={() => openEdit(q)}
                           onOpen={() => setDetailQuest(q)}
                           onDelete={() => removeWithUndo(q.id)}
+                          onStepsChanged={load}
                         />
                       </div>
                     ))}
@@ -270,6 +272,7 @@ export default function Today() {
                 </div>
               ) : (
                 <div className="panel px-5 py-10 text-center">
+                  <div className="line-spot mb-3" aria-hidden />
                   <p className="font-semibold">No active quests</p>
                   <p className="mt-1 text-sm text-(--color-muted)">Type one in the box above, or add one with every detail.</p>
                   <button type="button" onClick={openNew} className="btn-primary mt-4">

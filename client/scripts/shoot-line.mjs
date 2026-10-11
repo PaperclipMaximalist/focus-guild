@@ -4,6 +4,7 @@
  *
  *   npm run line:shoot <id>            every shot
  *   npm run line:shoot <id> scene      only the window poses (quick)
+ *   npm run line:shoot <id> live       let it run: arrive, wait, leave. Reports errors and frame rate.
  *   npm run line:shoot night record    save what the real API answers, to check the sample data's shapes against
  *
  * Needs only the client dev server (5173). The API is not called: every
@@ -28,8 +29,8 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const id = process.argv[2];
 const mode = process.argv[3] ?? 'all';
-if (!id || !['all', 'scene', 'record'].includes(mode)) {
-  console.error('usage: npm run line:shoot <id> [scene|record]');
+if (!id || !['all', 'scene', 'record', 'live'].includes(mode)) {
+  console.error('usage: npm run line:shoot <id> [scene|record|live]');
   process.exit(2);
 }
 
@@ -51,25 +52,38 @@ if (!browser) {
   process.exit(2);
 }
 
+// name, path, query, width, height, and optionally { scrollTo, clip }: a selector to
+// scroll to first, and a selector to photograph alone at twice the size.
 const SCENE = [
-  ['scene-away', '/', 'scene=away&done=0&caution=0', 1280, 330],
-  ['scene-arriving', '/', 'scene=arriving&k=0.55&done=2&caution=0', 1280, 330],
-  ['scene-stopped', '/', 'scene=stopped&done=4&caution=0', 1280, 330],
-  ['scene-caution', '/', 'scene=stopped&done=7&caution=1', 1280, 330],
-  ['scene-departing', '/', 'scene=departing&k=0.45&done=5&caution=0', 1280, 330],
-  ['scene-passing', '/', 'scene=passing&k=0.5&done=1&caution=0', 1280, 330],
-  ['scene-phone', '/', 'scene=stopped&done=4&caution=0', 375, 330],
+  ['scene-away', '/', 'scene=away&done=0&caution=0&progress=0', 1280, 380],
+  ['scene-arriving', '/', 'scene=arriving&k=0.55&done=2&caution=0&progress=0.3', 1280, 380],
+  ['scene-stopped', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 380],
+  ['scene-caution', '/', 'scene=stopped&done=7&caution=1&progress=0.8', 1280, 380],
+  ['scene-departing', '/', 'scene=departing&k=0.45&done=5&caution=0&progress=0.6', 1280, 380],
+  ['scene-passing', '/', 'scene=passing&k=0.5&done=1&caution=0&progress=0.1', 1280, 380],
+  ['scene-phone', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 375, 380],
+  // Close-ups, because small things cannot be judged at 1x.
+  ['window-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.scene-window' }],
+  ['window-away-2x', '/', 'scene=away&done=0&caution=1&progress=0', 1280, 900, { clip: '.scene-window' }],
+  ['window-phone-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 375, 812, { clip: '.scene-window' }],
+  // The sidebar: its material, and whatever is alive on it.
+  ['wall-2x', '/quests', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.app-sidebar' }],
+  ['wall-caution-2x', '/quests', 'scene=away&done=0&caution=1&progress=0', 1280, 700, { clip: '.app-sidebar' }],
+  // Every small drawn piece on one sheet, at twice its size.
+  ['kit-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 1080, { kit: true }],
 ];
 const PAGES = [
-  ['today-1280', '/', 'scene=stopped&done=4&caution=0', 1280, 1300],
-  ['today-375', '/', 'scene=stopped&done=4&caution=0', 375, 812],
+  ['today-1280', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 1300],
+  ['today-375', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 375, 812],
+  ['today-1600', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1600, 900],
   ['route-1280', '/feed', '', 1280, 900],
+  ['route-1600', '/feed', '', 1600, 900],
   ['route-375', '/feed', '', 375, 812],
+  ['quests-1280', '/quests', '', 1280, 900],
   ['settings-1280', '/settings', '', 1280, 900],
-  // The last entry is something to scroll to before the picture is taken.
-  ['picker-1280', '/settings', '', 1280, 900, '[role="radiogroup"][aria-label="Line"]'],
+  ['picker-1280', '/settings', '', 1280, 900, { scrollTo: '[role="radiogroup"][aria-label="Line"]' }],
 ];
-const shots = mode === 'scene' ? SCENE : mode === 'record' ? PAGES : [...SCENE, ...PAGES];
+const shots = mode === 'scene' ? SCENE : mode === 'record' ? PAGES : mode === 'live' ? [] : [...SCENE, ...PAGES];
 
 const recording = mode === 'record';
 let fixtures = null;
@@ -81,6 +95,40 @@ if (!recording) {
   fixtures = JSON.parse(readFileSync(FIXTURES, 'utf8'));
 }
 const recorded = {};
+
+/**
+ * Lays the line's ornaments out over the page, built from the app's own
+ * classes so the frames, marks and trims are the real ones.
+ */
+const KIT = `(() => {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--color-bg);color:var(--color-text);overflow:hidden';
+  const strip = (dir) => dir === 'v'
+    ? '<div style="width:var(--edge-vertical-w);height:150px;background:var(--edge-vertical) 0 0 / calc(var(--edge-vertical-w) * var(--edge-vertical-n)) var(--edge-vertical-h) repeat-y"></div>'
+    : '<div style="height:var(--edge-horizontal-h);width:260px;background:var(--edge-horizontal) 0 0 / var(--edge-horizontal-w) calc(var(--edge-horizontal-h) * var(--edge-horizontal-n)) repeat-x"></div>';
+  // Every frame of a moving piece, side by side (stacked, for the two that run along an edge).
+  const film = (v, stacked) => stacked
+    ? '<div style="width:var(--' + v + '-w);height:calc(var(--' + v + '-h) * var(--' + v + '-n));background:var(--' + v + ') 0 0 / 100% 100% no-repeat"></div>'
+    : '<div style="height:var(--' + v + '-h);width:min(260px, calc(var(--' + v + '-w) * var(--' + v + '-n)));background:var(--' + v + ') 0 0 / calc(var(--' + v + '-w) * var(--' + v + '-n)) 100% no-repeat"></div>';
+  const swatch = (k) => '<div style="width:86px;height:70px;background:var(--tile-' + k + ') 0 0 / var(--tile-' + k + '-w) var(--tile-' + k + '-h)"></div>';
+  box.innerHTML = '<div style="zoom:2;padding:14px;display:grid;gap:18px;grid-template-columns:292px 300px;align-items:start">'
+    + '<div>'
+    + '<div style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:15px"><span class="line-emblem"></span>Focus Guild</div>'
+    + '<h1 class="page-title" style="margin-top:12px">Quests</h1>'
+    + '<p class="section-label" style="margin-top:14px">Top quests</p>'
+    + '<div class="panel" style="margin-top:8px;padding:12px 14px;font-size:13px">A notice row, 44 px tall</div>'
+    + '<div class="panel next-card" style="margin-top:10px;padding:16px"><p class="section-label" style="color:var(--color-primary)">Now boarding</p><p style="font-weight:700;margin-top:6px">Draft the methods section</p><button class="btn-primary" style="margin-top:12px">Start</button></div>'
+    + '<div class="board-sign" style="margin-top:12px"><h1 style="flex:1">Today</h1><span class="tnum" style="font-weight:700;font-size:19px">7:40 PM</span></div>'
+    + '<div class="panel rows" style="border-top-left-radius:0;border-top-right-radius:0"><div style="padding:10px 14px;font-size:13px">First row</div><div style="padding:10px 14px;font-size:13px">Second row</div></div>'
+    + '</div>'
+    + '<div>'
+    + '<div class="panel" style="padding:16px;text-align:center"><div class="line-spot"></div><p style="font-weight:600;margin-top:8px;font-size:13px">No active quests</p></div>'
+    + '<div style="display:flex;gap:16px;align-items:flex-start;margin-top:14px">' + strip('v') + '<div style="display:grid;gap:10px">' + strip('h')
+    + film('sprite-mark') + film('sprite-emblem') + film('sprite-rule') + film('edge-horizontal', true) + film('edge-crown', true) + '</div></div>'
+    + '<div style="display:flex;gap:10px;margin-top:14px">' + swatch('panel') + swatch('wall') + '<div class="board-sign" style="width:86px;height:70px"></div></div>'
+    + '</div></div>';
+  document.body.appendChild(box);
+})()`;
 
 const outDir = resolve(here, '../../design/lines/shots', id);
 mkdirSync(outDir, { recursive: true });
@@ -154,6 +202,9 @@ try {
 
   await send('Page.enable');
   await send('Runtime.enable');
+  // Anything the page throws while it runs, for the live mode.
+  const thrown = [];
+  on['Runtime.exceptionThrown'] = ({ exceptionDetails: d }) => thrown.push(d.exception?.description?.split('\n').slice(0, 3).join(' | ') ?? d.text);
 
   if (recording) {
     // Keep every answer the API gives while the pages load.
@@ -205,7 +256,8 @@ try {
     };
   }
 
-  for (const [name, path, query, w, h, scrollTo] of shots) {
+  for (const [name, path, query, w, h, extra = {}] of shots) {
+    const { scrollTo, clip, kit } = extra;
     const url = `${BASE}${path}?line=${id}${query ? `&${query}` : ''}`;
     try {
       const phone = w < 600;
@@ -222,10 +274,20 @@ try {
         ).catch(() => false);
       }
       await evaluate('document.fonts.ready.then(() => true)').catch(() => {});
+      if (kit) await evaluate(KIT).catch(() => {});
       if (scrollTo) await evaluate(`document.querySelector(${JSON.stringify(scrollTo)})?.scrollIntoView({ block: 'center' })`).catch(() => {});
       await sleep(recording ? 6000 : 1500);
       const applied = await evaluate('document.documentElement.dataset.line');
-      const shot = await send('Page.captureScreenshot', { format: 'png' });
+      let region;
+      if (clip) {
+        const box = await evaluate(`(() => { const r = document.querySelector(${JSON.stringify(clip)})?.getBoundingClientRect(); return r && r.width && r.height ? { x: r.x, y: r.y, width: r.width, height: r.height } : null; })()`);
+        if (!box) {
+          console.log(`skip ${name}.png  (nothing matches ${clip})`);
+          continue;
+        }
+        region = { ...box, scale: 2 };
+      }
+      const shot = await send('Page.captureScreenshot', { format: 'png', ...(region ? { clip: region } : {}) });
       writeFileSync(join(outDir, `${name}.png`), Buffer.from(shot.data, 'base64'));
       const note = !ready ? '  (still loading when taken)' : applied !== id ? `  (line "${id}" did not load; this is "${applied}")` : '';
       if (note) failed += 1;
@@ -234,6 +296,25 @@ try {
       failed += 1;
       console.log(`FAIL ${name}: ${e.message}`);
     }
+  }
+  if (mode === 'live') {
+    // The stills never run the moving code, so run it: the sample day has a block in progress,
+    // which brings the visitor in; finishing a quest sends it away again.
+    await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+    await send('Page.navigate', { url: `${BASE}/?line=${id}` });
+    await sleep(9000);
+    const snap = async (name) => writeFileSync(join(outDir, `${name}.png`), Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+    await snap('live-waiting');
+    const fps = await evaluate(`new Promise((done) => { let n = 0; const t0 = performance.now(); const tick = () => { n += 1; performance.now() - t0 < 3000 ? requestAnimationFrame(tick) : done(Math.round(n / 3)); }; requestAnimationFrame(tick); })`);
+    await evaluate(`window.dispatchEvent(new CustomEvent('fg:departed'))`);
+    await sleep(1600);
+    await snap('live-leaving');
+    await sleep(5000);
+    await snap('live-after');
+    const applied = await evaluate('document.documentElement.dataset.line');
+    console.log(`line ${applied}: ${fps} frames a second while animating; ${thrown.length} error${thrown.length === 1 ? '' : 's'} thrown`);
+    for (const t of thrown.slice(0, 5)) console.log(`  ${t}`);
+    if (thrown.length || applied !== id) failed += 1;
   }
   ws.close();
 } catch (e) {

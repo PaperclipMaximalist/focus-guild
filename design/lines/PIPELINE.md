@@ -41,6 +41,20 @@ Keep batches at two coders. Three or more at once have hit the usage limit here 
 3. Give a coder `CODER_PROMPT.md` with the id.
 4. Review, commit. The line appears in Settings by itself: lines are found by folder.
 
+## What the first batch taught
+
+The first briefs asked for restraint: dim, flat, "noticed the third time". The coders delivered exactly that, the checker passed it, and the owner called the result "just a different colorway each time". A brief gets what it asks for. The second briefs name one primary still per line, its real colours as hex values, the objects to draw and where they stand, and end with a test a picture either passes or fails ("if the window is dark, it is wrong"). Every line then passed on its first full report.
+
+Two smaller lessons: a coder can be cut off at any moment by a usage limit, so its work must be files on disk, not plans in its head, and the director should commit a snapshot before resuming it; and stills cannot show that moving code works, so run `npm run line:shoot <id> live` before accepting a line.
+
+## What the third and fourth passes taught
+
+The ornament kits (frames, marks, a tailpiece) all passed review and the owner still said the lines looked the same. Frames a few pixels wide round flat near-black boxes cannot carry a theme: at arm's length a page is its *surfaces*, and the surfaces were identical. The fourth pass gave every surface a material and a real hue, and the difference was visible in a thumbnail at once.
+
+- **Judge at thumbnail size, side by side.** Close-ups at twice the size are for finding faults, and they flatter: every kit looked rich at 2x. Whether two lines differ is only visible small and together.
+- **Look at the stills again when the owner says to.** The text descriptions of them said "dark, moody, one accent" 25 times. The pictures show logs, stippled leather, rust and buttoned benches.
+- **The director builds the first one.** The shared layer and one whole line (Timber) were written and photographed before any coder was briefed, so the brief could point at a result instead of describing one.
+
 ## Where the first set came from
 
 Twenty-five stills from the "Infinite Journeys" community montage (February 2022), described one by one, then grouped. What they share became the rule every line follows: a seat by a window, a table in front, somewhere else going by outside.

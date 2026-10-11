@@ -1,55 +1,25 @@
 /*
- * The Salvage Line's frame. Two treatments and one motif:
- *   1. The window is a canopy: a hairline edge, and an L-shaped bracket in the
- *      two right-hand corners (the words are at the left, so nothing is drawn there).
- *   2. The sign and the Start button are plain plates with no cut corner; the
- *      button has a 2 px band of the pressed accent along its bottom edge.
- * Motif: one block of hazard stripes at the left end of the sign, in its padding.
+ * The Salvage Line's frame: bolted plate, as in the cockpit.
+ * The borders, bolts, hazard corners, pipe run and tread plate are drawn in ornaments.ts;
+ * this file keeps only the shapes and fills that picture does not do.
+ *   .panel / .next-card  square-ish corners, so the drawn frame sits flush
+ *   .board-sign          the accent plate, its top corners cut square for the stencilled frame
+ *   .btn-primary         a plain plate with a 2 px band of the pressed accent along its foot
+ *   .scene-window        the scene draws its own canopy; only the radius is set here
  */
 @layer components {
   :root[data-line="dispatch"] .scene-window {
-    border: 1px solid var(--color-border-strong);
+    --radius-card: 6px;
   }
-  :root[data-line="dispatch"] .scene-window::before,
-  :root[data-line="dispatch"] .scene-window::after {
-    content: '';
-    position: absolute;
-    z-index: 1;
-    right: 6px;
-    width: 14px;
-    height: 14px;
-    pointer-events: none;
-    border: 0 solid var(--color-muted);
-    border-right-width: 2px;
-  }
-  :root[data-line="dispatch"] .scene-window::before {
-    top: 6px;
-    border-top-width: 2px;
-  }
-  :root[data-line="dispatch"] .scene-window::after {
-    bottom: 6px;
-    border-bottom-width: 2px;
+
+  :root[data-line="dispatch"] .panel,
+  :root[data-line="dispatch"] .next-card {
+    border-radius: var(--radius-sm);
   }
 
   :root[data-line="dispatch"] .board-sign {
-    position: relative;
-    border-radius: var(--radius-card) var(--radius-card) 0 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     background: var(--color-primary);
-  }
-  /* The hazard block: 10 px of 45-degree stripes, hard-stopped, sitting in the sign's left padding. */
-  :root[data-line="dispatch"] .board-sign::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: 10px;
-    pointer-events: none;
-    background: repeating-linear-gradient(
-      -45deg,
-      var(--color-on-primary) 0 3px,
-      var(--color-primary) 3px 6px
-    );
   }
 
   :root[data-line="dispatch"] .btn-primary {

@@ -12,6 +12,11 @@
  *
  * Tapping the row opens the detail sheet, which has Edit and Delete; the two
  * buttons here appear on hover, for a mouse.
+ *
+ * "Steps" in the line of facts is a dropdown: it opens the quest's sub-quests
+ * under the row, where they can be ticked and added to (SubQuestList). The
+ * count beside it is every step at every tier, and the time is what those
+ * steps add up to.
  */
 
 import { useState } from 'react';
@@ -19,7 +24,8 @@ import { motion } from 'framer-motion';
 import { type Quest } from '../lib/api';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
 import { questStatus, TONE_COLOR } from '../lib/departure';
-import { CalendarDays, Check, ListChecks, Pencil, Trash2 } from 'lucide-react';
+import { SubQuestList } from './SubQuestList';
+import { CalendarDays, Check, ChevronDown, ChevronRight, ListChecks, Pencil, Trash2 } from 'lucide-react';
 
 interface Props {
   quest: Quest;
@@ -33,6 +39,8 @@ interface Props {
   selecting?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Called when a step is added, ticked or deleted, so the list can refresh its counts. */
+  onStepsChanged?: () => void;
 }
 
 // Map 0–10 priority score → visual tier
@@ -53,9 +61,22 @@ const RING: Record<ReturnType<typeof priorityTier>, string> = {
 
 const LOAD_LABEL = ['', 'Easy', 'Easy', 'Mild', 'Mild', 'Medium', 'Medium', 'Hard', 'Hard', 'Brutal', 'Brutal'];
 
-export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecting, selected, onToggleSelect }: Props) {
+export function QuestCard({
+  quest,
+  onComplete,
+  onEdit,
+  onDelete,
+  onOpen,
+  selecting,
+  selected,
+  onToggleSelect,
+  onStepsChanged,
+}: Props) {
   // Ticked the moment it is tapped; the server catches up behind it.
   const [done, setDone] = useState(false);
+  const [stepsOpen, setStepsOpen] = useState(false);
+  const stepTotal = quest.subQuestTotal ?? 0;
+  const stepDone = quest.subQuestDone ?? 0;
   const tick = () => {
     if (done) return;
     setDone(true);
@@ -77,6 +98,8 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.15 }}
+    >
+    <div
       className="group flex items-start gap-3 px-3.5 py-3 transition-colors hover:bg-white/[0.025]"
       style={selected ? { background: 'color-mix(in srgb, var(--color-primary) 7%, transparent)' } : undefined}
     >
@@ -134,7 +157,7 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
               <CalendarDays size={12} aria-hidden /> {deadline}
             </span>
           )}
-          <span className="tnum">{formatMinutes(quest.estimatedMinutes)}</span>
+          <span className="tnum">{formatMinutes(quest.rolledUpMinutes ?? quest.estimatedMinutes)}</span>
           <span className="inline-flex items-center gap-1.5">
             <span className="inline-flex items-end gap-px" aria-hidden>
               {[1, 2, 3, 4, 5].map((n) => (
@@ -147,10 +170,29 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
             </span>
             {LOAD_LABEL[quest.mentalLoad]}
           </span>
-          {quest.subQuestTotal != null && quest.subQuestTotal > 0 && (
-            <span className="tnum inline-flex items-center gap-1">
-              <ListChecks size={12} aria-hidden /> {quest.subQuestDone ?? 0}/{quest.subQuestTotal}
-            </span>
+          {!selecting && (
+            <button
+              type="button"
+              onClick={(e) => {
+                // The row behind it opens the detail sheet; this only opens the steps.
+                e.stopPropagation();
+                setStepsOpen((v) => !v);
+              }}
+              aria-expanded={stepsOpen}
+              aria-label={stepTotal > 0 ? `Steps, ${stepDone} of ${stepTotal} complete` : 'Steps'}
+              className="fact-btn inline-flex items-center gap-1 font-medium"
+              style={stepsOpen ? { color: 'var(--color-text)' } : undefined}
+            >
+              <ListChecks size={12} aria-hidden />
+              {stepTotal > 0 ? (
+                <span className="tnum" style={stepDone === stepTotal ? { color: 'var(--color-green)' } : undefined}>
+                  {stepDone}/{stepTotal}
+                </span>
+              ) : (
+                'Steps'
+              )}
+              {stepsOpen ? <ChevronDown size={13} aria-hidden /> : <ChevronRight size={13} aria-hidden />}
+            </button>
           )}
           {quest.tags?.map((t) => (
             <span key={t} className="opacity-80">
@@ -180,6 +222,14 @@ export function QuestCard({ quest, onComplete, onEdit, onDelete, onOpen, selecti
           </span>
         </div>
       )}
+    </div>
+
+    {stepsOpen && !selecting && (
+      // Lined up under the title, so the steps read as belonging to it.
+      <div className="animate-pop-in pb-3 pl-[3.125rem] pr-3.5">
+        <SubQuestList quest={quest} onChanged={onStepsChanged} />
+      </div>
+    )}
     </motion.div>
   );
 }

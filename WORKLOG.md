@@ -238,6 +238,27 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - All five pass the checker; typecheck, lint on the new code, the 26 client tests and a production build are clean. Reviewed as posed stills and a short live run each; not watched in motion for long, and not on a real phone. Gallery for the owner to choose from: https://claude.ai/artifact/KWThCeaU1vBQwErydtjx9f
 - Found on the way: the local API server had lost its database connection after a day of running, which is what made the harness answer from sample data instead.
 
+### Sat 2026-10-10 — Lines deployed, rejected as recolours, rebuilt (≈5 h, branch `ui-refresh`)
+
+- Morning: the owner said "just deploy these to start". `ui-refresh` was merged with main's scheduler round and pushed (`91edada`); server and client verified live.
+- The owner's verdict on seeing it: "I don't want it to be this plain … it's just a different colorway each time … bring the app's vibes to life". Looking again at the stills at full size settled why: they are dark cabins around bright, colourful views with the cabin's own things in front, and the first contract had asked for dim, empty views.
+- Rewrote the contract around one test (name the line with the window covered) and extended the engine: scenes in four layers (two painted once, so texture is free), a charm in the sidebar, a backdrop behind the page, and new border hooks. Rewrote all five briefs, each around a single still.
+- Five Sonnet coders, two at a time. Both of the first pair were cut off by the account's usage limit an hour in; their scene files were on disk, so they were resumed with what was left to do. Every line passed review on its first full report, with small fixes: this time the briefs named the colours, the objects and the composition instead of asking for restraint.
+- Added `npm run line:shoot <id> live` after noticing the posed stills never run the moving code: all five run with no errors at full frame rate.
+- A backspace character had got into one of the checker's patterns from a Python heredoc (the trap already noted in this log); found when a coder reported a note that could not be true.
+- The owner on the cabins: "I don't need a picture header exactly but I need small elements to be incorporated around the UI, I mean the borders, symbols, small pictures that are unique, maybe borders that aren't a single line and have more style." So a third pass the same day: `ornaments.ts` per line (three nine-slice frames, two trims, five small pictures), painted on small canvases, turned into CSS variables by `lines/dress.ts` and placed by one block of `index.css`, so every page wears them. Five more coder runs, two at a time, each to a written kit in `design/lines/ORNAMENTS.md`; all five passed on their first report. A `kit-2x` sheet in the screenshot tool shows every piece at twice its size. Hand-built boxes on older pages get the same frame through one selector, so no page had to be edited.
+- The owner on the kits: "they all still look kinda the same. I don't want a random image to fill space I want texture and pattern, look back at the inspiration images and see what they had, small animations as well." Looking at the stills again, at full size: every surface in them is a material, and ours were flat boxes in five tints. Fourth pass: `texture.ts` (tiles for panels, the sidebar and the accent), `wall.ts` (a live canvas over the sidebar, replacing the object that stood there), frames-and-seconds on any ornament, and bolder colours and backdrops. The director built the shared layer and the whole Timber Line first (boards on a log wall, a buttoned red bench, fairy lights that twinkle, a leaf that turns), then briefed two coders for Ring and Salvage. Both hit the usage limit after their surface tiles. The owner asked for what existed to be deployed as it stood.
+- Every element filled with the surface colour takes the panel tile, whether by `.panel`, a utility class or an inline style; the last needs `!important`, and the sidebar's own tile needs it too in order to outrank that.
+
+### Sat 2026-10-10: Steps as a dropdown, hour logs, and a journal (one session; hours not measured)
+- The owner's words: the sub-quest UI was wrong and should be a dropdown; a tracker "where I can simply log my hours without an estimated total"; the Logbook was confusing, wanted "the human, by hand tracker", "more journal style", with the Logbook's features moved "somewhere more obscure as an advanced and generally not important setting".
+- Built on `main` @ `91edada` (the Departures UI another session had deployed that day) in its own worktree, branch `quests-hours-journal`. An earlier version of the sub-quest work sat uncommitted in the old-UI checkout; its server half (`lib/questTree.ts`) was carried over, its tree-in-a-sheet UI was dropped.
+- **Steps**: `QuestCard` gained one quiet control in its line of facts, "Steps" (or `2/6` once there are some), which opens `SubQuestList` under the row; a step with steps of its own opens the same way. Three tiers, closed by default at each. The editor's "Part of" menu files a quest under another; the server checks the fit, including the steps a quest brings with it.
+- **Hour logs**: no new tables. A log is a quest with `estimatedMinutes = 0`; every reader of that column was checked (the planner, the priority list and Dealer's choice skip it; calibration and the estimate achievements already ignored a zero). Entries are activity-log rows, the total is `actualMinutes`. One field reads the time the way people write it.
+- **Journal**: `/chronicle` shows only what was written by hand. The activity log, permafile, Ask and bundle are `pages/Records.tsx` at `/advanced/records` (the hub at `/advanced` is the parallel session's, branch `quickstart-connections`).
+- Checked by clicking through the real client against a stand-in API fed by the line fixtures (nothing written to the shared database), at 1280 and 375 px; and the new read routes and every refusal path against the real database, read-only.
+- Tests: 386 server (38 new), 34 client (8 new). The scheduler labs were not rerun: the one planner change is the list `routes/schedule.ts` hands over, and the labs load `lib/scheduler/*` only.
+
 ### Sat 2026-10-10: Quickstart, and a format for moving quests in bulk (one session; hours not measured)
 - The owner's words: "under advanced features create a focus guild quickstart and connection feature": "firstly be able to connect to google calender, 2ndly have a clearly defined syntax for moving information around and porting quests which will be later used to let AI quickstart a lot of quests rather than the human inputting each one by one".
 - Built on `main` @ `91edada` in its own worktree, branch `quickstart-connections`, beside the session doing steps, hour logs and the journal (`quests-hours-journal`). The two agreed by message who owns which file; a trial merge of the two is clean.
@@ -247,6 +268,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Found by looking and by real data, not by the tests: an AI's "Here is your manifest:" was imported as a quest; the app's mono face draws `load:hard` as `load: hard`, which teaches a spelling that does not parse (manifests are now set in a plain system mono); a wrapped line in the box looked like an unindented one (wrapping is off); and one real quest lost its shortest session on the way out and back.
 - Checked: photographed at 1280 and 375 px against sample data (nothing sent to a server); the export read from the real dev account (78 quests) and sent back as a dry run, which writes nothing; that export written as text and parsed again gives the same 78 quests. Not exercised against the database: a real import, because local dev shares production's database. Its rows are built by a pure function that is tested, and written by the same transaction call the old import used.
 - Tests: 360 server (12 in `questImport.test.ts`), 77 client (30 for the manifest, 7 for the Google link, 24 for the grammar).
+
 
 ## Phases, as named in the project's own log
 
@@ -275,6 +297,7 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 | 17 | UI refresh: app shell, list rows, calmer theme | Oct 6 |
 | 18 | Design research and craft pass; Departures theme, night platform, route vocabulary | Oct 8 |
 | 19 | Lines: theme engine, checker, screenshot harness, four new lines by a director-and-coders pipeline | Oct 9 |
+| 20 | Lines deployed, then rebuilt as cabins: layered scenes, sidebar charm, backdrop, patterned borders | Oct 10 |
 
 ---
 

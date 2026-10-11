@@ -1,0 +1,19 @@
+/*
+ * The Night Line's frame: enamel signs on a station wall. The sign's and the
+ * button's cut corner come from index.css, and the drawn borders, trims and
+ * pictures come from ornaments.ts; this only adds
+ *   .app-sidebar  a tiled wall: faint joints every 48 px
+ *   .scene-window a 6 px radius
+ */
+@layer components {
+  :root[data-line="night"] .scene-window {
+    --radius-card: 6px;
+  }
+
+  :root[data-line="night"] .app-sidebar {
+    background-image:
+      linear-gradient(to right, transparent 47px, color-mix(in srgb, var(--color-surface) 93%, white) 47px 48px),
+      linear-gradient(to bottom, transparent 47px, color-mix(in srgb, var(--color-surface) 93%, white) 47px 48px);
+    background-size: 48px 48px;
+  }
+}

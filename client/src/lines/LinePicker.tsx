@@ -5,6 +5,7 @@
 
 import { useEffect, useState } from 'react';
 import { allLines, chooseLine, currentLine, subscribeLine } from './current';
+import { spriteUrl } from './dress';
 import type { Line } from './types';
 
 export function LinePicker() {
@@ -39,6 +40,13 @@ export function LinePicker() {
             >
               {on && <span className="h-1.5 w-1.5 rounded-full bg-(--color-primary)" />}
             </span>
+            {l.ornaments?.sprites?.emblem && (
+              <span
+                className="h-6 w-6 shrink-0"
+                style={{ background: `${spriteUrl(l.ornaments.sprites.emblem)} center / contain no-repeat` }}
+                aria-hidden
+              />
+            )}
             <span className="min-w-0 flex-1">
               <span className="block text-sm text-(--color-text)">{l.name}</span>
               <span className="block text-xs text-(--color-muted)">{l.journey}</span>

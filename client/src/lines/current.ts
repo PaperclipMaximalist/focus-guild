@@ -11,6 +11,7 @@
  * (used by `npm run line:shoot`).
  */
 
+import { applyOrnaments } from './dress';
 import night from './night';
 import type { Line } from './types';
 
@@ -52,6 +53,7 @@ async function load(id: string): Promise<Line> {
 function apply(line: Line): void {
   current = line;
   document.documentElement.dataset.line = line.id;
+  applyOrnaments(line);
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', line.swatch[0]);
   listeners.forEach((l) => l());
 }

@@ -27,14 +27,14 @@
  * ─────────────────────────────────────────────────────────────────────────── */
 @theme {
   --color-bg:        #06081A;
-  --color-surface:   #0C1027;
-  --color-surface2:  #151A3B;
+  --color-surface:   #131A3D;
+  --color-surface2:  #1D2654;
   /* Hairline between rows of the board. */
-  --color-border:    #1C2249;
+  --color-border:    #27316A;
   /* Things you type into or press need an edge you can find. */
-  --color-border-strong: #363E78;
+  --color-border-strong: #4854A0;
   --color-text:      #E8EEFF;
-  --color-muted:     #8C96C6;
+  --color-muted:     #9AA4D2;
 
   /* Signal yellow: the header sign, the primary action, the row now boarding. */
   --color-primary:    #FFD23A;
@@ -42,7 +42,7 @@
   --color-on-primary: #0A0F1C;
 
   /* Rank colour: only the rank badge and XP bar wear it (see lib/theme.ts). */
-  --color-rank: #8C96C6;
+  --color-rank: #9AA4D2;
 
   /* Status. `gold` is attention (amber signal), `fire` is late, `green` is on time. */
   --color-gold:  #FFA24D;
@@ -88,10 +88,12 @@ button { user-select: none; -webkit-user-select: none; }
   input, select, textarea { font-size: 16px !important; }
 }
 
+/* Only <html> paints the ground, so a line's backdrop (a fixed canvas behind
+   everything) shows through wherever a page has no surface of its own. */
+html { background: var(--color-bg); }
 html, body, #root {
   height: 100%;
   margin: 0;
-  background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -230,6 +232,19 @@ h1, h2, h3 {
 }
 @media (hover: hover) { .btn-quiet:hover { background: color-mix(in srgb, var(--color-surface2) 85%, white); } }
 .btn-quiet:active { scale: 0.97; }
+
+/* A fact in a row's quiet line that opens something (a quest's steps). It
+   reads as text until pointed at; on touch it has a target a thumb can hit. */
+.fact-btn {
+  position: relative;
+  margin: -0.125rem -0.25rem;
+  padding: 0.125rem 0.25rem;
+  border-radius: var(--radius-sm);
+  transition: background-color 120ms var(--ease), color 120ms var(--ease);
+}
+@media (hover: hover) { .fact-btn:hover { background: var(--color-surface2); color: var(--color-text); } }
+.fact-btn:active { background: var(--color-surface2); color: var(--color-text); }
+@media (pointer: coarse) { .fact-btn::after { content: ''; position: absolute; inset: -12px -8px; } }
 
 /* A placeholder in the shape of what is loading. */
 .skeleton {
@@ -379,3 +394,185 @@ input, select, textarea { accent-color: var(--color-primary); }
 }
 .quest-check.is-done { animation: tick 0.22s var(--ease); }
 }
+
+/* ── What a line paints for itself ───────────────────────────────────────
+   lines/dress.ts paints each piece once and hands it over as a variable;
+   data-ornate on <html> lists the pieces the current line has. Nothing here
+   knows which line it is. */
+@layer components {
+.panel, .board-sign { position: relative; }
+/* Older pages draw their boxes by hand (a radius and a border) instead of with
+   .panel. They are the same thing to the eye, so they get the same frame. */
+:root[data-ornate~="panel"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"]) { position: relative; }
+
+/* What the surfaces are made of. A tile each, repeated. Anything filled with the
+   surface colour is a surface, however the page came to fill it: by .panel, by
+   a utility, or by an inline style (which only !important can reach past). */
+:root[data-ornate~="panel-tile"] .panel,
+:root[data-ornate~="panel-tile"] [class~="bg-(--color-surface)"],
+:root[data-ornate~="panel-tile"] [style*="background: var(--color-surface);"] {
+  background-image: var(--tile-panel) !important;
+  background-size: var(--tile-panel-w) var(--tile-panel-h) !important;
+}
+:root[data-ornate~="wall-tile"] .app-sidebar,
+:root[data-ornate~="wall-tile"] .app-tabbar,
+:root[data-ornate~="wall-tile"] .app-topbar {
+  /* !important only to outrank the rule above: the sidebar is surface-coloured too. */
+  background-image: var(--tile-wall) !important;
+  background-size: var(--tile-wall-w) var(--tile-wall-h) !important;
+}
+/* A pattern over the accent, under the words on it. */
+:root[data-ornate~="accent-tile"] .board-sign,
+:root[data-ornate~="accent-tile"] .btn-primary { position: relative; isolation: isolate; }
+:root[data-ornate~="accent-tile"] .board-sign::before,
+:root[data-ornate~="accent-tile"] .btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--tile-accent) 0 0 / var(--tile-accent-w) var(--tile-accent-h);
+}
+
+/* A drawn frame, laid over the outer edge of the surface it belongs to. */
+:root[data-ornate~="panel"] .panel::after,
+:root[data-ornate~="panel"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"])::after,
+:root[data-ornate~="card"] .next-card::after,
+:root[data-ornate~="sign"] .board-sign::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-image-repeat: round;
+}
+:root[data-ornate~="panel"] .panel::after,
+:root[data-ornate~="panel"] [class~="rounded-(--radius-card)"][class~="border"]:not([class~="overflow-auto"])::after {
+  border-width: var(--frame-panel-w);
+  border-image-source: var(--frame-panel);
+  border-image-slice: var(--frame-panel-s);
+  border-image-width: var(--frame-panel-w);
+}
+:root[data-ornate~="card"] .next-card::after {
+  border-width: var(--frame-card-w);
+  border-image-source: var(--frame-card);
+  border-image-slice: var(--frame-card-s);
+  border-image-width: var(--frame-card-w);
+}
+:root[data-ornate~="sign"] .board-sign::after {
+  border-width: var(--frame-sign-w);
+  border-image-source: var(--frame-sign);
+  border-image-slice: var(--frame-sign-s);
+  border-image-width: var(--frame-sign-w);
+}
+
+/* A trim down the sidebar's edge and along the phone's two bars. */
+:root[data-ornate~="vertical"] .app-sidebar::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: var(--edge-vertical-w);
+  pointer-events: none;
+  background: var(--edge-vertical) 0 0 / calc(var(--edge-vertical-w) * var(--edge-vertical-n)) var(--edge-vertical-h) repeat-y;
+}
+:root[data-ornate~="horizontal"] .app-tabbar::before,
+:root[data-ornate~="horizontal"] .app-topbar::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: var(--edge-horizontal-h);
+  pointer-events: none;
+  background: var(--edge-horizontal) 0 0 / var(--edge-horizontal-w) calc(var(--edge-horizontal-h) * var(--edge-horizontal-n)) repeat-x;
+}
+/* A run along the top of the loud card, between its frame's corners and over its top edge. */
+:root[data-ornate~="crown"] .next-card::before {
+  content: '';
+  position: absolute;
+  inset-inline: var(--frame-card-w, 0px);
+  top: 0;
+  z-index: 1;
+  height: var(--edge-crown-h);
+  pointer-events: none;
+  background: var(--edge-crown) 0 0 / var(--edge-crown-w) calc(var(--edge-crown-h) * var(--edge-crown-n)) repeat-x;
+}
+:root[data-ornate~="horizontal"] .app-tabbar::before { top: 0; }
+:root[data-ornate~="horizontal"] .app-topbar::after { bottom: 0; }
+
+/* A symbol before a section label, a rule under a page title, a tailpiece at the foot of a page. */
+:root[data-ornate~="mark"] .section-label:where(:not(.flex):not(.grid))::before {
+  content: '';
+  display: inline-block;
+  width: var(--sprite-mark-w);
+  height: var(--sprite-mark-h);
+  margin-right: 0.45em;
+  vertical-align: -0.18em;
+  background: var(--sprite-mark) 0 0 / calc(var(--sprite-mark-w) * var(--sprite-mark-n)) 100% no-repeat;
+}
+:root[data-ornate~="rule"] .page-title::after {
+  content: '';
+  display: block;
+  width: var(--sprite-rule-w);
+  max-width: 100%;
+  height: var(--sprite-rule-h);
+  margin-top: 0.5rem;
+  background: var(--sprite-rule) 0 0 / calc(var(--sprite-rule-w) * var(--sprite-rule-n)) 100% no-repeat;
+}
+/* The words on the cabin wall keep clear of both. */
+:root .scene-window .section-label::before,
+:root .scene-window .page-title::after { content: none; }
+
+/* The badge beside the app's name, and the picture in an empty state. */
+.line-emblem, .line-spot { display: none; }
+:root[data-ornate~="emblem"] .line-emblem {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--sprite-emblem-w);
+  height: var(--sprite-emblem-h);
+  background: var(--sprite-emblem) 0 0 / calc(var(--sprite-emblem-w) * var(--sprite-emblem-n)) 100% no-repeat;
+}
+:root[data-ornate~="spot"] .line-spot {
+  display: block;
+  width: var(--sprite-spot-w);
+  max-width: 100%;
+  height: var(--sprite-spot-h);
+  margin-inline: auto;
+  background: var(--sprite-spot) center / contain no-repeat;
+}
+:root[data-ornate~="spot"] .spot-fallback { display: none; }
+
+/* The pieces that move. Each is a strip of frames, stepped through; data-moving
+   lists them, and is empty when Scenery is off. */
+@keyframes line-flip-x { to { background-position-x: var(--flip); } }
+@keyframes line-flip-y { to { background-position-y: var(--flip); } }
+:root[data-moving~="mark"] .section-label:where(:not(.flex):not(.grid))::before {
+  --flip: calc(var(--sprite-mark-w) * var(--sprite-mark-n) * -1);
+  animation: line-flip-x var(--sprite-mark-t) steps(var(--sprite-mark-n)) infinite;
+}
+:root[data-moving~="rule"] .page-title::after {
+  --flip: calc(var(--sprite-rule-w) * var(--sprite-rule-n) * -1);
+  animation: line-flip-x var(--sprite-rule-t) steps(var(--sprite-rule-n)) infinite;
+}
+:root[data-moving~="emblem"] .line-emblem {
+  --flip: calc(var(--sprite-emblem-w) * var(--sprite-emblem-n) * -1);
+  animation: line-flip-x var(--sprite-emblem-t) steps(var(--sprite-emblem-n)) infinite;
+}
+:root[data-moving~="vertical"] .app-sidebar::after {
+  --flip: calc(var(--edge-vertical-w) * var(--edge-vertical-n) * -1);
+  animation: line-flip-x var(--edge-vertical-t) steps(var(--edge-vertical-n)) infinite;
+}
+:root[data-moving~="horizontal"] .app-tabbar::before,
+:root[data-moving~="horizontal"] .app-topbar::after {
+  --flip: calc(var(--edge-horizontal-h) * var(--edge-horizontal-n) * -1);
+  animation: line-flip-y var(--edge-horizontal-t) steps(var(--edge-horizontal-n)) infinite;
+}
+:root[data-moving~="crown"] .next-card::before {
+  --flip: calc(var(--edge-crown-h) * var(--edge-crown-n) * -1);
+  animation: line-flip-y var(--edge-crown-t) steps(var(--edge-crown-n)) infinite;
+}
+}
+
+/* Outside the layers, because it has to beat the utility that lays the plain badge out. */
+:root[data-ornate~="emblem"] .brand-mark { display: none; }

@@ -14,7 +14,7 @@
 
 import { Link } from 'react-router-dom';
 import { SignedIn, UserButton } from '@clerk/clerk-react';
-import { Flame, ScrollText, SettingsIcon } from 'lucide-react';
+import { Flame, NotebookPen, SettingsIcon } from 'lucide-react';
 import { useUserStore } from '../store/useUserStore';
 import { useMascotStore } from '../store/useMascotStore';
 import { levelFromXP, progressToNextLevel } from '../lib/levels';
@@ -30,7 +30,7 @@ export function Header() {
   const progress = progressToNextLevel(user.totalXP);
 
   return (
-    <header className="sticky top-0 z-30 border-b border-(--color-border) bg-(--color-bg)/95 backdrop-blur lg:hidden">
+    <header className="app-topbar sticky top-0 z-30 border-b border-(--color-border) bg-(--color-bg) lg:hidden">
       <div className="flex h-13 items-center gap-2.5 pl-4 pr-2">
         {/* Left slot: the duck floats here; without it, the rank's own icon. */}
         {duck ? (
@@ -68,8 +68,8 @@ export function Header() {
         >
           <Flame size={15} aria-hidden /> {user.currentStreak}
         </span>
-        <Link to="/chronicle" className="icon-btn" title="Logbook" aria-label="Logbook">
-          <ScrollText size={18} aria-hidden />
+        <Link to="/chronicle" className="icon-btn" title="Journal" aria-label="Journal">
+          <NotebookPen size={18} aria-hidden />
         </Link>
         <Link to="/settings" className="icon-btn" title="Settings" aria-label="Settings">
           <SettingsIcon size={18} aria-hidden />

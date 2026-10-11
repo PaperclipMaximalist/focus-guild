@@ -17,7 +17,7 @@ import { Rocket } from 'lucide-react';
 import { isSfxEnabled, setSfxEnabled, sfxClick } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { ArrowDownUp, BatteryMedium, Bird, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, ListPlus, Palette, Plug, Plus, ScrollText, SettingsIcon, SlidersHorizontal, Sparkles, Swords, Trophy, Volume2 } from 'lucide-react';
+import { ArrowDownUp, BatteryMedium, Bird, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, ListPlus, NotebookPen, Palette, Plug, Plus, ScrollText, SettingsIcon, SlidersHorizontal, Sparkles, Swords, Trophy, Volume2 } from 'lucide-react';
 
 interface Command {
   id: string;
@@ -64,8 +64,9 @@ export function CommandPalette() {
       { id: 'go-tracker-presets', label: 'Expedition presets', icon: SlidersHorizontal, keywords: 'domains cap status labels prefixes review', run: go('/tracker/presets') },
       { id: 'go-tracker-markdown', label: 'Expeditions markdown export / import', icon: ArrowDownUp, keywords: 'export import download markdown backup', run: go('/tracker/markdown') },
       { id: 'go-quest-import', label: 'Import quests from text', icon: ListPlus, keywords: 'bulk paste list add many import', run: go('/quests/import') },
-      { id: 'go-chronicle', label: 'Logbook: log and permafile', icon: ScrollText, keywords: 'chronicle activity log journal history permafile ai bundle context', run: go('/chronicle') },
-      { id: 'go-ai-bundle', label: 'Copy AI context bundle', icon: Sparkles, keywords: 'claude ai bundle context export permafile log', run: go('/chronicle?tab=bundle') },
+      { id: 'go-chronicle', label: 'Go to Journal', icon: NotebookPen, keywords: 'journal diary write notes reflect chronicle logbook', run: go('/chronicle') },
+      { id: 'go-records', label: 'Records: activity log and permafile', icon: ScrollText, keywords: 'records advanced activity log history permafile ask guild logbook chronicle', run: go('/advanced/records') },
+      { id: 'go-ai-bundle', label: 'Copy AI context bundle', icon: Sparkles, keywords: 'claude ai bundle context export permafile log', run: go('/advanced/records?tab=bundle') },
       { id: 'go-connections', label: 'Connections: calendars & inbox', icon: Plug, keywords: 'google calendar outlook teams ics webhook power automate shortcut integrations', run: go('/connections') },
       { id: 'go-quickstart', label: 'Quickstart: Google Calendar and quests in bulk', icon: Rocket, keywords: 'quickstart setup connect google calendar manifest import export bulk ai port advanced', run: go('/advanced/quickstart') },
       { id: 'go-trophies', label: 'Open Trophy Room', icon: Trophy, keywords: 'achievements badges awards', run: go('/trophies') },
