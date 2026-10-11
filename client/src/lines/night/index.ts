@@ -10,6 +10,7 @@ import './frame.css';
 import scene from './scene';
 import charm from './charm';
 import backdrop from './backdrop';
+import ornaments from './ornaments';
 import type { Line } from '../types';
 
 const line: Line = {
@@ -22,6 +23,7 @@ const line: Line = {
   scene,
   charm,
   backdrop,
+  ornaments,
 };
 
 export default line;

@@ -272,6 +272,7 @@ export default function Today() {
                 </div>
               ) : (
                 <div className="panel px-5 py-10 text-center">
+                  <div className="line-spot mb-3" aria-hidden />
                   <p className="font-semibold">No active quests</p>
                   <p className="mt-1 text-sm text-(--color-muted)">Type one in the box above, or add one with every detail.</p>
                   <button type="button" onClick={openNew} className="btn-primary mt-4">

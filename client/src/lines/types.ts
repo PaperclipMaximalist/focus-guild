@@ -7,6 +7,7 @@
  *   scene.ts     the cabin corner on Today: a wall, a window, what is outside it
  *   charm.ts     the line's one signature object, in the sidebar on every page
  *   backdrop.ts  texture and a few drifting specks behind the whole app
+ *   ornaments.ts the small drawn things: frames, trims, an emblem, marks, flourishes
  *
  * Each line is a folder in src/lines/ and is found by its folder, so adding
  * one touches no shared file. The contract a line has to meet is written out
@@ -106,6 +107,59 @@ export function defineBackdrop<S>(def: Layers<Frame, S>): Backdrop {
   return def as unknown as Backdrop;
 }
 
+/** A small picture a line paints for itself. Sizes are CSS pixels; it is painted at twice that. */
+export interface Sprite {
+  w: number;
+  h: number;
+  paint: (p: Paint) => void;
+}
+
+/**
+ * A frame in nine slices, painted as one square tile of side `slice * 2 + edge`:
+ * four corners `slice` px square, and between them a stretch of `edge` px that
+ * repeats along each side. The middle is left clear. It is drawn `slice` px
+ * thick over the outer edge of whatever it frames.
+ */
+export interface FramePiece {
+  slice: number;
+  edge: number;
+  paint: (p: Paint) => void;
+}
+
+/** Everything small and drawn. Each piece is optional; the app uses what is there. */
+export interface Ornaments {
+  frames?: {
+    /** Round every raised surface, from a 44 px row to a tall list. `slice` at most 12. */
+    panel?: FramePiece;
+    /** Round the one loud card on Today. The fullest frame. `slice` at most 24. */
+    card?: FramePiece;
+    /** Over the accent-filled sign. `slice` at most 12. */
+    sign?: FramePiece;
+  };
+  edges?: {
+    /** A trim that repeats down the sidebar's right edge. */
+    vertical?: Sprite;
+    /** A trim that repeats along the phone's bottom and top bars. */
+    horizontal?: Sprite;
+  };
+  sprites?: {
+    /** The line's badge, beside the app's name and in the picker. About 24 px. */
+    emblem?: Sprite;
+    /** A small symbol before every section label. About 14 px. */
+    mark?: Sprite;
+    /** A drawn rule under every page title. About 140 by 12. */
+    rule?: Sprite;
+    /** A tailpiece at the foot of every page, as at the end of a chapter. About 150 by 56. */
+    tail?: Sprite;
+    /** A small picture for empty states. About 180 by 120. */
+    spot?: Sprite;
+  };
+}
+
+export function defineOrnaments(o: Ornaments): Ornaments {
+  return o;
+}
+
 export interface Line {
   /** Folder name, and the value of data-line on <html>. */
   id: string;
@@ -122,4 +176,5 @@ export interface Line {
   scene: Scene;
   charm?: Charm;
   backdrop?: Backdrop;
+  ornaments?: Ornaments;
 }

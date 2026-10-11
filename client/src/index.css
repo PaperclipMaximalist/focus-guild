@@ -394,3 +394,114 @@ input, select, textarea { accent-color: var(--color-primary); }
 }
 .quest-check.is-done { animation: tick 0.22s var(--ease); }
 }
+
+/* ── What a line paints for itself ───────────────────────────────────────
+   lines/dress.ts paints each piece once and hands it over as a variable;
+   data-ornate on <html> lists the pieces the current line has. Nothing here
+   knows which line it is. */
+@layer components {
+.panel, .board-sign { position: relative; }
+
+/* A drawn frame, laid over the outer edge of the surface it belongs to. */
+:root[data-ornate~="panel"] .panel::after,
+:root[data-ornate~="card"] .next-card::after,
+:root[data-ornate~="sign"] .board-sign::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-style: solid;
+  border-color: transparent;
+  border-image-repeat: round;
+}
+:root[data-ornate~="panel"] .panel::after {
+  border-width: var(--frame-panel-w);
+  border-image-source: var(--frame-panel);
+  border-image-slice: var(--frame-panel-s);
+  border-image-width: var(--frame-panel-w);
+}
+:root[data-ornate~="card"] .next-card::after {
+  border-width: var(--frame-card-w);
+  border-image-source: var(--frame-card);
+  border-image-slice: var(--frame-card-s);
+  border-image-width: var(--frame-card-w);
+}
+:root[data-ornate~="sign"] .board-sign::after {
+  border-width: var(--frame-sign-w);
+  border-image-source: var(--frame-sign);
+  border-image-slice: var(--frame-sign-s);
+  border-image-width: var(--frame-sign-w);
+}
+
+/* A trim down the sidebar's edge and along the phone's two bars. */
+:root[data-ornate~="vertical"] .app-sidebar::after {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: var(--edge-vertical-w);
+  pointer-events: none;
+  background: var(--edge-vertical) top / var(--edge-vertical-w) var(--edge-vertical-h) repeat-y;
+}
+:root[data-ornate~="horizontal"] .app-tabbar::before,
+:root[data-ornate~="horizontal"] .app-topbar::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  height: var(--edge-horizontal-h);
+  pointer-events: none;
+  background: var(--edge-horizontal) left / var(--edge-horizontal-w) var(--edge-horizontal-h) repeat-x;
+}
+:root[data-ornate~="horizontal"] .app-tabbar::before { top: 0; }
+:root[data-ornate~="horizontal"] .app-topbar::after { bottom: 0; }
+
+/* A symbol before a section label, a rule under a page title, a tailpiece at the foot of a page. */
+:root[data-ornate~="mark"] .section-label:not(.flex):not(.grid)::before {
+  content: '';
+  display: inline-block;
+  width: var(--sprite-mark-w);
+  height: var(--sprite-mark-h);
+  margin-right: 0.45em;
+  vertical-align: -0.18em;
+  background: var(--sprite-mark) center / contain no-repeat;
+}
+:root[data-ornate~="rule"] .page-title::after {
+  content: '';
+  display: block;
+  width: var(--sprite-rule-w);
+  max-width: 100%;
+  height: var(--sprite-rule-h);
+  margin-top: 0.5rem;
+  background: var(--sprite-rule) left / contain no-repeat;
+}
+/* The words on the cabin wall keep clear of both. */
+:root .scene-window .section-label::before,
+:root .scene-window .page-title::after { content: none; }
+:root[data-ornate~="tail"] .page::after {
+  content: '';
+  display: block;
+  height: var(--sprite-tail-h);
+  margin-top: 3rem;
+  background: var(--sprite-tail) center / auto 100% no-repeat;
+}
+
+/* The badge beside the app's name, and the picture in an empty state. */
+.line-emblem, .line-spot { display: none; }
+:root[data-ornate~="emblem"] .line-emblem {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--sprite-emblem-w);
+  height: var(--sprite-emblem-h);
+  background: var(--sprite-emblem) center / contain no-repeat;
+}
+:root[data-ornate~="emblem"] .brand-mark { display: none; }
+:root[data-ornate~="spot"] .line-spot {
+  display: block;
+  width: var(--sprite-spot-w);
+  max-width: 100%;
+  height: var(--sprite-spot-h);
+  margin-inline: auto;
+  background: var(--sprite-spot) center / contain no-repeat;
+}
+:root[data-ornate~="spot"] .spot-fallback { display: none; }
+}

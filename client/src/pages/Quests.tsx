@@ -279,7 +279,7 @@ export default function Quests() {
         {visible.length === 0 && (
           <div className="panel px-6 py-12 text-center">
             {quests.length === 0
-              ? <MapIcon size={40} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />
+              ? <><div className="line-spot mb-3" aria-hidden /><MapIcon size={40} strokeWidth={1.5} className="spot-fallback mx-auto mb-3 opacity-60" aria-hidden /></>
               : <Search size={40} strokeWidth={1.5} className="mx-auto mb-3 opacity-60" aria-hidden />}
             <p className="font-semibold" style={{ color: 'var(--color-text)' }}>
               {quests.length === 0 ? 'No active quests yet' : 'Nothing matches'}

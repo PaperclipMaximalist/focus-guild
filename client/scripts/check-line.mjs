@@ -198,7 +198,7 @@ function checkCanvas(file, define, needs, maxLines, required) {
   for (const [, from] of code.matchAll(/import[^;]*from\s*['"]([^'"]+)['"]/g)) {
     if (from !== '../types') fail(`${file} imports "${from}"; a canvas may only import ../types`);
   }
-  if (!new RegExp(`export default ${define}<`).test(code)) fail(`${file} must \`export default ${define}<State>({ … })\``);
+  if (!new RegExp(`export default ${define}[<(]`).test(code)) fail(`${file} must \`export default ${define}({ … })\``);
   for (const word of needs) {
     if (!new RegExp(`\\b${word}\\b`).test(code)) fail(`${file} never reads "${word}"; it must answer to it (see the contract)`);
   }
@@ -235,8 +235,9 @@ checkCanvas('scene.ts', 'defineScene', ['visitor', 'caution', 'done', 'moving', 
 if (!builtIn && read('scene.ts') && !/\bfront\s*[(:]/.test(noComments(read('scene.ts')))) notes.push('scene.ts has no front layer: it is still a bare view, not a cabin corner');
 checkCanvas('charm.ts', 'defineCharm', ['boarding', 'moving'], 380, false);
 checkCanvas('backdrop.ts', 'defineBackdrop', ['moving'], 260, false);
+checkCanvas('ornaments.ts', 'defineOrnaments', ['panel', 'card', 'sign', 'vertical', 'horizontal', 'emblem', 'mark', 'rule', 'tail', 'spot'], 700, false);
 checkIndex(colours);
-for (const name of ['index.ts', 'tokens.css', 'frame.css', 'scene.ts', 'charm.ts', 'backdrop.ts']) {
+for (const name of ['index.ts', 'tokens.css', 'frame.css', 'scene.ts', 'charm.ts', 'backdrop.ts', 'ornaments.ts']) {
   const src = read(name);
   if (src && /\p{Extended_Pictographic}/u.test(src.replace(/[©®™]/g, ''))) fail(`${name} contains an emoji or pictograph`);
 }

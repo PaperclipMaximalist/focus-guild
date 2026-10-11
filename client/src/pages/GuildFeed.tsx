@@ -989,7 +989,8 @@ export default function GuildFeed() {
 
         {schedule.length > 0 && dayBlocks.length === 0 && (
           <div className="panel px-6 py-10 text-center">
-            <CloudSun size={28} strokeWidth={1.5} className="mx-auto mb-2 text-(--color-muted)" aria-hidden />
+            <div className="line-spot mb-3" aria-hidden />
+            <CloudSun size={28} strokeWidth={1.5} className="spot-fallback mx-auto mb-2 text-(--color-muted)" aria-hidden />
             <p className="font-semibold">Nothing planned for this day</p>
             <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or reroute from the menu.</p>
           </div>

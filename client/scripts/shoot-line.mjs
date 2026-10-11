@@ -69,6 +69,8 @@ const SCENE = [
   ['charm-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.line-charm' }],
   ['charm-idle-2x', '/', 'scene=away&done=0&caution=1&progress=0', 1280, 900, { clip: '.line-charm' }],
   ['charm-short-2x', '/', 'scene=stopped&done=9&caution=0&progress=0.9', 1280, 700, { clip: '.line-charm' }],
+  // Every small drawn piece on one sheet, at twice its size.
+  ['kit-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 1080, { kit: true }],
 ];
 const PAGES = [
   ['today-1280', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 1300],
@@ -93,6 +95,33 @@ if (!recording) {
   fixtures = JSON.parse(readFileSync(FIXTURES, 'utf8'));
 }
 const recorded = {};
+
+/**
+ * Lays the line's ornaments out over the page, built from the app's own
+ * classes so the frames, marks and trims are the real ones.
+ */
+const KIT = `(() => {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--color-bg);color:var(--color-text);overflow:hidden';
+  const strip = (dir) => dir === 'v'
+    ? '<div style="width:var(--edge-vertical-w);height:150px;background:var(--edge-vertical) top / var(--edge-vertical-w) var(--edge-vertical-h) repeat-y"></div>'
+    : '<div style="height:var(--edge-horizontal-h);width:260px;background:var(--edge-horizontal) left / var(--edge-horizontal-w) var(--edge-horizontal-h) repeat-x"></div>';
+  box.innerHTML = '<div style="zoom:2;padding:14px;display:grid;gap:18px;grid-template-columns:292px 300px;align-items:start">'
+    + '<div>'
+    + '<div style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:15px"><span class="line-emblem"></span>Focus Guild</div>'
+    + '<h1 class="page-title" style="margin-top:12px">Quests</h1>'
+    + '<p class="section-label" style="margin-top:14px">Top quests</p>'
+    + '<div class="panel" style="margin-top:8px;padding:12px 14px;font-size:13px">A notice row, 44 px tall</div>'
+    + '<div class="panel next-card" style="margin-top:10px;padding:16px"><p class="section-label" style="color:var(--color-primary)">Now boarding</p><p style="font-weight:700;margin-top:6px">Draft the methods section</p><button class="btn-primary" style="margin-top:12px">Start</button></div>'
+    + '<div class="board-sign" style="margin-top:12px"><h1 style="flex:1">Today</h1><span class="tnum" style="font-weight:700;font-size:19px">7:40 PM</span></div>'
+    + '<div class="panel rows" style="border-top-left-radius:0;border-top-right-radius:0"><div style="padding:10px 14px;font-size:13px">First row</div><div style="padding:10px 14px;font-size:13px">Second row</div></div>'
+    + '</div>'
+    + '<div>'
+    + '<div class="panel" style="padding:16px;text-align:center"><div class="line-spot"></div><p style="font-weight:600;margin-top:8px;font-size:13px">No active quests</p></div>'
+    + '<div style="display:flex;gap:16px;align-items:flex-start;margin-top:14px">' + strip('v') + '<div style="display:grid;gap:14px">' + strip('h') + '<div class="page" style="padding:0;max-width:260px;margin:0"></div></div></div>'
+    + '</div></div>';
+  document.body.appendChild(box);
+})()`;
 
 const outDir = resolve(here, '../../design/lines/shots', id);
 mkdirSync(outDir, { recursive: true });
@@ -221,7 +250,7 @@ try {
   }
 
   for (const [name, path, query, w, h, extra = {}] of shots) {
-    const { scrollTo, clip } = extra;
+    const { scrollTo, clip, kit } = extra;
     const url = `${BASE}${path}?line=${id}${query ? `&${query}` : ''}`;
     try {
       const phone = w < 600;
@@ -238,6 +267,7 @@ try {
         ).catch(() => false);
       }
       await evaluate('document.fonts.ready.then(() => true)').catch(() => {});
+      if (kit) await evaluate(KIT).catch(() => {});
       if (scrollTo) await evaluate(`document.querySelector(${JSON.stringify(scrollTo)})?.scrollIntoView({ block: 'center' })`).catch(() => {});
       await sleep(recording ? 6000 : 1500);
       const applied = await evaluate('document.documentElement.dataset.line');

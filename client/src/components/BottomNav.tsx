@@ -169,12 +169,13 @@ function Sidebar({
     >
       <Link to="/" className="mb-4 flex items-center gap-2 px-2.5 text-[15px] font-bold tracking-tight">
         <span
-          className="grid h-6 w-6 place-items-center rounded-md"
+          className="brand-mark grid h-6 w-6 place-items-center rounded-md"
           style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           aria-hidden
         >
           <ListChecks size={15} strokeWidth={2.5} />
         </span>
+        <span className="line-emblem" aria-hidden />
         Focus Guild
       </Link>
 
