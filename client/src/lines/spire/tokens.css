@@ -1,0 +1,29 @@
+/* The Spire Guild: green mist and black iron, parchment text, one ember-gold accent. */
+:root[data-line="spire"] {
+  --color-bg: #07110E;
+  --color-surface: #11261F;
+  --color-surface2: #1B3A2F;
+  --color-border: #214537;
+  --color-border-strong: #4A8A70;
+  --color-text: #F1EAD6;
+  --color-muted: #9DBFAE;
+  --color-primary: #F5B63C;
+  --color-primary-d: #D4962A;
+  --color-on-primary: #1B1203;
+  --color-rank: #9DBFAE;
+  --color-green: #6FE0A8;
+  --color-gold: #F58A3C;
+  --color-gold-d: #D06E24;
+  --color-fire: #F2645A;
+  --color-teal: #5FD4C4;
+  --color-blue: #8DB6F0;
+  --radius-card: 2px;
+  --radius-sm: 1px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+  --radius-2xl: 4px;
+  --radius-3xl: 6px;
+  --font-display: 'Cinzel', 'Saira Condensed', Georgia, serif;
+  --font-mono: 'Cinzel', 'B612 Mono', ui-monospace, monospace;
+}

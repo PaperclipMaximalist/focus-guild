@@ -1,0 +1,29 @@
+/* The Star Guild: indigo moulded panels in a violet nebula, starlight text, one rose accent that runs to peach. */
+:root[data-line="star"] {
+  --color-bg: #0A0820;
+  --color-surface: #1C1850;
+  --color-surface2: #2A2470;
+  --color-border: #352E80;
+  --color-border-strong: #7268D0;
+  --color-text: #F1ECFF;
+  --color-muted: #ABA4E0;
+  --color-primary: #FF85B8;
+  --color-primary-d: #E0689A;
+  --color-on-primary: #2A0618;
+  --color-rank: #ABA4E0;
+  --color-green: #5EE6A8;
+  --color-gold: #FFA24D;
+  --color-gold-d: #D97F2B;
+  --color-fire: #FF7566;
+  --color-teal: #57D9C7;
+  --color-blue: #7DB4FF;
+  --radius-card: 10px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
+  --radius-3xl: 18px;
+  --font-display: 'Oxanium', 'Saira Condensed', 'Segoe UI', sans-serif;
+  --font-mono: 'Oxanium', 'B612 Mono', ui-monospace, monospace;
+}

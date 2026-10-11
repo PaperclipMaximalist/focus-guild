@@ -224,6 +224,13 @@ export interface Line {
   swatch: [string, string, string];
   /** Position in the picker. */
   order: number;
+  /**
+   * How the line is drawn. 'flat' (the default) is stepped flat colour and
+   * stipple, like a printed comic. 'painted' is smooth: gradients, soft light
+   * and glow are allowed, and the line may bring its own display typeface
+   * (--font-display and --font-mono in tokens.css). The guild themes are painted.
+   */
+  finish?: 'flat' | 'painted';
   scene: Scene;
   textures?: Textures;
   wall?: Wall;

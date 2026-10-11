@@ -32,6 +32,10 @@ The first version of this contract kept everything dim and put all of a line's c
 
 The cabins and the ornament kits still got: "they all still look kinda the same. I don't want a random image to fill space, I want texture and pattern … small animations as well." Flat near-black boxes in five tints were the cause. So every surface is now made of a material (`texture.ts`), the colours have a real hue, the sidebar object and the page tailpiece are gone, the backdrop is bold, and small pieces move. All of that is in `TEXTURE.md`, which wins wherever it disagrees with this file.
 
+## Painted lines
+
+A line whose `index.ts` says `finish: 'painted'` is drawn smooth instead of flat: rule 3 below does not apply to it. It may use canvas gradients and `shadowBlur`, blurred `box-shadow`, `text-shadow` and `filter` in `frame.css`, and may set `--font-display` and `--font-mono` in `tokens.css` (add the face to the Google Fonts link in `client/index.html`). Its canvas files may import from its own folder as well as `../types`. Everything else holds. The Spire Guild and the Star Guild are the examples: read `client/src/lines/spire/` before writing one.
+
 ## Rules that hold on every line
 
 1. **Dark only.** The app's surfaces are dark on every line. Only the view through the window is bright.

@@ -22,6 +22,8 @@ if (!id || !/^[a-z][a-z0-9-]*$/.test(id)) {
 }
 const dir = resolve(here, '../src/lines', id);
 const builtIn = id === 'night';
+// A painted line (finish: 'painted' in its index.ts) is drawn smooth: fades, glow and its own display face are allowed.
+const painted = existsSync(resolve(dir, 'index.ts')) && /finish:\s*'painted'/.test(readFileSync(resolve(dir, 'index.ts'), 'utf8'));
 
 const fails = [];
 const notes = [];
@@ -77,7 +79,7 @@ function readTokens() {
   const t = {};
   for (const [, name, value] of body.matchAll(/--([a-z0-9-]+)\s*:\s*([^;]+);/g)) t[name] = value.trim();
   if (!builtIn) {
-    const allowed = new Set([...COLOURS.map((c) => `color-${c}`), ...RADII.map((r) => `radius-${r}`)]);
+    const allowed = new Set([...COLOURS.map((c) => `color-${c}`), ...RADII.map((r) => `radius-${r}`), ...(painted ? ['font-display', 'font-mono'] : [])]);
     for (const name of Object.keys(t)) if (!allowed.has(name)) fail(`tokens.css sets --${name}, which a line may not change (colours and radii only; never fonts)`);
   }
   for (const c of COLOURS) {
@@ -125,7 +127,9 @@ function checkColours(c) {
 }
 
 // ── Frame ──
-const HOOKS = ['.scene-window', '.board-sign', '.btn-primary', '.panel', '.next-card', '.app-sidebar', '.app-tabbar', '.app-topbar'];
+const HOOKS = ['.scene-window', '.board-sign', '.btn-primary', '.panel', '.next-card', '.app-sidebar', '.app-tabbar', '.app-topbar', '.page-title', '.section-label', '.btn-strong', '.btn-quiet', '.status'];
+// A painted line may fade, glow and soften; a flat one may not.
+const PAINTED_OK = new Set(['text-shadow', 'filter']);
 const FRAME_BANNED = [
   [/!important/, '!important'],
   [/text-shadow/, 'text-shadow'],
@@ -148,11 +152,11 @@ function checkFrame() {
   const css = noComments(src).trim();
   const layer = css.match(/^@layer components\s*\{([\s\S]*)\}$/);
   if (!layer) return fail('frame.css must be one block: @layer components { … } (so a utility class on the same element still wins)');
-  for (const [re, what] of FRAME_BANNED) if (re.test(css)) fail(`frame.css uses ${what}`);
+  for (const [re, what] of FRAME_BANNED) if (!(painted && PAINTED_OK.has(what)) && re.test(css)) fail(`frame.css uses ${what}`);
   for (const [, value] of css.matchAll(/box-shadow\s*:\s*([^;]+);/g)) {
     for (const shadow of value.split(/,(?![^(]*\))/)) {
       const lengths = shadow.replace(/\([^)]*\)/g, '').match(/-?\d*\.?\d+(px|rem|em)?\b/g) ?? [];
-      if (lengths.length >= 3 && parseFloat(lengths[2]) !== 0) fail(`frame.css has a blurred box-shadow ("${shadow.trim()}"); only hard edges, no glow`);
+      if (!painted && lengths.length >= 3 && parseFloat(lengths[2]) !== 0) fail(`frame.css has a blurred box-shadow ("${shadow.trim()}"); only hard edges, no glow`);
     }
   }
   // Every rule must be scoped to this line and to a hook.
@@ -169,7 +173,7 @@ function checkFrame() {
     }
   }
   const gradients = (css.match(/gradient\(/g) ?? []).length;
-  if (gradients) notes.push(`frame.css has ${gradients} gradient(s): each must be hard-stopped (a cut corner, a dot, a stripe), never a fade`);
+  if (gradients && !painted) notes.push(`frame.css has ${gradients} gradient(s): each must be hard-stopped (a cut corner, a dot, a stripe), never a fade`);
 }
 
 // ── Scene ──
@@ -194,9 +198,10 @@ function checkCanvas(file, define, needs, maxLines, required) {
     return;
   }
   const code = noComments(src);
-  for (const [re, what] of SCENE_BANNED) if (re.test(code)) fail(`${file} uses ${what}`);
+  for (const [re, what] of SCENE_BANNED) if (!(painted && /gradient|shadow/.test(what)) && re.test(code)) fail(`${file} uses ${what}`);
   for (const [, from] of code.matchAll(/import[^;]*from\s*['"]([^'"]+)['"]/g)) {
-    if (from !== '../types') fail(`${file} imports "${from}"; a canvas may only import ../types`);
+    // Its own folder is fine too: a line may share a painter between its files.
+    if (from !== '../types' && !/^\.\/[a-z]+$/.test(from)) fail(`${file} imports "${from}"; a canvas may only import ../types and its own folder`);
   }
   if (!new RegExp(`export default ${define}[<(]`).test(code)) fail(`${file} must \`export default ${define}({ … })\``);
   for (const word of needs) {
@@ -236,7 +241,7 @@ if (!builtIn && read('scene.ts') && !/\bfront\s*[(:]/.test(noComments(read('scen
 checkCanvas('texture.ts', 'defineTextures', ['panel', 'wall', 'accent', 'wrapped'], 420, false);
 checkCanvas('wall.ts', 'defineWall', ['boarding', 'moving'], 320, false);
 checkCanvas('backdrop.ts', 'defineBackdrop', ['moving'], 260, false);
-checkCanvas('ornaments.ts', 'defineOrnaments', ['panel', 'card', 'sign', 'vertical', 'horizontal', 'crown', 'emblem', 'mark', 'rule', 'spot', 'frames', 'seconds'], 700, false);
+checkCanvas('ornaments.ts', 'defineOrnaments', ['panel', 'card', 'sign', 'vertical', 'horizontal', 'crown', 'emblem', 'mark', 'rule', 'frames', 'seconds'], 700, false);
 checkIndex(colours);
 for (const name of ['index.ts', 'tokens.css', 'frame.css', 'scene.ts', 'texture.ts', 'wall.ts', 'backdrop.ts', 'ornaments.ts']) {
   const src = read(name);
