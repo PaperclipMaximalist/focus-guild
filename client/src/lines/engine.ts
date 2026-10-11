@@ -1,5 +1,5 @@
 /**
- * Runs one line canvas: the window, the charm or the backdrop.
+ * Runs one line canvas: the window, the sidebar's wall or the backdrop.
  *
  * It owns everything a line should not have to think about: the screen's
  * pixel ratio, the two still layers (painted once and kept), a capped frame

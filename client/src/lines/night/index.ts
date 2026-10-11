@@ -8,7 +8,6 @@
 
 import './frame.css';
 import scene from './scene';
-import charm from './charm';
 import backdrop from './backdrop';
 import ornaments from './ornaments';
 import type { Line } from '../types';
@@ -18,10 +17,9 @@ const line: Line = {
   name: 'Night Line',
   journey: 'A waiting room on a maglev platform in the rain, at the blue hour, somewhere that isn\'t here.',
   windowHint: 'A train waits while a block is boarding and leaves when you finish a quest.',
-  swatch: ['#06081A', '#0C1027', '#FFD23A'],
+  swatch: ['#06081A', '#131A3D', '#FFD23A'],
   order: 0,
   scene,
-  charm,
   backdrop,
   ornaments,
 };

@@ -609,5 +609,5 @@ export default defineOrnaments({
     sign: { slice: 10, edge: 16, paint: sign },
   },
   edges: { vertical, horizontal },
-  sprites: { emblem, mark, rule, tail, spot },
+  sprites: { emblem, mark, rule, spot },
 });

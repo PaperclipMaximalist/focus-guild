@@ -233,11 +233,12 @@ if (colours) checkColours(colours);
 if (!builtIn || read('frame.css') !== null) checkFrame();
 checkCanvas('scene.ts', 'defineScene', ['visitor', 'caution', 'done', 'moving', 'wide'], 1250, true);
 if (!builtIn && read('scene.ts') && !/\bfront\s*[(:]/.test(noComments(read('scene.ts')))) notes.push('scene.ts has no front layer: it is still a bare view, not a cabin corner');
-checkCanvas('charm.ts', 'defineCharm', ['boarding', 'moving'], 380, false);
+checkCanvas('texture.ts', 'defineTextures', ['panel', 'wall', 'accent', 'wrapped'], 420, false);
+checkCanvas('wall.ts', 'defineWall', ['boarding', 'moving'], 320, false);
 checkCanvas('backdrop.ts', 'defineBackdrop', ['moving'], 260, false);
-checkCanvas('ornaments.ts', 'defineOrnaments', ['panel', 'card', 'sign', 'vertical', 'horizontal', 'emblem', 'mark', 'rule', 'tail', 'spot'], 700, false);
+checkCanvas('ornaments.ts', 'defineOrnaments', ['panel', 'card', 'sign', 'vertical', 'horizontal', 'crown', 'emblem', 'mark', 'rule', 'spot', 'frames', 'seconds'], 700, false);
 checkIndex(colours);
-for (const name of ['index.ts', 'tokens.css', 'frame.css', 'scene.ts', 'charm.ts', 'backdrop.ts', 'ornaments.ts']) {
+for (const name of ['index.ts', 'tokens.css', 'frame.css', 'scene.ts', 'texture.ts', 'wall.ts', 'backdrop.ts', 'ornaments.ts']) {
   const src = read(name);
   if (src && /\p{Extended_Pictographic}/u.test(src.replace(/[©®™]/g, ''))) fail(`${name} contains an emoji or pictograph`);
 }

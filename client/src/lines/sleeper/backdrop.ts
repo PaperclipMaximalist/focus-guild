@@ -1,71 +1,78 @@
 /**
- * The Timber Line's backdrop: the room's own wood behind the whole app. Long,
- * broken, uneven grain lines run across the page two shades above the ground,
- * with a knot here and there and a fine stipple over them. About twelve autumn
- * leaves, dim amber and rust, drift down and sideways, slowly, each turning as
- * it falls (never more than 30 % opaque, never faster than 10 px a second).
+ * The Timber Line's backdrop: the cabin's log wall behind the whole app.
+ * Round logs lie one on another across the page, each about 46 px thick: a lit
+ * band along the top of its curve, the brown of its side, a shaded belly, and
+ * a line of dark chinking where it meets the next. Grain runs along each log
+ * in short broken strokes, with a knot every so often and a stipple in the
+ * shade. About twelve autumn leaves, dim amber and rust, drift down and
+ * sideways, slowly, each turning as it falls (never more than 30 % opaque,
+ * never faster than 10 px a second).
  *
  * State: nothing changes with the day. On a phone, and for reduced motion, the
- * wood is painted once and the leaves hold still where they are. Flat colour
- * only; it stays within two shades of the ground so it is never mistaken for
- * part of the interface.
+ * wall is painted once and the leaves hold still where they are. Flat colour
+ * only, and every tone darker than the boards that sit on it.
  */
 
 import { defineBackdrop } from '../types';
 
-const GRAIN = ['#18110D', '#1D150F', '#130D0A'];
+const CHINK = '#090504', BELLY = '#130B07', SIDE = '#1C110A', LIT = '#26180E', RIM = '#2E1D11';
+const GRAIN_DK = '#150C07', GRAIN_LT = '#2A1B10';
 const LEAVES = ['#8A5A22', '#7A3A1A', '#9A6A2A'];
+const LOG = 46;
 
 interface Leaf { x: number; y: number; vy: number; vx: number; ph: number; turn: number; s: number; c: number }
 
 export default defineBackdrop<Leaf[]>({
   back({ ctx: c, w, h, rnd }) {
-    // Grain: long wavering lines, broken into uneven runs.
-    GRAIN.forEach((col, ci) => {
-      c.strokeStyle = col;
-      c.lineWidth = ci === 1 ? 1.4 : 1;
-      c.beginPath();
-      for (let y = 3 + ci * 2; y < h; y += 6 + rnd() * 5) {
-        let x = -rnd() * 200;
+    for (let y = -6; y < h; y += LOG) {
+      // One log, top to bottom: rim, lit band, side, belly, chinking.
+      c.fillStyle = SIDE;
+      c.fillRect(0, y, w, LOG);
+      c.fillStyle = RIM;
+      c.fillRect(0, y + 3, w, 2);
+      c.fillStyle = LIT;
+      c.fillRect(0, y + 5, w, 9);
+      c.fillStyle = BELLY;
+      c.fillRect(0, y + LOG - 13, w, 10);
+      c.fillStyle = CHINK;
+      c.fillRect(0, y + LOG - 3, w, 3 + 3);
+      c.fillStyle = BELLY;
+      c.fillRect(0, y, w, 3);
+
+      // Grain: short broken strokes along the log.
+      for (let i = 0; i < 5; i += 1) {
+        const gy = y + 8 + i * 6;
+        c.fillStyle = i < 2 ? GRAIN_LT : GRAIN_DK;
+        let x = -rnd() * 120;
         while (x < w) {
-          const len = 30 + rnd() * 260;
-          if (rnd() < 0.72) {
-            const yy = Math.floor(y + (rnd() - 0.5) * 2) + 0.5;
-            c.moveTo(x, yy);
-            c.quadraticCurveTo(x + len / 2, yy + (rnd() - 0.5) * 3, x + len, yy + (rnd() - 0.5) * 2);
-          }
-          x += len + 10 + rnd() * 120;
+          const len = 24 + rnd() * 150;
+          if (rnd() < 0.6) c.fillRect(Math.floor(x), gy + Math.floor(rnd() * 3), Math.floor(len), 1);
+          x += len + 20 + rnd() * 110;
         }
       }
-      c.stroke();
-    });
-    // A plank seam every so often, a little darker than the ground.
-    c.fillStyle = '#0B0807';
-    for (let y = 70 + rnd() * 30; y < h; y += 96 + rnd() * 60) c.fillRect(0, Math.floor(y), w, 2);
-    // Knots: rings of grain bending round a dark eye.
-    const knots = Math.max(3, Math.round((w * h) / 120000));
-    for (let i = 0; i < knots; i += 1) {
-      const kx = rnd() * w, ky = rnd() * h, r = 7 + rnd() * 9;
-      for (let ring = 3; ring >= 0; ring -= 1) {
-        c.strokeStyle = ring % 2 ? '#1D150F' : '#18110D';
-        c.lineWidth = 1.2;
+      // The stepped edge between the lit band and the side: a row of dashes.
+      c.fillStyle = LIT;
+      for (let x = rnd() * 9; x < w; x += 7 + rnd() * 9) c.fillRect(Math.floor(x), y + 14, 3 + Math.floor(rnd() * 4), 1);
+      // Stipple in the belly.
+      c.fillStyle = CHINK;
+      for (let i = 0; i < w / 7; i += 1) c.fillRect(Math.floor(rnd() * w), y + LOG - 14 + Math.floor(rnd() * 10), 1, 1);
+      // A knot or two: rings round a dark eye.
+      for (let k = 0; k < w / 900; k += 1) {
+        if (rnd() < 0.45) continue;
+        const kx = rnd() * w, ky = y + 17 + rnd() * 10, r = 4 + rnd() * 4;
+        c.lineWidth = 1;
+        for (let ring = 2; ring >= 1; ring -= 1) {
+          c.strokeStyle = ring === 2 ? GRAIN_DK : GRAIN_LT;
+          c.beginPath();
+          c.ellipse(kx, ky, (r + ring * 3.5) * 1.7, r * 0.5 + ring * 2, 0, 0, Math.PI * 2);
+          c.stroke();
+        }
+        c.fillStyle = CHINK;
         c.beginPath();
-        c.ellipse(kx, ky, (r + ring * 5) * 1.8, r * 0.55 + ring * 2.6, 0, 0, Math.PI * 2);
-        c.stroke();
+        c.ellipse(kx, ky, r, r * 0.45, 0, 0, Math.PI * 2);
+        c.fill();
       }
-      c.fillStyle = '#0D0907';
-      c.beginPath();
-      c.ellipse(kx, ky, r * 0.9, r * 0.38, 0, 0, Math.PI * 2);
-      c.fill();
     }
-    // Fine stipple over everything.
-    const n = Math.min(14000, Math.round((w * h) / 140));
-    ['#1C140F', '#0C0806', '#21180F'].forEach((col) => {
-      c.fillStyle = col;
-      c.beginPath();
-      for (let i = 0; i < n / 3; i += 1) c.rect(Math.floor(rnd() * w), Math.floor(rnd() * h), 1, 1);
-      c.fill();
-    });
   },
 
   layout(w, h, rnd) {

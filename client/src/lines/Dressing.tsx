@@ -1,8 +1,8 @@
 /**
  * The two pieces of a line that are on every page, not only Today:
  *
- *   <Charm />     the line's one signature object, in the sidebar's spare room
- *   <Backdrop />  texture, and a few slow specks, behind the whole app
+ *   <Wall />      whatever is alive on the sidebar: rain, bubbles, lights
+ *   <Backdrop />  the room behind the whole app, and a few slow specks
  *
  * Both follow the same switch as the window (Settings → Experience →
  * Scenery) and hold still for reduced motion. The backdrop only moves on a
@@ -39,17 +39,17 @@ function useLayers(layers: AnyLayers | undefined, opts: { fps?: number; maxDpr?:
   return ref;
 }
 
-/** Fills whatever room its parent gives it. With no charm, or scenery off, it is only that room. */
-export function Charm({ className = '' }: { className?: string }) {
+/**
+ * Covers the sidebar, over its material and under everything written on it.
+ * The sidebar's own stacking context keeps it there.
+ */
+export function Wall() {
   const line = useLine();
   const on = useScenery();
-  const layers = on ? line.charm : undefined;
-  const ref = useLayers(layers, {});
-  return (
-    <div className={`line-charm relative ${className}`} aria-hidden>
-      {layers && <canvas ref={ref} className="absolute inset-0 h-full w-full" />}
-    </div>
-  );
+  const layers = on ? line.wall : undefined;
+  const ref = useLayers(layers, { fps: 24, maxDpr: 2 });
+  if (!layers) return null;
+  return <canvas ref={ref} className="line-wall pointer-events-none absolute inset-0 -z-10 h-full w-full" aria-hidden />;
 }
 
 const backdropStill = () => !window.matchMedia('(min-width: 1024px) and (pointer: fine)').matches;

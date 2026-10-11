@@ -678,5 +678,5 @@ const spot = {
 export default defineOrnaments({
   frames: { panel, card, sign },
   edges: { vertical, horizontal },
-  sprites: { emblem, mark, rule, tail, spot },
+  sprites: { emblem, mark, rule, spot },
 });

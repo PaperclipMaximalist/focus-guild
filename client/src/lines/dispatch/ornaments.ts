@@ -683,5 +683,5 @@ export default defineOrnaments({
     sign,
   },
   edges: { vertical, horizontal },
-  sprites: { emblem, mark, rule, tail, spot },
+  sprites: { emblem, mark, rule, spot },
 });

@@ -15,7 +15,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useUserStore } from '../store/useUserStore';
 import { api } from '../lib/api';
-import { Charm } from '../lines/Dressing';
+import { Wall } from '../lines/Dressing';
 import { reportOverdue } from '../lines/live';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
 import {
@@ -167,6 +167,7 @@ function Sidebar({
       aria-label="Main"
       className="app-sidebar fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-(--color-border) bg-(--color-surface) px-3 py-4 lg:flex"
     >
+      <Wall />
       <Link to="/" className="mb-4 flex items-center gap-2 px-2.5 text-[15px] font-bold tracking-tight">
         <span
           className="brand-mark grid h-6 w-6 place-items-center rounded-md"
@@ -191,8 +192,7 @@ function Sidebar({
         {SECONDARY.map((i) => row(i, i.to === '/rescue' ? overdue : undefined))}
       </nav>
 
-      {/* The line's signature object takes whatever height is left over. */}
-      <Charm className="mt-3 min-h-0 flex-1" />
+      <div className="min-h-0 flex-1" />
 
       {/* Rank, and room underneath for the duck (see MascotDock). */}
       {level && progress && (

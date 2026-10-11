@@ -6,7 +6,6 @@
 import './tokens.css';
 import './frame.css';
 import scene from './scene';
-import charm from './charm';
 import backdrop from './backdrop';
 import ornaments from './ornaments';
 import type { Line } from '../types';
@@ -19,7 +18,6 @@ const line: Line = {
   swatch: ['#06110E', '#0C1B16', '#C8F560'],
   order: 2,
   scene,
-  charm,
   backdrop,
   ornaments,
 };

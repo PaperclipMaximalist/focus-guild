@@ -12,11 +12,13 @@
  *                     nail head at each corner and a length of chain at the top two
  *   edges.vertical    a log wall's end grain: log ends with two rings and a crack
  *   edges.horizontal  a garland of fairy lights: swags of wire, a warm bulb at
- *                     each low point and a smaller one either side
+ *                     each low point and a smaller one either side. It twinkles:
+ *                     the small bulbs rest in turn
+ *   edges.crown       the same garland, hung along the top of the loud card
  *   sprites.emblem    an acorn
- *   sprites.mark      a birch leaf in autumn orange
- *   sprites.rule      a twig with three small leaves and a bud
- *   sprites.tail      the sparrow on a branch, two acorns and a few leaves
+ *   sprites.mark      a birch leaf in autumn orange, turning on its stalk now and then
+ *   sprites.rule      a twig with three small leaves and a bud; a breath of wind
+ *                     lifts each leaf in turn
  *   sprites.spot      a steaming mug beside the oil lantern and a closed book,
  *                     on a plank
  */
@@ -340,34 +342,34 @@ const vertical = {
   },
 };
 
-const horizontal = {
-  w: 64,
-  h: 12,
-  paint: (p: Paint) => {
-    const wireY = (x: number) => 0.75 + 4 * (1 - Math.pow((x - 32) / 32, 2));
-    for (let x = 0; x < 64; x += 0.5) {
-      const y = q(wireY(x + 0.25));
-      R(p, W3, x, y, 0.5, 1);
-      R(p, W1, x, y + 1, 0.5, 0.5);
-    }
-    for (const hx of [0, 64]) {
-      R(p, BRASS_LO, hx - 1.5, 0, 3, 2);
-      R(p, BRASS_HI, hx - 1.5, 0, 3, 0.5);
-    }
-    const bulb = (x: number, big: boolean) => {
-      const y = wireY(x) + 0.5;
-      const r = big ? 2.7 : 1.8;
-      R(p, '#1A110C', x - 0.75, y, 1.5, big ? 1.8 : 1.3);
-      const cy = y + (big ? 1.8 : 1.3) + r - 0.3;
-      disc(p, '#7A5A30', x, cy, r + 0.7);
-      disc(p, BULB, x, cy, r);
-      disc(p, BULB_HI, x - r * 0.25, cy - r * 0.25, r * 0.45);
-    };
-    bulb(32, true);
-    bulb(16, false);
-    bulb(48, false);
-  },
+/** Three bulbs to a swag. In frames 1 and 3 one of the small ones rests. */
+const garland = (p: Paint, frame: number) => {
+  const wireY = (x: number) => 0.75 + 4 * (1 - Math.pow((x - 32) / 32, 2));
+  for (let x = 0; x < 64; x += 0.5) {
+    const y = q(wireY(x + 0.25));
+    R(p, W3, x, y, 0.5, 1);
+    R(p, W1, x, y + 1, 0.5, 0.5);
+  }
+  for (const hx of [0, 64]) {
+    R(p, BRASS_LO, hx - 1.5, 0, 3, 2);
+    R(p, BRASS_HI, hx - 1.5, 0, 3, 0.5);
+  }
+  const bulb = (x: number, big: boolean, lit: boolean) => {
+    const y = wireY(x) + 0.5;
+    const r = big ? 2.7 : 1.8;
+    R(p, '#1A110C', x - 0.75, y, 1.5, big ? 1.8 : 1.3);
+    const cy = y + (big ? 1.8 : 1.3) + r - 0.3;
+    disc(p, lit ? '#7A5A30' : '#3A281C', x, cy, r + 0.7);
+    disc(p, lit ? BULB : '#8A6A3A', x, cy, r);
+    if (lit) disc(p, BULB_HI, x - r * 0.25, cy - r * 0.25, r * 0.45);
+  };
+  bulb(32, true, true);
+  bulb(16, false, frame !== 1);
+  bulb(48, false, frame !== 3);
 };
+
+const horizontal = { w: 64, h: 12, frames: 4, seconds: 3.2, paint: garland };
+const crown = { w: 64, h: 12, frames: 4, seconds: 3.2, paint: garland };
 
 // ── sprites ──
 
@@ -381,21 +383,25 @@ const emblem = {
   },
 };
 
+/** The leaf turns on its stalk and back, then hangs still for a while. */
+const SWAY = [0, 0, 0, 0, 0.1, 0.2, 0.1, 0, -0.1, 0];
 const mark = {
   w: 14,
   h: 14,
-  paint: (p: Paint) => {
-    leaf(p, 2.8, 11.2, -Math.PI / 4, 12.6, 4.4, LEAF_HI, LEAF_LO, LEAF_DK, 6);
+  frames: SWAY.length,
+  seconds: 4,
+  paint: (p: Paint, frame: number) => {
+    leaf(p, 2.8, 11.2, -Math.PI / 4 + SWAY[frame]!, 12.6, 4.4, LEAF_HI, LEAF_LO, LEAF_DK, 6);
     line(p, W3, 0.5, 13.5, 3, 11, 1);
-    R(p, '#FFB648', 6.5, 5.5, 1, 0.5);
-    R(p, '#FFB648', 5.5, 6.5, 0.5, 1);
   },
 };
 
 const rule = {
   w: 140,
   h: 14,
-  paint: (p: Paint) => {
+  frames: 10,
+  seconds: 5,
+  paint: (p: Paint, frame: number) => {
     const ty = (x: number) => 8 + Math.sin(x / 19) * 1.1;
     for (let x = 4; x < 128; x += 0.5) {
       const y = q(ty(x));
@@ -406,72 +412,17 @@ const rule = {
     for (const gx of [14, 44, 80, 112]) R(p, W1, gx, ty(gx) + 0.5, 4, 0.5);
     ell(p, W3, 4, 8.3, 1.4, 2.2);
     ell(p, W2, 4, 8.3, 0.7, 1.3);
-    leaf(p, 28, ty(28) - 0.5, -0.95, 11, 3.6, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    leaf(p, 64, ty(64) + 1, 0.95, 9, 3.2, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    leaf(p, 100, ty(100) - 0.5, -0.8, 11, 3.6, LEAF_HI, LEAF_LO, LEAF_DK, 5);
+    // A breath of wind goes along the twig: each leaf lifts in turn.
+    const lift = (at: number) => (frame === at ? 0.22 : frame === at + 1 ? 0.1 : 0);
+    leaf(p, 28, ty(28) - 0.5, -0.95 - lift(1), 11, 3.6, LEAF_HI, LEAF_LO, LEAF_DK, 5);
+    leaf(p, 64, ty(64) + 1, 0.95 + lift(2), 9, 3.2, LEAF_HI, LEAF_LO, LEAF_DK, 5);
+    leaf(p, 100, ty(100) - 0.5, -0.8 - lift(3), 11, 3.6, LEAF_HI, LEAF_LO, LEAF_DK, 5);
     // The bud at the tip.
     line(p, W2, 126, ty(126) + 0.5, 131, ty(131) - 1, 1.5);
     ell(p, W3, 134.5, ty(134) - 1.6, 4, 2.2);
     ell(p, LEAF_LO, 136, ty(136) - 1.7, 2.6, 1.7);
     ell(p, LEAF_HI, 136.5, ty(136) - 2.1, 1.3, 0.8);
     R(p, W1, 131, ty(131) - 0.5, 2, 0.5);
-  },
-};
-
-const tail = {
-  w: 150,
-  h: 56,
-  paint: (p: Paint) => {
-    const by = (x: number) => 42 + Math.sin(x / 31) * 1.8 - x * 0.012;
-    // The branch, thicker at the cut end and thinning to the right.
-    for (let x = 3; x < 148; x += 0.5) {
-      const t = 5.5 - ((x - 3) / 145) * 3;
-      const y = by(x);
-      R(p, W2, x, q(y - t / 2), 0.5, q(t));
-      R(p, W3, x, q(y - t / 2), 0.5, 1);
-      R(p, W1, x, q(y + t / 2) - 1, 0.5, 1);
-    }
-    for (const gx of [12, 34, 54, 96, 118, 134]) R(p, W1, gx, by(gx) - 0.5, 4, 0.5);
-    ell(p, W3, 3, by(3), 1.4, 2.8);
-    ell(p, W2, 3, by(3), 0.7, 1.7);
-    // A twig, and the leaves on it.
-    line(p, W2, 28, by(28) - 2, 22, 28, 1.5);
-    line(p, W2, 22, 28, 17, 22, 1);
-    leaf(p, 22, 28, -2.3, 10, 3, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    leaf(p, 22, 28, -0.6, 10, 3, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    leaf(p, 17, 22, -2.9, 8, 2.5, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    // The branch's far twig, with a small leaf.
-    line(p, W2, 136, by(136) - 1.5, 142, 31, 1);
-    leaf(p, 142, 31, -1.1, 8, 2.4, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    // Two acorns.
-    acorn(p, 110, by(110) - 1.5, 3.6);
-    acorn(p, 123, by(123) - 1.5, 3);
-    // The sparrow, facing right.
-    const sx = 72;
-    const feet = by(sx) - 2;
-    R(p, W0, sx - 8, feet + 1.5, 24, 1);
-    R(p, '#6A5030', sx - 1, feet - 3, 1, 4);
-    R(p, '#6A5030', sx + 4, feet - 3, 1, 4);
-    poly(p, '#46321F', [sx - 7, feet - 12, sx - 21, feet - 9, sx - 20, feet - 6, sx - 6, feet - 5]);
-    ell(p, '#8A6448', sx, feet - 11, 11, 8);
-    ell(p, CREAM_LO, sx + 4, feet - 8.5, 7, 5);
-    ell(p, '#533A2B', sx - 3, feet - 12, 8, 5);
-    R(p, CREAM_LO, sx - 8, feet - 14.5, 7, 1);
-    R(p, '#8A6448', sx - 5, feet - 9.5, 6, 0.5);
-    ell(p, '#CDBFA8', sx + 9, feet - 19, 6.2, 5.8);
-    ell(p, '#9A4E2C', sx + 8.5, feet - 20.5, 6.2, 5.8, [-1e4, 1e4, -1e4, feet - 21]);
-    ell(p, W1, sx + 12.5, feet - 15.3, 2.3, 1.6);
-    poly(p, '#CBA96B', [sx + 14.5, feet - 20, sx + 19.5, feet - 18.3, sx + 14.5, feet - 16.8]);
-    R(p, '#8A6A3C', sx + 14.5, feet - 17.6, 4.5, 0.5);
-    disc(p, '#0F0B09', sx + 11.2, feet - 19.2, 1.2);
-    R(p, CREAM, sx + 10.7, feet - 19.8, 0.5, 0.5);
-    R(p, W1, sx + 8, feet - 16.5, 3, 0.5);
-    // A leaf drifting down, and one more.
-    leaf(p, 100, 10, 1.2, 8, 2.4, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    leaf(p, 46, 20, 0.2, 7, 2.1, LEAF_HI, LEAF_LO, LEAF_DK, 5);
-    R(p, HONEY, 126, 12, 1, 1);
-    R(p, HONEY, 38, 8, 1, 1);
-    R(p, BULB, 112, 24, 0.5, 0.5);
   },
 };
 
@@ -566,7 +517,7 @@ export default defineOrnaments({
     card: { slice: SC, edge: 24, paint: card },
     sign: { slice: 10, edge: 16, paint: sign },
   },
-  edges: { vertical, horizontal },
-  sprites: { emblem, mark, rule, tail, spot },
+  edges: { vertical, horizontal, crown },
+  sprites: { emblem, mark, rule, spot },
 });
 

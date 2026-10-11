@@ -66,9 +66,9 @@ const SCENE = [
   ['window-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.scene-window' }],
   ['window-away-2x', '/', 'scene=away&done=0&caution=1&progress=0', 1280, 900, { clip: '.scene-window' }],
   ['window-phone-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 375, 812, { clip: '.scene-window' }],
-  ['charm-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.line-charm' }],
-  ['charm-idle-2x', '/', 'scene=away&done=0&caution=1&progress=0', 1280, 900, { clip: '.line-charm' }],
-  ['charm-short-2x', '/', 'scene=stopped&done=9&caution=0&progress=0.9', 1280, 700, { clip: '.line-charm' }],
+  // The sidebar: its material, and whatever is alive on it.
+  ['wall-2x', '/quests', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 900, { clip: '.app-sidebar' }],
+  ['wall-caution-2x', '/quests', 'scene=away&done=0&caution=1&progress=0', 1280, 700, { clip: '.app-sidebar' }],
   // Every small drawn piece on one sheet, at twice its size.
   ['kit-2x', '/', 'scene=stopped&done=4&caution=0&progress=0.5', 1280, 1080, { kit: true }],
 ];
@@ -104,8 +104,13 @@ const KIT = `(() => {
   const box = document.createElement('div');
   box.style.cssText = 'position:fixed;inset:0;z-index:99999;background:var(--color-bg);color:var(--color-text);overflow:hidden';
   const strip = (dir) => dir === 'v'
-    ? '<div style="width:var(--edge-vertical-w);height:150px;background:var(--edge-vertical) top / var(--edge-vertical-w) var(--edge-vertical-h) repeat-y"></div>'
-    : '<div style="height:var(--edge-horizontal-h);width:260px;background:var(--edge-horizontal) left / var(--edge-horizontal-w) var(--edge-horizontal-h) repeat-x"></div>';
+    ? '<div style="width:var(--edge-vertical-w);height:150px;background:var(--edge-vertical) 0 0 / calc(var(--edge-vertical-w) * var(--edge-vertical-n)) var(--edge-vertical-h) repeat-y"></div>'
+    : '<div style="height:var(--edge-horizontal-h);width:260px;background:var(--edge-horizontal) 0 0 / var(--edge-horizontal-w) calc(var(--edge-horizontal-h) * var(--edge-horizontal-n)) repeat-x"></div>';
+  // Every frame of a moving piece, side by side (stacked, for the two that run along an edge).
+  const film = (v, stacked) => stacked
+    ? '<div style="width:var(--' + v + '-w);height:calc(var(--' + v + '-h) * var(--' + v + '-n));background:var(--' + v + ') 0 0 / 100% 100% no-repeat"></div>'
+    : '<div style="height:var(--' + v + '-h);width:min(260px, calc(var(--' + v + '-w) * var(--' + v + '-n)));background:var(--' + v + ') 0 0 / calc(var(--' + v + '-w) * var(--' + v + '-n)) 100% no-repeat"></div>';
+  const swatch = (k) => '<div style="width:86px;height:70px;background:var(--tile-' + k + ') 0 0 / var(--tile-' + k + '-w) var(--tile-' + k + '-h)"></div>';
   box.innerHTML = '<div style="zoom:2;padding:14px;display:grid;gap:18px;grid-template-columns:292px 300px;align-items:start">'
     + '<div>'
     + '<div style="display:flex;gap:8px;align-items:center;font-weight:700;font-size:15px"><span class="line-emblem"></span>Focus Guild</div>'
@@ -118,7 +123,9 @@ const KIT = `(() => {
     + '</div>'
     + '<div>'
     + '<div class="panel" style="padding:16px;text-align:center"><div class="line-spot"></div><p style="font-weight:600;margin-top:8px;font-size:13px">No active quests</p></div>'
-    + '<div style="display:flex;gap:16px;align-items:flex-start;margin-top:14px">' + strip('v') + '<div style="display:grid;gap:14px">' + strip('h') + '<div class="page" style="padding:0;max-width:260px;margin:0"></div></div></div>'
+    + '<div style="display:flex;gap:16px;align-items:flex-start;margin-top:14px">' + strip('v') + '<div style="display:grid;gap:10px">' + strip('h')
+    + film('sprite-mark') + film('sprite-emblem') + film('sprite-rule') + film('edge-horizontal', true) + film('edge-crown', true) + '</div></div>'
+    + '<div style="display:flex;gap:10px;margin-top:14px">' + swatch('panel') + swatch('wall') + '<div class="board-sign" style="width:86px;height:70px"></div></div>'
     + '</div></div>';
   document.body.appendChild(box);
 })()`;

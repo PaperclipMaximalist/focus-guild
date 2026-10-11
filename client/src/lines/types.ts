@@ -5,8 +5,10 @@
  *   tokens.css   the colours (and corner radii), under :root[data-line="<id>"]
  *   frame.css    borders and patterns for the app's surfaces
  *   scene.ts     the cabin corner on Today: a wall, a window, what is outside it
- *   charm.ts     the line's one signature object, in the sidebar on every page
- *   backdrop.ts  texture and a few drifting specks behind the whole app
+ *   texture.ts   what its surfaces are made of: a tile for panels, one for the
+ *                sidebar and the phone's bars, a pattern for the accent
+ *   wall.ts      whatever is alive on the sidebar: rain, bubbles, lights
+ *   backdrop.ts  the room behind the whole app, and a few drifting specks
  *   ornaments.ts the small drawn things: frames, trims, an emblem, marks, flourishes
  *
  * Each line is a folder in src/lines/ and is found by its folder, so adding
@@ -94,24 +96,73 @@ export interface SceneDef<S> extends Layers<SceneFrame, S> {
 /** Layers with their own state type hidden, as the engine holds them. */
 export type AnyLayers<F extends Frame = Frame> = Layers<F, unknown>;
 export type Scene = SceneDef<unknown>;
-export type Charm = AnyLayers;
+export type Wall = AnyLayers;
 export type Backdrop = AnyLayers;
 
 export function defineScene<S>(def: SceneDef<S>): Scene {
   return def as unknown as Scene;
 }
-export function defineCharm<S>(def: Layers<Frame, S>): Charm {
-  return def as unknown as Charm;
+export function defineWall<S>(def: Layers<Frame, S>): Wall {
+  return def as unknown as Wall;
 }
 export function defineBackdrop<S>(def: Layers<Frame, S>): Backdrop {
   return def as unknown as Backdrop;
 }
 
-/** A small picture a line paints for itself. Sizes are CSS pixels; it is painted at twice that. */
+/**
+ * A small picture a line paints for itself. Sizes are CSS pixels; it is painted
+ * at twice that. Give it `frames` and `seconds` and it moves: the frames are
+ * shown in turn, forever, one run every `seconds`. To rest between movements,
+ * paint the resting picture for most of the frames.
+ */
 export interface Sprite {
   w: number;
   h: number;
+  frames?: number;
+  seconds?: number;
+  /** `frame` counts from 0. A still picture is only ever asked for frame 0. */
+  paint: (p: Paint, frame: number) => void;
+}
+
+/**
+ * A piece of material that repeats in both directions to cover a surface.
+ * It must be seamless: whatever leaves by the right edge comes back in at the
+ * left, and the same top and bottom. `wrapped` below does that for you.
+ */
+export interface Tile {
+  w: number;
+  h: number;
   paint: (p: Paint) => void;
+}
+
+/**
+ * Paints the same thing nine times, a whole tile apart each way, so anything
+ * that crosses an edge of the tile comes back on the opposite side. Roll every
+ * random number before calling it, never inside: the nine copies must match.
+ */
+export function wrapped(p: Paint, paint: () => void): void {
+  for (const ox of [-p.w, 0, p.w]) {
+    for (const oy of [-p.h, 0, p.h]) {
+      p.ctx.save();
+      p.ctx.translate(ox, oy);
+      paint();
+      p.ctx.restore();
+    }
+  }
+}
+
+/** What a line's surfaces are made of. Each is optional; a surface without one stays flat. */
+export interface Textures {
+  /** Every panel and box. Words sit on it, so it stays dark and close-toned. */
+  panel?: Tile;
+  /** The sidebar, and the phone's top and bottom bars. */
+  wall?: Tile;
+  /** A pattern laid over the accent fill of the sign and the Start button. Paint only the pattern; leave the rest clear. */
+  accent?: Tile;
+}
+
+export function defineTextures(t: Textures): Textures {
+  return t;
 }
 
 /**
@@ -141,6 +192,8 @@ export interface Ornaments {
     vertical?: Sprite;
     /** A trim that repeats along the phone's bottom and top bars. */
     horizontal?: Sprite;
+    /** A run along the top of the one loud card, just inside its frame: lights, studs, a ticker. */
+    crown?: Sprite;
   };
   sprites?: {
     /** The line's badge, beside the app's name and in the picker. About 24 px. */
@@ -149,8 +202,6 @@ export interface Ornaments {
     mark?: Sprite;
     /** A drawn rule under every page title. About 140 by 12. */
     rule?: Sprite;
-    /** A tailpiece at the foot of every page, as at the end of a chapter. About 150 by 56. */
-    tail?: Sprite;
     /** A small picture for empty states. About 180 by 120. */
     spot?: Sprite;
   };
@@ -174,7 +225,8 @@ export interface Line {
   /** Position in the picker. */
   order: number;
   scene: Scene;
-  charm?: Charm;
+  textures?: Textures;
+  wall?: Wall;
   backdrop?: Backdrop;
   ornaments?: Ornaments;
 }
