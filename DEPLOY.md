@@ -34,7 +34,8 @@ Total time: ~20 minutes if all accounts are created.
    | `DATABASE_URL`       | (copy from your local `server/.env`)                                                           |
    | `CLIENT_URL`         | Leave empty for now — you'll fill it in after the Vercel deploy in step 2.                     |
    | `CLERK_SECRET_KEY`   | *(optional)* from Clerk dashboard → API Keys → "Secret keys". Leave empty to use dev-mode auth. |
-   | `ANTHROPIC_API_KEY`  | *(optional)* from console.anthropic.com. Leave empty to disable the AI Decomposer.             |
+   | `ANTHROPIC_API_KEY`  | *(optional)* from console.anthropic.com. The AI features run on whatever each person connects under Advanced → Your AI; this is the fallback for people who connect nothing. |
+   | `AI_KEYS_SECRET`     | *(optional, recommended)* any long random string. Seals the API keys people save under Your AI. Without it `CLERK_SECRET_KEY` is used, and saved keys must be pasted again if that ever changes. |
 
    `PORT` is set by Railway automatically — do **not** set it yourself.
 

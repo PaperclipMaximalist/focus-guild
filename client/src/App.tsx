@@ -21,6 +21,9 @@ const Records = lazy(() => import('./pages/Records'));
 const Connections = lazy(() => import('./pages/Connections'));
 const Share = lazy(() => import('./pages/Share'));
 const QuestImport = lazy(() => import('./pages/QuestImport'));
+const Advanced = lazy(() => import('./pages/Advanced'));
+const Quickstart = lazy(() => import('./pages/Quickstart'));
+const AiConnections = lazy(() => import('./pages/AiConnections'));
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { Header } from './components/Header';
@@ -166,6 +169,9 @@ function AuthenticatedApp() {
           {/* Android share-sheet target; see share_target in the manifest. */}
           <Route path="/share" element={<TrackerRoute><Share /></TrackerRoute>} />
           <Route path="/quests/import" element={<TrackerRoute><QuestImport /></TrackerRoute>} />
+          <Route path="/advanced" element={<TrackerRoute><Advanced /></TrackerRoute>} />
+          <Route path="/advanced/quickstart" element={<TrackerRoute><Quickstart /></TrackerRoute>} />
+          <Route path="/advanced/ai" element={<TrackerRoute><AiConnections /></TrackerRoute>} />
         </Routes>
         <ToastContainer />
         <KeyboardShortcuts />
@@ -191,6 +197,9 @@ const PAGE_NAMES: Record<string, string> = {
   '/chronicle': 'Journal',
   '/advanced/records': 'Records',
   '/connections': 'Connections',
+  '/advanced': 'Advanced',
+  '/advanced/quickstart': 'Quickstart',
+  '/advanced/ai': 'Your AI',
   '/settings': 'Settings',
 };
 

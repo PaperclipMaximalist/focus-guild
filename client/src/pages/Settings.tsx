@@ -28,7 +28,7 @@ import {
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { ChevronRight, Plug, RotateCcw, SettingsIcon, TriangleAlert } from 'lucide-react';
+import { ChevronRight, RotateCcw, SettingsIcon, TriangleAlert, Wrench } from 'lucide-react';
 import { useArmed } from '../lib/useArmed';
 import { isSceneEnabled, setSceneEnabled } from '../lib/scene';
 import { LinePicker } from '../lines/LinePicker';
@@ -198,20 +198,6 @@ export default function Settings() {
         </p>
       </header>
 
-      <Link
-        to="/connections"
-        className="panel flex items-center gap-3 px-4 py-3 transition-colors hover:bg-(--color-surface2)"
-      >
-        <Plug size={18} aria-hidden style={{ color: 'var(--color-primary)' }} />
-        <span className="flex-1">
-          <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Connections</span>
-          <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
-            Calendars the planner works around, and an inbox for Teams, phone shortcuts and more
-          </span>
-        </span>
-        <ChevronRight size={16} aria-hidden style={{ color: 'var(--color-muted)' }} />
-      </Link>
-
       {/* Working hours */}
       <Section title="Working hours">
         <Row label="Day starts at" hint="When the scheduler starts placing work blocks (your local time).">
@@ -280,6 +266,21 @@ export default function Settings() {
 
       {/* Experience (client-side, saved instantly to this device) */}
       <ExperienceSection />
+
+      {/* Set up once and left alone, so it sits last and stays quiet. */}
+      <Link
+        to="/advanced"
+        className="panel flex items-center gap-3 px-4 py-3 transition-colors hover:bg-(--color-surface2)"
+      >
+        <Wrench size={18} aria-hidden style={{ color: 'var(--color-muted)' }} />
+        <span className="flex-1">
+          <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>Advanced</span>
+          <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+            Quickstart, calendars and other apps, records
+          </span>
+        </span>
+        <ChevronRight size={16} aria-hidden style={{ color: 'var(--color-muted)' }} />
+      </Link>
 
       {/* Action bar */}
       <div className="sticky bottom-20 z-40 flex items-center justify-between gap-2 rounded-md border px-4 py-2.5 shadow-xl"

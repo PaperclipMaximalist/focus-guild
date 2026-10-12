@@ -89,7 +89,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
     } catch (e) {
       const msg = String(e);
       if (msg.includes('AI_NOT_CONFIGURED')) {
-        setAiError('AI features are off — set ANTHROPIC_API_KEY on the server to enable.');
+        setAiError('No AI is connected. Connect one in Settings, under Advanced, then Your AI.');
       } else {
         setAiError(msg);
       }

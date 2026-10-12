@@ -962,3 +962,82 @@ export interface ImportApplyResult {
   untouched: number;
   warnings: string[];
 }
+
+// ─── Quest manifest (bulk import and export) ──────────────────────────────────
+// The tree is `ManifestQuest` in lib/manifest.ts; the server's copy of the
+// shape is server/src/lib/questImport.ts.
+
+import type { ManifestQuest } from './manifest';
+
+export interface ManifestCounts {
+  quests: number;
+  steps: number;
+  hourLogs: number;
+  routines: number;
+}
+
+export const manifestApi = {
+  /** All of it or none of it: one transaction on the server. */
+  import: (quests: ManifestQuest[]) =>
+    request<ManifestCounts & { created: number }>('/manifest/import', { method: 'POST', body: JSON.stringify({ quests }) }),
+  /** Every unfinished quest, with its steps. */
+  export: () => request<{ quests: ManifestQuest[]; count: number }>('/manifest/export'),
+};
+
+// ─── Your AI (providers connected with the person's own API key) ──────────────
+// Server: routes/ai.ts. A key goes up once and never comes back: a connection
+// is known by its provider, its model and the last four characters of the key.
+
+export interface AiProvider {
+  id: string;
+  /** What people call it: Claude, ChatGPT, Gemini. */
+  name: string;
+  /** Who bills for it. */
+  company: string;
+  /** The line under the name in the list. */
+  tagline: string;
+  /** Where a key is made; empty for "Another provider". */
+  keyUrl: string;
+  note: string;
+  needsBaseUrl: boolean;
+}
+
+export interface AiConnection {
+  provider: string;
+  model: string;
+  keyHint: string;
+  baseUrl: string | null;
+  /** The one the Guild's AI features run on. */
+  inUse: boolean;
+  lastUsedAt: string | null;
+  lastError: string | null;
+  createdAt: string;
+}
+
+export interface AiState {
+  providers: AiProvider[];
+  connections: AiConnection[];
+  /** Set when the server has a Claude key of its own. */
+  builtIn: string | null;
+  /** Who answers right now, in words; null when no AI feature can run. */
+  inUse: string | null;
+}
+
+export type AiTestResult = { ok: true; reply: string; ms: number; via: string } | { ok: false; error: string; code: string; ms: number };
+
+export const aiApi = {
+  get: () => request<AiState>('/ai'),
+  connect: (provider: string, apiKey: string, baseUrl?: string) =>
+    request<AiState & { models: string[]; provider: string }>('/ai/connections', {
+      method: 'POST',
+      body: JSON.stringify({ provider, apiKey, ...(baseUrl ? { baseUrl } : {}) }),
+    }),
+  models: (provider: string) => request<{ models: string[] }>(`/ai/connections/${provider}/models`),
+  update: (provider: string, change: { model?: string; isDefault?: true }) =>
+    request<AiState>(`/ai/connections/${provider}`, { method: 'PATCH', body: JSON.stringify(change) }),
+  remove: (provider: string) => request<AiState>(`/ai/connections/${provider}`, { method: 'DELETE' }),
+  test: (provider: string) => request<AiTestResult>(`/ai/connections/${provider}/test`, { method: 'POST', body: '{}' }),
+  /** Notes in, a quest manifest out, written by the AI in use. */
+  writeManifest: (notes: string, guide: string) =>
+    request<{ text: string; via: string }>('/ai/manifest', { method: 'POST', body: JSON.stringify({ notes, guide }) }),
+};

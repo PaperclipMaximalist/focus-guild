@@ -13,7 +13,7 @@ import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
 import { useToastStore } from './Toasts';
-import { parseQuickAdd } from '../lib/quickAdd';
+import { parseQuickAdd, questFields } from '../lib/quickAdd';
 import { sfxClick } from '../lib/sfx';
 import { CornerDownLeft, Swords, TriangleAlert, Plus } from 'lucide-react';
 
@@ -30,13 +30,7 @@ export function QuickAddBar() {
     if (!ready || busy) return;
     setBusy(true);
     try {
-      await add({
-        title: parsed.title,
-        estimatedMinutes: parsed.estimatedMinutes ?? 30,
-        deadline: parsed.deadline ?? null,
-        ...(parsed.priorityTier ? { priorityTier: parsed.priorityTier } : {}),
-        tags: parsed.tags,
-      });
+      await add(questFields(parsed));
       sfxClick();
       pushToast({
         icon: Swords,
@@ -78,7 +72,7 @@ export function QuickAddBar() {
 
       {/* Live parse preview */}
       <AnimatePresence>
-        {text.trim() && parsed.chips.length > 0 && (
+        {text.trim() && (parsed.chips.length > 0 || parsed.warnings.length > 0) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -99,6 +93,11 @@ export function QuickAddBar() {
                 </span>
               ))}
             </div>
+            {parsed.warnings.map((w) => (
+              <p key={w} className="mt-1 pl-7 text-[0.65rem]" style={{ color: 'var(--color-gold)' }}>
+                {w}
+              </p>
+            ))}
           </motion.div>
         )}
       </AnimatePresence>

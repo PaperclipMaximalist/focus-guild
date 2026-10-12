@@ -423,9 +423,10 @@ function AskTab() {
       {error && (
         <div className="rounded-(--radius-card) border p-3 text-sm" style={card}>
           <p>{error}</p>
-          {error.includes('ANTHROPIC_API_KEY') && (
+          {error.includes('AI_NOT_CONFIGURED') && (
             <p className="mt-1 text-xs" style={muted}>
-              Until a key is set on the server, use the Bundle tab: copy it and paste it into Claude yourself.
+              <Link to="/advanced/ai" className="underline underline-offset-2">Connect an AI</Link> with your own key, or
+              use the Bundle tab: copy it and paste it into a chat yourself.
             </p>
           )}
         </div>

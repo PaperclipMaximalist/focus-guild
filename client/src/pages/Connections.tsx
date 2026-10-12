@@ -57,8 +57,8 @@ export default function Connections() {
     <div className="mx-auto flex max-w-2xl flex-col gap-7 p-4 pb-32">
       <header className="flex items-center gap-3">
         <Link
-          to="/settings"
-          aria-label="Back to settings"
+          to="/advanced"
+          aria-label="Back to Advanced"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-md border"
           style={{ borderColor: 'var(--color-border)', background: 'rgba(255,255,255,0.04)' }}
         >
@@ -169,7 +169,8 @@ function CalendarsSection({ calendars, onChange, fail }: { calendars: CalendarSo
         </h2>
         <p className="mt-1 text-xs leading-snug" style={muted}>
           Timed events become fixed stops on your Route, and the planner works around them. All-day and "show as free"
-          events are ignored. Feeds refresh every 15 minutes.
+          events are ignored. Feeds refresh every 15 minutes. For Google Calendar,{' '}
+          <Link to="/advanced/quickstart" className="underline underline-offset-2">Quickstart</Link> walks you through it.
         </p>
       </div>
 

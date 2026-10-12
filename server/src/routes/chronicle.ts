@@ -32,7 +32,7 @@ import {
   renderLogMarkdown,
   toJournalItem,
 } from '../lib/chronicle.js';
-import { AI_ENABLED, AI_MODEL, getClient } from '../lib/ai.js';
+import { aiFailure, completeFor } from '../lib/ai.js';
 import { getTrackerConfig } from '../lib/tracker/config.js';
 import { serialize } from '../lib/tracker/markdown.js';
 import { loadDoc } from './tracker.js';
@@ -250,18 +250,6 @@ const AskSchema = z.object({
  */
 chronicle.post('/ask', async (c) => {
   const user = c.get('user');
-  if (!AI_ENABLED) {
-    return c.json(
-      {
-        success: false,
-        error: {
-          code: 'AI_NOT_CONFIGURED',
-          message: 'Add ANTHROPIC_API_KEY to the server to enable Ask the Guild.',
-        },
-      },
-      503,
-    );
-  }
   const parsed = AskSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json(bad(parsed.error.message), 400);
 
@@ -269,19 +257,12 @@ chronicle.post('/ask', async (c) => {
   const bundle = await buildBundle(user, days, readTz(String(parsed.data.tz ?? 0)));
 
   try {
-    const response = await getClient().messages.create({
-      model: AI_MODEL,
-      max_tokens: 16000,
+    // Whichever AI this person connected, or the server's own (lib/ai.ts).
+    const { text } = await completeFor(user.id, {
       system: GUILD_SYSTEM_PROMPT,
-      messages: [
-        { role: 'user', content: bundle.markdown + '\n\n---\n\nMy question: ' + parsed.data.question },
-      ],
+      prompt: bundle.markdown + '\n\n---\n\nMy question: ' + parsed.data.question,
     });
-    if (response.stop_reason === 'refusal') {
-      return c.json({ success: false, error: { code: 'AI_REFUSED', message: 'The AI declined to answer that.' } }, 502);
-    }
-    const textBlock = response.content.find((b) => b.type === 'text');
-    const reply = parseGuildReply(textBlock && textBlock.type === 'text' ? textBlock.text : '');
+    const reply = parseGuildReply(text);
     if ('error' in reply) {
       return c.json({ success: false, error: { code: 'AI_PARSE_ERROR', message: reply.error } }, 502);
     }
@@ -291,9 +272,7 @@ chronicle.post('/ask', async (c) => {
     });
     return c.json({ success: true, data: { ...reply, contextChars: bundle.chars, days } });
   } catch (e: unknown) {
-    return c.json(
-      { success: false, error: { code: 'AI_ERROR', message: e instanceof Error ? e.message : String(e) } },
-      502,
-    );
+    const { body, status } = aiFailure(e);
+    return c.json(body, status);
   }
 });

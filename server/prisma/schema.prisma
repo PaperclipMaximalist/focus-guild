@@ -47,6 +47,7 @@ model User {
   permafile      PermafileVersion[]
   calendarSources CalendarSource[]
   externalEvents  ExternalEvent[]
+  aiConnections   AiConnection[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -440,4 +441,32 @@ model ExternalEvent {
   @@unique([sourceId, uid])
   @@index([userId, start])
   @@map("external_events")
+}
+
+/// An AI the user has plugged in with their own API key (Claude, ChatGPT,
+/// Gemini, ...). One row per provider per user. The Guild's AI features run
+/// on the one marked isDefault. See server/src/lib/aiProviders.ts.
+model AiConnection {
+  id         String    @id @default(cuid())
+  userId     String
+  /// A key of PROVIDERS in lib/aiProviders.ts: anthropic, openai, google, ...
+  provider   String
+  /// The API key, sealed with lib/secretBox.ts. Never returned to a client.
+  keySealed  String
+  /// Its last four characters, to recognise it by.
+  keyHint    String
+  model      String
+  /// Only for the "custom" provider: an OpenAI-compatible endpoint.
+  baseUrl    String?
+  isDefault  Boolean   @default(false)
+  lastUsedAt DateTime?
+  lastError  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@map("ai_connections")
 }
