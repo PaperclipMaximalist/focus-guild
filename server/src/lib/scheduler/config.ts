@@ -140,13 +140,14 @@ export const TYPICAL_BLOCK_MIN = 30;
  * The rests a plan will take, as the budget should count them: the break
  * policy, or with a fixed gap one gap per typical block and nothing else.
  */
-export function restPolicy(config: Pick<UserConfig, 'breakPolicy' | 'gapMin'>): BreakPolicy {
+export function restPolicy(config: Pick<UserConfig, 'breakPolicy' | 'gapMin' | 'breakMin' | 'breakEveryMin'>): BreakPolicy {
   if (config.gapMin === undefined) return config.breakPolicy;
+  const long = Math.max(0, config.breakMin ?? 0);
   return {
     shortBreakAfterMin: TYPICAL_BLOCK_MIN,
     shortBreakDurationMin: config.gapMin,
-    longBreakAfterMin: 0,
-    longBreakDurationMin: config.gapMin,
+    longBreakAfterMin: long > 0 ? config.breakEveryMin ?? 120 : 0,
+    longBreakDurationMin: long > 0 ? long : config.gapMin,
   };
 }
 

@@ -39,6 +39,12 @@ export interface SchedulerOverrides {
    * next working day (see todayEndInForce).
    */
   availableUntil?: string;
+  /** Minutes between two quests. Set from the Route's menu; default GAP_MIN. */
+  gapMin?: number;
+  /** Length of the long break, in minutes; 0 for none. Default BREAK_MIN. */
+  breakMin?: number;
+  /** Minutes of work between long breaks. Default BREAK_EVERY_MIN. */
+  breakEveryMin?: number;
 }
 
 /**
@@ -46,6 +52,28 @@ export interface SchedulerOverrides {
  * "always add 5 minutes between each quest", in place of the break policy.
  */
 export const GAP_MIN = 5;
+/** The long break, and how much work earns one (the owner, 2026-10-12: "a large 30 minute break every roughly 2 hours"). */
+export const BREAK_MIN = 30;
+export const BREAK_EVERY_MIN = 120;
+
+/** What the Route's menu may set them to. */
+export const REST_LIMITS = {
+  gapMin: { min: 0, max: 30 },
+  breakMin: { min: 0, max: 90 },
+  breakEveryMin: { min: 60, max: 240 },
+} as const;
+
+/** The rests in force for a user: their own where set and sane, the defaults otherwise. */
+export function restsFor(user: { schedulerSettings?: unknown }): { gapMin: number; breakMin: number; breakEveryMin: number } {
+  const o = isOverrides(user.schedulerSettings) ? user.schedulerSettings : {};
+  const within = (v: unknown, fallback: number, lim: { min: number; max: number }) =>
+    typeof v === 'number' && Number.isFinite(v) ? Math.min(lim.max, Math.max(lim.min, Math.round(v))) : fallback;
+  return {
+    gapMin: within(o.gapMin, GAP_MIN, REST_LIMITS.gapMin),
+    breakMin: within(o.breakMin, BREAK_MIN, REST_LIMITS.breakMin),
+    breakEveryMin: within(o.breakEveryMin, BREAK_EVERY_MIN, REST_LIMITS.breakEveryMin),
+  };
+}
 
 /** Type-narrow helper for JSON-from-DB. */
 function isOverrides(v: unknown): v is SchedulerOverrides {
@@ -76,7 +104,7 @@ export function getUserConfig(
     tzOffsetMin,
     // The same day: "always fill the time available". The scheduler library's
     // own default paces work toward its deadline; the app does not.
-    gapMin: GAP_MIN,
+    ...restsFor(user),
     fillDays: true,
     ...(Number.isFinite(until) ? { todayEndsAt: until } : {}),
   };
@@ -86,6 +114,7 @@ export function getUserConfig(
 export function getOverrides(user: { schedulerSettings?: unknown }): SchedulerOverrides {
   if (!isOverrides(user.schedulerSettings)) return {};
   // The slider's end time is not the Settings page's to show or send back.
-  const { availableUntil: _slider, ...settings } = user.schedulerSettings;
+  // Nor are the rests, which the Route's menu owns.
+  const { availableUntil: _slider, gapMin: _gap, breakMin: _break, breakEveryMin: _every, ...settings } = user.schedulerSettings;
   return settings;
 }

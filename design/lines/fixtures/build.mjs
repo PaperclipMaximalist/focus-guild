@@ -117,10 +117,11 @@ const schedule = [
   block('fixed', at(18, 0), at(18, 20), { locked: true, note: 'Daily: Clear the inbox to zero' }),
   // In progress at NOW.
   work(methods, at(19, 15), at(20, 5), 'Due tonight'),
-  block('break', at(20, 5), at(20, 15)),
-  work(methods, at(20, 15), at(21, 0), 'Due tonight'),
-  block('fixed', at(21, 0), at(21, 20), { locked: true, note: 'Daily: Twenty minutes of Spanish' }),
+  // The long break the planner takes about every two hours: a slot of its own.
+  block('break', at(20, 5), at(20, 35), { note: 'Break' }),
+  work(methods, at(20, 35), at(21, 20), 'Due tonight'),
   work(step, at(21, 25), at(21, 40), 'Due tomorrow · quick win'),
+  block('fixed', at(21, 40), at(22, 0), { locked: true, note: 'Daily: Twenty minutes of Spanish' }),
   // Tomorrow and after, so the day chips have something to show.
   work(loginTest, at(9, 30, 1), at(10, 20, 1), 'High priority · sharp hours'),
   block('break', at(10, 20, 1), at(10, 30, 1)),
@@ -151,7 +152,7 @@ const responses = {
   'GET /quests/rescue': ok(rescue),
   'GET /quests/recurring': ok(recurring),
   'GET /quests/completed': ok(completed),
-  'GET /schedule/dev-member-001': ok({ schedule, quests: planQuests, available: { minutes: 140, until: at(22, 0), set: false }, feasibilityReport: { ok: true, issues: [] }, insights: null, generatedAt: at(14, 50) }),
+  'GET /schedule/dev-member-001': ok({ schedule, quests: planQuests, available: { minutes: 140, until: at(22, 0), set: false }, rests: { gapMin: 5, breakMin: 30, breakEveryMin: 120 }, feasibilityReport: { ok: true, issues: [] }, insights: null, generatedAt: at(14, 50) }),
   'GET /quests/hours': ok([]),
   'GET /schedule/dev-member-001/energy': ok({ trace }),
   'GET /checkin/today/dev-member-001': ok({ id: 'c1', date: at(9, 5), energyLevel: 4, availableMinutes: 300 }),

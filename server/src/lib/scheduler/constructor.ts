@@ -497,8 +497,17 @@ function runsEndingAt(
  * and four straight hours of work was normal.
  */
 function restAfter(blocks: BeamState['blocks'], end: number, config: UserConfig, task: Task, chunkMin: number): number {
-  // A fixed gap is the whole of the rest: the same after every block.
-  if (config.gapMin !== undefined) return config.gapMin;
+  // A fixed gap is the rest after every block, and a long break comes when
+  // about `breakEveryMin` of work has gone by. The packing pass places both
+  // exactly (pack.ts); here the time is only kept free for them.
+  if (config.gapMin !== undefined) {
+    const long = config.breakMin ?? 0;
+    if (long > 0) {
+      const { sinceLong } = runsEndingAt(blocks, end, { ...config, breakPolicy: restPolicy(config) });
+      if (sinceLong >= (config.breakEveryMin ?? 120) - 15) return long;
+    }
+    return config.gapMin;
+  }
   const p = config.breakPolicy;
   const { run, sinceLong } = runsEndingAt(blocks, end, config);
   if (sinceLong >= p.longBreakAfterMin) return p.longBreakDurationMin;

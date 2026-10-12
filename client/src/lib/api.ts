@@ -396,6 +396,12 @@ export const api = {
       }),
     get: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}?tz=${tzOffset()}`),
+    /** The gap between quests and the long break, from the Route's menu. Reroutes. */
+    setRests: (rests: Partial<PlanRests>, clerkId = getCurrentClerkId()) =>
+      request<ScheduleResponse>(`/schedule/${clerkId}/rests`, {
+        method: 'POST',
+        body: JSON.stringify({ ...rests, tzOffsetMin: tzOffset() }),
+      }),
     /** The "time available" slider: minutes from now, or null for the working hours. Reroutes. */
     setAvailable: (minutes: number | null, clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}/available`, {
@@ -712,6 +718,13 @@ export interface FeasibilityIssue {
   suggestions: string[];
 }
 
+/** The gap between two quests, and the long break: its length (0 = none) and the work that earns one. Minutes. */
+export interface PlanRests {
+  gapMin: number;
+  breakMin: number;
+  breakEveryMin: number;
+}
+
 export interface AvailableTime {
   minutes: number;
   until: string | null;
@@ -724,6 +737,8 @@ export interface ScheduleResponse {
   quests?: Quest[];
   /** The time today's quests may run for, from now. `set` when the slider chose it rather than the working hours. */
   available?: AvailableTime;
+  /** The rests the plan was made with; set from the Route's menu. */
+  rests?: PlanRests;
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   generatedAt: string | null;
   insights?: PlanInsights | null;
@@ -747,6 +762,8 @@ export interface EnergyTracePoint {
 export type ScheduleEdit =
   | { kind: 'move_block'; blockId: string; newStart: string }
   | { kind: 'swap_blocks'; aId: string; bId: string }
+  /** A drag to a new place in the order: just before one block, or just after another. */
+  | { kind: 'reorder_block'; blockId: string; beforeId?: string; afterId?: string }
   | { kind: 'delete_block'; blockId: string }
   | { kind: 'pin_block'; blockId: string }
   | { kind: 'unpin_block'; blockId: string };

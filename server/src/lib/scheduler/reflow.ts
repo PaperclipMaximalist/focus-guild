@@ -122,6 +122,8 @@ export function reflow(
     if (!Number.isFinite(b.start) || !Number.isFinite(b.end)) continue;
     if (b.end <= now) past.push(b);
     else if (b.type === 'fixed') fixedFuture.push(b);
+    // A break under way is not rerouted over: it stays, like a fixed block.
+    else if (b.type === 'break' && b.start <= now) fixedFuture.push(b);
     else if (b.locked) {
       // A pin holds time for a quest. Once the quest is finished or deleted
       // there is nothing to hold it for: pin tomorrow's block, finish the
@@ -147,7 +149,12 @@ export function reflow(
   // The working windows ahead. The user may have changed their hours since
   // the plan was made; unpinned work outside them is no longer stable.
   const windows = buildDayInfo(config, now, []);
-  const inHours = (b: Block) => windows.some((d) => b.start >= d.workStart && b.end <= d.workEnd);
+  // With packing a block only has to start inside a window: where it ends is
+  // decided again when the plan is laid out (a block dragged to the end of a
+  // short day is cut there, or goes first in the next stretch).
+  const laidOutAgain = config.gapMin !== undefined || !!config.fillDays;
+  const inHours = (b: Block) =>
+    windows.some((d) => b.start >= d.workStart && (laidOutAgain ? b.start < d.workEnd : b.end <= d.workEnd));
 
   // ── Which unlocked blocks stay ──
   // In time order, so when a quest holds more than it needs the latest
@@ -156,6 +163,8 @@ export function reflow(
   for (const b of userLockedFuture) {
     if (isWork(b) && need.has(b.taskId!)) need.set(b.taskId!, need.get(b.taskId!)! - pinCounts(b));
   }
+  /** Is the plan laid out again in order at the end (pack.ts)? */
+  const packs = config.gapMin !== undefined || !!config.fillDays;
   const stableFuture: Block[] = [];
   for (const raw of [...candidates].sort((a, b) => a.start - b.start || a.end - b.end)) {
     const t = taskMap.get(raw.taskId!);
@@ -172,7 +181,10 @@ export function reflow(
     if (!inHours(b)) continue;
     // A fixed block can arrive after the plan was made (a meeting synced
     // from a calendar), and the user can drag a block onto another.
-    if (overlaps(b, fixedFuture) || overlaps(b, userLockedFuture) || overlaps(b, stableFuture)) continue;
+    // Without packing, a block that now overlaps something has lost its
+    // place. With it, the whole plan is laid out again in order at the end,
+    // so the block keeps its turn (this is what a drag to reorder relies on).
+    if (!packs && (overlaps(b, fixedFuture) || overlaps(b, userLockedFuture) || overlaps(b, stableFuture))) continue;
     const left = need.get(t.id) ?? 0;
     if (left < 1) continue;
     const len = (b.end - b.start) / MS_PER_MIN;
@@ -190,6 +202,22 @@ export function reflow(
   /** What the cap has left once done-or-passed and pinned work is counted. */
   const capForUnpinned = capTotal === undefined ? undefined : Math.max(0, capTotal - workToday(past) - workToday(userLockedFuture));
   let kept = stableFuture;
+
+  // Quest work behind now with no long pause in it: the first long break is
+  // measured from there, not from now. A break under way starts the count afresh.
+  const breakLen = (config.breakMin ?? 0) * MS_PER_MIN;
+  let runBefore = 0;
+  if (breakLen > 0 && !fixedFuture.some((b) => b.type === 'break')) {
+    let cursor = now;
+    // The sitting under way counts for the part already behind now.
+    const begun = currentSchedule.filter((b) => isWork(b) && Number.isFinite(b.start) && b.start < now).sort((x, y) => y.start - x.start);
+    for (const b of begun) {
+      const end = Math.min(b.end, now);
+      if (cursor - end >= breakLen) break;
+      runBefore += Math.max(0, end - b.start) / MS_PER_MIN;
+      cursor = Math.min(cursor, b.start);
+    }
+  }
   if (capForUnpinned !== undefined) {
     // The check-in came after the plan, or was lowered: today's blocks give
     // way from the least pressing end, work due soonest stays.
@@ -290,8 +318,9 @@ export function reflow(
     const result = plan({
       tasks: adjusted,
       fixedBlocks: fixedFuture,
-      lockedBlocks: [...userLockedFuture, ...stable],
+      lockedBlocks: [...userLockedFuture, ...stable, ...keptBreaks],
       config: { ...config, todayCapMin: capLeft },
+      runBefore,
       // The real clock: plan() rounds it the same way, and uses the seconds
       // only to tell which quests are still due.
       now: clock,
@@ -316,6 +345,46 @@ export function reflow(
     const short = (r: SchedulerResult) => r.feasibilityReport.issues.reduce((m, i) => m + i.shortfallMin, 0);
     return short(second) < short(first.result) ? second : first.result;
   };
+
+  // ── Laid out before it is planned round ──
+  // The blocks that stay are still where the old plan had them: a quest
+  // finished early, or a block dragged elsewhere, leaves a hole in the middle
+  // of the day, and the planner would fill that hole with some other quest.
+  // With packing they first close up in the order they have, breaks and all,
+  // so the only free time the planner sees is at the end of a stretch.
+  let n = 0;
+  const taken = new Set(currentSchedule.map((b) => b.id));
+  const freshId = () => {
+    let id = `blk-p${(n += 1)}`;
+    while (taken.has(id)) id = `blk-p${(n += 1)}`;
+    taken.add(id);
+    return id;
+  };
+  /** Lay `movable` out again, in order, in the free time `held` leaves (pack.ts). Breaks come back with it. */
+  const layOut = (movable: Block[], held: Block[]): Block[] => {
+    const daysOf = buildDayInfo(config, now, held);
+    const groups = daysOf.map((d) => ({
+      blocks: movable.filter((b) => b.start >= d.workStart && b.start < d.workEnd),
+      totalScore: 0,
+      unfulfilledByTaskId: new Map<string, number>(),
+    }));
+    const grouped = new Set(groups.flatMap((g) => g.blocks.map((b) => b.id)));
+    const packed = packDays(daysOf, groups, taskMap, { ...config, todayCapMin: capTotal }, {
+      capped: (d) => d === daysOf[0],
+      mint: (piece) => ({ ...piece, id: freshId() }),
+      runBefore,
+      now,
+    });
+    return [...movable.filter((b) => !grouped.has(b.id)), ...packed.flatMap((g) => g.blocks as Block[])];
+  };
+  /** The breaks between the kept blocks: the planner must not see them as free time. */
+  let keptBreaks: Block[] = [];
+  if (packs) {
+    const underWay = kept.filter((b) => b.start <= now);
+    const laid = layOut(kept.filter((b) => b.start > now), [...fixedFuture, ...userLockedFuture, ...underWay]);
+    kept = [...underWay, ...laid.filter(isWork)];
+    keptBreaks = laid.filter((b) => b.type === 'break');
+  }
 
   let result = settle(kept);
 
@@ -370,27 +439,15 @@ export function reflow(
   // quest left still in the day. Pack the whole plan: everything unpinned
   // slides up in the order it had, and the time that opens at the end of a
   // day takes the next day's work. The sitting under way stays where it is.
-  if (config.gapMin !== undefined || config.fillDays) {
+  if (packs) {
+    // The breaks go (the inner plan's own, and the ones laid out above): they
+    // are placed again with everything else.
+    const placeholders = new Set(keptBreaks.map((b) => b.id));
+    restored = restored.filter((b) => !placeholders.has(b.id) && (b.type !== 'break' || b.locked || b.start <= now));
     const held = restored.filter((b) => !isWork(b) || b.locked || b.start <= now);
     const heldIds = new Set(held.map((b) => b.id));
-    const free = restored.filter((b) => !heldIds.has(b.id));
-    const packDaysOf = buildDayInfo(config, now, held);
-    const groups = packDaysOf.map((d) => ({
-      blocks: free.filter((b) => b.start >= d.workStart && b.start < d.workEnd),
-      totalScore: 0,
-      unfulfilledByTaskId: new Map<string, number>(),
-    }));
-    const grouped = new Set(groups.flatMap((g) => g.blocks.map((b) => b.id)));
-    let n = 0;
-    const taken = new Set(currentSchedule.map((b) => b.id).concat(restored.map((b) => b.id)));
-    const freshId = () => {
-      let id = `blk-p${(n += 1)}`;
-      while (taken.has(id)) id = `blk-p${(n += 1)}`;
-      taken.add(id);
-      return id;
-    };
-    const packed = packDays(packDaysOf, groups, taskMap, { ...config, todayCapMin: capTotal }, (d) => d === packDaysOf[0], (piece) => ({ ...piece, id: freshId() }));
-    restored = [...held, ...free.filter((b) => !grouped.has(b.id)), ...packed.flatMap((g) => g.blocks as Block[])];
+    for (const b of restored) taken.add(b.id);
+    restored = [...held, ...layOut(restored.filter((b) => !heldIds.has(b.id)), held)];
   }
 
   // Stitch past at the front.

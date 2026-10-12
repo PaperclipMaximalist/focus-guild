@@ -158,6 +158,15 @@ export interface UserConfig {
    */
   gapMin?: number;
   /**
+   * A long break, in minutes, taken once about `breakEveryMin` of work has
+   * gone by without a pause that long. It is a block of its own in the plan
+   * (type 'break'), put there by the packing pass. 0 or unset = none. Needs
+   * `gapMin` to be set (it is part of the same fixed rhythm).
+   */
+  breakMin?: number;
+  /** Minutes of work between long breaks. Default 120. */
+  breakEveryMin?: number;
+  /**
    * Fill each day's free time before starting the next, earliest first,
    * instead of pacing work toward its deadline and levelling the days. A
    * replan then builds afresh from now around pinned and fixed blocks, so
@@ -244,6 +253,8 @@ export interface ReplanOptions {
 export type Edit =
   | { kind: 'move_block'; blockId: string; newStart: number }
   | { kind: 'swap_blocks'; aId: string; bId: string }
+  /** Drag a block to a new place in the order: just before `beforeId`, or just after `afterId`. Not a pin. */
+  | { kind: 'reorder_block'; blockId: string; beforeId?: string; afterId?: string }
   | { kind: 'delete_block'; blockId: string }
   | { kind: 'pin_block'; blockId: string }
   | { kind: 'unpin_block'; blockId: string };

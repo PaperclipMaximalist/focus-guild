@@ -553,6 +553,8 @@ export interface PlanInputs {
    * too: two tiles with one React key, one row in the database.
    */
   reservedIds?: Iterable<string>;
+  /** Minutes of quest work already behind `now` with no long pause in them (for the first long break). */
+  runBefore?: number;
 }
 
 /**
@@ -626,7 +628,7 @@ export function plan(inputs: PlanInputs): SchedulerResult {
   // A fixed gap or filled days are made exact last, over the whole plan.
   const built =
     config.gapMin !== undefined || config.fillDays
-      ? packDays(days, settled, taskMap, { ...config, todayCapMin: cap }, (d) => d === days[0])
+      ? packDays(days, settled, taskMap, { ...config, todayCapMin: cap }, { capped: (d) => d === days[0], runBefore: inputs.runBefore, now })
       : settled;
   for (const day of built) {
     for (const b of day.blocks) {

@@ -9,7 +9,7 @@ import { useToastStore } from '../components/Toasts';
 import { FocusTimer } from '../components/FocusTimer';
 import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
-import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
+import { api, type ScheduleBlock, type Quest, type EnergyTracePoint, type PlanRests } from '../lib/api';
 import { AvailableTime } from '../components/AvailableTime';
 import { levelFromXP } from '../lib/levels';
 import { formatMinutes } from '../lib/formatters';
@@ -19,7 +19,7 @@ import { shortfallLine, type ShortfallChoice } from '../lib/shortfall';
 import { blockDetail } from '../lib/blockDetail';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
 import { sfxComplete, sfxAchievement, sfxLevelUp, sfxStart } from '../lib/sfx';
-import { BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock9, CloudSun, Coffee, Diamond, Ellipsis, Lightbulb, Pin, Play, RefreshCw, Repeat, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
+import { ArrowDown, ArrowUp, BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock9, CloudSun, Coffee, Diamond, Ellipsis, Lightbulb, Minus, Pin, Play, Plus, RefreshCw, Repeat, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -129,6 +129,48 @@ function BreakLine({ block }: { block: ScheduleBlock }) {
     >
       {isBuffer ? <Diamond size={10} aria-hidden /> : <Coffee size={11} aria-hidden />}
       {label}
+    </div>
+  );
+}
+
+/** A break shorter than this is a line between rows; from here up it is a slot of its own. */
+const BREAK_SLOT_MIN = 15;
+
+/**
+ * The long break the planner puts in about every two hours: a row the size
+ * of a quest's, in the rest colour instead of a surface, so the day shows at
+ * a glance where the pauses are.
+ */
+function BreakTile({ block, status }: { block: ScheduleBlock; status: 'past' | 'active' | 'upcoming' }) {
+  return (
+    <div
+      className="grid w-full items-center gap-3 px-3"
+      style={{
+        height: MIN_BLOCK_PX,
+        gridTemplateColumns: `${RAIL_PX}px minmax(0, 1fr) auto`,
+        // A tint of the rest colour in soft diagonal bands: it reads as "not a
+        // quest" on every line, whatever colour that line's surfaces are.
+        background:
+          'repeating-linear-gradient(135deg, color-mix(in srgb, var(--color-teal) 26%, var(--color-bg)) 0 12px, color-mix(in srgb, var(--color-teal) 15%, var(--color-bg)) 12px 24px)',
+        boxShadow: 'inset 3px 0 0 var(--color-teal)',
+        opacity: status === 'past' ? 0.55 : 1,
+      }}
+      title={`${block.durationMin}-minute break`}
+    >
+      <div className="tnum">
+        <div className="whitespace-nowrap text-[14px] font-semibold leading-none text-(--color-text)">{formatTime(new Date(block.start))}</div>
+        <div className="mt-1 text-[11px] leading-none text-(--color-muted)">{formatMinutes(block.durationMin)}</div>
+      </div>
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <Coffee size={13} className="shrink-0" style={{ color: 'var(--color-teal)' }} aria-hidden />
+          <span className="min-w-0 truncate text-[15px] font-semibold leading-snug">Break</span>
+        </div>
+        <div className="mt-0.5 truncate text-[12px] text-(--color-muted)">Step away from the quests</div>
+      </div>
+      <span className="status" style={{ color: 'var(--color-teal)' }}>
+        {status === 'active' ? 'Resting' : status === 'past' ? 'Rested' : 'Rest'}
+      </span>
     </div>
   );
 }
@@ -371,12 +413,57 @@ function EnergyMeterStrip({ trace }: { trace: EnergyTracePoint[] }) {
 
 // ─── Feed action menu ─────────────────────────────────────────────────────────
 
+/** One adjustable amount in the menu: a label, the value, and a button either side. */
+function RestStepper({
+  label, value, step, min, max, show, disabled, onChange,
+}: {
+  label: string;
+  value: number;
+  step: number;
+  min: number;
+  max: number;
+  show: (v: number) => string;
+  disabled?: boolean;
+  onChange: (v: number) => void;
+}) {
+  const to = (v: number) => Math.min(max, Math.max(min, v));
+  return (
+    <div className="flex items-center gap-2 py-1" style={{ opacity: disabled ? 0.45 : 1 }}>
+      <span className="min-w-0 flex-1 text-sm text-(--color-text)">{label}</span>
+      <button
+        type="button"
+        className="icon-btn h-7 w-7"
+        disabled={disabled || value <= min}
+        onClick={() => onChange(to(value - step))}
+        aria-label={`${label}: less`}
+      >
+        <Minus size={14} aria-hidden />
+      </button>
+      <span className="tnum w-14 text-center text-sm font-semibold text-(--color-text)" aria-live="polite">{show(value)}</span>
+      <button
+        type="button"
+        className="icon-btn h-7 w-7"
+        disabled={disabled || value >= max}
+        onClick={() => onChange(to(value + step))}
+        aria-label={`${label}: more`}
+      >
+        <Plus size={14} aria-hidden />
+      </button>
+    </div>
+  );
+}
+
 function FeedActionsMenu({
   loading,
+  rests,
+  onRests,
   onReflow,
   onReplan,
 }: {
   loading: boolean;
+  /** The gap between quests and the long break; null until the plan has loaded. */
+  rests: PlanRests | null;
+  onRests: (rests: Partial<PlanRests>) => void;
   onReflow: () => void;
   onReplan: () => void;
 }) {
@@ -400,7 +487,7 @@ function FeedActionsMenu({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
-            className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[200px]"
+            className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[260px]"
             style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
           >
             <button
@@ -434,6 +521,39 @@ function FeedActionsMenu({
                 Set when the planner places blocks
               </div>
             </a>
+            {rests && (
+              <div className="border-t px-3 py-2" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="mb-1 text-[11px] font-bold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>Rests</div>
+                <RestStepper
+                  label="Between quests"
+                  value={rests.gapMin}
+                  step={5}
+                  min={0}
+                  max={30}
+                  show={(v) => (v ? `${v} min` : 'None')}
+                  onChange={(v) => onRests({ gapMin: v })}
+                />
+                <RestStepper
+                  label="Long break"
+                  value={rests.breakMin}
+                  step={5}
+                  min={0}
+                  max={90}
+                  show={(v) => (v ? `${v} min` : 'Off')}
+                  onChange={(v) => onRests({ breakMin: v })}
+                />
+                <RestStepper
+                  label="A break every"
+                  value={rests.breakEveryMin}
+                  step={30}
+                  min={60}
+                  max={240}
+                  disabled={rests.breakMin === 0}
+                  show={(v) => (v % 60 ? `${Math.floor(v / 60)}h ${v % 60}m` : `${v / 60}h`)}
+                  onChange={(v) => onRests({ breakEveryMin: v })}
+                />
+              </div>
+            )}
           </div>
         </>
       )}
@@ -574,7 +694,7 @@ function FeasibilityBanner({
 
 function SelectedDrawer({
   block, quest, status, explanation, loadingExplanation,
-  onClose, onStart, onPin, onDelete, onExplain,
+  onClose, onStart, onPin, onMove, canMoveEarlier, canMoveLater, onDelete, onExplain,
 }: {
   block: ScheduleBlock;
   quest: Quest | null;
@@ -584,6 +704,10 @@ function SelectedDrawer({
   onClose: () => void;
   onStart: () => void;
   onPin: () => void;
+  /** Move the block one place in the day's order; absent when it can't be moved at all. */
+  onMove?: (dir: -1 | 1) => void;
+  canMoveEarlier?: boolean;
+  canMoveLater?: boolean;
   onDelete: () => void;
   onExplain: () => void;
 }) {
@@ -654,6 +778,26 @@ function SelectedDrawer({
             >
               {block.locked ? 'Unpin' : <span className="inline-flex items-center gap-1.5"><Pin size={12} aria-hidden /> Pin</span>}
             </button>
+            {onMove && (
+              <>
+                <button
+                  onClick={() => onMove(-1)}
+                  disabled={!canMoveEarlier}
+                  className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                >
+                  <span className="inline-flex items-center gap-1.5"><ArrowUp size={12} aria-hidden /> Earlier</span>
+                </button>
+                <button
+                  onClick={() => onMove(1)}
+                  disabled={!canMoveLater}
+                  className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40"
+                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
+                >
+                  <span className="inline-flex items-center gap-1.5"><ArrowDown size={12} aria-hidden /> Later</span>
+                </button>
+              </>
+            )}
             <button
               onClick={onExplain}
               disabled={loadingExplanation || !!explanation}
@@ -679,7 +823,7 @@ function SelectedDrawer({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function GuildFeed() {
-  const { schedule, blockQuests, feasibilityReport, insights, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
+  const { schedule, blockQuests, rests, setRests, feasibilityReport, insights, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
     useScheduleStore();
   const [energyTrace, setEnergyTrace] = useState<EnergyTracePoint[]>([]);
   const { quests, load: loadQuests, complete: completeQuest, completeDaily } = useQuestStore();
@@ -789,6 +933,22 @@ export default function GuildFeed() {
   const selectedQuest = selectedBlock?.taskId ? questById[selectedBlock.taskId] ?? null : null;
   const selectedStatus = selectedBlock ? blockStatus(selectedBlock, now) : 'upcoming';
 
+  // One place earlier or later in the day's order: what a drag does, for a
+  // finger (touch screens don't drag rows) and for the keyboard.
+  const movable = useMemo(
+    () => dayBlocks.filter((b) => b.type === 'work' && !b.locked && blockStatus(b, now) === 'upcoming'),
+    [dayBlocks, now],
+  );
+  const selectedAt = selectedBlock ? movable.findIndex((b) => b.id === selectedBlock.id) : -1;
+  const moveSelected = useCallback(
+    (dir: -1 | 1) => {
+      const other = movable[selectedAt + dir];
+      if (selectedAt < 0 || !selectedBlock || !other) return;
+      applyEdit(dir < 0 ? { kind: 'reorder_block', blockId: selectedBlock.id, beforeId: other.id } : { kind: 'reorder_block', blockId: selectedBlock.id, afterId: other.id });
+    },
+    [movable, selectedAt, selectedBlock, applyEdit],
+  );
+
   const handlePin = useCallback(
     (block: ScheduleBlock) => {
       applyEdit(block.locked ? { kind: 'unpin_block', blockId: block.id } : { kind: 'pin_block', blockId: block.id });
@@ -811,7 +971,10 @@ export default function GuildFeed() {
       const b = schedule.find((bb) => bb.id === targetId);
       if (!a || !b) return;
       if (a.type !== 'work' || b.type !== 'work') return;
-      applyEdit({ kind: 'swap_blocks', aId: a.id, bId: b.id });
+      // Dropped on a quest further down, it goes after it; further up, before it.
+      // The planner then lays the day out again in that order.
+      const down = new Date(a.start).getTime() < new Date(b.start).getTime();
+      applyEdit(down ? { kind: 'reorder_block', blockId: a.id, afterId: b.id } : { kind: 'reorder_block', blockId: a.id, beforeId: b.id });
       setDraggingId(null);
       setDragOverId(null);
     },
@@ -859,6 +1022,8 @@ export default function GuildFeed() {
           <h1 className="page-title flex-1">Route</h1>
           <FeedActionsMenu
             loading={loading}
+            rests={rests}
+            onRests={setRests}
             onReflow={() => generate()}
             onReplan={() => replan()}
           />
@@ -1034,7 +1199,9 @@ export default function GuildFeed() {
                 return (
                   <div key={block.id}>
                     {renderNow && <NowMarker time={now} />}
-                    {isBreak ? (
+                    {isBreak && block.type === 'break' && block.durationMin >= BREAK_SLOT_MIN ? (
+                      <BreakTile block={block} status={status} />
+                    ) : isBreak ? (
                       <BreakLine block={block} />
                     ) : (
                       <BlockTile
@@ -1045,7 +1212,7 @@ export default function GuildFeed() {
                         isSelected={selectedBlockId === block.id}
                         onSelect={() => setSelectedBlockId(selectedBlockId === block.id ? null : block.id)}
                         onQuickDelete={() => handleDelete(block.id)}
-                        draggable={block.type === 'work' && status !== 'past' && !block.locked}
+                        draggable={block.type === 'work' && status === 'upcoming' && !block.locked}
                         isDragging={draggingId === block.id}
                         isDragOver={dragOverId === block.id && draggingId !== block.id}
                         onDragStart={(e) => {
@@ -1105,6 +1272,9 @@ export default function GuildFeed() {
               }
             }}
             onPin={() => handlePin(selectedBlock)}
+            onMove={selectedAt >= 0 ? moveSelected : undefined}
+            canMoveEarlier={selectedAt > 0}
+            canMoveLater={selectedAt >= 0 && selectedAt < movable.length - 1}
             onDelete={() => handleDelete(selectedBlock.id)}
             onExplain={handleExplain}
           />

@@ -366,11 +366,18 @@ Prisma ScheduleBlock persistence shape (unchanged from current schema):
 This is the on-disk shape; the in-memory algorithm uses the richer
 Block type above. Mapping happens at the route layer.
 
-### Fill the time, five minutes apart (owner's rule, 2026-10-11)
+### Fill the time, five minutes apart, a break every two hours (owner's rules, 2026-10-11 and 12)
 
-"Now it's not routing all the stuff, like the schedule just ends at 8:35. Make the available time a slider that is outside the menu, make it super accessible, and make the scheduler always fill the time available, and always add 5 minutes between each quest."
+"Now it's not routing all the stuff, like the schedule just ends at 8:35. Make the available time a slider that is outside the menu, make it super accessible, and make the scheduler always fill the time available, and always add 5 minutes between each quest." Then: "add in a large 30 minute break every roughly 2 hours but make that appear like a quest slot but in a different color, and make the in-between time and auto-scheduled breaks an adjustable amount of time in the menu … flexible enough to be used for any amount of time over 1.5 hours, and also make the tasks rearrangeable by dragging."
 
-So, for every user (`lib/userConfig.ts`): the plan fills today from now to the end of the available time before it puts anything on tomorrow, then tomorrow before the day after; consecutive quests are exactly five minutes apart; and the break policy described above (ten after fifty, a long break after three hours) no longer applies. Pacing work toward its deadline and levelling the days is what made a day stop early, and it is off. Deadlines, triage, pins, routines, the lunch half hour and the transition after a long fixed block still hold. The **Time available** slider is on the Route and on Today (`components/AvailableTime.tsx`): minutes from now, in quarter hours; letting go reroutes; the arrow beside it goes back to the working hours. It may run past the working hours or stop short of them, and once its time has passed there is no more work today. How it is built is in `server/src/lib/scheduler/README.md`; the scheduler labs do not grade this mode yet.
+So, for every user (`lib/userConfig.ts`):
+
+- **The plan fills the time.** Today is filled from now to the end of the available time before anything goes on tomorrow, then tomorrow before the day after. Pacing work toward its deadline and levelling the days is off.
+- **Rests are fixed, and the user's to set.** Consecutive quests are exactly the gap apart (5 minutes). After about two hours of work with no pause, a 30-minute break goes in: its own row on the Route, the size of a quest's, in the rest colour with diagonal bands. The break policy described above no longer applies. The gap (0 to 30), the break (off, or up to 90) and how often (1 to 4 hours) are steppers in the Route's Menu, under "Rests".
+- **Time available** is a slider on the Route and on Today (`components/AvailableTime.tsx`): minutes from now, in quarter hours, up to 24 hours; letting go reroutes; the arrow beside it goes back to the working hours. It may run past the working hours or stop short of them. Once its time has passed there is no more work today, unless it was set before the working hours opened, in which case they still open.
+- **Quests are rearranged by dragging** a row onto another (a mouse), or with Earlier and Later in the block's card (a finger, a keyboard). Only the order changes: the day is laid out again in the new order, same gaps, same breaks, and nothing is pinned. A drag cannot make a quest miss its deadline; it is put back ahead of whatever it would have waited behind.
+
+Deadlines, triage, pins, routines, the lunch half hour and the transition after a long fixed block still hold. How it is built is in `server/src/lib/scheduler/README.md`; the scheduler labs do not grade this mode yet.
 
 ### Live Rescheduling Triggers
 The feed rebuilds automatically when:

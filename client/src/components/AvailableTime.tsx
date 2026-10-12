@@ -13,7 +13,8 @@ import { Hourglass, RotateCcw } from 'lucide-react';
 import { useScheduleStore } from '../store/useScheduleStore';
 
 const STEP_MIN = 15;
-const AT_LEAST_MAX_MIN = 12 * 60;
+/** Any amount up to a whole day. */
+const MAX_MIN = 24 * 60;
 /** Arrow keys come one press at a time: wait this long after the last before rerouting. */
 const KEY_SETTLE_MS = 600;
 
@@ -37,7 +38,6 @@ export function AvailableTime({ className = '' }: { className?: string }) {
 
   const resting = Math.round(available.minutes / STEP_MIN) * STEP_MIN;
   const shown = drag?.minutes ?? resting;
-  const max = Math.max(AT_LEAST_MAX_MIN, Math.ceil(resting / 60) * 60);
   // At rest the server says when today ends; mid-drag it is the drag's start plus the thumb.
   const ends = drag ? drag.from + drag.minutes * 60_000 : available.until ? Date.parse(available.until) : null;
   const until = ends === null ? '' : new Date(ends).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -79,7 +79,7 @@ export function AvailableTime({ className = '' }: { className?: string }) {
         id="available-time"
         type="range"
         min={0}
-        max={max}
+        max={MAX_MIN}
         step={STEP_MIN}
         value={shown}
         disabled={saving}

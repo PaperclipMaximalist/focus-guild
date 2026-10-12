@@ -107,9 +107,15 @@ export function buildDayInfo(
     let wEnd = Math.min(window.end, horizonEnd);
     // "Available time": today runs from now to when the person said they stop,
     // whatever the working hours say. Once that time has passed, today is over.
+    // Set in the small hours for an hour or two, it ends before the working
+    // hours have even opened: that is an extra stretch now, not the whole of
+    // today, and the working hours still open as usual after it.
+    let shut: { start: number; end: number } | null = null;
     if (d === 0 && todayEndInForce(config, now)) {
+      const ends = config.todayEndsAt!;
       wStart = now;
-      wEnd = Math.min(config.todayEndsAt!, horizonEnd);
+      if (ends > now && ends < window.start) shut = { start: ends, end: window.start };
+      else wEnd = Math.min(ends, horizonEnd);
     }
     // A day can't start before the one before it has ended (today stretched past midnight).
     const before = out[out.length - 1];
@@ -134,6 +140,16 @@ export function buildDayInfo(
       cursor = Math.max(cursor, be);
     }
     if (cursor < wEnd) free.push({ start: cursor, end: wEnd, day: key });
+    if (shut) {
+      const open = free.splice(0, free.length);
+      for (const iv of open) {
+        if (iv.end <= shut.start || iv.start >= shut.end) free.push(iv);
+        else {
+          if (iv.start < shut.start) free.push({ ...iv, end: shut.start });
+          if (iv.end > shut.end) free.push({ ...iv, start: shut.end });
+        }
+      }
+    }
     if (config.mealGap && !crossesMidnight(config.workingHours)) keepMealFree(free, todayImmov, midnight, wStart, wEnd, config.mealGap);
 
     const freeMinutes = free.reduce((s, iv) => s + (iv.end - iv.start) / MS_PER_MIN, 0);
@@ -285,12 +301,12 @@ export function workableMin(
   lengthMin: number,
   policy?: { shortBreakAfterMin: number; shortBreakDurationMin: number; longBreakAfterMin?: number; longBreakDurationMin?: number },
 ): number {
-  if (!policy || policy.shortBreakDurationMin <= 0) return lengthMin;
-  const cycle = Math.max(1, policy.shortBreakAfterMin) + policy.shortBreakDurationMin;
-  const breaks = Math.floor(lengthMin / cycle);
-  let work = lengthMin - breaks * policy.shortBreakDurationMin;
+  if (!policy) return lengthMin;
+  const short = Math.max(0, policy.shortBreakDurationMin);
+  let work = lengthMin;
+  if (short > 0) work -= Math.floor(lengthMin / (Math.max(1, policy.shortBreakAfterMin) + short)) * short;
   const longAfter = policy.longBreakAfterMin ?? 0;
-  const extra = (policy.longBreakDurationMin ?? 0) - policy.shortBreakDurationMin;
+  const extra = (policy.longBreakDurationMin ?? 0) - short;
   if (longAfter > 0 && extra > 0) work -= Math.floor(work / (longAfter + extra)) * extra;
   return work;
 }

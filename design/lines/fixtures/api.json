@@ -577,18 +577,18 @@
       {
        "id": "b6",
        "start": "2026-10-10T03:05:00.000Z",
-       "end": "2026-10-10T03:15:00.000Z",
-       "durationMin": 10,
+       "end": "2026-10-10T03:35:00.000Z",
+       "durationMin": 30,
        "type": "break",
        "taskId": null,
        "locked": false,
-       "note": null,
+       "note": "Break",
        "reason": null
       },
       {
        "id": "b7",
-       "start": "2026-10-10T03:15:00.000Z",
-       "end": "2026-10-10T04:00:00.000Z",
+       "start": "2026-10-10T03:35:00.000Z",
+       "end": "2026-10-10T04:20:00.000Z",
        "durationMin": 45,
        "type": "work",
        "taskId": "q1",
@@ -598,17 +598,6 @@
       },
       {
        "id": "b8",
-       "start": "2026-10-10T04:00:00.000Z",
-       "end": "2026-10-10T04:20:00.000Z",
-       "durationMin": 20,
-       "type": "fixed",
-       "taskId": null,
-       "locked": true,
-       "note": "Daily: Twenty minutes of Spanish",
-       "reason": null
-      },
-      {
-       "id": "b9",
        "start": "2026-10-10T04:25:00.000Z",
        "end": "2026-10-10T04:40:00.000Z",
        "durationMin": 15,
@@ -617,6 +606,17 @@
        "locked": false,
        "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Due tomorrow · quick win\"}",
        "reason": "Due tomorrow · quick win"
+      },
+      {
+       "id": "b9",
+       "start": "2026-10-10T04:40:00.000Z",
+       "end": "2026-10-10T05:00:00.000Z",
+       "durationMin": 20,
+       "type": "fixed",
+       "taskId": null,
+       "locked": true,
+       "note": "Daily: Twenty minutes of Spanish",
+       "reason": null
       },
       {
        "id": "b10",
@@ -890,6 +890,11 @@
       "minutes": 140,
       "until": "2026-10-10T05:00:00.000Z",
       "set": false
+     },
+     "rests": {
+      "gapMin": 5,
+      "breakMin": 30,
+      "breakEveryMin": 120
      },
      "feasibilityReport": {
       "ok": true,

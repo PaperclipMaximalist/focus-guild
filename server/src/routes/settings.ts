@@ -115,11 +115,16 @@ settings.put('/', async (c) => {
   if (problem) {
     return c.json({ success: false, error: { code: 'BAD_REQUEST', message: problem } }, 400);
   }
-  // The "available time" slider keeps its value through a Settings save.
-  const slider = (user.schedulerSettings as { availableUntil?: unknown } | null)?.availableUntil;
+  // What the Route owns (the "time available" slider, the rests in its menu)
+  // keeps its value through a Settings save.
+  const before = (user.schedulerSettings ?? {}) as Record<string, unknown>;
+  const kept: Record<string, unknown> = {};
+  for (const key of ['availableUntil', 'gapMin', 'breakMin', 'breakEveryMin']) {
+    if (before[key] !== undefined) kept[key] = before[key];
+  }
   await db.user.update({
     where: { id: user.id },
-    data: { schedulerSettings: { ...overrides, ...(typeof slider === 'string' ? { availableUntil: slider } : {}) } as object },
+    data: { schedulerSettings: { ...overrides, ...kept } as object },
   });
   return c.json({ success: true, data: { overrides } });
 });
