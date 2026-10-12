@@ -886,6 +886,11 @@
        "subQuestDone": 0
       }
      ],
+     "available": {
+      "minutes": 140,
+      "until": "2026-10-10T05:00:00.000Z",
+      "set": false
+     },
      "feasibilityReport": {
       "ok": true,
       "issues": []

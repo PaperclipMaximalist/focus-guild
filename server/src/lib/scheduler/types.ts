@@ -151,6 +151,27 @@ export interface UserConfig {
   workingHours: WorkingHours;
   horizonDays: number;
   /**
+   * A fixed rest after every work block, in minutes. When set it is the only
+   * rest there is: it replaces the break policy (no ten after fifty, no long
+   * break, no stepping away between blocks of the same kind), and the plan is
+   * packed so consecutive blocks sit exactly this far apart (pack.ts).
+   */
+  gapMin?: number;
+  /**
+   * Fill each day's free time before starting the next, earliest first,
+   * instead of pacing work toward its deadline and levelling the days. A
+   * replan then builds afresh from now around pinned and fixed blocks, so
+   * time that opens up today is always used.
+   */
+  fillDays?: boolean;
+  /**
+   * "Available time": today's work runs from now until this instant (UTC ms)
+   * instead of to the end of working hours. In force while it is still ahead,
+   * and after it has passed for as long as it falls inside today's working
+   * day (the person said when they stop; once that time has come, today is over).
+   */
+  todayEndsAt?: number;
+  /**
    * Time kept free of quests for a meal: `minutes` somewhere between
    * `fromHour` and `toHour`, on a day whose quest hours run through that
    * span. Unset = none.

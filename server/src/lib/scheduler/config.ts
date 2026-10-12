@@ -128,6 +128,28 @@ export const DEFAULT_BREAK_POLICY: BreakPolicy = {
   longBreakDurationMin: 30,
 };
 
+/**
+ * How long a block runs, for counting the gaps a stretch of free time will
+ * hold when the gap is fixed (`gapMin`). Deliberately short: the budget must
+ * never promise more than fits, and what it leaves over the packing pass
+ * fills exactly (pack.ts).
+ */
+export const TYPICAL_BLOCK_MIN = 30;
+
+/**
+ * The rests a plan will take, as the budget should count them: the break
+ * policy, or with a fixed gap one gap per typical block and nothing else.
+ */
+export function restPolicy(config: Pick<UserConfig, 'breakPolicy' | 'gapMin'>): BreakPolicy {
+  if (config.gapMin === undefined) return config.breakPolicy;
+  return {
+    shortBreakAfterMin: TYPICAL_BLOCK_MIN,
+    shortBreakDurationMin: config.gapMin,
+    longBreakAfterMin: 0,
+    longBreakDurationMin: config.gapMin,
+  };
+}
+
 export const DEFAULT_WORKING_HOURS: WorkingHours = {
   startHour: 9,
   endHour: 18,

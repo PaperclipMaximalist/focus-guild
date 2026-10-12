@@ -366,6 +366,12 @@ Prisma ScheduleBlock persistence shape (unchanged from current schema):
 This is the on-disk shape; the in-memory algorithm uses the richer
 Block type above. Mapping happens at the route layer.
 
+### Fill the time, five minutes apart (owner's rule, 2026-10-11)
+
+"Now it's not routing all the stuff, like the schedule just ends at 8:35. Make the available time a slider that is outside the menu, make it super accessible, and make the scheduler always fill the time available, and always add 5 minutes between each quest."
+
+So, for every user (`lib/userConfig.ts`): the plan fills today from now to the end of the available time before it puts anything on tomorrow, then tomorrow before the day after; consecutive quests are exactly five minutes apart; and the break policy described above (ten after fifty, a long break after three hours) no longer applies. Pacing work toward its deadline and levelling the days is what made a day stop early, and it is off. Deadlines, triage, pins, routines, the lunch half hour and the transition after a long fixed block still hold. The **Time available** slider is on the Route and on Today (`components/AvailableTime.tsx`): minutes from now, in quarter hours; letting go reroutes; the arrow beside it goes back to the working hours. It may run past the working hours or stop short of them, and once its time has passed there is no more work today. How it is built is in `server/src/lib/scheduler/README.md`; the scheduler labs do not grade this mode yet.
+
 ### Live Rescheduling Triggers
 The feed rebuilds automatically when:
 - A quest is marked complete (remove it, collapse the gap, pull next up)

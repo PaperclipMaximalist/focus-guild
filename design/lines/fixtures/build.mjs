@@ -151,7 +151,7 @@ const responses = {
   'GET /quests/rescue': ok(rescue),
   'GET /quests/recurring': ok(recurring),
   'GET /quests/completed': ok(completed),
-  'GET /schedule/dev-member-001': ok({ schedule, quests: planQuests, feasibilityReport: { ok: true, issues: [] }, insights: null, generatedAt: at(14, 50) }),
+  'GET /schedule/dev-member-001': ok({ schedule, quests: planQuests, available: { minutes: 140, until: at(22, 0), set: false }, feasibilityReport: { ok: true, issues: [] }, insights: null, generatedAt: at(14, 50) }),
   'GET /quests/hours': ok([]),
   'GET /schedule/dev-member-001/energy': ok({ trace }),
   'GET /checkin/today/dev-member-001': ok({ id: 'c1', date: at(9, 5), energyLevel: 4, availableMinutes: 300 }),

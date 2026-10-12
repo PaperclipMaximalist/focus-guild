@@ -395,7 +395,13 @@ export const api = {
         body: JSON.stringify({ clerkId, tzOffsetMin: tzOffset() }),
       }),
     get: (clerkId = getCurrentClerkId()) =>
-      request<ScheduleResponse>(`/schedule/${clerkId}`),
+      request<ScheduleResponse>(`/schedule/${clerkId}?tz=${tzOffset()}`),
+    /** The "time available" slider: minutes from now, or null for the working hours. Reroutes. */
+    setAvailable: (minutes: number | null, clerkId = getCurrentClerkId()) =>
+      request<ScheduleResponse>(`/schedule/${clerkId}/available`, {
+        method: 'POST',
+        body: JSON.stringify({ minutes, tzOffsetMin: tzOffset() }),
+      }),
     replan: (clerkId = getCurrentClerkId()) =>
       request<ScheduleResponse>(`/schedule/${clerkId}/replan`, {
         method: 'POST',
@@ -706,10 +712,18 @@ export interface FeasibilityIssue {
   suggestions: string[];
 }
 
+export interface AvailableTime {
+  minutes: number;
+  until: string | null;
+  set: boolean;
+}
+
 export interface ScheduleResponse {
   schedule: ScheduleBlock[];
   /** Every quest a block belongs to, steps and stragglers included (GET /quests has only open main quests). */
   quests?: Quest[];
+  /** The time today's quests may run for, from now. `set` when the slider chose it rather than the working hours. */
+  available?: AvailableTime;
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   generatedAt: string | null;
   insights?: PlanInsights | null;

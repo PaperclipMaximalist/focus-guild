@@ -117,6 +117,37 @@ their weeks (`-- --week`). `npm run lab:fuzz` throws adversarial inputs and edit
 and checks the hard rules. Run all three before and after any change here — see
 the end of SCHEDULER_PSEUDOCODE.md.
 
+## What the app runs with: a fixed gap, filled days, available time
+
+The owner's rules since 2026-10-11: "make the scheduler always fill the time
+available, and always add 5 minutes between each quest", with the available
+time on a slider. They are three config fields, off in `defaultConfig()` (so
+everything above, and every test and lab but `fill.test.ts`, describes the
+library's own default) and **on for every user** in `lib/userConfig.ts`:
+
+- **`gapMin: 5`** replaces the break policy. `restAfter` returns it after
+  every block; there is no ten-after-fifty, no long break, no stepping away
+  between same-mode blocks. Work already in place (a pin, the sitting under
+  way) keeps the gap either side (`buildDayInfo`).
+- **`fillDays: true`** fills each day before the next. Budget pass 3 brings
+  work forward from the latest day that holds it, and takes in what pacing
+  and levelling left unplaced. `focusWindow` is off (a day starts at its
+  start), and a replan no longer holds today to its size.
+- **`pack.ts`** makes both exact after reconcile, and again over the whole
+  plan at the end of a replan: blocks slide together in the order they had,
+  `gapMin` apart, and free time at the end of a stretch takes the next work
+  in the plan. The budget counts gaps with a short block (`TYPICAL_BLOCK_MIN`)
+  so it never promises more than fits; packing fills what that leaves.
+- **`todayEndsAt`** is the slider: today runs from now to that instant
+  whatever the working hours say, and is over once it has passed
+  (`todayEndInForce`). `POST /schedule/:id/available` stores it in
+  `User.schedulerSettings.availableUntil`; the check-in's hours give way to it.
+
+Still kept in this mode: the lunch half hour (`mealGap`), the transition after
+a long fixed block, deadlines, triage, pins and routines. The three labs run
+`defaultConfig()` and so do **not** grade this mode; `fill.test.ts` does, with
+a randomised day of replans.
+
 ## Tuning
 
 Eight `ScoreWeights` knobs (see `config.ts: DEFAULT_SCORE_WEIGHTS`),

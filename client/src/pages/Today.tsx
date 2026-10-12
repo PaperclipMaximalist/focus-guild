@@ -22,6 +22,7 @@ import { isSceneEnabled, subscribeScene } from '../lib/scene';
 import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
 import { UpNextCard } from '../components/UpNextCard';
+import { AvailableTime } from '../components/AvailableTime';
 import { QuickAddBar } from '../components/QuickAddBar';
 import { useToastStore } from '../components/Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
@@ -202,6 +203,7 @@ export default function Today() {
           <div className="min-w-0">
             {/* What should I do right now? The scheduler answers on arrival. */}
             <UpNextCard onCompleteQuest={handleComplete} />
+            <AvailableTime className="mt-3" />
 
             {(!checkIn || overdueCount > 0) && (
               <div className="panel rows mt-3">

@@ -115,9 +115,11 @@ settings.put('/', async (c) => {
   if (problem) {
     return c.json({ success: false, error: { code: 'BAD_REQUEST', message: problem } }, 400);
   }
+  // The "available time" slider keeps its value through a Settings save.
+  const slider = (user.schedulerSettings as { availableUntil?: unknown } | null)?.availableUntil;
   await db.user.update({
     where: { id: user.id },
-    data: { schedulerSettings: overrides as object },
+    data: { schedulerSettings: { ...overrides, ...(typeof slider === 'string' ? { availableUntil: slider } : {}) } as object },
   });
   return c.json({ success: true, data: { overrides } });
 });

@@ -10,6 +10,7 @@ import { FocusTimer } from '../components/FocusTimer';
 import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
+import { AvailableTime } from '../components/AvailableTime';
 import { levelFromXP } from '../lib/levels';
 import { formatMinutes } from '../lib/formatters';
 import { blockStatus as boardStatus, TONE_COLOR } from '../lib/departure';
@@ -881,6 +882,7 @@ export default function GuildFeed() {
         </div>
 
         <EnergyMeterStrip trace={energyTrace} />
+        <AvailableTime className="mb-4" />
 
         {!feasibilityReport.ok && (
           <FeasibilityBanner

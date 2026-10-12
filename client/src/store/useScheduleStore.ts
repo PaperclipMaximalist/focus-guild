@@ -7,6 +7,7 @@ import {
   type FeasibilityIssue,
   type PlanInsights,
   type Quest,
+  type AvailableTime,
 } from '../lib/api';
 
 interface ScheduleState {
@@ -15,6 +16,8 @@ interface ScheduleState {
   blockQuests: Record<string, Quest | undefined>;
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   insights: PlanInsights | null;
+  /** How long today's quests may run for, from now. Null until the plan has loaded. */
+  available: AvailableTime | null;
   generatedAt: string | null;
   loading: boolean;
   error: string | null;
@@ -22,6 +25,8 @@ interface ScheduleState {
   generate: () => Promise<void>;
   fetch: () => Promise<void>;
   replan: () => Promise<void>;
+  /** Set the time available today (minutes from now; null for the working hours) and reroute. */
+  setAvailable: (minutes: number | null) => Promise<void>;
   insertQuest: (questId: string) => Promise<void>;
   applyEdit: (edit: ScheduleEdit) => Promise<void>;
   /** Active block id — user has started a focus session on it. */
@@ -37,6 +42,7 @@ function applyResponse(state: Partial<ScheduleState>, r: ScheduleResponse): Part
     feasibilityReport: r.feasibilityReport,
     // Absent from responses that don't replan; keep what we had then.
     ...(r.insights !== undefined ? { insights: r.insights } : {}),
+    ...(r.available ? { available: r.available } : {}),
     generatedAt: r.generatedAt,
     loading: false,
     error: null,
@@ -48,6 +54,7 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
   blockQuests: {},
   feasibilityReport: { ok: true, issues: [] },
   insights: null,
+  available: null,
   generatedAt: null,
   loading: false,
   error: null,
@@ -70,6 +77,15 @@ export const useScheduleStore = create<ScheduleState>((set) => ({
       set((s) => applyResponse(s, r));
     } catch (e) {
       set({ loading: false, error: String(e) });
+    }
+  },
+
+  setAvailable: async (minutes) => {
+    try {
+      const r = await api.schedule.setAvailable(minutes);
+      set((s) => applyResponse(s, r));
+    } catch (e) {
+      set({ error: String(e) });
     }
   },
 

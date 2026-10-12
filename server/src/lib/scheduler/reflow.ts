@@ -39,6 +39,8 @@
  */
 
 import { buildDayInfo, todayCap, triage } from './budget.js';
+import { restPolicy } from './config.js';
+import { packDays } from './pack.js';
 import { plan } from './planner.js';
 import { workDayEndUtc, workDayStartUtc } from './tz.js';
 import type { Block, ReplanOptions, Schedule, SchedulerResult, Task, UserConfig } from './types.js';
@@ -206,7 +208,7 @@ export function reflow(
   // ── Today doesn't grow ──
   // What today held ahead of now when the replan began, pinned or not.
   const heldToday = [...candidates, ...userLockedFuture].reduce((m, b) => (isWork(b) && isToday(b) ? m + ahead(b) : m), 0);
-  const plannedToday = currentSchedule.some((b) => isWork(b) && isToday(b));
+  const plannedToday = !config.fillDays && currentSchedule.some((b) => isWork(b) && isToday(b));
   const added = new Set(options.addTaskIds ?? []);
   const urgentBy = now + URGENT_WITHIN_DAYS * MS_PER_DAY;
   /** May wait for another day: not due soon, and not the quest just added. */
@@ -324,7 +326,7 @@ export function reflow(
   // that can still make it (triage) may take stable blocks of work due later.
   if (result.feasibilityReport.issues.length) {
     const live = tasks.filter((t) => t.status !== 'done' && t.remainingMin > 0.5 && t.deadline > now);
-    const dropped = triage(live, days, capForUnpinned, config.breakPolicy);
+    const dropped = triage(live, days, capForUnpinned, restPolicy(config));
     const shortOf = (r: SchedulerResult) =>
       r.feasibilityReport.issues.filter((i) => !dropped.has(i.taskId)).reduce((m, i) => m + i.shortfallMin, 0);
 
@@ -359,9 +361,37 @@ export function reflow(
   // same to the client as they did before reflow. User-locked blocks keep
   // their locked flag (they were genuinely pinned).
   const stableIds = new Set(kept.map((b) => b.id));
-  const restored: Block[] = result.schedule.map((b) =>
+  let restored: Block[] = result.schedule.map((b) =>
     stableIds.has(b.id) ? { ...b, locked: false } : b,
   );
+
+  // ── A fixed gap, days filled in order ──
+  // The blocks that stayed are in their old places, with the hole a finished
+  // quest left still in the day. Pack the whole plan: everything unpinned
+  // slides up in the order it had, and the time that opens at the end of a
+  // day takes the next day's work. The sitting under way stays where it is.
+  if (config.gapMin !== undefined || config.fillDays) {
+    const held = restored.filter((b) => !isWork(b) || b.locked || b.start <= now);
+    const heldIds = new Set(held.map((b) => b.id));
+    const free = restored.filter((b) => !heldIds.has(b.id));
+    const packDaysOf = buildDayInfo(config, now, held);
+    const groups = packDaysOf.map((d) => ({
+      blocks: free.filter((b) => b.start >= d.workStart && b.start < d.workEnd),
+      totalScore: 0,
+      unfulfilledByTaskId: new Map<string, number>(),
+    }));
+    const grouped = new Set(groups.flatMap((g) => g.blocks.map((b) => b.id)));
+    let n = 0;
+    const taken = new Set(currentSchedule.map((b) => b.id).concat(restored.map((b) => b.id)));
+    const freshId = () => {
+      let id = `blk-p${(n += 1)}`;
+      while (taken.has(id)) id = `blk-p${(n += 1)}`;
+      taken.add(id);
+      return id;
+    };
+    const packed = packDays(packDaysOf, groups, taskMap, { ...config, todayCapMin: capTotal }, (d) => d === packDaysOf[0], (piece) => ({ ...piece, id: freshId() }));
+    restored = [...held, ...free.filter((b) => !grouped.has(b.id)), ...packed.flatMap((g) => g.blocks as Block[])];
+  }
 
   // Stitch past at the front.
   const merged = [...past, ...restored].sort((a, b) => a.start - b.start);

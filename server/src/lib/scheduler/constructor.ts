@@ -35,6 +35,7 @@ import {
 import { MIN_SITTING_MIN, isToday, minSitting } from './budget.js';
 import { userHourOf } from './tz.js';
 import { composeWhy } from './explain.js';
+import { restPolicy } from './config.js';
 import type { DayBudget, FreeInterval } from './budget.js';
 import type { Block, Task, UserConfig } from './types.js';
 
@@ -303,7 +304,7 @@ function enumerateCandidates(
  * had a quest flagged short with the time sitting right there).
  */
 function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, config: UserConfig, marginMin = 0): boolean {
-  const after = c.start + (c.chunkMin + config.breakPolicy.shortBreakDurationMin) * MS_PER_MIN;
+  const after = c.start + (c.chunkMin + restPolicy(config).shortBreakDurationMin) * MS_PER_MIN;
   // Only deadlines inside the working day: one at the end of it (or tonight)
   // is the budget's and reconcile's business, and guarding it here too turned
   // the whole day into strict deadline order, starving paced work.
@@ -496,6 +497,8 @@ function runsEndingAt(
  * and four straight hours of work was normal.
  */
 function restAfter(blocks: BeamState['blocks'], end: number, config: UserConfig, task: Task, chunkMin: number): number {
+  // A fixed gap is the whole of the rest: the same after every block.
+  if (config.gapMin !== undefined) return config.gapMin;
   const p = config.breakPolicy;
   const { run, sinceLong } = runsEndingAt(blocks, end, config);
   if (sinceLong >= p.longBreakAfterMin) return p.longBreakDurationMin;
@@ -579,6 +582,8 @@ const WINDOW_MIN_GAIN = 0.05;
  */
 export function focusWindow(budget: DayBudget, config: UserConfig, now: number): FreeInterval[] | null {
   const day = budget.day;
+  // Days that are filled in order start at their start.
+  if (config.fillDays) return null;
   if (isToday(day, now, config.tzOffsetMin ?? 0)) return null;
   const need = budget.quotas.reduce((m, q) => m + q.targetMin, 0);
   if (need <= 0) return null;
@@ -685,7 +690,7 @@ export function constructDay(
         // step away long enough for the run to end (a walk between two
         // essays) rather than chaining a fourth heavy block. On a tight day
         // the work goes in anyway: finishing beats variety.
-        if (candidates.length > 0 && slackMin(state) >= varietyResetMin()) {
+        if (candidates.length > 0 && config.gapMin === undefined && slackMin(state) >= varietyResetMin()) {
           next.push(restFor(state, varietyResetMin()));
           progressed = true;
           continue;

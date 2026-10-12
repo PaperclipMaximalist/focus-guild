@@ -32,7 +32,20 @@ export interface SchedulerOverrides {
   softMaxBlockMin?: number;
   /** When in the day the user is sharpest; picks the energy curve. */
   chronotype?: Chronotype;
+  /**
+   * When today's work ends (ISO), from the "available time" slider on the
+   * Route and Today. Not a Settings field: POST /schedule/:id/available
+   * writes it, a Settings save carries it over, and it lapses by itself the
+   * next working day (see todayEndInForce).
+   */
+  availableUntil?: string;
 }
+
+/**
+ * The rest between two blocks, for everyone. The owner's rule (2026-10-11):
+ * "always add 5 minutes between each quest", in place of the break policy.
+ */
+export const GAP_MIN = 5;
 
 /** Type-narrow helper for JSON-from-DB. */
 function isOverrides(v: unknown): v is SchedulerOverrides {
@@ -49,6 +62,7 @@ export function getUserConfig(
 ): UserConfig {
   const base = defaultConfig();
   const overrides = isOverrides(user.schedulerSettings) ? user.schedulerSettings : {};
+  const until = typeof overrides.availableUntil === 'string' ? Date.parse(overrides.availableUntil) : NaN;
 
   return {
     ...base,
@@ -60,10 +74,18 @@ export function getUserConfig(
     softMaxBlockMin: overrides.softMaxBlockMin ?? base.softMaxBlockMin,
     energyCurve: CHRONOTYPE_CURVES[overrides.chronotype ?? 'standard'] ?? base.energyCurve,
     tzOffsetMin,
+    // The same day: "always fill the time available". The scheduler library's
+    // own default paces work toward its deadline; the app does not.
+    gapMin: GAP_MIN,
+    fillDays: true,
+    ...(Number.isFinite(until) ? { todayEndsAt: until } : {}),
   };
 }
 
 /** Return just the overrides part (what the Settings page binds to). */
 export function getOverrides(user: { schedulerSettings?: unknown }): SchedulerOverrides {
-  return isOverrides(user.schedulerSettings) ? user.schedulerSettings : {};
+  if (!isOverrides(user.schedulerSettings)) return {};
+  // The slider's end time is not the Settings page's to show or send back.
+  const { availableUntil: _slider, ...settings } = user.schedulerSettings;
+  return settings;
 }

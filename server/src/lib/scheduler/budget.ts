@@ -67,6 +67,23 @@ function sortBlocks(blocks: Block[]): Block[] {
  * working window — same algorithm the old planner used inline, hoisted
  * so budget + constructor share it.
  */
+/**
+ * Is the "available time" end in force for the working day `now` falls in?
+ * While it is still ahead, always. Once it has passed, for the rest of that
+ * working day: the person said when they stop, and that time has come. An
+ * end from before today's window opened belongs to another day.
+ */
+export function todayEndInForce(
+  config: Pick<UserConfig, 'todayEndsAt' | 'workingHours' | 'tzOffsetMin'>,
+  now: number,
+): boolean {
+  const ends = config.todayEndsAt;
+  if (ends === undefined) return false;
+  if (ends > now) return true;
+  const midnight = workDayMidnightUtc(now, config.tzOffsetMin ?? 0, config.workingHours);
+  return ends >= workWindowUtc(midnight, config.workingHours).start;
+}
+
 export function buildDayInfo(
   config: UserConfig,
   now: number,
@@ -86,8 +103,17 @@ export function buildDayInfo(
     // An end before the start is tomorrow's: the window, and so a work block,
     // may run past midnight. The day keeps the date its window starts on.
     const window = workWindowUtc(midnight, config.workingHours);
-    const wStart = Math.max(window.start, now);
-    const wEnd = Math.min(window.end, horizonEnd);
+    let wStart = Math.max(window.start, now);
+    let wEnd = Math.min(window.end, horizonEnd);
+    // "Available time": today runs from now to when the person said they stop,
+    // whatever the working hours say. Once that time has passed, today is over.
+    if (d === 0 && todayEndInForce(config, now)) {
+      wStart = now;
+      wEnd = Math.min(config.todayEndsAt!, horizonEnd);
+    }
+    // A day can't start before the one before it has ended (today stretched past midnight).
+    const before = out[out.length - 1];
+    if (before) wStart = Math.max(wStart, before.workEnd);
     if (wEnd <= wStart) continue;
 
     const key = dayKey(midnight, tz);
@@ -96,11 +122,14 @@ export function buildDayInfo(
     const free: FreeInterval[] = [];
     let cursor = wStart;
     for (const b of todayImmov) {
-      const bs = Math.max(b.start, wStart);
+      // With a fixed gap, work already in place (pinned, or under way) keeps
+      // that gap either side of it, like any other block.
+      const pad = b.type === 'work' && config.gapMin !== undefined ? config.gapMin * MS_PER_MIN : 0;
+      const bs = Math.max(b.start - pad, wStart);
       // Nobody walks out of six hours of school straight into an essay.
       // After a long fixed block, the next free time starts a little later.
       const long = b.end - b.start >= TRANSITION_AFTER_MIN * MS_PER_MIN;
-      const be = Math.min(b.end + (long ? TRANSITION_MIN * MS_PER_MIN : 0), wEnd);
+      const be = Math.min(b.end + (long ? TRANSITION_MIN * MS_PER_MIN : 0) + pad, wEnd);
       if (bs > cursor) free.push({ start: cursor, end: bs, day: key });
       cursor = Math.max(cursor, be);
     }
@@ -183,6 +212,9 @@ const SLIVER_MIN = 15;
 
 /** Smallest piece the permissive deadline repair will hand out. */
 const REPAIR_MIN_GRAB = 10;
+
+/** Free time on a day below this isn't worth bringing work forward for. */
+const FILL_MIN = 10;
 
 /** A fixed block at least this long earns a transition gap after it. */
 export const TRANSITION_AFTER_MIN = 90;
@@ -356,6 +388,8 @@ export function allocateBudgets(
    * repaired last, and never take time from a quest that can still finish.
    */
   dropped: ReadonlySet<string> = new Set(),
+  /** Fill each day before the next (`fillDays`): see pass 3. */
+  fill = false,
 ): DayBudget[] {
   const usable = (day: DayInfo, deadline: number) => usableMinBeforeDeadline(day, deadline, policy);
   const remaining = new Map<string, number>(tasks.map((t) => [t.id, t.remainingMin]));
@@ -627,6 +661,65 @@ export function allocateBudgets(
         budgets[i]!.quotas = budgets[i]!.quotas.filter((x) => x !== q);
       }
     }
+  }
+
+  // ── PASS 3: fill ──
+  // Asked for by `fillDays`: every day is filled before the next one is
+  // started, so nothing waits for a lighter day while there is free time
+  // now. Work comes forward from the latest day that holds it, and what the
+  // passes above left unplaced (its pace, a day's level) goes in too. A quest
+  // keeps to its usual share of a day while other quests can use the room;
+  // when none can, it takes the rest.
+  if (fill) {
+    const order = [...tasks].sort((a, b) => {
+      const diff = (priority.get(b.id) ?? 0) - (priority.get(a.id) ?? 0);
+      if (Math.abs(diff) > 1e-6) return diff;
+      return a.deadline - b.deadline || (a.id < b.id ? -1 : 1);
+    });
+    for (let dayIdx = 0; dayIdx < days.length; dayIdx += 1) {
+      const day = days[dayIdx]!;
+      for (const shared of [true, false]) {
+        for (const task of order) {
+          if (residuals[dayIdx]! < FILL_MIN) break;
+          if (day.workStart >= task.deadline || (task.notBefore ?? 0) >= day.workEnd) continue;
+          const here = grantedOnDay(budgets[dayIdx]!, task.id);
+          let room = Math.min(residuals[dayIdx]!, usable(day, task.deadline) - here);
+          if (shared) room = Math.min(room, softMaxPerDay(task) - here);
+          room = Math.floor(room);
+          if (room < 1) continue;
+          const spare = Math.floor(remaining.get(task.id) ?? 0);
+          const later: Array<{ idx: number; quota: { task: Task; targetMin: number } }> = [];
+          for (let j = days.length - 1; j > dayIdx; j -= 1) {
+            const quota = budgets[j]!.quotas.find((q) => q.task.id === task.id);
+            if (quota && quota.targetMin >= 1) later.push({ idx: j, quota });
+          }
+          const reach = spare + later.reduce((m, x) => m + x.quota.targetMin, 0);
+          const want = Math.min(room, Math.floor(reach));
+          // A real sitting, or all there is; topping up a sitting already here is fine.
+          if (want < 1 || (here < 1 && want < reach && want < minSitting(task, reach))) continue;
+          let moved = Math.min(want, spare);
+          if (moved > 0) remaining.set(task.id, (remaining.get(task.id) ?? 0) - moved);
+          for (const x of later) {
+            if (moved >= want) break;
+            let take = Math.min(want - moved, x.quota.targetMin);
+            // Don't leave the later day a crumb: bring it all, or leave it a sitting.
+            const stays = x.quota.targetMin - take;
+            if (stays > 0 && stays < MIN_SITTING_MIN) {
+              take = x.quota.targetMin <= room - moved ? x.quota.targetMin : x.quota.targetMin - MIN_SITTING_MIN;
+            }
+            take = Math.floor(take);
+            if (take < 1) continue;
+            x.quota.targetMin -= take;
+            residuals[x.idx]! += take;
+            moved += take;
+          }
+          if (moved < 1) continue;
+          addQuota(budgets[dayIdx]!, task, moved);
+          residuals[dayIdx]! -= moved;
+        }
+      }
+    }
+    for (const b of budgets) b.quotas = b.quotas.filter((q) => q.targetMin >= 1);
   }
 
   return budgets;

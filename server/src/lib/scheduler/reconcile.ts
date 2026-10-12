@@ -30,6 +30,7 @@ import { canDonate, dueWithinPlan, MIN_SITTING_MIN, minSitting, type DayBudget }
 import { buildDay, workBefore, type ConstructedDay } from './constructor.js';
 import type { PlacedRef } from './planner.js';
 import { composeWhy } from './explain.js';
+import { restPolicy } from './config.js';
 import type { Block, Task, UserConfig } from './types.js';
 
 const MS_PER_MIN = 60_000;
@@ -226,7 +227,7 @@ export function reconcile(
   }
   if (!short.length) return out;
   const need = new Map(short.map((x) => [x.t.id, x.need]));
-  const breakMin = config.breakPolicy.shortBreakDurationMin;
+  const breakMin = restPolicy(config).shortBreakDurationMin;
 
   for (let i = 0; i < days.length; i += 1) {
     if (![...need.values()].some((v) => v > EPSILON_MIN)) break;
@@ -312,7 +313,7 @@ export function reconcile(
         // Nor straight on from the block before it: the longer sitting must
         // still start after a break, or the stretch runs past the break policy.
         const before = all[k - 1];
-        if (before && b.start - before.end < 5 * MS_PER_MIN && minutesOf(before) + minutesOf(b) + owed > config.breakPolicy.shortBreakAfterMin + 2 * SHARD_MIN) continue;
+        if (before && b.start - before.end < 5 * MS_PER_MIN && config.gapMin === undefined && minutesOf(before) + minutesOf(b) + owed > config.breakPolicy.shortBreakAfterMin + 2 * SHARD_MIN) continue;
         all[k] = { ...b, end };
         need.set(t.id, 0);
         capLeft -= owed;
