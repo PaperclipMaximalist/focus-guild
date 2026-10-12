@@ -325,7 +325,7 @@
     "success": true,
     "data": [
      {
-      "id": "q11",
+      "id": "q12",
       "userId": "sample-user",
       "title": "Stretch for ten minutes",
       "estimatedMinutes": 10,
@@ -351,7 +351,7 @@
       "doneToday": true
      },
      {
-      "id": "q12",
+      "id": "q13",
       "userId": "sample-user",
       "title": "Clear the inbox to zero",
       "estimatedMinutes": 20,
@@ -377,7 +377,7 @@
       "doneToday": true
      },
      {
-      "id": "q13",
+      "id": "q14",
       "userId": "sample-user",
       "title": "Twenty minutes of Spanish",
       "estimatedMinutes": 20,
@@ -411,7 +411,7 @@
     "success": true,
     "data": [
      {
-      "id": "q14",
+      "id": "q15",
       "userId": "sample-user",
       "title": "Book the train tickets",
       "estimatedMinutes": 30,
@@ -436,7 +436,7 @@
       "updatedAt": "2026-10-08T16:00:00.000Z"
      },
      {
-      "id": "q15",
+      "id": "q16",
       "userId": "sample-user",
       "title": "Outline the methods section",
       "estimatedMinutes": 30,
@@ -461,7 +461,7 @@
       "updatedAt": "2026-10-08T16:00:00.000Z"
      },
      {
-      "id": "q16",
+      "id": "q17",
       "userId": "sample-user",
       "title": "Water the plants",
       "estimatedMinutes": 30,
@@ -486,7 +486,7 @@
       "updatedAt": "2026-10-08T16:00:00.000Z"
      },
      {
-      "id": "q17",
+      "id": "q18",
       "userId": "sample-user",
       "title": "Push the build to staging",
       "estimatedMinutes": 30,
@@ -613,7 +613,7 @@
        "end": "2026-10-10T04:40:00.000Z",
        "durationMin": 15,
        "type": "work",
-       "taskId": "q2",
+       "taskId": "q11",
        "locked": false,
        "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Due tomorrow · quick win\"}",
        "reason": "Due tomorrow · quick win"
@@ -653,6 +653,17 @@
       },
       {
        "id": "b13",
+       "start": "2026-10-10T20:00:00.000Z",
+       "end": "2026-10-10T20:20:00.000Z",
+       "durationMin": 20,
+       "type": "work",
+       "taskId": "q9",
+       "locked": false,
+       "note": "{\"term\":\"urgency\",\"sign\":\"+\",\"total\":1.2,\"why\":\"Fell behind · short\"}",
+       "reason": "Fell behind · short"
+      },
+      {
+       "id": "b14",
        "start": "2026-10-10T21:00:00.000Z",
        "end": "2026-10-10T21:45:00.000Z",
        "durationMin": 45,
@@ -663,7 +674,7 @@
        "reason": "Creative · afternoon lift"
       },
       {
-       "id": "b14",
+       "id": "b15",
        "start": "2026-10-11T16:30:00.000Z",
        "end": "2026-10-11T17:10:00.000Z",
        "durationMin": 40,
@@ -674,6 +685,207 @@
        "reason": "Finish before Monday"
       }
      ],
+     "quests": [
+      {
+       "id": "q3",
+       "userId": "sample-user",
+       "title": "Fix the flaky login test",
+       "estimatedMinutes": 90,
+       "mentalLoad": 7,
+       "impact": 8,
+       "deadline": "2026-10-13T00:00:00.000Z",
+       "status": "ACTIVE",
+       "parentQuestId": null,
+       "tags": [
+        "work"
+       ],
+       "tediousness": null,
+       "category": "deep_work",
+       "preferredHour": null,
+       "minChunkMin": null,
+       "maxChunkMin": null,
+       "setupCost": null,
+       "urgencyMult": 1,
+       "isRecurring": false,
+       "priorityTier": "HIGH",
+       "actualMinutes": null,
+       "completedAt": null,
+       "createdAt": "2026-10-03T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "priorityScore": 6.8,
+       "subQuestTotal": 0,
+       "subQuestDone": 0
+      },
+      {
+       "id": "q5",
+       "userId": "sample-user",
+       "title": "File the expense report",
+       "estimatedMinutes": 30,
+       "mentalLoad": 2,
+       "impact": 5,
+       "deadline": "2026-10-16T00:00:00.000Z",
+       "status": "ACTIVE",
+       "parentQuestId": null,
+       "tags": [],
+       "tediousness": 0.8,
+       "category": "admin",
+       "preferredHour": null,
+       "minChunkMin": null,
+       "maxChunkMin": null,
+       "setupCost": null,
+       "urgencyMult": 1,
+       "isRecurring": false,
+       "priorityTier": "MED",
+       "actualMinutes": null,
+       "completedAt": null,
+       "createdAt": "2026-10-03T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "priorityScore": 4.9,
+       "subQuestTotal": 0,
+       "subQuestDone": 0
+      },
+      {
+       "id": "q1",
+       "userId": "sample-user",
+       "title": "Draft the methods section",
+       "estimatedMinutes": 120,
+       "mentalLoad": 8,
+       "impact": 9,
+       "deadline": "2026-10-10T06:00:00.000Z",
+       "status": "ACTIVE",
+       "parentQuestId": null,
+       "tags": [
+        "thesis"
+       ],
+       "tediousness": null,
+       "category": "deep_work",
+       "preferredHour": null,
+       "minChunkMin": null,
+       "maxChunkMin": null,
+       "setupCost": null,
+       "urgencyMult": 1,
+       "isRecurring": false,
+       "priorityTier": "HIGH",
+       "actualMinutes": null,
+       "completedAt": null,
+       "createdAt": "2026-10-03T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "priorityScore": 8.4,
+       "subQuestTotal": 4,
+       "subQuestDone": 1
+      },
+      {
+       "id": "q11",
+       "userId": "sample-user",
+       "title": "Find the clause about subletting",
+       "estimatedMinutes": 15,
+       "mentalLoad": 3,
+       "impact": 6,
+       "deadline": "2026-10-10T19:00:00.000Z",
+       "status": "ACTIVE",
+       "parentQuestId": "q2",
+       "tags": [],
+       "tediousness": null,
+       "category": "comms",
+       "preferredHour": null,
+       "minChunkMin": null,
+       "maxChunkMin": null,
+       "setupCost": null,
+       "urgencyMult": 1,
+       "isRecurring": false,
+       "priorityTier": "MED",
+       "actualMinutes": null,
+       "completedAt": null,
+       "createdAt": "2026-10-03T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "parentTitle": "Reply to the landlord about the lease"
+      },
+      {
+       "id": "q6",
+       "userId": "sample-user",
+       "title": "Read chapter 6 of the statistics text",
+       "estimatedMinutes": 75,
+       "mentalLoad": 6,
+       "impact": 6,
+       "deadline": null,
+       "status": "ACTIVE",
+       "parentQuestId": null,
+       "tags": [
+        "thesis"
+       ],
+       "tediousness": null,
+       "category": "deep_work",
+       "preferredHour": null,
+       "minChunkMin": null,
+       "maxChunkMin": null,
+       "setupCost": null,
+       "urgencyMult": 1,
+       "isRecurring": false,
+       "priorityTier": "MED",
+       "actualMinutes": null,
+       "completedAt": null,
+       "createdAt": "2026-10-03T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "priorityScore": 4.4,
+       "subQuestTotal": 0,
+       "subQuestDone": 0
+      },
+      {
+       "id": "q9",
+       "userId": "sample-user",
+       "title": "Send the invoice for September",
+       "estimatedMinutes": 20,
+       "mentalLoad": 5,
+       "impact": 6,
+       "deadline": "2026-10-08T19:00:00.000Z",
+       "status": "RESCUE",
+       "parentQuestId": null,
+       "tags": [],
+       "tediousness": null,
+       "category": "admin",
+       "preferredHour": null,
+       "minChunkMin": null,
+       "maxChunkMin": null,
+       "setupCost": null,
+       "urgencyMult": 1,
+       "isRecurring": false,
+       "priorityTier": "HIGH",
+       "actualMinutes": null,
+       "completedAt": null,
+       "createdAt": "2026-10-03T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z"
+      },
+      {
+       "id": "q4",
+       "userId": "sample-user",
+       "title": "Sketch three poster ideas",
+       "estimatedMinutes": 45,
+       "mentalLoad": 4,
+       "impact": 5,
+       "deadline": "2026-10-15T01:00:00.000Z",
+       "status": "ACTIVE",
+       "parentQuestId": null,
+       "tags": [
+        "studio"
+       ],
+       "tediousness": null,
+       "category": "creative",
+       "preferredHour": null,
+       "minChunkMin": null,
+       "maxChunkMin": null,
+       "setupCost": null,
+       "urgencyMult": 1,
+       "isRecurring": false,
+       "priorityTier": "MED",
+       "actualMinutes": null,
+       "completedAt": null,
+       "createdAt": "2026-10-03T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "priorityScore": 5.2,
+       "subQuestTotal": 0,
+       "subQuestDone": 0
+      }
+     ],
      "feasibilityReport": {
       "ok": true,
       "issues": []
@@ -681,6 +893,13 @@
      "insights": null,
      "generatedAt": "2026-10-09T21:50:00.000Z"
     }
+   }
+  },
+  "GET /quests/hours": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": []
    }
   },
   "GET /schedule/dev-member-001/energy": {

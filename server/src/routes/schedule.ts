@@ -323,6 +323,25 @@ function serializeBlock(b: Block) {
   };
 }
 
+/**
+ * The quests the plan's blocks belong to. The planner places steps and
+ * stragglers as well as open main quests, while the client's own quest list
+ * (GET /quests) holds only the last, so the plan carries its quests with it:
+ * without this the Route shows a dash where a step's name should be. A step
+ * also says what it is part of.
+ */
+async function blockQuests(userId: string, blocks: Array<{ taskId: string | null }>) {
+  const ids = [...new Set(blocks.map((b) => b.taskId).filter((id): id is string => !!id))];
+  if (ids.length === 0) return [];
+  const rows = await db.quest.findMany({ where: { userId, id: { in: ids } } });
+  const above = [...new Set(rows.map((r) => r.parentQuestId).filter((id): id is string => !!id))];
+  const parents = above.length
+    ? await db.quest.findMany({ where: { userId, id: { in: above } }, select: { id: true, title: true } })
+    : [];
+  const titleOf = new Map(parents.map((p) => [p.id, p.title]));
+  return rows.map((r) => ({ ...r, parentTitle: r.parentQuestId ? titleOf.get(r.parentQuestId) ?? null : null }));
+}
+
 // Wrap the response under `data:` to match the rest of the API contract
 // (the client's request() helper returns body.data, so spreading at top
 // level would leave body.data === undefined — exactly the bug behind
@@ -392,6 +411,7 @@ schedule.post('/generate', async (c) => {
 
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
+    quests: await blockQuests(user.id, state.schedule),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
@@ -419,6 +439,7 @@ schedule.get('/:clerkId', async (c) => {
 
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
+    quests: await blockQuests(user.id, state.schedule),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: state.lastGeneratedAt
@@ -455,6 +476,7 @@ schedule.post('/:clerkId/replan', async (c) => {
 
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
+    quests: await blockQuests(user.id, state.schedule),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
@@ -498,6 +520,7 @@ schedule.post('/:clerkId/edit', async (c) => {
 
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
+    quests: await blockQuests(user.id, state.schedule),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
   });
@@ -572,6 +595,7 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
 
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
+    quests: await blockQuests(user.id, state.schedule),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),

@@ -72,6 +72,12 @@ const rescue = [
   quest('Call the dentist', { status: 'RESCUE', estimatedMinutes: 10, category: 'comms', deadline: at(15, 0, 0) }),
 ].map(({ priorityScore, subQuestTotal, subQuestDone, ...q }) => q);
 
+// A step of a main quest. The planner places steps by themselves, and GET /quests
+// does not list them, so the plan has to name them (see `quests` on the plan below).
+const step = (({ priorityScore, subQuestTotal, subQuestDone, ...q }) => ({ ...q, parentQuestId: landlord.id, parentTitle: landlord.title }))(
+  quest('Find the clause about subletting', { estimatedMinutes: 15, mentalLoad: 3, category: 'comms', deadline: at(12, 0, 1) }),
+);
+
 const recurring = [
   quest('Stretch for ten minutes', { isRecurring: true, estimatedMinutes: 10, mentalLoad: 1, preferredHour: 8, doneToday: true }),
   quest('Clear the inbox to zero', { isRecurring: true, estimatedMinutes: 20, mentalLoad: 3, category: 'comms', doneToday: true }),
@@ -114,14 +120,18 @@ const schedule = [
   block('break', at(20, 5), at(20, 15)),
   work(methods, at(20, 15), at(21, 0), 'Due tonight'),
   block('fixed', at(21, 0), at(21, 20), { locked: true, note: 'Daily: Twenty minutes of Spanish' }),
-  work(landlord, at(21, 25), at(21, 40), 'Due tomorrow · quick win'),
+  work(step, at(21, 25), at(21, 40), 'Due tomorrow · quick win'),
   // Tomorrow and after, so the day chips have something to show.
   work(loginTest, at(9, 30, 1), at(10, 20, 1), 'High priority · sharp hours'),
   block('break', at(10, 20, 1), at(10, 30, 1)),
   work(stats, at(10, 30, 1), at(11, 45, 1), 'Steady work · mid-morning'),
+  work(rescue[1], at(13, 0, 1), at(13, 20, 1), 'Fell behind · short'),
   work(posters, at(14, 0, 1), at(14, 45, 1), 'Creative · afternoon lift'),
   work(loginTest, at(9, 30, 2), at(10, 10, 2), 'Finish before Monday'),
 ];
+
+// Every quest a block belongs to, as the server sends it with the plan.
+const planQuests = [...new Set(schedule.map((b) => b.taskId).filter(Boolean))].map((id) => [...active, ...rescue, step].find((q) => q.id === id));
 
 // Energy over the day, a quarter of an hour at a time: high in the morning, a dip after lunch, fading at night.
 const trace = [];
@@ -141,7 +151,8 @@ const responses = {
   'GET /quests/rescue': ok(rescue),
   'GET /quests/recurring': ok(recurring),
   'GET /quests/completed': ok(completed),
-  'GET /schedule/dev-member-001': ok({ schedule, feasibilityReport: { ok: true, issues: [] }, insights: null, generatedAt: at(14, 50) }),
+  'GET /schedule/dev-member-001': ok({ schedule, quests: planQuests, feasibilityReport: { ok: true, issues: [] }, insights: null, generatedAt: at(14, 50) }),
+  'GET /quests/hours': ok([]),
   'GET /schedule/dev-member-001/energy': ok({ trace }),
   'GET /checkin/today/dev-member-001': ok({ id: 'c1', date: at(9, 5), energyLevel: 4, availableMinutes: 300 }),
   'GET /users/dev-member-001/achievements': ok([

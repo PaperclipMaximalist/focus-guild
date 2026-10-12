@@ -274,6 +274,7 @@ function BlockTile({
                 </span>
               ) : (
                 <span className="min-w-0 truncate">
+                  {quest?.parentTitle ? `${quest.parentTitle} · ` : ''}
                   {quest?.category ? CATEGORY_NAME[quest.category] ?? quest.category.replace('_', ' ') : 'Deep work'}
                   {/* Most blocks are 25–50 min: the "why now" lives here or nobody ever sees it. */}
                   {block.reason && !isPast ? ` · ${block.reason}` : ''}
@@ -594,7 +595,9 @@ function SelectedDrawer({
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 320, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 380, damping: 36 }}
-      className="fixed inset-x-3 bottom-20 z-40 rounded-lg"
+      // On a phone: a sheet above the tab bar. On a wide screen: a card centred in
+      // the page, clear of the sidebar, no wider than it needs to be.
+      className="fixed inset-x-3 bottom-20 z-40 rounded-lg shadow-xl shadow-black/50 lg:bottom-6 lg:left-60 lg:right-0 lg:mx-auto lg:max-w-xl"
       style={{
         background: 'var(--color-surface2)',
         border: '1px solid var(--color-border)',
@@ -615,6 +618,9 @@ function SelectedDrawer({
               {formatTime(startD)} – {formatTime(endD)} · {block.durationMin}m
               {quest?.category && ` · ${quest.category.replace('_', ' ')}`}
             </p>
+            {quest?.parentTitle && (
+              <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--color-muted)' }}>Part of {quest.parentTitle}</p>
+            )}
           </div>
           <button onClick={onClose} className="opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }} aria-label="Close"><X size={18} aria-hidden /></button>
         </div>
@@ -672,7 +678,7 @@ function SelectedDrawer({
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function GuildFeed() {
-  const { schedule, feasibilityReport, insights, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
+  const { schedule, blockQuests, feasibilityReport, insights, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
     useScheduleStore();
   const [energyTrace, setEnergyTrace] = useState<EnergyTracePoint[]>([]);
   const { quests, load: loadQuests, complete: completeQuest, completeDaily } = useQuestStore();
@@ -715,9 +721,11 @@ export default function GuildFeed() {
     });
   }, [loadQuests]);
 
+  // The plan's own quests first (steps and stragglers are only there), then the
+  // quest list over them, since its rows are fresher and carry more.
   const questById = useMemo(
-    () => Object.fromEntries(quests.map((q) => [q.id, q])) as Record<string, Quest | undefined>,
-    [quests],
+    () => ({ ...blockQuests, ...Object.fromEntries(quests.map((q) => [q.id, { ...blockQuests[q.id], ...q }])) }) as Record<string, Quest | undefined>,
+    [quests, blockQuests],
   );
 
   // Work minutes per day across the full scheduled horizon — single pass

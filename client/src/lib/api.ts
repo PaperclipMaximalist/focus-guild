@@ -139,6 +139,9 @@ export interface Quest {
 
   /** Time written against the quest so far (focus timer and by hand). */
   actualMinutes?: number | null;
+
+  /** For a step: the title of the quest it is part of. Populated on the plan's own quests. */
+  parentTitle?: string | null;
 }
 
 /** Main quest, step, sub-step. Matches MAX_QUEST_DEPTH on the server. */
@@ -705,6 +708,8 @@ export interface FeasibilityIssue {
 
 export interface ScheduleResponse {
   schedule: ScheduleBlock[];
+  /** Every quest a block belongs to, steps and stragglers included (GET /quests has only open main quests). */
+  quests?: Quest[];
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   generatedAt: string | null;
   insights?: PlanInsights | null;

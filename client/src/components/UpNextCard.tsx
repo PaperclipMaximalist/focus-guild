@@ -35,7 +35,7 @@ function fmtCountdown(ms: number): string {
 }
 
 export function UpNextCard({ onCompleteQuest }: Props) {
-  const { schedule, fetch: fetchSchedule } = useScheduleStore();
+  const { schedule, blockQuests, fetch: fetchSchedule } = useScheduleStore();
   const quests = useQuestStore((s) => s.quests);
   const startTimer = useTimerStore((s) => s.start);
   const timerActive = useTimerStore((s) => s.active);
@@ -66,7 +66,8 @@ export function UpNextCard({ onCompleteQuest }: Props) {
     return { block: next ?? null, isActive: false };
   }, [schedule, now]);
 
-  const quest = block?.taskId ? quests.find((q) => q.id === block.taskId) ?? null : null;
+  // A step or a straggler is not in the quest list; the plan carries its own.
+  const quest = block?.taskId ? quests.find((q) => q.id === block.taskId) ?? blockQuests[block.taskId] ?? null : null;
 
   // Nothing planned (or nothing left today): a quiet pointer to the feed.
   if (!block || !quest) {

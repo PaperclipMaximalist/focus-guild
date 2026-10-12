@@ -6,10 +6,13 @@ import {
   type ScheduleEdit,
   type FeasibilityIssue,
   type PlanInsights,
+  type Quest,
 } from '../lib/api';
 
 interface ScheduleState {
   schedule: ScheduleBlock[];
+  /** The quests the plan's blocks belong to, by id. Steps and stragglers are only here. */
+  blockQuests: Record<string, Quest | undefined>;
   feasibilityReport: { ok: boolean; issues: FeasibilityIssue[] };
   insights: PlanInsights | null;
   generatedAt: string | null;
@@ -30,6 +33,7 @@ function applyResponse(state: Partial<ScheduleState>, r: ScheduleResponse): Part
   return {
     ...state,
     schedule: r.schedule,
+    ...(r.quests ? { blockQuests: Object.fromEntries(r.quests.map((q) => [q.id, q])) } : {}),
     feasibilityReport: r.feasibilityReport,
     // Absent from responses that don't replan; keep what we had then.
     ...(r.insights !== undefined ? { insights: r.insights } : {}),
@@ -41,6 +45,7 @@ function applyResponse(state: Partial<ScheduleState>, r: ScheduleResponse): Part
 
 export const useScheduleStore = create<ScheduleState>((set) => ({
   schedule: [],
+  blockQuests: {},
   feasibilityReport: { ok: true, issues: [] },
   insights: null,
   generatedAt: null,
