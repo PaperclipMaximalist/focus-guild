@@ -18,7 +18,10 @@
  *     without it a block only ever moves to a later day, when its own is full.
  *
  * The order is the plan's own (or the one a drag gave it), with one exception:
- * a block that would miss its deadline by waiting its turn goes first.
+ * a block that would miss its deadline by waiting its turn goes first. With
+ * `rotate`, a block that would follow one of its own quest gives way to the
+ * next in line of another quest, if one fits. A quest done in one go
+ * (`Task.oneGo`) is never cut: it waits for a stretch that holds all of it.
  * Fixed and pinned blocks are not in `built` and never move; they are the
  * edges of the free stretches (see buildDayInfo), and pinned work counts
  * toward the run of work a break is measured from.
@@ -65,7 +68,7 @@ export function packDays(
   days: DayInfo[],
   built: ConstructedDay[],
   taskMap: Map<string, Task>,
-  config: Pick<UserConfig, 'gapMin' | 'breakMin' | 'breakEveryMin' | 'fillDays' | 'todayCapMin'>,
+  config: Pick<UserConfig, 'gapMin' | 'breakMin' | 'breakEveryMin' | 'fillDays' | 'todayCapMin' | 'rotate'>,
   options: PackOptions = {},
 ): ConstructedDay[] {
   const gap = Math.max(0, config.gapMin ?? 0) * MS_PER_MIN;
@@ -83,8 +86,8 @@ export function packDays(
   /** The least of a block that may be placed: a real piece, or all of it when it is too short to cut in two. */
   // ... and all of a small quest's block, whatever its length: a small quest is
   // done in one sitting (WHOLE_TASK_MAX_MIN, as the budget treats it).
-  const needOf = (b: Work) =>
-    lengthOf(b) < 2 * pieceOf(b) || (taskOf(b)?.remainingMin ?? Infinity) <= WHOLE_TASK_MAX_MIN ? lengthOf(b) : pieceOf(b);
+  const whole = (b: Work) => !!taskOf(b)?.oneGo || (taskOf(b)?.remainingMin ?? Infinity) <= WHOLE_TASK_MAX_MIN;
+  const needOf = (b: Work) => (lengthOf(b) < 2 * pieceOf(b) || whole(b) ? lengthOf(b) : pieceOf(b));
   /** How long one sitting of a quest may grow to when pieces of it are joined. */
   const longestOf = (b: Work) => Math.max(taskOf(b)?.maxChunkMin ?? 90, 15) * MS_PER_MIN;
 
@@ -118,6 +121,8 @@ export function packDays(
     const takesLater = !!config.fillDays && !(config.todayCapMin !== undefined && options.capped?.(day));
     const mayTake = (it: Item) => it.home <= i || takesLater;
     const held = day.immovableThisDay.filter((b) => b.type === 'work').sort((a, b) => a.start - b.start);
+    // The quest of the day's last work block so far, for `rotate`.
+    let lastTask: string | null = null;
 
     for (const iv of day.freeIntervals) {
       // Work already in place before this stretch (a pin, the sitting under way) is part of the run.
@@ -169,6 +174,13 @@ export function packDays(
           for (const it of ready) {
             if (it !== pick && dueOf(it.b) < headEnd + gap + lengthOf(it.b) && dueOf(it.b) < dueOf(pick.b)) pick = it;
           }
+          // Rotate: not the quest that was just worked on, while another can go here,
+          // unless it is the one running out of room before its deadline.
+          const pressed = urgent !== null && urgent.it.b.taskId === pick.b.taskId;
+          if (config.rotate && pick.b.taskId === lastTask && !pressed) {
+            const other = ready.find((it) => it.b.taskId !== lastTask);
+            if (other) pick = other;
+          }
         }
 
         const b = pick.b;
@@ -215,7 +227,7 @@ export function packDays(
         // A run stops at about `breakEveryMin` and a quarter of an hour: the block is
         // cut there, the break comes, and the rest of it follows the break.
         const cap = (every + BREAK_SLOP_MIN - (pendingBreak ? 0 : run)) * MS_PER_MIN;
-        if (breakLen > 0 && take > cap) {
+        if (breakLen > 0 && take > cap && !taskOf(b)?.oneGo) {
           // As close to the limit as leaves the rest a real piece.
           const cut = Math.floor(Math.min(cap, len - piece) / MS_PER_MIN) * MS_PER_MIN;
           // (Never a small quest: that is done in one sitting, a few minutes over or not.)
@@ -249,6 +261,7 @@ export function packDays(
         run += take / MS_PER_MIN;
         lastEnd = placed.end;
         cursor = placed.end + gap;
+        lastTask = placed.taskId;
       }
     }
   }

@@ -250,6 +250,13 @@ export function reflow(
     for (const b of userLockedFuture) {
       if (isWork(b)) consumed.set(b.taskId!, (consumed.get(b.taskId!) ?? 0) + pinCounts(b));
     }
+    // A quest done in one go with a sitting kept (under way, or pinned) is in
+    // that sitting: none of it is planned again. Counting only the part ahead,
+    // the minutes already behind now came back as a 5-minute block of their own.
+    for (const b of [...stable, ...userLockedFuture]) {
+      const t = isWork(b) ? taskMap.get(b.taskId!) : undefined;
+      if (t?.oneGo) consumed.set(t.id, Math.max(consumed.get(t.id) ?? 0, t.remainingMin));
+    }
 
     let capLeft = capForUnpinned === undefined ? undefined : Math.max(0, capForUnpinned - workToday(stable));
     // A day with a plan: later work may only take the place of minutes the

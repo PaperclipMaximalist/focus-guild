@@ -25,6 +25,7 @@ import {
   whyFromNote,
   questsToTasks,
   placeDailyFillers,
+  parseRepeat,
   type Schedule,
   type Block,
   type DailyFiller,
@@ -203,7 +204,7 @@ async function loadQuestsForUser(user: { id: string }) {
 const ROUTINE_MAX_MIN = 240;
 
 function recurringToFillers(
-  recurring: Array<{ id: string; title: string; estimatedMinutes: number; preferredHour: number | null }>,
+  recurring: Array<{ id: string; title: string; estimatedMinutes: number; preferredHour: number | null; repeat?: unknown }>,
 ): DailyFiller[] {
   return recurring.map((q) => ({
     // Prefix to namespace away from user-configured state.fillers ids.
@@ -212,6 +213,8 @@ function recurringToFillers(
     durationMin: Math.min(ROUTINE_MAX_MIN, Math.max(5, q.estimatedMinutes)),
     preferredHour: q.preferredHour,
     enabled: true,
+    // Weekly, every few days, or (none) every day.
+    repeat: parseRepeat(q.repeat),
   }));
 }
 

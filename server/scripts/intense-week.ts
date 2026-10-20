@@ -6,6 +6,7 @@
  *   npm run lab:week                 the week, a day-by-day report and the checks
  *   npm run lab:week -- --plans      also print each morning's plan
  *   npm run lab:week -- --seed 7     a different person's pace (how long things really take)
+ *   npm run lab:week -- --no-rotate  sessions instead of rotation (the app before 2026-10-19)
  *
  * The person: a graduate student who also freelances, hours 08:00–23:00 in
  * Vancouver, classes and a lab on the calendar, four routines, about 70 hours
@@ -73,7 +74,10 @@ const when = (t: number) => `${DAYS[dayIdx(t)] ?? `+${dayIdx(t)}`} ${clock(t)}`;
 const mins = (b: { start: number; end: number }) => Math.round((b.end - b.start) / MIN);
 
 // ── The person ─────────────────────────────────────────────────────────
-const cfg: UserConfig = getUserConfig({ schedulerSettings: { workingHours: { startHour: 8, endHour: 23 } } }, TZ);
+const cfg: UserConfig = {
+  ...getUserConfig({ schedulerSettings: { workingHours: { startHour: 8, endHour: 23 } } }, TZ),
+  ...(argv.includes('--no-rotate') ? { rotate: false } : {}),
+};
 
 interface Q extends QuestLike {
   /** How long it really takes, against the estimate (the person doesn't know this). */
@@ -292,8 +296,8 @@ function plan(schedule: Block[] | null, now: number, c: UserConfig, label: strin
 }
 
 // ── Living the week ────────────────────────────────────────────────────
-interface DayLog { planned: number; worked: number; breaks: number; available: number; fragments: number; switches: number; lateHeavy: number; idle: number }
-const days: DayLog[] = DAYS.map(() => ({ planned: 0, worked: 0, breaks: 0, available: 0, fragments: 0, switches: 0, lateHeavy: 0, idle: 0 }));
+interface DayLog { planned: number; worked: number; breaks: number; available: number; fragments: number; switches: number; repeats: number; quests: number; lateHeavy: number; idle: number }
+const days: DayLog[] = DAYS.map(() => ({ planned: 0, worked: 0, breaks: 0, available: 0, fragments: 0, switches: 0, repeats: 0, quests: 0, lateHeavy: 0, idle: 0 }));
 const events: string[] = [];
 const workedBlocks: Array<{ id: string; title: string; start: number; end: number; heavy: boolean }> = [];
 
@@ -389,6 +393,9 @@ for (let d = 0; d < 7; d += 1) {
   const blocks = workedBlocks.filter((b) => dayIdx(b.start) === d).sort((a, b) => a.start - b.start);
   days[d]!.fragments = blocks.filter((b) => mins(b) < 20).length;
   days[d]!.switches = blocks.slice(1).filter((b, i) => b.title !== blocks[i]!.title).length;
+  // The same quest straight after itself (a gap, a break or a routine between still counts).
+  days[d]!.repeats = blocks.slice(1).filter((b, i) => b.title === blocks[i]!.title).length;
+  days[d]!.quests = new Set(blocks.map((b) => b.title)).size;
   days[d]!.lateHeavy = blocks.filter((b) => b.heavy && (b.start - MON) / HOUR % 24 >= 21.5).length;
   const end = SLIDER[d] ? at(d, 8) + SLIDER[d]! * HOUR : at(d, 23);
   const busy = [...CALENDAR.filter((b) => dayIdx(b.start) === d), ...workedBlocks.filter((b) => dayIdx(b.start) === d)];
@@ -398,11 +405,11 @@ for (let d = 0; d < 7; d += 1) {
 
 console.log(`Intense-week lab · seed ${SEED} · ${QUESTS.length} quests, ${Math.round(QUESTS.reduce((m, q) => m + q.estimatedMinutes, 0) / 60)} h estimated · hours 08:00–23:00 · gap ${cfg.gapMin} min · break ${cfg.breakMin} min every ${cfg.breakEveryMin} min`);
 console.log('');
-console.log('day   free   planned  worked  breaks  <20m  switches  heavy after 21:30');
+console.log('day   free   planned  worked  breaks  <20m  switches  repeats  quests  heavy after 21:30');
 for (let d = 0; d < 7; d += 1) {
   const x = days[d]!;
   const h = (m: number) => `${(m / 60).toFixed(1)}h`.padStart(6);
-  console.log(`${DAYS[d]}  ${h(x.available)}  ${h(x.planned)}  ${h(x.worked)}  ${String(x.breaks).padStart(6)}  ${String(x.fragments).padStart(4)}  ${String(x.switches).padStart(8)}  ${String(x.lateHeavy).padStart(4)}${SLIDER[d] ? `   (slider: ${SLIDER[d]} h)` : ''}`);
+  console.log(`${DAYS[d]}  ${h(x.available)}  ${h(x.planned)}  ${h(x.worked)}  ${String(x.breaks).padStart(6)}  ${String(x.fragments).padStart(4)}  ${String(x.switches).padStart(8)}  ${String(x.repeats).padStart(7)}  ${String(x.quests).padStart(6)}  ${String(x.lateHeavy).padStart(4)}${SLIDER[d] ? `   (slider: ${SLIDER[d]} h)` : ''}`);
 }
 console.log('');
 

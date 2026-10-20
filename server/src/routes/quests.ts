@@ -32,7 +32,8 @@ import {
   minutesOf,
   weekStart,
 } from '../lib/hourLog.js';
-import type { Quest, User } from '../../generated/prisma/client.js';
+import { Prisma, type Quest, type User } from '../../generated/prisma/client.js';
+import { parseRepeat } from '../lib/scheduler/repeat.js';
 
 export const quests = new Hono();
 
@@ -48,7 +49,37 @@ const SchedulerHintsSchema = {
   urgencyMult: z.number().min(0).max(5).nullable().optional(),
   isRecurring: z.boolean().optional(),
   priorityTier: z.enum(['HIGH', 'MED', 'LOW']).optional(),
+  /** Done in one sitting, never split into pieces. */
+  oneSitting: z.boolean().optional(),
+  /** For a routine: which days it comes round (lib/scheduler/repeat.ts); null = every day. */
+  repeat: z
+    .union([
+      z.object({
+        kind: z.literal('weekly'),
+        days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+        every: z.number().int().min(1).max(8).optional(),
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      }),
+      z.object({
+        kind: z.literal('interval'),
+        every: z.number().int().min(2).max(90),
+        from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      }),
+    ])
+    .nullable()
+    .optional(),
 };
+
+/**
+ * The `repeat` column as written: a rule only on a routine, stored the way
+ * parseRepeat reads it (a rule that means "every day" is stored as none).
+ * Prisma takes DbNull, not null, for an empty JSON column.
+ */
+function repeatColumn(repeat: unknown, isRecurring: boolean): { repeat?: Prisma.InputJsonValue | typeof Prisma.DbNull } {
+  if (repeat === undefined && isRecurring) return {};
+  const rule = isRecurring ? parseRepeat(repeat) : null;
+  return { repeat: rule ?? Prisma.DbNull };
+}
 
 const CreateQuestSchema = z.object({
   // clerkId is accepted for legacy clients but ignored — auth comes from middleware.
@@ -653,7 +684,7 @@ quests.post('/', async (c) => {
   }
 
   const user = c.get('user');
-  const { clerkId: _, deadline, openEnded, ...fields } = parsed.data;
+  const { clerkId: _, deadline, openEnded, repeat, ...fields } = parsed.data;
 
   if (openEnded) {
     // An hour log stands alone: it has no finish to break into steps, and a
@@ -691,6 +722,7 @@ quests.post('/', async (c) => {
     data: {
       userId: user.id,
       ...fields,
+      ...repeatColumn(repeat, !!fields.isRecurring),
       deadline: deadline ? new Date(deadline) : null,
       status: 'ACTIVE',
     },
@@ -752,7 +784,7 @@ quests.patch('/:id', async (c) => {
     );
   }
 
-  const { deadline, openEnded, ...rest } = parsed.data;
+  const { deadline, openEnded, repeat, ...rest } = parsed.data;
 
   // An hour log keeps having no estimate unless it is deliberately turned
   // back into a quest: the editor sends an estimate with every save, and one
@@ -784,6 +816,8 @@ quests.patch('/:id', async (c) => {
     where: { id },
     data: {
       ...rest,
+      // A routine keeps its rule unless one is sent; a quest that stops being a routine loses it.
+      ...(repeat !== undefined || rest.isRecurring === false ? repeatColumn(repeat, rest.isRecurring ?? existing.isRecurring) : {}),
       ...(deadline !== undefined ? { deadline: deadline ? new Date(deadline) : null } : {}),
     },
   });

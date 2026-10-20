@@ -14,7 +14,8 @@
  * lose to deadline-driven work).
  */
 
-import { crossesMidnight, userHourUtc, windowHours, workDayMidnightUtc, workWindowUtc } from './tz.js';
+import { crossesMidnight, dayKey, userHourUtc, windowHours, workDayMidnightUtc, workWindowUtc } from './tz.js';
+import { repeatsOn, type RepeatRule } from './repeat.js';
 import type { Block } from './types.js';
 
 export interface DailyFiller {
@@ -25,6 +26,8 @@ export interface DailyFiller {
   preferredHour: number | null;
   /** Optional dependency on a quest being in a specific state — not yet used. */
   enabled?: boolean;
+  /** Which days it comes round (repeat.ts); none = every day. */
+  repeat?: RepeatRule | null;
 }
 
 export interface FillerPlacementInput {
@@ -115,10 +118,14 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
     // The person's day ends at midnight, or with the session when it runs later.
     const dayEnd = Math.max(midnight + MS_PER_DAY, wEnd);
 
+    // A routine that doesn't come round today (weekly, every few days) sits it out.
+    const date = dayKey(midnight, tz);
+    const todays = new Set(enabled.filter((f) => repeatsOn(f.repeat, date)));
+
     // For each filler, find a slot for the day. We spread fillers by
     // their order in the array: first → near startHour, then linearly
     // distributed across the working window unless they have a preferredHour.
-    const routineMin = enabled.reduce((a, f) => a + f.durationMin, 0);
+    const routineMin = [...todays].reduce((a, f) => a + f.durationMin, 0);
     const roomy = routineMin * MS_PER_MIN <= (wEnd - wStart) / 2;
     // Routines with no hour share out the whole window, not what is left of
     // it: the same routine at the same time every day. Spread from `now`,
@@ -128,7 +135,10 @@ export function placeDailyFillers(input: FillerPlacementInput): Block[] {
       ? (wEnd - window.start) / Math.max(1, enabled.length)
       : 0;
 
+    // Spread over every routine, today's or not, so one that comes round
+    // weekly doesn't move the others' usual times on the days it does.
     enabled.forEach((f, idx) => {
+      if (!todays.has(f)) return;
       const durMs = f.durationMin * MS_PER_MIN;
       const hour = f.preferredHour ?? inferPreferredHour(f.name, workingHours);
       // An hour before the session closes belongs to the night that is

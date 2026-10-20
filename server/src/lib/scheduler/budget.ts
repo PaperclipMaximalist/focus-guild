@@ -234,7 +234,15 @@ function keepMealFree(
  */
 function softMaxPerDay(t: Task): number {
   const [, hi] = idealSessionRange(t);
-  return Math.max(hi * 3, hi);
+  return Math.max(hi * 3, hi, t.oneGo ? t.remainingMin : 0);
+}
+
+/**
+ * One round's helping of `task` when a day is shared out a sitting at a time
+ * (`rotate`): a full sitting, or all of a quest that is small or done in one go.
+ */
+function rotationSitting(task: Task, reach: number): number {
+  return Math.min(reach, Math.max(minSitting(task, reach), FULL_SITTING_MIN));
 }
 
 /** Below this many minutes a day, nobody's day is crowded enough to level. */
@@ -265,7 +273,8 @@ export const MIN_SITTING_MIN = 25;
  * (30 min for mid-size, 45 for big), never less than MIN_SITTING_MIN.
  */
 export function minSitting(task: Task, left: number): number {
-  if (left <= WHOLE_TASK_MAX_MIN) return left;
+  // In one go: the only sitting there is, is all of it.
+  if (left <= WHOLE_TASK_MAX_MIN || task.oneGo) return left;
   const [, hi] = idealSessionRange(task);
   return Math.min(left, Math.max(MIN_SITTING_MIN, Math.round(hi / 2)));
 }
@@ -423,6 +432,8 @@ export function allocateBudgets(
   dropped: ReadonlySet<string> = new Set(),
   /** Fill each day before the next (`fillDays`): see pass 3. */
   fill = false,
+  /** Share a day out a sitting per quest per round (`rotate`): see pass 3. */
+  rotate = false,
 ): DayBudget[] {
   const usable = (day: DayInfo, deadline: number) => usableMinBeforeDeadline(day, deadline, policy);
   const remaining = new Map<string, number>(tasks.map((t) => [t.id, t.remainingMin]));
@@ -595,6 +606,8 @@ export function allocateBudgets(
       if (strict && grab < left && grab < minSitting(task, left)) continue;
       // Even a deadline doesn't justify a 3-minute block.
       if (!strict && grab < left && grab < REPAIR_MIN_GRAB) continue;
+      // Nor does it split a quest that is done in one go.
+      if (task.oneGo && grab < left) continue;
       addQuota(budgets[dayIdx]!, task, grab);
       residuals[dayIdx]! -= grab;
       left -= grab;
@@ -623,6 +636,19 @@ export function allocateBudgets(
       const donors = budget.quotas
         .filter((q) => canDonate(q.task, task, days, dropped))
         .sort((a, b) => Number(dropped.has(b.task.id)) - Number(dropped.has(a.task.id)) || b.task.deadline - a.task.deadline || (a.task.id < b.task.id ? -1 : 1));
+      // A quest done in one go takes the whole of it here, or nothing: the day's
+      // spare time first, then what the donors give up.
+      if (task.oneGo) {
+        const pool = residuals[dayIdx]! + donors.reduce((m, d) => m + d.targetMin, 0);
+        if (room < left - EPSILON_MIN || pool < left - EPSILON_MIN) continue;
+        const own = Math.floor(Math.min(residuals[dayIdx]!, left));
+        if (own > 0) {
+          addQuota(budget, task, own);
+          residuals[dayIdx]! -= own;
+          left -= own;
+          room -= own;
+        }
+      }
       for (const donor of donors) {
         if (left <= EPSILON_MIN || room <= EPSILON_MIN) break;
         let take = Math.floor(Math.min(donor.targetMin, left, room));
@@ -712,10 +738,21 @@ export function allocateBudgets(
     for (let dayIdx = 0; dayIdx < days.length; dayIdx += 1) {
       const day = days[dayIdx]!;
       for (const shared of [true, false]) {
+        // With `rotate` the day goes round the quests a sitting at a time, so
+        // every quest that can use the day gets some of it before any quest
+        // gets a second helping. Without it, one pass: each its usual share.
+        for (let round = 0, moving = true, held = false; (moving || held) && round < (rotate ? 64 : 1); round += 1) {
+        moving = false;
+        held = false;
         for (const task of order) {
           if (residuals[dayIdx]! < FILL_MIN) break;
           if (day.workStart >= task.deadline || (task.notBefore ?? 0) >= day.workEnd) continue;
           const here = grantedOnDay(budgets[dayIdx]!, task.id);
+          // A round serves only quests without its helping yet (the passes above may have given one).
+          if (rotate && here >= (round + 1) * FULL_SITTING_MIN - EPSILON_MIN) {
+            held = true;
+            continue;
+          }
           let room = Math.min(residuals[dayIdx]!, usable(day, task.deadline) - here);
           if (shared) room = Math.min(room, softMaxPerDay(task) - here);
           room = Math.floor(room);
@@ -727,7 +764,7 @@ export function allocateBudgets(
             if (quota && quota.targetMin >= 1) later.push({ idx: j, quota });
           }
           const reach = spare + later.reduce((m, x) => m + x.quota.targetMin, 0);
-          const want = Math.min(room, Math.floor(reach));
+          const want = Math.min(room, Math.floor(rotate ? rotationSitting(task, reach) : reach));
           // A real sitting, or all there is. (Topping up a sitting already here
           // by a few minutes used to be allowed, and came out as a separate
           // quarter-hour fragment of heavy work later in the day.)
@@ -751,6 +788,8 @@ export function allocateBudgets(
           if (moved < 1) continue;
           addQuota(budgets[dayIdx]!, task, moved);
           residuals[dayIdx]! -= moved;
+          moving = true;
+        }
         }
       }
     }

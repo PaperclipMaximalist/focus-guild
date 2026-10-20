@@ -47,6 +47,8 @@ export interface QuestLike {
   isRecurring?: boolean;
   /** User-set priority tier — HIGH boosts, MED neutral, LOW dampens. */
   priorityTier?: PriorityTier | null;
+  /** Done in one sitting, never split (Task.oneGo). */
+  oneSitting?: boolean | null;
 }
 
 /** Per-quest scheduler overrides — stored alongside the Quest (future column or sidecar). */
@@ -141,6 +143,7 @@ export function questToTask(
     // waits for the next one, instead of coming back at 00:00 the same night.
     ...(q.status === 'NOT_TODAY' ? { notBefore: workDayEndUtc(now, tzOffsetMin, workingHours) } : {}),
     ...(q.deadline ? {} : { undated: true }),
+    ...(q.oneSitting ? { oneGo: true } : {}),
     remainingMin: remaining,
     totalMin: total,
     deadline,
@@ -148,8 +151,9 @@ export function questToTask(
     cognitiveLoad: clamp01(q.mentalLoad / 10),
     importance: tierImportance,
     setupCost: pick(overrides.setupCost, q.setupCost, ADAPTER_DEFAULTS.setupCost),
-    minChunkMin: pick(overrides.minChunkMin, q.minChunkMin, ADAPTER_DEFAULTS.minChunkMin),
-    maxChunkMin: pick(overrides.maxChunkMin, q.maxChunkMin, ADAPTER_DEFAULTS.maxChunkMin),
+    // In one go: the sitting is the whole of what is left, whatever the quest's own sizes say.
+    minChunkMin: q.oneSitting ? remaining : pick(overrides.minChunkMin, q.minChunkMin, ADAPTER_DEFAULTS.minChunkMin),
+    maxChunkMin: q.oneSitting ? remaining : pick(overrides.maxChunkMin, q.maxChunkMin, ADAPTER_DEFAULTS.maxChunkMin),
     category: pick(overrides.category, q.category, ADAPTER_DEFAULTS.category),
     preferredHour: pick(overrides.preferredHour, q.preferredHour, ADAPTER_DEFAULTS.preferredHour),
     dependencies: overrides.dependencies ?? [],

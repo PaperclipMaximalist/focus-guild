@@ -241,6 +241,8 @@ function modesEqual(a: Mode, b: Mode): boolean {
  */
 export function idealSessionRange(task: Task): [number, number] {
   const rem = task.remainingMin;
+  // In one go: the one sitting is the whole of it.
+  if (task.oneGo) return [rem, rem];
   const userMin = task.minChunkMin > 0 ? task.minChunkMin : 1;
   const userMax = task.maxChunkMin > 0 ? task.maxChunkMin : 240;
   let lo: number;
@@ -608,7 +610,7 @@ export function plan(inputs: PlanInputs): SchedulerResult {
   const cap = todayCap(days, now, config);
   const rests = restPolicy(config);
   const dropped = triage(sorted, days, cap, rests);
-  const budgets = allocateBudgets(sorted, days, now, cap, rests, dropped, !!config.fillDays);
+  const budgets = allocateBudgets(sorted, days, now, cap, rests, dropped, !!config.fillDays, !!config.rotate);
 
   // ── 4. Construct each day, then settle deadline work against what fit ─
   const allWorkBlocks: Block[] = [];

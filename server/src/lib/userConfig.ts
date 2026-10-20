@@ -106,6 +106,9 @@ export function getUserConfig(
     // own default paces work toward its deadline; the app does not.
     ...restsFor(user),
     fillDays: true,
+    // The owner (2026-10-19): no "back to back same things"; recalculate every
+    // chunk "so that everything will be somewhat covered".
+    rotate: true,
     ...(Number.isFinite(until) ? { todayEndsAt: until } : {}),
   };
 }

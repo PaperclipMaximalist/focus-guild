@@ -64,6 +64,7 @@ const TAIL_ABSORB_MIN = 20;
 
 /** Longest block the fill may make for `t`: the user's soft max, and the quest's own max session plus the tail. */
 function sessionCap(t: Task, config: UserConfig): number {
+  if (t.oneGo) return Infinity;
   return t.maxChunkMin > 0 ? Math.min(config.softMaxBlockMin, t.maxChunkMin + TAIL_ABSORB_MIN) : config.softMaxBlockMin;
 }
 
@@ -260,10 +261,12 @@ export function reconcile(
         const fits = (t: Task) => (room(t.deadline) - gs) / MS_PER_MIN;
         // A quest that can finish here, first; otherwise a real sitting on one that can't.
         const shard = (t: Task) => need.get(t.id)! < SHARD_MIN && t.totalMin >= REAL_QUEST_MIN;
-        const finish = open.find(({ t }) => need.get(t.id)! <= fits(t) + EPSILON_MIN && !shard(t));
+        // A quest done in one go only ever goes in whole: all of it, with none of it placed elsewhere.
+        const whole = (t: Task) => !t.oneGo || need.get(t.id)! >= t.remainingMin - EPSILON_MIN;
+        const finish = open.find(({ t }) => need.get(t.id)! <= fits(t) + EPSILON_MIN && !shard(t) && whole(t));
         // (Not a shard here either: `partial` used to take one, since a gap of
         // 25 minutes "fits a sitting" of a 7-minute need, and placed the 7.)
-        const partial = finish ? null : open.find(({ t }) => !shard(t) && fits(t) >= Math.max(MIN_SITTING_MIN, minSitting(t, need.get(t.id)!)));
+        const partial = finish ? null : open.find(({ t }) => !t.oneGo && !shard(t) && fits(t) >= Math.max(MIN_SITTING_MIN, minSitting(t, need.get(t.id)!)));
         const pick = finish ?? partial;
         if (!pick) break;
         const t = pick.t;
@@ -271,7 +274,7 @@ export function reconcile(
         // constructor may absorb: "max session 15" was filled as one 45.
         const cap = sessionCap(t, config);
         let chunk = Math.floor(Math.min(need.get(t.id)!, fits(t), cap));
-        if (need.get(t.id)! - chunk > EPSILON_MIN && chunk > t.maxChunkMin && t.maxChunkMin > 0) chunk = Math.floor(Math.min(chunk, t.maxChunkMin));
+        if (!t.oneGo && need.get(t.id)! - chunk > EPSILON_MIN && chunk > t.maxChunkMin && t.maxChunkMin > 0) chunk = Math.floor(Math.min(chunk, t.maxChunkMin));
         // Don't leave a shard behind: take it all if it nearly fits, else leave a real piece.
         const after = need.get(t.id)! - chunk;
         if (after > EPSILON_MIN && after < SHARD_MIN && t.totalMin >= REAL_QUEST_MIN) chunk = Math.floor(chunk - (SHARD_MIN - after));
@@ -301,7 +304,7 @@ export function reconcile(
     let grew = false;
     for (const { t } of short) {
       const owed = need.get(t.id) ?? 0;
-      if (owed <= EPSILON_MIN || owed >= SHARD_MIN || capLeft < owed) continue;
+      if (owed <= EPSILON_MIN || owed >= SHARD_MIN || capLeft < owed || t.oneGo) continue;
       for (let k = 0; k < all.length; k += 1) {
         const b = all[k]!;
         if (b.taskId !== t.id || minutesOf(b) + owed > sessionCap(t, config)) continue;
@@ -331,6 +334,7 @@ export function reconcile(
   for (const { t } of short) {
     const owed = Math.ceil(need.get(t.id) ?? 0);
     if (owed < 1 || !dueWithinPlan(t, days)) continue;
+    if (t.oneGo && owed < t.remainingMin - EPSILON_MIN) continue;
     for (let i = 0; i < days.length && (need.get(t.id) ?? 0) > EPSILON_MIN; i += 1) {
       if (days[i]!.workStart >= t.deadline) break;
       const blocks = out[i]!.blocks;

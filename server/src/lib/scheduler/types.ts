@@ -55,6 +55,12 @@ export interface Task {
    * tell someone an undated quest is "due in 8 days".
    */
   undated?: boolean;
+  /**
+   * Done in one sitting, never split: the whole of what is left goes in one
+   * block, on one day, or not at all (and the shortfall is reported). The
+   * quest's own min and max session don't apply.
+   */
+  oneGo?: boolean;
 }
 
 export interface Block {
@@ -173,6 +179,16 @@ export interface UserConfig {
    * time that opens up today is always used.
    */
   fillDays?: boolean;
+  /**
+   * Pick again after every block, so the time goes round the quests instead
+   * of one quest's sittings running back to back: the budget shares a day out
+   * a sitting per quest per round, the constructor gives the next slot to
+   * whatever has had least of the day so far and never to the quest it just
+   * placed while anything else can go there (a deadline that needs the slot
+   * still gets it), and the packing pass keeps that order. Off = sessions:
+   * a quest keeps the slot for a few sittings in a row.
+   */
+  rotate?: boolean;
   /**
    * "Available time": today's work runs from now until this instant (UTC ms)
    * instead of to the end of working hours. In force while it is still ahead,

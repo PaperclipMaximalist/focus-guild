@@ -80,6 +80,15 @@ const SAME_QUEST_RUN_MAX_MIN = 150;
  */
 const INTERRUPT_PENALTY = 1;
 
+/**
+ * With `rotate`: cost, on the score scale, of each hour a quest has already
+ * had today. The next slot goes to what has had least of the day, unless a
+ * deadline or the hour's fit says otherwise strongly enough.
+ */
+const COVERAGE_PER_HOUR = 1;
+/** ...and never more than this, so a quest well behind on a deadline still gets its slots. */
+const COVERAGE_MAX = 2;
+
 /** Smallest share of the day that opens with a starter push. */
 const STARTER_SHARE_MIN = 60;
 /** Score pull, on the weights' scale, for a quest that is due today. */
@@ -148,6 +157,7 @@ function refsForState(
 }
 
 function maxBlockMin(task: Task, config: UserConfig): number {
+  if (task.oneGo) return Math.max(1, task.remainingMin);
   const setupLifts = task.setupCost >= 0.7 || (task.urgencyMultiplier ?? 1) >= 1.5;
   return setupLifts ? task.maxChunkMin : Math.min(task.maxChunkMin, config.softMaxBlockMin);
 }
@@ -198,13 +208,20 @@ function enumerateCandidates(
     if (left < EPSILON_MIN) continue;
     if (iv.start >= q.task.deadline) continue;
 
+    const usableEnd = Math.min(iv.end, q.task.deadline);
+    const usableMin = (usableEnd - iv.start) / MS_PER_MIN;
+    let chunkMin: number;
+    if (q.task.oneGo) {
+      // In one go: all that is left of it, in this slot, or not in this slot.
+      // (A share of less than all of it is a split, and is never placed.)
+      chunkMin = Math.round(left);
+      if (chunkMin < 1 || left < q.task.remainingMin - EPSILON_MIN || usableMin + EPSILON_MIN < chunkMin) continue;
+    } else {
     // Chunk sizing: pull toward ideal, never exceed slot or hard cap.
     const [idealLo, idealHi] = idealSessionRange(q.task);
     const cap = maxBlockMin(q.task, config);
-    const usableEnd = Math.min(iv.end, q.task.deadline);
-    const usableMin = (usableEnd - iv.start) / MS_PER_MIN;
     const target = clamp(left, idealLo, idealHi);
-    let chunkMin = Math.floor(Math.min(target, usableMin, cap, left));
+    chunkMin = Math.floor(Math.min(target, usableMin, cap, left));
     // Never leave a tail shorter than a real sitting: a 60-min quota placed
     // as 50 + 10 gives a 10-minute block nobody will start. Either finish it
     // in this block (small overshoot of the ideal) or leave a proper sitting.
@@ -238,6 +255,7 @@ function enumerateCandidates(
     // (A quest capped below that by its own max session sits in full sessions.)
     if (chunkMin < Math.min(SLIVER_MIN, cap) && q.task.totalMin >= 2 * SLIVER_MIN && q.task.remainingMin > chunkMin) continue;
     if (chunkMin < 1) continue;
+    }
 
     // A quest due within the day without the time to wait out another quest's
     // session (less to spare before its deadline than it has left) stays
@@ -247,15 +265,18 @@ function enumerateCandidates(
     const spare = freeBetween(state, iv.start, q.task.deadline) - left;
     const pressed = q.task.deadline < budget.day.workEnd && spare < Math.max(DEADLINE_MARGIN_MIN, left);
     if (variety !== 'off' && !pressed) {
+      // Sessions are the opposite of `rotate`, which never keeps a quest on.
+      if (!config.rotate) {
       const session = sessionOf(q.task, refs, iv.start);
       // A session's last sitting shrinks to what the run still has room for,
       // if that is a real sitting: 25 + 50 + 50 + 25 on a crunch day, rather
       // than leaving at 125 minutes and coming back a third time for the rest.
       const room = SAME_QUEST_RUN_MAX_MIN - session.minutes;
-      if (session.blocks > 0 && chunkMin > room && room >= MIN_SITTING_MIN && left - room >= minSitting(q.task, left - room)) {
+      if (!q.task.oneGo && session.blocks > 0 && chunkMin > room && room >= MIN_SITTING_MIN && left - room >= minSitting(q.task, left - room)) {
         chunkMin = room;
       }
       if (!sessionAllows(q.task, chunkMin, left, q.targetMin, session, floorN, config)) continue;
+      }
       // Variety floor: no same-mode run past `floorN`, except for what the
       // quest in hand may do with its own session (see sessionAllows).
       if (variety === 'mode') {
@@ -273,7 +294,8 @@ function enumerateCandidates(
     const score =
       placementScore(q.task, chunkMin, iv.start, refs, weights, config) +
       peakGuard(q.task, iv.start, state, budget, config) -
-      (jumpsQueue ? DUE_TODAY_PULL : 0);
+      (jumpsQueue ? DUE_TODAY_PULL : 0) -
+      (config.rotate ? Math.min(COVERAGE_MAX, (minutesToday(q.task.id, refs, iv.start) / 60) * COVERAGE_PER_HOUR) : 0);
     out.push({ task: q.task, chunkMin, start: iv.start, score });
   }
 
@@ -288,6 +310,15 @@ function enumerateCandidates(
   // "feasible". Only when nothing leaves the margin does bare feasibility do.
   const roomy = out.filter((c) => keepsDeadlines(c, state, budget, config, DEADLINE_MARGIN_MIN));
   const safe = roomy.length ? roomy : out.filter((c) => keepsDeadlines(c, state, budget, config));
+  // Rotate: pick again after every block, and not the quest just placed while
+  // anything else can take the slot without costing a deadline (the deadline
+  // checks above already left out whatever would).
+  if (config.rotate) {
+    const pool = safe.length ? safe : out;
+    const last = inHand?.id;
+    const others = last ? pool.filter((c) => c.task.id !== last) : pool;
+    return others.length ? others : pool;
+  }
   // Stay with the quest in hand. While its session is open (the rules above
   // still allow it) and a deadline doesn't need the slot, it is the only
   // candidate: every score term judged one slot at a time, so the essay's
@@ -470,6 +501,16 @@ export function workBefore(refs: PlacedRef[], cursor: number): { task: Task; end
     if (!last || r.block.end > last.block.end) last = r;
   }
   return last ? { task: last.task, end: last.block.end } : null;
+}
+
+/** Minutes of `taskId` the day already has before `cursor` (placed, kept or pinned). */
+function minutesToday(taskId: string, refs: PlacedRef[], cursor: number): number {
+  let m = 0;
+  for (const r of refs) {
+    if (r.task.id !== taskId || r.block.start >= cursor) continue;
+    m += (Math.min(r.block.end, cursor) - r.block.start) / MS_PER_MIN;
+  }
+  return m;
 }
 
 /**
