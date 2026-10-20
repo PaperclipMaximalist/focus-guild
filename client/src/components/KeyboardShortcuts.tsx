@@ -2,7 +2,7 @@
  * Global keyboard shortcuts + a ? help overlay.
  *
  * Shortcuts:
- *   N      — emit `quest-modal:open`. Today.tsx listens; opens the QuestModal.
+ *   N      — open the QuestModal for a new quest (lib/questEditor.ts).
  *   S      — emit `spin-wheel:open`. Today.tsx listens; opens the SpinWheel.
  *   ?      — toggle this overlay.
  *   G T    — go to /
@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Keyboard } from 'lucide-react';
+import { openNewQuest } from '../lib/questEditor';
 
 function inEditable(): boolean {
   const el = document.activeElement as HTMLElement | null;
@@ -66,7 +67,7 @@ export function KeyboardShortcuts() {
         case 'n':
         case 'N':
           e.preventDefault();
-          window.dispatchEvent(new CustomEvent('quest-modal:open'));
+          openNewQuest(navigate);
           break;
         case 's':
         case 'S':

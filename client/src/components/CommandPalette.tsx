@@ -17,6 +17,7 @@ import { Bot, Rocket } from 'lucide-react';
 import { isSfxEnabled, setSfxEnabled, sfxClick } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
+import { openNewQuest } from '../lib/questEditor';
 import { ArrowDownUp, BatteryMedium, Bird, CalendarDays, ChartColumn, Command, Dices, House, LifeBuoy, MapIcon, ListPlus, NotebookPen, Palette, Plug, Plus, ScrollText, SettingsIcon, SlidersHorizontal, Sparkles, Swords, Trophy, Volume2 } from 'lucide-react';
 
 interface Command {
@@ -52,7 +53,7 @@ export function CommandPalette() {
     const go = (path: string) => () => { navigate(path); };
     return [
       { id: 'new-quest', label: 'New quest', hint: 'N', icon: Plus, keywords: 'add create task todo',
-        run: () => window.dispatchEvent(new CustomEvent('quest-modal:open')) },
+        run: () => openNewQuest(navigate) },
       { id: 'spin', label: "Dealer's choice", hint: 'S', icon: Dices, keywords: 'random pick roll spin wheel',
         run: () => window.dispatchEvent(new CustomEvent('spin-wheel:open')) },
       { id: 'go-today', label: 'Go to Today', icon: House, keywords: 'home dashboard', run: go('/') },
