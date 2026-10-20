@@ -157,6 +157,25 @@ something else) and once over the whole result.
 **Dragging** is `reorder_block` (`edits.ts`): the block takes its new
 neighbour's start, and the packing pass does the rest. It is not a pin.
 
+**`rotate`** (the owner, 2026-10-19: no "back to back same things"; "recalculate
+every chunk so that everything will be somewhat covered") replaces sessions:
+
+- budget pass 3 shares a day out a sitting at a time, round the quests in
+  priority order, and a round serves only quests that don't have its helping
+  yet (`rotationSitting`);
+- the constructor picks again for every slot: no quest in hand, a cost of
+  `COVERAGE_PER_HOUR` for each hour a quest has already had today, and never
+  the quest it just placed while anything else passes the deadline checks;
+- the packing pass doesn't put a block after one of its own quest while
+  another fits, unless it is the block running out of room before its deadline.
+
+**`Task.oneGo`** (a quest's "in one go"): `minSitting` and `idealSessionRange` are
+the whole of it, so the budget only grants all of it on one day; the
+constructor places all of it in one slot or nothing; reconcile never splits it;
+packing never cuts it; a replan during its sitting plans nothing more of it.
+**Routines** take a `repeat` rule (`repeat.ts`): weekly on chosen days, every N
+weeks, or every N days, by the user's calendar.
+
 Still kept in this mode: the lunch half hour (`mealGap`), the transition after
 a long fixed block, deadlines, triage, pins and routines. The three labs run
 `defaultConfig()` and so do **not** grade this mode; `fill.test.ts` does,

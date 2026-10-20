@@ -191,7 +191,7 @@ Never commit .env files. Never log API keys.
 ## Current Build Phase
 [Update this at the end of every session. History lives in WORKLOG.md and git; this section is the current state only.]
 
-**As of 2026-10-08: everything below is built. Production is `main` @ `29783f0` (deployed 2026-10-06), auto-deployed from `main` (Railway server + Vercel client).** The working branch `presets-and-chronicle` is ahead of it and not deployed yet: a quest's max session, routines with no hour (one time of day; they step aside for a short deadline), a meal gap at midday, and `/health` reporting the commit. The open work, and a finished branch that waits on a decision, are in `PLAN.md`.
+**As of 2026-10-19: production is `main` @ `08d40fb`** (the Quests page's New quest button, deployed 2026-10-19), auto-deployed from `main` (Railway server + Vercel client). **Built and not deployed: branch `scheduler-coverage`** (worktree `.claude/worktrees/scheduler-coverage`), which carries everything the scheduler gained since 2026-10-11: filling the time, the five-minute gap, long breaks, the Time available slider, dragging (from `ui-refresh`), the crowded-week fixes of 2026-10-15, and rotation, quests in one go and routines that repeat weekly or every few days (2026-10-19). It has a migration (`20261019000000_one_sitting_and_repeat`). The open work is in `PLAN.md`.
 
 ### Live
 - Client: https://focus-guild-ten.vercel.app · Server: https://focus-guild-production.up.railway.app (`/health`)
@@ -378,6 +378,14 @@ So, for every user (`lib/userConfig.ts`):
 - **Quests are rearranged by dragging** a row onto another (a mouse), or with Earlier and Later in the block's card (a finger, a keyboard). Only the order changes: the day is laid out again in the new order, same gaps, same breaks, and nothing is pinned. A drag cannot make a quest miss its deadline; it is put back ahead of whatever it would have waited behind.
 
 Deadlines, triage, pins, routines, the lunch half hour and the transition after a long fixed block still hold. How it is built is in `server/src/lib/scheduler/README.md`; the scheduler labs do not grade this mode yet.
+
+### Round the quests, in one go, routines that skip days (owner's rules, 2026-10-19)
+
+"Right now it's … giving back to back same things, make it progressively recalculate every chunk so that everything will be somewhat covered, add an option for a task that must be done in one go, add an option for custom/weekly recurring tasks."
+
+- **Rotation** (`rotate`, on for every user in `lib/userConfig.ts`). The plan is picked a block at a time: the next slot goes to whatever has had least of the day so far, never to the quest just placed while another can take it, and a day's time is shared out a sitting per quest per round before any quest gets a second. A quest still follows itself when a deadline that day needs it to, or when nothing else is left. This replaces the "session" rule above (a quest keeping the slot for a few sittings) for the app; the library default and the three labs keep sessions. `npm run lab:week` grades the app's mode; `-- --no-rotate` shows the old one.
+- **In one go** (`Quest.oneSitting`, a toggle in the quest editor). All of what is left in one block on one day, never cut by a break, a class or a repair. With no stretch long enough before its deadline it is reported short instead of split. The quest's row says "in one go" beside its time.
+- **Repeat** (`Quest.repeat`, the editor's Repeat card). A routine comes round every day (no rule, as before), weekly on chosen days (every 1 to 4 weeks), or every N days, by the user's own calendar (`lib/scheduler/repeat.ts`; the client's copy is `client/src/lib/repeat.ts`). Today's Rounds count only the routines due today; the others are listed after them with the day they next come round.
 
 ### Live Rescheduling Triggers
 The feed rebuilds automatically when:

@@ -78,6 +78,7 @@ decision (see "Parked branches").
 ### Parked branches (local worktrees under `.claude/worktrees/`, not pushed)
 | Branch | What is there | State |
 |---|---|---|
+| `scheduler-coverage` (worktree `.claude/worktrees/scheduler-coverage`) | Everything the scheduler gained since 2026-10-11, never deployed: fill the time, the gap, long breaks, the slider, dragging (`ui-refresh`), the crowded-week fixes (2026-10-15), and rotation, quests in one go and routines that repeat weekly or every few days (2026-10-19). Merged with `main` @ `08d40fb`. Has a migration. | **Ready to deploy on the owner's word.** |
 | `replan-keeps-breaks` @ `b14e997` (worktree `agent-abaaa678aca7b13f9`) | Scheduler item 1: rests after kept blocks, breaks give way to a meetable deadline, passes repeat until stable. Branched from `9f8087a`. | Works and is measured (numbers in its commit message). **Needs the owner's call**: keep breaks in replans at about half a point of simulated deadlines, or leave replans as they are. Then fix `reason-false` and `tiny-block`, and merge the current branch into it. |
 | `worktree-agent-aaaf4994560cafbaa` (uncommitted) | Start of `suggestChronotype` in `insights.ts` plus lab changes | Early; based on `8e501f7`, so it needs a merge of the current branch first. |
 All other agent worktrees are merged and can be removed (`git worktree remove <path>`).
