@@ -5,6 +5,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { api, isHourLog, type ParentChoice, type Quest, type PriorityTier } from '../lib/api';
 import { MiniCalendar } from './MiniCalendar';
 import { InfoTip } from './InfoTip';
+import { WEEK, todayKey, type RepeatRule } from '../lib/repeat';
 import { BookOpen, Brush, ChevronDown, ChevronRight, Dumbbell, Inbox, Phone, CalendarDays, Target, X } from 'lucide-react';
 
 interface Props {
@@ -25,6 +26,14 @@ function loadToFive(load: number): number {
 }
 
 const LOAD_LABELS = ['', 'Easy', 'Mild', 'Medium', 'Hard', 'Brutal'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+type RepeatKind = 'daily' | 'weekly' | 'interval';
+
+/** A one-tap choice, lit when it is the one in force. */
+const chip = (active: boolean) => ({
+  background: active ? 'var(--color-primary)' : 'var(--color-surface2)',
+  color: active ? 'var(--color-on-primary)' : 'var(--color-text)',
+});
 /** A mouse or trackpad: safe to focus a field without summoning an on-screen keyboard. */
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
 
@@ -154,6 +163,13 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
   // Scheduler hints
   const [isRecurring, setIsRecurring] = useState(false);
+  /** How often a routine comes round (lib/repeat.ts). */
+  const [repeatKind, setRepeatKind] = useState<RepeatKind>('daily');
+  const [repeatDays, setRepeatDays] = useState<number[]>([]);
+  const [repeatWeeks, setRepeatWeeks] = useState(1);
+  const [repeatEvery, setRepeatEvery] = useState('2');
+  /** Done in one sitting, never split into pieces. */
+  const [oneSitting, setOneSitting] = useState(false);
   /** An hour log: no estimate, time is written down as it is spent. */
   const [openEnded, setOpenEnded] = useState(false);
   /** The quest this one is a step of; '' for a main quest. */
@@ -182,6 +198,12 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setLoad5(loadToFive(editing.mentalLoad));
       setImpact(editing.impact);
       setIsRecurring(editing.isRecurring ?? false);
+      const rule = editing.repeat ?? null;
+      setRepeatKind(rule ? rule.kind : 'daily');
+      setRepeatDays(rule?.kind === 'weekly' ? rule.days : [new Date().getDay()]);
+      setRepeatWeeks(rule?.kind === 'weekly' ? rule.every ?? 1 : 1);
+      setRepeatEvery(rule?.kind === 'interval' ? String(rule.every) : '2');
+      setOneSitting(editing.oneSitting ?? false);
       setOpenEnded(isHourLog(editing));
       setParentId(editing.parentQuestId ?? '');
       setPriorityTier(editing.priorityTier ?? 'MED');
@@ -206,6 +228,11 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setLoad5(3);
       setImpact(5);
       setIsRecurring(false);
+      setRepeatKind('daily');
+      setRepeatDays([new Date().getDay()]);
+      setRepeatWeeks(1);
+      setRepeatEvery('2');
+      setOneSitting(false);
       setOpenEnded(false);
       setParentId('');
       setPriorityTier('MED');
@@ -245,6 +272,24 @@ export function QuestModal({ open, onClose, editing }: Props) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
 
+  /** The routine's rule as stored; null = every day. Keeps its start date while its rhythm is unchanged. */
+  const repeatRule = (): RepeatRule | null => {
+    const prev = editing?.repeat ?? null;
+    if (repeatKind === 'weekly' && repeatDays.length) {
+      const days = [...repeatDays].sort((a, b) => a - b);
+      if (repeatWeeks <= 1) return days.length === 7 ? null : { kind: 'weekly', days };
+      const from = prev?.kind === 'weekly' && prev.every === repeatWeeks && prev.from ? prev.from : todayKey();
+      return { kind: 'weekly', days, every: repeatWeeks, from };
+    }
+    if (repeatKind === 'interval') {
+      const every = Math.min(90, Math.round(Number(repeatEvery)));
+      if (!Number.isFinite(every) || every < 2) return null;
+      const from = prev?.kind === 'interval' && prev.every === every ? prev.from : todayKey();
+      return { kind: 'interval', every, from };
+    }
+    return null;
+  };
+
   const save = async () => {
     const trimmed = title.trim();
     if (!trimmed || saving) return;
@@ -265,6 +310,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
         impact,
         deadline: deadline && !openEnded ? deadline.toISOString() : null,
         isRecurring: isRecurring && !openEnded,
+        repeat: isRecurring && !openEnded ? repeatRule() : null,
+        oneSitting: oneSitting && !isRecurring && !openEnded,
         openEnded,
         priorityTier,
         category,
@@ -400,29 +447,113 @@ export function QuestModal({ open, onClose, editing }: Props) {
               </ul>
             </details>
 
-            {/* Recurring toggle */}
+            {/* Repeat: a routine, and how often it comes round */}
             {!openEnded && (
             <div
-              className="mb-4 flex items-start gap-3 rounded-lg p-3"
+              className="mb-4 rounded-lg p-3"
               style={{
                 background: 'var(--color-surface2)',
                 boxShadow: isRecurring ? 'inset 0 0 0 1.5px var(--color-primary)' : 'none',
               }}
             >
-              <input
-                type="checkbox"
-                checked={isRecurring}
-                onChange={(e) => setIsRecurring(e.target.checked)}
-                className="mt-1 h-4 w-4 cursor-pointer"
-              />
-              <div className="flex-1">
-                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
-                  Repeat every day
-                </p>
-                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
-                  A routine: planned daily as its own block, ticked off fresh each day.
-                </p>
-              </div>
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={isRecurring}
+                  onChange={(e) => setIsRecurring(e.target.checked)}
+                  className="mt-1 h-4 w-4 cursor-pointer"
+                />
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                    Repeat
+                  </span>
+                  <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+                    A routine: planned as its own block on the days it comes round, ticked off fresh each time.
+                  </span>
+                </span>
+              </label>
+              {isRecurring && (
+                <div className="mt-3 sm:pl-7">
+                  <div className="grid grid-cols-3 gap-1 rounded-lg bg-(--color-surface) p-1" role="radiogroup" aria-label="How often">
+                    {([
+                      { id: 'daily', label: 'Every day' },
+                      { id: 'weekly', label: 'Weekly' },
+                      { id: 'interval', label: 'Every few days' },
+                    ] as const).map((o) => {
+                      const on = repeatKind === o.id;
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={on}
+                          onClick={() => setRepeatKind(o.id)}
+                          className="rounded-md px-1.5 py-1.5 text-center text-[13px] font-bold transition-colors"
+                          style={{
+                            background: on ? 'var(--color-primary)' : 'transparent',
+                            color: on ? 'var(--color-on-primary)' : 'var(--color-text)',
+                          }}
+                        >
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {repeatKind === 'weekly' && (
+                    <>
+                      <div className="mt-2 grid grid-cols-7 gap-1" role="group" aria-label="On these days">
+                        {WEEK.map((d) => {
+                          const on = repeatDays.includes(d);
+                          return (
+                            <button
+                              key={d}
+                              type="button"
+                              aria-pressed={on}
+                              // At least one day stays picked: a weekly routine on no day is no routine.
+                              onClick={() => setRepeatDays(on ? (repeatDays.length > 1 ? repeatDays.filter((x) => x !== d) : repeatDays) : [...repeatDays, d])}
+                              className="btn-quiet h-9 min-h-0 px-0 text-xs"
+                              style={chip(on)}
+                            >
+                              {DAY_LABELS[d]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <label className="mt-2 flex items-center gap-2 text-sm" style={{ color: 'var(--color-muted)' }}>
+                        Every
+                        <select
+                          className="form-input h-9 w-auto min-w-0 py-0"
+                          value={repeatWeeks}
+                          onChange={(e) => setRepeatWeeks(Number(e.target.value))}
+                          aria-label="How many weeks apart"
+                        >
+                          {[1, 2, 3, 4].map((n) => (
+                            <option key={n} value={n}>
+                              {n === 1 ? 'week' : `${n} weeks`}
+                            </option>
+                          ))}
+                        </select>
+                        {repeatWeeks > 1 && <span>counting this week</span>}
+                      </label>
+                    </>
+                  )}
+                  {repeatKind === 'interval' && (
+                    <label className="mt-2 flex items-center gap-2 text-sm" style={{ color: 'var(--color-muted)' }}>
+                      Every
+                      <input
+                        type="number"
+                        min={2}
+                        max={90}
+                        className="form-input h-9 w-20 py-0"
+                        value={repeatEvery}
+                        onChange={(e) => setRepeatEvery(e.target.value)}
+                        aria-label="How many days apart"
+                      />
+                      days, starting today
+                    </label>
+                  )}
+                </div>
+              )}
             </div>
             )}
 
@@ -448,6 +579,32 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
                     For practice, reading, anything with no finish line. It is never planned or late; you write
                     down the time you put in.
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {/* In one go: never split into pieces */}
+            {!isRecurring && !openEnded && (
+              <label
+                className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg p-3"
+                style={{
+                  background: 'var(--color-surface2)',
+                  boxShadow: oneSitting ? 'inset 0 0 0 1.5px var(--color-primary)' : 'none',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={oneSitting}
+                  onChange={(e) => setOneSitting(e.target.checked)}
+                  className="mt-1 h-4 w-4 cursor-pointer"
+                />
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+                    Do it in one go
+                  </span>
+                  <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+                    Never split into pieces: planned as one block of the whole estimate, on a day with room for all of it.
                   </span>
                 </span>
               </label>
@@ -890,10 +1047,6 @@ function DeadlineField({ value, onChange }: { value: Date | null; onChange: (d: 
     { label: 'In a week', date: inDays(7) },
   ];
   const custom = value !== null && !choices.some((c) => same(value, c.date));
-  const chip = (active: boolean) => ({
-    background: active ? 'var(--color-primary)' : 'var(--color-surface2)',
-    color: active ? 'var(--color-on-primary)' : 'var(--color-text)',
-  });
 
   return (
     <div className="mb-4">

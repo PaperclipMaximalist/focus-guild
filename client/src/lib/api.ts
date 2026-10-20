@@ -126,6 +126,10 @@ export interface Quest {
   setupCost?: number | null;
   urgencyMult?: number | null;
   isRecurring?: boolean;
+  /** For a routine: which days it comes round; null = every day (lib/repeat.ts). */
+  repeat?: RepeatRule | null;
+  /** Done in one sitting, never split into pieces. */
+  oneSitting?: boolean;
   priorityTier?: PriorityTier;
   parentQuestId?: string | null;
   doneToday?: boolean; // populated by GET /quests/recurring
@@ -241,6 +245,8 @@ export interface QuestSchedulerHints {
   setupCost?: number | null;
   urgencyMult?: number | null;
   isRecurring?: boolean;
+  repeat?: RepeatRule | null;
+  oneSitting?: boolean;
   priorityTier?: PriorityTier;
 }
 
@@ -1004,6 +1010,7 @@ export interface ImportApplyResult {
 // shape is server/src/lib/questImport.ts.
 
 import type { ManifestQuest } from './manifest';
+import type { RepeatRule } from './repeat';
 
 export interface ManifestCounts {
   quests: number;
