@@ -119,6 +119,12 @@ const POLICY = {
    * --no-replan-cap.)
    */
   replanCap: !argv.includes('--no-replan-cap'),
+  /**
+   * What the app runs with since Oct 2026 (lib/userConfig.ts): a fixed
+   * 5-minute gap, a 30-minute break about every two hours, and days filled
+   * in order (--app). Without it the lab grades the library's own paced default.
+   */
+  app: argv.includes('--app'),
 };
 
 // ─── Seeded randomness ────────────────────────────────────────────────────────
@@ -376,7 +382,11 @@ function makePerson(idx: number): Person {
   const drawn = weighted(r, ARCHETYPES);
   const archetype: Archetype = night ? 'night-shift' : drawn;
   const tz = pick(r, TZS);
-  const cfg: UserConfig = { ...defaultConfig(), tzOffsetMin: tz };
+  const cfg: UserConfig = {
+    ...defaultConfig(),
+    tzOffsetMin: tz,
+    ...(POLICY.app ? { gapMin: 5, breakMin: 30, breakEveryMin: 120, fillDays: true } : {}),
+  };
 
   // Most people never open Settings; the rest set roughly their real window.
   // (Night-shift people all have: hours past midnight are what makes them one.)

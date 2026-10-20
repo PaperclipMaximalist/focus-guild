@@ -530,7 +530,7 @@ function depsMet(task: Task, taskMap: Map<string, Task>): boolean {
   return true;
 }
 
-function suggestForShortfall(shortfall: number): string[] {
+export function suggestForShortfall(shortfall: number): string[] {
   return [
     `extend_deadline_by:${shortfall}m`,
     `reduce_scope_by:${shortfall}m`,

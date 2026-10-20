@@ -61,7 +61,11 @@ export function generateSchedule(
   routines?: readonly DailyFiller[],
 ): SchedulerResult {
   const build = (fixed: Block[]) => plan({ tasks, fixedBlocks: fixed, lockedBlocks: [], config, now });
-  return aroundRoutines(build(fixedBlocks), fixedBlocks, routines, tasks, config, now, build);
+  const fresh = aroundRoutines(build(fixedBlocks), fixedBlocks, routines, tasks, config, now, build);
+  // With packing, a fresh plan is settled the way a replan is (see replan
+  // below), so that the first replan after it, with nothing changed, keeps it.
+  if (config.gapMin === undefined && !config.fillDays) return fresh;
+  return replan(fresh.schedule, tasks, config, now, routines ? { routines } : {});
 }
 
 /**
@@ -81,5 +85,30 @@ export function replan(
   options: ReplanOptions = {},
 ): SchedulerResult {
   const flow = (blocks: Block[]) => reflow(blocks, tasks, config, now, options);
-  return aroundRoutines(flow(currentSchedule), currentSchedule, options.routines, tasks, config, now, flow);
+  const once = (blocks: Schedule) => aroundRoutines(flow(blocks), blocks, options.routines, tasks, config, now, flow);
+  let result = once(currentSchedule);
+  // With packing (a fixed gap, filled days: what the app runs with), one pass
+  // can open time it then doesn't use: the day closes up after the planner
+  // has placed the work, and the next replan, with nothing changed, would
+  // place more. So replan the result until it stops changing. A pass that
+  // changes it only does so for a deadline (reflow takes a new plan only when
+  // it is better for the quest due first), so it settles; a crowded week of
+  // small quests trading 15-minute slots took four passes, so up to seven.
+  if (config.gapMin !== undefined || config.fillDays) {
+    for (let round = 0; round < 6; round += 1) {
+      const again = once(result.schedule);
+      if (shapeOf(again.schedule, now) === shapeOf(result.schedule, now)) break;
+      result = again;
+    }
+  }
+  return result;
+}
+
+/** The blocks ahead of `now`, where they are: enough to tell two plans apart. */
+function shapeOf(schedule: Schedule, now: number): string {
+  return schedule
+    .filter((b) => b.end > now && (b.type === 'work' || b.type === 'break'))
+    .map((b) => `${b.type}:${b.taskId}@${b.start}-${b.end}`)
+    .sort()
+    .join('|');
 }

@@ -28,6 +28,14 @@ const MS_PER_HOUR = 60 * MS_PER_MIN;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const EPSILON_MIN = 0.5;
 
+/**
+ * How far over its estimated room a quest may be and still be kept by
+ * triage. The room is an estimate (rests as if every block were half an
+ * hour), and on the low side: a two-hour fix due at 20:00 was given up, and
+ * got nothing at all, for being two minutes over it.
+ */
+const NEAR_FIT_MIN = 10;
+
 export interface FreeInterval {
   start: number;
   end: number;
@@ -134,7 +142,8 @@ export function buildDayInfo(
       const bs = Math.max(b.start - pad, wStart);
       // Nobody walks out of six hours of school straight into an essay.
       // After a long fixed block, the next free time starts a little later.
-      const long = b.end - b.start >= TRANSITION_AFTER_MIN * MS_PER_MIN;
+      // (A long sitting of a quest is not school: with a fixed gap it gets the gap, not the transition.)
+      const long = !(pad > 0 || (b.type === 'work' && config.gapMin !== undefined)) && b.end - b.start >= TRANSITION_AFTER_MIN * MS_PER_MIN;
       const be = Math.min(b.end + (long ? TRANSITION_MIN * MS_PER_MIN : 0) + pad, wEnd);
       if (bs > cursor) free.push({ start: cursor, end: bs, day: key });
       cursor = Math.max(cursor, be);
@@ -150,7 +159,9 @@ export function buildDayInfo(
         }
       }
     }
-    if (config.mealGap && !crossesMidnight(config.workingHours)) keepMealFree(free, todayImmov, midnight, wStart, wEnd, config.mealGap);
+    if (config.mealGap && !crossesMidnight(config.workingHours)) {
+      keepMealFree(free, todayImmov, midnight, wStart, wEnd, config.mealGap, (config.gapMin ?? 0) * MS_PER_MIN);
+    }
 
     const freeMinutes = free.reduce((s, iv) => s + (iv.end - iv.start) / MS_PER_MIN, 0);
     out.push({
@@ -171,6 +182,11 @@ export function buildDayInfo(
  * something that isn't quest work already breaks it (a class, a lunch
  * date, a routine). The meal sits as near the middle of the span as the
  * day allows, so a replan finds the same half hour between its kept blocks.
+ * With a fixed gap, the meal is the gap as well: the free time between two
+ * kept blocks is already short a gap at either end, and a 35-minute hole
+ * (meal and gap) left 25, too short for the meal. The replan put work in it,
+ * and laying the day out again put the meal back and pushed the rest of the
+ * day half an hour later.
  */
 function keepMealFree(
   free: FreeInterval[],
@@ -179,6 +195,7 @@ function keepMealFree(
   wStart: number,
   wEnd: number,
   meal: { fromHour: number; toHour: number; minutes: number },
+  gap = 0,
 ): void {
   const len = meal.minutes * MS_PER_MIN;
   const spanStart = userHourUtc(midnight, meal.fromHour);
@@ -195,8 +212,8 @@ function keepMealFree(
   const ideal = spanStart + (spanEnd - spanStart - len) / 2;
   let best: { i: number; start: number } | null = null;
   for (let i = 0; i < free.length; i += 1) {
-    const lo = Math.max(free[i]!.start, from);
-    const hi = Math.min(free[i]!.end, to) - len;
+    const lo = Math.max(free[i]!.start - gap, from);
+    const hi = Math.min(free[i]!.end + gap, to) - len;
     if (hi < lo) continue;
     const start = Math.min(hi, Math.max(lo, ideal));
     if (!best || Math.abs(start - ideal) < Math.abs(best.start - ideal)) best = { i, start };
@@ -711,8 +728,10 @@ export function allocateBudgets(
           }
           const reach = spare + later.reduce((m, x) => m + x.quota.targetMin, 0);
           const want = Math.min(room, Math.floor(reach));
-          // A real sitting, or all there is; topping up a sitting already here is fine.
-          if (want < 1 || (here < 1 && want < reach && want < minSitting(task, reach))) continue;
+          // A real sitting, or all there is. (Topping up a sitting already here
+          // by a few minutes used to be allowed, and came out as a separate
+          // quarter-hour fragment of heavy work later in the day.)
+          if (want < 1 || (want < reach && want < minSitting(task, reach))) continue;
           let moved = Math.min(want, spare);
           if (moved > 0) remaining.set(task.id, (remaining.get(task.id) ?? 0) - moved);
           for (const x of later) {
@@ -795,7 +814,7 @@ export function triage(
     kept.push(t);
     sum += t.remainingMin;
     const cap = capacityBefore(t.deadline);
-    while (sum > cap + EPSILON_MIN && kept.length) {
+    while (sum > cap + NEAR_FIT_MIN && kept.length) {
       let worst = 0;
       for (let i = 1; i < kept.length; i += 1) if (worse(kept[i]!, kept[worst]!)) worst = i;
       const [gone] = kept.splice(worst, 1);

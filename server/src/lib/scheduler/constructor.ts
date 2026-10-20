@@ -239,7 +239,14 @@ function enumerateCandidates(
     if (chunkMin < Math.min(SLIVER_MIN, cap) && q.task.totalMin >= 2 * SLIVER_MIN && q.task.remainingMin > chunkMin) continue;
     if (chunkMin < 1) continue;
 
-    if (variety !== 'off') {
+    // A quest due within the day without the time to wait out another quest's
+    // session (less to spare before its deadline than it has left) stays
+    // however long its own has run: a two-hour fix due at 20:00 had its last
+    // 25 minutes refused as a fourth sitting, and the lab report due at
+    // midnight took the slot.
+    const spare = freeBetween(state, iv.start, q.task.deadline) - left;
+    const pressed = q.task.deadline < budget.day.workEnd && spare < Math.max(DEADLINE_MARGIN_MIN, left);
+    if (variety !== 'off' && !pressed) {
       const session = sessionOf(q.task, refs, iv.start);
       // A session's last sitting shrinks to what the run still has room for,
       // if that is a real sitting: 25 + 50 + 50 + 25 on a crunch day, rather
@@ -296,6 +303,17 @@ function enumerateCandidates(
   return safe.length ? safe : out;
 }
 
+/** Free minutes in the beam's day between `from` and `to`. */
+function freeBetween(state: BeamState, from: number, to: number): number {
+  let free = 0;
+  for (const iv of state.freeIntervals) {
+    const a = Math.max(iv.start, from);
+    const b = Math.min(iv.end, to);
+    if (b > a) free += (b - a) / MS_PER_MIN;
+  }
+  return free;
+}
+
 /**
  * Earliest-deadline feasibility: would placing `c` leave a quest due later
  * today without enough free time before its deadline? The beam orders the
@@ -321,13 +339,7 @@ function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, confi
       if (q.task.id === c.task.id || q.task.deadline > d) continue;
       need += Math.max(0, state.remaining.get(q.task.id) ?? 0);
     }
-    let free = 0;
-    for (const iv of state.freeIntervals) {
-      const a = Math.max(iv.start, after);
-      const b = Math.min(iv.end, d);
-      if (b > a) free += (b - a) / MS_PER_MIN;
-    }
-    if (free < need + marginMin) return false;
+    if (freeBetween(state, after, d) < need + marginMin) return false;
   }
   return true;
 }

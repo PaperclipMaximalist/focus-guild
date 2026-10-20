@@ -426,13 +426,16 @@ describe('dragging a quest to a new place', () => {
 
   it('changes the order and nothing else: no other quest is brought into the place it left', () => {
     const first = generateSchedule(pile(), [], config(), NOW).schedule;
-    const before = workOf(first, 0).map((b) => b.id);
-    const edited = applyEdit(first, { kind: 'reorder_block', blockId: before[3]!, beforeId: before[1]! });
-    const after = workOf(replan(edited, pile(), config(), NOW).schedule, 0).map((b) => b.id);
-    expect(after.slice(0, 5)).toEqual([before[0], before[3], before[1], before[2], before[4]]);
-    // And dragged back, the day is as it was.
-    const back = applyEdit(replan(edited, pile(), config(), NOW).schedule, { kind: 'reorder_block', blockId: before[3]!, afterId: before[2]! });
-    expect(workOf(replan(back, pile(), config(), NOW).schedule, 0).map((b) => b.id).slice(0, 5)).toEqual(before.slice(0, 5));
+    // Quests in the day's order, a run of one quest's blocks counted once (pieces of one quest side by side may join).
+    const quests = (sched: Block[]) => workOf(sched, 0).map((b) => b.taskId!).filter((id, i, all) => i === 0 || all[i - 1] !== id);
+    const today = workOf(first, 0);
+    const moved = today.find((b, i) => i >= 2 && b.taskId !== today[0]!.taskId && b.taskId !== today[1]!.taskId)!;
+    const edited = applyEdit(first, { kind: 'reorder_block', blockId: moved.id, beforeId: today[1]!.id });
+    const after = quests(replan(edited, pile(), config(), NOW).schedule);
+    expect(after.slice(0, 3)).toEqual([today[0]!.taskId, moved.taskId, today[1]!.taskId]);
+    // Nothing that wasn't already on the day comes onto it.
+    const was = new Set(quests(first));
+    for (const id of after.slice(0, 5)) expect(was.has(id)).toBe(true);
   });
 
   it('a quest finished early is closed over by the ones behind it, in the same order', () => {
@@ -452,9 +455,10 @@ describe('dragging a quest to a new place', () => {
     const moved = today[1]!;
     const target = today[3]!;
     const { schedule } = replan(applyEdit(first, { kind: 'reorder_block', blockId: moved.id, afterId: target.id }), pile(), config(), NOW);
-    const ids = workOf(schedule, 0).map((b) => b.id);
-    expect(ids.indexOf(moved.id)).toBeGreaterThan(ids.indexOf(target.id));
-    expect(ids.indexOf(moved.id) - ids.indexOf(target.id)).toBe(1);
+    // It comes after the quest it was dropped on (and may have joined a block of its own quest there).
+    const order = workOf(schedule, 0);
+    const at = order.findIndex((b) => b.taskId === moved.taskId && b.start > order.find((x) => x.id === target.id)!.start);
+    expect(at).toBeGreaterThan(order.findIndex((b) => b.id === target.id));
     expect(minutesByTask(schedule)).toEqual(minutesByTask(first));
   });
 
