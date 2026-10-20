@@ -8,8 +8,9 @@ import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
 import { HourLogs } from '../components/HourLogs';
 import { api, type Quest } from '../lib/api';
+import { QUEST_MODAL_OPEN } from '../lib/questEditor';
 import { Link } from 'react-router-dom';
-import { Check, Hourglass, ListPlus, MapIcon, Search, SquareCheck, Star, Trash2, X } from 'lucide-react';
+import { Check, Hourglass, ListPlus, MapIcon, Plus, Search, SquareCheck, Star, Trash2, X } from 'lucide-react';
 
 type Sort = 'priority' | 'deadline' | 'created' | 'title';
 
@@ -35,6 +36,23 @@ export default function Quests() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const openNew = () => {
+    setEditing(null);
+    setModalOpen(true);
+  };
+
+  // The sidebar button, N and the command palette open the editor here
+  // rather than sending you back to Today.
+  useEffect(() => {
+    const onNew = (e: Event) => {
+      e.preventDefault();
+      setEditing(null);
+      setModalOpen(true);
+    };
+    window.addEventListener(QUEST_MODAL_OPEN, onNew);
+    return () => window.removeEventListener(QUEST_MODAL_OPEN, onNew);
+  }, []);
 
   // Listen for global `/` shortcut to focus search.
   useEffect(() => {
@@ -163,8 +181,9 @@ export default function Quests() {
 
   return (
     <div className="page flex flex-col gap-4">
-      <header className="flex items-center gap-2">
-        <div className="min-w-0 flex-1">
+      {/* On a phone the buttons take their own row under the title. */}
+      <header className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1 max-sm:basis-full">
           <h1 className="page-title">Quests</h1>
           <p className="tnum mt-1 text-[13px] text-(--color-muted)">
             {visible.length === quests.length
@@ -184,6 +203,9 @@ export default function Quests() {
         <Link to="/quests/import" className="btn-quiet">
           <ListPlus size={15} aria-hidden /> Import
         </Link>
+        <button type="button" onClick={openNew} className="btn-strong whitespace-nowrap max-sm:ml-auto">
+          <Plus size={16} strokeWidth={2.5} aria-hidden /> New quest
+        </button>
       </header>
 
       {/* Search + sort */}
@@ -286,9 +308,14 @@ export default function Quests() {
             </p>
             <p className="text-sm mt-1" style={{ color: 'var(--color-muted)' }}>
               {quests.length === 0
-                ? 'Add one from Today or use a template in the modal.'
+                ? 'Add one with every detail, or start from a template in the editor.'
                 : 'Try clearing filters or the search box.'}
             </p>
+            {quests.length === 0 && (
+              <button type="button" onClick={openNew} className="btn-strong mt-4">
+                <Plus size={16} strokeWidth={2.5} aria-hidden /> New quest
+              </button>
+            )}
           </div>
         )}
       </section>

@@ -34,6 +34,7 @@ import { type Quest } from '../lib/api';
 import type { LucideIcon } from 'lucide-react';
 import { BatteryMedium, ChevronDown, ChevronRight, Dices, Flame, LifeBuoy, Plus, Star } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
+import { QUEST_MODAL_OPEN, takePendingNewQuest } from '../lib/questEditor';
 
 /** How many quests Today lists before "show more": the Bible's hard rule is five. */
 const TOP_N = 5;
@@ -83,15 +84,21 @@ export default function Today() {
 
   // Global keyboard shortcuts fire custom events; wire them here.
   useEffect(() => {
-    const onNew = () => {
+    const onNew = (e: Event) => {
+      e.preventDefault();
       setEditing(null);
       setModalOpen(true);
     };
     const onSpin = () => setSpinOpen(true);
-    window.addEventListener('quest-modal:open', onNew);
+    window.addEventListener(QUEST_MODAL_OPEN, onNew);
     window.addEventListener('spin-wheel:open', onSpin);
+    // Sent here by New quest from a page without the editor.
+    if (takePendingNewQuest()) {
+      setEditing(null);
+      setModalOpen(true);
+    }
     return () => {
-      window.removeEventListener('quest-modal:open', onNew);
+      window.removeEventListener(QUEST_MODAL_OPEN, onNew);
       window.removeEventListener('spin-wheel:open', onSpin);
     };
   }, []);

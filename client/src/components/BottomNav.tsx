@@ -18,6 +18,7 @@ import { api } from '../lib/api';
 import { Wall } from '../lines/Dressing';
 import { reportOverdue } from '../lines/live';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
+import { openNewQuest } from '../lib/questEditor';
 import {
   CalendarDays,
   ChartColumn,
@@ -121,11 +122,8 @@ function Sidebar({
     api.quests.rescue().then((r) => { setOverdue(r.length); reportOverdue(r.length); }).catch(() => {});
   }, [pathname]);
 
-  // The quest editor lives on Today; go there first when we're elsewhere.
-  const newQuest = () => {
-    if (pathname !== '/') navigate('/');
-    setTimeout(() => window.dispatchEvent(new CustomEvent('quest-modal:open')), pathname === '/' ? 0 : 80);
-  };
+  // Opens in place on Today and Quests; from anywhere else, on Today.
+  const newQuest = () => openNewQuest(navigate);
 
   const row = (item: Item, badge?: number) => {
     const active = isActive(pathname, item.to);
