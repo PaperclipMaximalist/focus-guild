@@ -19,6 +19,7 @@
  *   - An entry can be taken back, and that is all the editing there is.
  */
 
+import { useDialog } from '../lib/useDialog';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api, type HourLog, type Quest, type TimeEntry } from '../lib/api';
@@ -193,6 +194,7 @@ function HourLogSheet({
   const [entries, setEntries] = useState<TimeEntry[] | null>(null);
 
   const id = log?.id ?? null;
+  const boxRef = useDialog(!!log, onClose);
 
   useEffect(() => {
     if (!id) return;
@@ -206,13 +208,6 @@ function HourLogSheet({
       .then((d) => setEntries(d.entries))
       .catch(() => setEntries([]));
   }, [id]);
-
-  useEffect(() => {
-    if (!id) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [id, onClose]);
 
   const minutes = parseDuration(length);
   const today = localDayKey(new Date());
@@ -297,6 +292,8 @@ function HourLogSheet({
           className="fixed inset-0 z-[200] flex items-end justify-center bg-black/70 sm:items-center sm:p-5"
         >
           <motion.div
+            ref={boxRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={`Log time on ${log.title}`}
@@ -305,7 +302,7 @@ function HourLogSheet({
             exit={{ y: 24, opacity: 0 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-(--color-surface2) p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-(--color-surface2) p-5 outline-none pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl"
           >
             <div className="mb-4 flex items-start gap-3">
               <div className="min-w-0 flex-1">

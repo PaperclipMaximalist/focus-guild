@@ -32,7 +32,7 @@ describe('removeWithUndo', () => {
     expect(ids()).toEqual(['a', 'c']);
     expect(del).not.toHaveBeenCalled();
 
-    await vi.advanceTimersByTimeAsync(6000);
+    await vi.advanceTimersByTimeAsync(9000);
     expect(del).toHaveBeenCalledTimes(1);
     expect(del).toHaveBeenCalledWith('b');
   });
@@ -54,7 +54,7 @@ describe('removeWithUndo', () => {
     expect(ids()).toEqual(['b']);
     expect(useToastStore.getState().toasts).toHaveLength(1);
 
-    await vi.advanceTimersByTimeAsync(6000);
+    await vi.advanceTimersByTimeAsync(9000);
     expect(del).toHaveBeenCalledTimes(2);
   });
 
@@ -63,7 +63,7 @@ describe('removeWithUndo', () => {
     const onUndo = vi.fn();
     useQuestStore.getState().removeWithUndo('a', { onUndo });
 
-    await vi.advanceTimersByTimeAsync(6000);
+    await vi.advanceTimersByTimeAsync(9000);
     expect(ids()).toEqual(['a', 'b', 'c']);
     expect(onUndo).toHaveBeenCalled();
     expect(useToastStore.getState().toasts.at(-1)?.variant).toBe('error');

@@ -30,7 +30,9 @@ export function BoardClock() {
   const now = useMinute();
   const text = now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   return (
-    <time dateTime={now.toISOString()} className="tnum text-[19px] font-bold leading-none" aria-label={`The time is ${text}`}>
+    <time dateTime={now.toISOString()} className="tnum text-[19px] font-bold leading-none">
+      {/* Read once as a time; the flaps are for the eye. (aria-label is not allowed on <time>.) */}
+      <span className="sr-only">The time is {text}</span>
       {[...text].map((ch, i) => (
         // Keyed by its own value: a character that changes is a new element, so it flips; one that stays, stays.
         <span key={`${i}${ch}`} className="flap" aria-hidden>
@@ -44,7 +46,8 @@ export function BoardClock() {
 export function BoardSign({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div className="board-sign">
-      <h1 className="min-w-0 flex-1 truncate">{title}</h1>
+      {/* The page's h1 sits above the sign; the sign heads the board under it. */}
+      <h2 className="min-w-0 flex-1 truncate">{title}</h2>
       {children}
       <BoardClock />
     </div>

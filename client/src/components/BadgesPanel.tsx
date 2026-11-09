@@ -37,16 +37,18 @@ export function BadgesPanel() {
               key={b.slug}
               title={b.desc}
               className={`flex flex-col items-center gap-1.5 rounded-lg px-1 py-2.5 text-center ${
-                isUnlocked ? 'bg-(--color-primary)/10 text-(--color-primary)' : 'bg-(--color-surface2) opacity-40'
+                isUnlocked ? 'bg-(--color-primary)/10 text-(--color-primary)' : 'bg-(--color-surface2) text-(--color-muted)'
               }`}
             >
-              <b.icon size={20} strokeWidth={1.75} aria-hidden />
+              {/* A locked trophy dims its picture, never its name: dimmed 11px text could not be read. */}
+              <b.icon size={20} strokeWidth={1.75} className={isUnlocked ? undefined : 'opacity-40'} aria-hidden />
               <span
                 className={`text-[11px] font-semibold leading-tight ${
                   isUnlocked ? 'text-(--color-text)' : 'text-(--color-muted)'
                 }`}
               >
                 {b.name}
+                <span className="sr-only">{isUnlocked ? ', earned' : `, not yet earned: ${b.desc}`}</span>
               </span>
             </div>
           );

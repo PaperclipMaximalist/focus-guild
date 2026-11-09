@@ -280,6 +280,13 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Checked: 51 new server tests, among them the routes run end to end against a stand-in database, asserting that a key is never stored as typed and never appears in a response; the migration compared line for line with what Prisma generates for the schema; the screens photographed at 1280 and 375 px against sample answers. **Not checked: a real call to any provider.** There was no key to test with.
 - Tests: 449 server, 86 client.
 
+### Sat 2026-11-07: Before others try it: a new member's first ten minutes (one session; hours not measured)
+- The owner's words: "check what should be committed and simulate a normal person using the website by creating test cases and basically create and run of loop of making the website more accessible and simple to use, I want to launch it for others to try soon!"
+- What should be committed: nothing new. Every local branch is level with or behind `main` except `scheduler-coverage` (7 ahead, waiting on the owner's go) and `replan-keeps-breaks` (parked). The `ui-refresh` worktree's uncommitted scheduler files are already `9ab389a` on `scheduler-coverage`; the main checkout's are the abandoned old-UI sub-quest work; `agent-aaaf…` holds an unfinished chronotype experiment from September. One stray change was worth keeping: an ownership check on quest completion, sitting uncommitted in `nifty-cohen-89a1d5` since October 6. It is in this branch.
+- Test cases written down in `docs/NEW_MEMBER_TESTS.md` (four visitors, twelve cases), run against a throwaway Postgres (PGlite with the migrations, handed to the server through `globalThis.prisma`, so nothing reached Neon), fixed, run again. The list of what was found and fixed is in that file.
+- Biggest: a new member now gets a three-step guide on Today; every dialog handles focus (`lib/useDialog.ts`); quests open from the keyboard; "Not today" is back; Settings and the editor are labelled; two server holes closed (completing anyone's quest; `POST /users` open and returning a member's whole record).
+- Tests: 449 server, 86 client. Lint: no new problems (24 old ones in the touched files).
+
 
 ## Phases, as named in the project's own log
 

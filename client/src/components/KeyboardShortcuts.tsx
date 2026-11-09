@@ -20,6 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Keyboard } from 'lucide-react';
 import { openNewQuest } from '../lib/questEditor';
+import { dialogOpen, useDialog } from '../lib/useDialog';
 
 function inEditable(): boolean {
   const el = document.activeElement as HTMLElement | null;
@@ -33,16 +34,12 @@ export function KeyboardShortcuts() {
   const navigate = useNavigate();
   const [helpOpen, setHelpOpen] = useState(false);
   const [pendingG, setPendingG] = useState(false);
+  const helpRef = useDialog(helpOpen, () => setHelpOpen(false));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // Always handle Escape on the help overlay regardless of focus.
-      if (e.key === 'Escape' && helpOpen) {
-        e.preventDefault();
-        setHelpOpen(false);
-        return;
-      }
-      if (inEditable()) return;
+      // Esc on the help overlay is its dialog's. While any dialog is open, N or S would open a second one behind it.
+      if (inEditable() || dialogOpen()) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
 
       if (pendingG) {
@@ -121,10 +118,15 @@ export function KeyboardShortcuts() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.9, y: 12 }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md rounded-2xl border p-6"
+              ref={helpRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="shortcuts-title"
+              tabIndex={-1}
+              className="w-full max-w-md rounded-2xl border p-6 outline-none"
               style={{ background: 'var(--color-surface2)', borderColor: 'var(--color-border)' }}
             >
-              <h2 className="text-base font-bold mb-3" style={{ color: 'var(--color-text)' }}>
+              <h2 id="shortcuts-title" className="text-base font-bold mb-3" style={{ color: 'var(--color-text)' }}>
                 <span className="inline-flex items-center gap-2"><Keyboard size={18} aria-hidden /> Keyboard shortcuts</span>
               </h2>
               <div className="space-y-1.5 text-sm" style={{ color: 'var(--color-text)' }}>

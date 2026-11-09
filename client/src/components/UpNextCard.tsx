@@ -22,6 +22,8 @@ import { CalendarDays, ChevronRight, Play, Timer } from 'lucide-react';
 interface Props {
   /** Same completion pipeline the Today quest cards use. */
   onCompleteQuest: (questId: string) => Promise<void> | void;
+  /** Render nothing while there is no block to show (the welcome guide already points at the route). */
+  hideWhenEmpty?: boolean;
 }
 
 function fmtClock(iso: string): string {
@@ -34,7 +36,7 @@ function fmtCountdown(ms: number): string {
   return `${total}m`;
 }
 
-export function UpNextCard({ onCompleteQuest }: Props) {
+export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
   const { schedule, blockQuests, fetch: fetchSchedule } = useScheduleStore();
   const quests = useQuestStore((s) => s.quests);
   const startTimer = useTimerStore((s) => s.start);
@@ -71,12 +73,21 @@ export function UpNextCard({ onCompleteQuest }: Props) {
 
   // Nothing planned (or nothing left today): a quiet pointer to the feed.
   if (!block || !quest) {
+    if (hideWhenEmpty) return null;
+    // With quests waiting and no plan yet (a new member, or a new day), say what the Route will do with them.
+    const waiting = quests.length > 0 && schedule.length === 0;
     return (
       <Link to="/feed" className="panel flex items-center gap-3 px-3.5 py-3.5 transition-colors hover:bg-(--color-surface2)">
         <CalendarDays size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold">Nothing planned for the rest of today</span>
-          <span className="block text-xs text-(--color-muted)">Open the Route to plot the day</span>
+          <span className="block text-sm font-semibold">
+            {waiting ? 'Plot today’s route' : 'Nothing planned for the rest of today'}
+          </span>
+          <span className="block text-xs text-(--color-muted)">
+            {waiting
+              ? `Put your ${quests.length} ${quests.length === 1 ? 'quest' : 'quests'} in order for today`
+              : 'Open the Route to plot the day'}
+          </span>
         </span>
         <ChevronRight size={16} className="shrink-0 text-(--color-muted)" aria-hidden />
       </Link>

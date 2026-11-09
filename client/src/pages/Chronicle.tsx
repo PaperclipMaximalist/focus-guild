@@ -35,7 +35,8 @@ import { ChevronRight, Clock, Pencil, Trash2, TriangleAlert, X } from 'lucide-re
 const DRAFT_KEY = 'fg:journal-draft';
 const MAX = 5000;
 /** How long a removed entry can be brought back; just under the toast's own lifetime. */
-const UNDO_MS = 5500;
+// Outlasts the Undo toast (TOAST_ACTION_MS), so an Undo tapped while it shows always works.
+const UNDO_MS = 8500;
 /** The tabs that used to live here, so old links and bookmarks still land somewhere. */
 const MOVED_TABS = new Set(['log', 'permafile', 'ask', 'bundle']);
 /** A mouse or trackpad: a keyboard shortcut is worth mentioning. */

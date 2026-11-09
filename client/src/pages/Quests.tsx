@@ -385,6 +385,7 @@ export default function Quests() {
         open={!!detail}
         quest={detail}
         onClose={() => setDetail(null)}
+        onComplete={handleComplete}
         onEdit={() => {
           if (detail) {
             setEditing(detail);

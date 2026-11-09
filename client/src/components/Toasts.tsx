@@ -22,16 +22,19 @@ interface ToastStore {
 
 let nextId = 1;
 
+/** How long a toast with an action (Undo) stays up; the undo window outlasts it. */
+export const TOAST_ACTION_MS = 8000;
+
 export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
   push: (t) => {
     const id = nextId++;
     set((s) => ({ toasts: [...s.toasts, { id, ...t }] }));
-    // Actionable toasts linger longer — three seconds is too short to reach
-    // an Undo with a thumb.
+    // Actionable toasts linger longer: three seconds is too short to reach an
+    // Undo with a thumb, or by tabbing to it. Errors stay long enough to read.
     setTimeout(
       () => set((s) => ({ toasts: s.toasts.filter((x) => x.id !== id) })),
-      t.action ? 6000 : 3000,
+      t.action ? TOAST_ACTION_MS : t.variant === 'error' ? 6000 : 3500,
     );
     return id;
   },
@@ -70,7 +73,7 @@ export function ToastContainer() {
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.97 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            role="status"
+            role={t.variant === 'error' ? 'alert' : 'status'}
             className="pointer-events-auto flex min-w-[220px] max-w-[320px] items-center gap-3 rounded-xl border border-(--color-border-strong) py-2.5 pl-3.5 pr-2.5 text-sm font-medium shadow-lg shadow-black/40"
             style={{ background: BG[t.variant] }}
           >

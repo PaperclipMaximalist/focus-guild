@@ -796,7 +796,8 @@ quests.post('/:id/complete', async (c) => {
   const questId = c.req.param('id');
 
   const quest = await db.quest.findUnique({ where: { id: questId } });
-  if (!quest) {
+  // Someone else's quest is "not found", never completed on their behalf.
+  if (!quest || quest.userId !== c.get('user').id) {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
   }
   if (quest.status === 'COMPLETE') {
@@ -1023,7 +1024,7 @@ quests.post('/spin-wheel', async (c) => {
 quests.post('/:id/complete-daily', async (c) => {
   const questId = c.req.param('id');
   const quest = await db.quest.findUnique({ where: { id: questId } });
-  if (!quest) {
+  if (!quest || quest.userId !== c.get('user').id) {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Quest not found' } }, 404);
   }
   if (!quest.isRecurring) {

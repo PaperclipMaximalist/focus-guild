@@ -7,6 +7,8 @@
  * the form gets.
  */
 
+import { useId } from 'react';
+import { useDialog } from '../../lib/useDialog';
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X } from 'lucide-react';
@@ -21,20 +23,17 @@ interface Props {
 }
 
 export function Sheet({ open, onClose, title, footer, children }: Props) {
-  // Escape closes, and the page behind must not scroll while the sheet is up.
+  // Esc, focus and Tab are the dialog hook's; the page behind must not scroll while the sheet is up.
+  const boxRef = useDialog(open, onClose);
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     return () => {
-      window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <AnimatePresence>
@@ -48,7 +47,12 @@ export function Sheet({ open, onClose, title, footer, children }: Props) {
           onClick={onClose}
         >
           <motion.div
-            className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border sm:mb-6 sm:rounded-2xl"
+            ref={boxRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
+            className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border outline-none sm:mb-6 sm:rounded-2xl"
             style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -60,7 +64,7 @@ export function Sheet({ open, onClose, title, footer, children }: Props) {
               className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3"
               style={{ borderColor: 'var(--color-border)' }}
             >
-              <h2 className="truncate text-base font-bold">{title}</h2>
+              <h2 id={titleId} className="truncate text-base font-bold">{title}</h2>
               <button
                 type="button"
                 onClick={onClose}

@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, AnimatePresence, useIsPresent } from 'framer-motion';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
@@ -14,6 +15,7 @@ import { levelFromXP } from '../lib/levels';
 import { formatMinutes } from '../lib/formatters';
 import { blockStatus as boardStatus, TONE_COLOR } from '../lib/departure';
 import { BoardSign } from '../components/BoardSign';
+import { useDialog } from '../lib/useDialog';
 import { shortfallLine, type ShortfallChoice } from '../lib/shortfall';
 import { blockDetail } from '../lib/blockDetail';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
@@ -380,12 +382,32 @@ function FeedActionsMenu({
   onReplan: () => void;
 }) {
   const [open, setOpen] = useState(false);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  // Esc closes the menu and puts focus back on its button; opening it moves focus to the first choice.
+  useEffect(() => {
+    if (!open) return;
+    menuRef.current?.querySelector<HTMLElement>('button,a')?.focus();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      setOpen(false);
+      buttonRef.current?.focus();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [open]);
   return (
     <div className="relative">
       <button
+        ref={buttonRef}
+        type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={loading}
-        className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold transition-opacity"
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label="Route options"
+        className="inline-flex min-h-9 items-center gap-1.5 text-xs px-3 py-1.5 rounded-md font-semibold transition-opacity"
         style={{
           background: 'var(--color-surface2)',
           color: 'var(--color-text)',
@@ -399,10 +421,12 @@ function FeedActionsMenu({
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div
+            ref={menuRef}
             className="absolute right-0 top-full mt-1 z-20 rounded-xl shadow-xl overflow-hidden min-w-[200px]"
             style={{ background: 'var(--color-surface2)', border: '1px solid var(--color-border)' }}
           >
             <button
+              type="button"
               onClick={() => { onReflow(); setOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
               style={{ color: 'var(--color-text)' }}
@@ -413,6 +437,7 @@ function FeedActionsMenu({
               </div>
             </button>
             <button
+              type="button"
               onClick={() => { onReplan(); setOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm hover:bg-white/5 border-t"
               style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
@@ -422,8 +447,8 @@ function FeedActionsMenu({
                 Keep what’s pinned or done; refit the rest
               </div>
             </button>
-            <a
-              href="/settings"
+            <Link
+              to="/settings"
               onClick={() => setOpen(false)}
               className="block w-full text-left px-3 py-2 text-sm hover:bg-white/5 border-t"
               style={{ color: 'var(--color-text)', borderColor: 'var(--color-border)' }}
@@ -432,7 +457,7 @@ function FeedActionsMenu({
               <div className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                 Set when the planner places blocks
               </div>
-            </a>
+            </Link>
           </div>
         </>
       )}
@@ -589,15 +614,24 @@ function SelectedDrawer({
   const hue = blockColor(block, quest);
   const startD = new Date(block.start);
   const endD = new Date(block.end);
+  // Opened from a row with Enter, so the keyboard lands in it; Esc closes it and goes back to the row.
+  // "Present" turns false as the exit animation starts, so focus goes back then, not after it.
+  const present = useIsPresent();
+  const boxRef = useDialog(present, onClose);
   return (
     <motion.div
+      ref={boxRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="selected-block-title"
+      tabIndex={-1}
       initial={{ y: 320, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: 320, opacity: 0 }}
       transition={{ type: 'spring', stiffness: 380, damping: 36 }}
       // On a phone: a sheet above the tab bar. On a wide screen: a card centred in
       // the page, clear of the sidebar, no wider than it needs to be.
-      className="fixed inset-x-3 bottom-20 z-40 rounded-lg shadow-xl shadow-black/50 lg:bottom-6 lg:left-60 lg:right-0 lg:mx-auto lg:max-w-xl"
+      className="fixed inset-x-3 bottom-20 z-40 rounded-lg shadow-xl shadow-black/50 outline-none lg:bottom-6 lg:left-60 lg:right-0 lg:mx-auto lg:max-w-xl"
       style={{
         background: 'var(--color-surface2)',
         border: '1px solid var(--color-border)',
@@ -611,7 +645,7 @@ function SelectedDrawer({
             {typeLabel(block)}
           </span>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-base leading-tight" style={{ color: 'var(--color-text)' }}>
+            <h3 id="selected-block-title" className="font-bold text-base leading-tight" style={{ color: 'var(--color-text)' }}>
               {quest?.title ?? (block.type === 'break' ? 'Break' : block.type === 'fixed' ? (block.note ?? 'Fixed') : 'Free slot')}
             </h3>
             <p className="text-xs mt-0.5 font-mono" style={{ color: 'var(--color-muted)' }}>
@@ -622,7 +656,7 @@ function SelectedDrawer({
               <p className="mt-0.5 truncate text-xs" style={{ color: 'var(--color-muted)' }}>Part of {quest.parentTitle}</p>
             )}
           </div>
-          <button onClick={onClose} className="opacity-60 hover:opacity-100" style={{ color: 'var(--color-muted)' }} aria-label="Close"><X size={18} aria-hidden /></button>
+          <button type="button" onClick={onClose} className="icon-btn -mr-2 -mt-1" aria-label="Close"><X size={18} aria-hidden /></button>
         </div>
 
         {block.reason && block.type === 'work' && (
@@ -862,6 +896,8 @@ export default function GuildFeed() {
             onReplan={() => replan()}
           />
         </div>
+        {/* The word needs one line for someone new: what a route is. */}
+        <p className="mb-2 text-[13px] text-(--color-muted)">Today’s plan, in order. Do the stop that is boarding, then the next.</p>
         {/* The day's progress, as one line under the title. */}
         <div className="mb-5 flex items-center gap-3">
           <span className="tnum shrink-0 text-[13px] text-(--color-muted)">

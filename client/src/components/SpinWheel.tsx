@@ -3,6 +3,7 @@
  * Visual: animated wheel-shaped reveal that lands on the picked title.
  */
 
+import { useDialog } from '../lib/useDialog';
 import { achievementIcon } from '../lib/achievementCatalog';
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -66,6 +67,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
     setError(null);
     onClose();
   };
+  const boxRef = useDialog(open, close);
 
   return (
     <AnimatePresence>
@@ -82,13 +84,18 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 12 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-md rounded-2xl border p-6 text-center"
+            ref={boxRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="spin-title"
+            tabIndex={-1}
+            className="w-full max-w-md rounded-2xl border p-6 text-center outline-none"
             style={{
               background: 'var(--color-surface2)',
               borderColor: 'var(--color-border)',
             }}
           >
-            <h2 className="text-lg font-bold mb-1" style={{ color: 'var(--color-text)' }}>
+            <h2 id="spin-title" className="text-lg font-bold mb-1" style={{ color: 'var(--color-text)' }}>
               <span className="inline-flex items-center gap-1.5"><Dices size={20} aria-hidden /> Dealer’s choice</span>
             </h2>
             <p className="text-xs mb-4" style={{ color: 'var(--color-muted)' }}>

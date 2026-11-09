@@ -7,11 +7,12 @@
  *   - ✕ Close — leaves the timer running in the background
  */
 
+import { useDialog } from '../lib/useDialog';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../lib/api';
 import { useTimerStore } from '../store/useTimerStore';
-import { Check, Pause, Play } from 'lucide-react';
+import { Check, Minus, Pause, Play } from 'lucide-react';
 import { useArmed } from '../lib/useArmed';
 
 interface Props {
@@ -40,6 +41,9 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
     const id = setInterval(() => force((n) => n + 1), 1000);
     return () => clearInterval(id);
   }, [open]);
+
+  // Esc minimises (the session keeps running), the same as the button. Before the early return: hooks run every render.
+  const boxRef = useDialog(open && !!active, onClose);
 
   if (!open || !active) return null;
   const ms = remainingMs();
@@ -100,7 +104,12 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex flex-col items-center justify-center"
+        ref={boxRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Focus timer"
+        tabIndex={-1}
+        className="fixed inset-0 z-[200] flex flex-col items-center justify-center outline-none"
         style={{
           background: 'var(--color-bg)',
           // Overrun is signalled by a border and the red clock, not a glow.
@@ -109,12 +118,13 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
       >
         {/* Minimal close (keeps session alive in background) */}
         <button
+          type="button"
           onClick={onClose}
-          className="absolute top-6 right-6 text-base opacity-60 hover:opacity-100"
-          style={{ color: 'var(--color-muted)' }}
+          className="icon-btn absolute top-5 right-5"
           title="Minimize"
+          aria-label="Minimize the timer (it keeps running)"
         >
-          —
+          <Minus size={18} aria-hidden />
         </button>
 
         <motion.div

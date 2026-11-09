@@ -140,7 +140,10 @@ export default function Stats() {
   return (
     <div className="page flex flex-col gap-5">
       <header className="flex items-center gap-2">
-        <h1 className="page-title flex-1">Mileage</h1>
+        <div className="min-w-0 flex-1">
+          <h1 className="page-title">Mileage</h1>
+          <p className="mt-1 text-[13px] text-(--color-muted)">How far you have come: XP, rank, streaks and what you finished.</p>
+        </div>
         <Link to="/trophies" className="btn-quiet lg:hidden">
           <Trophy size={15} aria-hidden /> Trophies
         </Link>
@@ -294,7 +297,7 @@ export default function Stats() {
                     </span>
                   </span>
                   <span style={{ color: 'var(--color-muted)' }}>
-                    {r.count} <span className="opacity-60">· {r.pct.toFixed(0)}%</span>
+                    {r.count} <span className="text-(--color-muted)">· {r.pct.toFixed(0)}%</span>
                   </span>
                 </div>
               ))}
@@ -343,24 +346,26 @@ export default function Stats() {
           {LEVELS.map((l) => {
             const reached = user.totalXP >= l.xpRequired;
             return (
+              // A rank not reached yet dims its dot, not its words: text at 40% opacity could not be read.
+              // The rank's colour is the dot's; some (Foggy Brain's grey) are too dark to set text in.
               <div
                 key={l.level}
-                className={`flex items-center justify-between rounded-lg px-3 py-2 transition-opacity ${
-                  reached ? '' : 'opacity-40'
-                }`}
+                className="flex items-center justify-between rounded-lg px-3 py-2"
                 style={{ background: reached ? 'rgba(255,255,255,0.04)' : 'transparent' }}
               >
                 <div className="flex items-center gap-3">
                   <span
                     className="h-3 w-3 rounded-full"
-                    style={{ background: l.accent }}
+                    style={{ background: l.accent, opacity: reached ? 1 : 0.35 }}
+                    aria-hidden
                   />
                   <div>
                     <div
                       className="text-sm font-medium"
-                      style={{ color: reached ? l.accent : 'var(--color-muted)' }}
+                      style={{ color: reached ? 'var(--color-text)' : 'var(--color-muted)' }}
                     >
                       {l.title}
+                      <span className="sr-only">{reached ? ' (reached)' : ' (not reached yet)'}</span>
                     </div>
                     <div className="text-xs" style={{ color: 'var(--color-muted)' }}>
                       Level {l.level}

@@ -9,15 +9,16 @@
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 
+/** The member's own calendar date (toISOString gave the UTC one, so "today" turned over mid-afternoon in America). */
 function toLocalDateStr(d: Date | string): string {
   const date = typeof d === 'string' ? new Date(d) : d;
-  return date.toISOString().slice(0, 10);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
 function startOfWeekStr(): string {
   const d = new Date();
   d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().slice(0, 10);
+  return toLocalDateStr(d);
 }
 
 export function StatsRow() {

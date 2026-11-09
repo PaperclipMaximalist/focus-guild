@@ -247,6 +247,11 @@ export default function Tracker() {
                 {used} of {config.activeCap} active
               </p>
             )}
+            {!casMode && (
+              <p className="mt-0.5 text-xs" style={{ color: 'var(--color-muted)' }}>
+                Big goals that take weeks or months. Keep a few going at once.
+              </p>
+            )}
           </div>
 
           {/* CAS lens. Never changes what a write is allowed to do. */}

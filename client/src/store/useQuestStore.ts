@@ -3,7 +3,8 @@ import { Trash2, TriangleAlert } from 'lucide-react';
 import { useToastStore } from '../components/Toasts';
 
 /** How long a deleted quest can still be brought back. Just under the toast's own lifetime. */
-const UNDO_WINDOW_MS = 5500;
+// The delete is sent just after the Undo toast goes, never while it is still on screen.
+const UNDO_WINDOW_MS = 8500;
 import { api, type Quest, type CompleteQuestResult, type QuestSchedulerHints } from '../lib/api';
 import { useScheduleStore } from './useScheduleStore';
 import { duckReact } from './useMascotStore';

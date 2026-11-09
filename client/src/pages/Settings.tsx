@@ -12,7 +12,7 @@
  * constructor derives breaks from gaps and reads none of those fields.
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, createContext, useContext, useId } from 'react';
 import { Link } from 'react-router-dom';
 import {
   api,
@@ -383,9 +383,11 @@ function Toggle({
         <InfoTip>{hint}</InfoTip>
       </div>
       <button
+        type="button"
         onClick={() => onChange(!on)}
         role="switch"
         aria-checked={on}
+        aria-label={label}
         className="relative h-6 w-11 shrink-0 rounded-full transition-colors"
         style={{ background: on ? 'var(--color-primary)' : 'rgba(255,255,255,0.12)' }}
       >
@@ -414,14 +416,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/** The id of the label of the Row a control sits in, so the control is named by it. */
+const RowLabel = createContext<string | undefined>(undefined);
+
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  const labelId = useId();
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-1.5 min-w-0">
-        <span className="text-sm" style={{ color: 'var(--color-text)' }}>{label}</span>
+        <span id={labelId} className="text-sm" style={{ color: 'var(--color-text)' }}>{label}</span>
         {hint && <InfoTip>{hint}</InfoTip>}
       </div>
-      <div className="shrink-0">{children}</div>
+      <div className="shrink-0">
+        <RowLabel.Provider value={labelId}>{children}</RowLabel.Provider>
+      </div>
     </div>
   );
 }
@@ -456,6 +464,7 @@ function SliderRow({
         max={max}
         step={step}
         value={value}
+        aria-label={label}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full"
         style={{ accentColor: 'var(--color-primary)' }}
@@ -467,9 +476,11 @@ function SliderRow({
 function NumberInput({
   value, onChange, min, max, step = 1, suffix,
 }: { value: number; onChange: (v: number) => void; min: number; max: number; step?: number; suffix?: string }) {
+  const labelledBy = useContext(RowLabel);
   return (
     <div className="flex items-center gap-1.5">
       <input
+        aria-labelledby={labelledBy}
         type="number"
         min={min}
         max={max}
@@ -520,8 +531,10 @@ function HoursNote({ hours }: { hours: WorkingHours }) {
 }
 
 function HourInput({ value, onChange, last = 24 }: { value: number; onChange: (v: number) => void; last?: number }) {
+  const labelledBy = useContext(RowLabel);
   return (
     <select
+      aria-labelledby={labelledBy}
       value={value}
       onChange={(e) => onChange(Number(e.target.value))}
       className="rounded-md border bg-white/5 px-2 py-1 text-sm outline-none"

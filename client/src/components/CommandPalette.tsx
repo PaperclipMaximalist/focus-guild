@@ -9,6 +9,7 @@
  * flip client settings directly. Mounted once inside the router in App.
  */
 
+import { useDialog } from '../lib/useDialog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -45,6 +46,7 @@ function fuzzyScore(query: string, text: string): number {
 export function CommandPalette() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const boxRef = useDialog(open, () => setOpen(false));
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -123,7 +125,6 @@ export function CommandPalette() {
   };
 
   const onInputKey = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') { setOpen(false); return; }
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive((i) => Math.min(i + 1, results.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((i) => Math.max(i - 1, 0)); }
     else if (e.key === 'Enter') { e.preventDefault(); choose(results[active]); }
@@ -146,7 +147,12 @@ export function CommandPalette() {
             exit={{ scale: 0.97, y: -8 }}
             transition={{ duration: 0.14 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg overflow-hidden rounded-2xl border shadow-2xl"
+            ref={boxRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Command palette"
+            tabIndex={-1}
+            className="w-full max-w-lg overflow-hidden rounded-2xl border shadow-2xl outline-none"
             style={{ background: 'var(--color-surface2)', borderColor: 'var(--color-border)' }}
           >
             <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
@@ -156,6 +162,7 @@ export function CommandPalette() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onInputKey}
+                aria-label="Type a command or a page to jump to"
                 placeholder="Type a command or jump to…"
                 className="flex-1 bg-transparent text-sm outline-none"
                 style={{ color: 'var(--color-text)' }}

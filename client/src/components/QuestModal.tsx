@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
+import { useDialog } from '../lib/useDialog';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { useQuestStore } from '../store/useQuestStore';
@@ -172,9 +173,14 @@ export function QuestModal({ open, onClose, editing }: Props) {
   const [tagDraft, setTagDraft] = useState('');
 
   const [saving, setSaving] = useState(false);
+  /** Shown after a save with no title, next to the field, until one is typed. */
+  const [titleMissing, setTitleMissing] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const boxRef = useDialog(open, onClose);
 
   useEffect(() => {
     if (!open) return;
+    setTitleMissing(false);
     if (editing) {
       setTitle(editing.title);
       setDeadline(editing.deadline ? new Date(editing.deadline) : null);
@@ -236,18 +242,14 @@ export function QuestModal({ open, onClose, editing }: Props) {
     };
   }, [open, editing?.id]);
 
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
   const save = async () => {
     const trimmed = title.trim();
-    if (!trimmed || saving) return;
+    if (saving) return;
+    if (!trimmed) {
+      setTitleMissing(true);
+      titleRef.current?.focus();
+      return;
+    }
     setSaving(true);
     try {
       const hoursNum = parseFloat(hours);
@@ -310,10 +312,12 @@ export function QuestModal({ open, onClose, editing }: Props) {
             exit={{ y: 24, opacity: 0 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
             onClick={(e) => e.stopPropagation()}
+            ref={boxRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
             aria-label={editing ? 'Edit quest' : 'New quest'}
-            className="max-h-[92vh] w-full max-w-[560px] overflow-y-auto overscroll-contain rounded-t-2xl bg-(--color-surface) px-5 pt-4 sm:rounded-2xl sm:px-6 sm:pt-5"
+            className="outline-none max-h-[92vh] w-full max-w-[560px] overflow-y-auto overscroll-contain rounded-t-2xl bg-(--color-surface) px-5 pt-4 sm:rounded-2xl sm:px-6 sm:pt-5"
           >
             <div className="mb-4 flex items-center gap-2">
               <h2 className="flex-1 text-lg font-bold">{editing ? 'Edit quest' : 'New quest'}</h2>
@@ -324,23 +328,34 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
             <Field label="What needs doing?">
               <input
+                ref={titleRef}
                 className="form-input"
                 placeholder="What do you need to do?"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                aria-invalid={titleMissing || undefined}
+                aria-describedby={titleMissing ? 'quest-title-missing' : undefined}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (e.target.value.trim()) setTitleMissing(false);
+                }}
                 autoFocus={FINE_POINTER}
                 enterKeyHint="done"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && title.trim() && !saving) void save();
                 }}
               />
+              {titleMissing && (
+                <p id="quest-title-missing" role="alert" className="mt-1.5 text-[13px] font-semibold" style={{ color: 'var(--color-fire)' }}>
+                  Give the quest a name first.
+                </p>
+              )}
             </Field>
 
             {/* Quick-start templates — only on create */}
             {!editing && (
               <div className="mb-4">
                 <Label>Or start from a template</Label>
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Templates">
                   {TEMPLATES.map((t) => (
                     <button
                       key={t.label}
@@ -402,8 +417,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
             {/* Recurring toggle */}
             {!openEnded && (
-            <div
-              className="mb-4 flex items-start gap-3 rounded-lg p-3"
+            <label
+              className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg p-3"
               style={{
                 background: 'var(--color-surface2)',
                 boxShadow: isRecurring ? 'inset 0 0 0 1.5px var(--color-primary)' : 'none',
@@ -415,15 +430,15 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 onChange={(e) => setIsRecurring(e.target.checked)}
                 className="mt-1 h-4 w-4 cursor-pointer"
               />
-              <div className="flex-1">
-                <p className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
+              <span className="flex-1">
+                <span className="block text-sm font-semibold" style={{ color: 'var(--color-text)' }}>
                   Repeat every day
-                </p>
-                <p className="text-xs" style={{ color: 'var(--color-muted)' }}>
+                </span>
+                <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
                   A routine: planned daily as its own block, ticked off fresh each day.
-                </p>
-              </div>
-            </div>
+                </span>
+              </span>
+            </label>
             )}
 
             {/* Hour log toggle */}
@@ -547,7 +562,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
               )}
               <div className="mb-4">
                 <div className="mb-1.5 flex items-center gap-1.5">
-                  <label className="text-[13px] font-semibold text-(--color-muted)">
+                  <label htmlFor="quest-impact" className="text-[13px] font-semibold text-(--color-muted)">
                     Impact (1–10)
                   </label>
                   <InfoTip>
@@ -563,6 +578,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   </InfoTip>
                 </div>
                 <input
+                  id="quest-impact"
                   type="number"
                   min={1}
                   max={10}
@@ -588,10 +604,12 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   </p>
                 </InfoTip>
               </div>
-              <div className="flex gap-1.5">
+              <div className="flex gap-1.5" role="group" aria-label="Mental load">
                 {[1, 2, 3, 4, 5].map((v) => (
                   <button
                     key={v}
+                    type="button"
+                    aria-pressed={load5 === v}
                     onClick={() => setLoad5(v)}
                     className={`flex-1 rounded-lg border px-1 py-2 text-center text-xs font-semibold transition ${
                       load5 === v
@@ -622,10 +640,12 @@ export function QuestModal({ open, onClose, editing }: Props) {
                   </p>
                 </InfoTip>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Category">
                 {CATEGORIES.map((c) => (
                   <button
                     key={c.value}
+                    type="button"
+                    aria-pressed={category === c.value}
                     onClick={() => setCategory(c.value)}
                     className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
                       category === c.value
@@ -681,6 +701,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                       setTags(tags.slice(0, -1));
                     }
                   }}
+                  aria-label="Add a tag"
                   placeholder={tags.length === 0 ? 'add tag — enter or comma' : '+'}
                   className="flex-1 min-w-[80px] bg-transparent text-xs outline-none"
                   style={{ color: 'var(--color-text)' }}
@@ -692,7 +713,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
             <button
               type="button"
               onClick={() => setShowAdvanced((v) => !v)}
-              className="mt-4 text-xs font-semibold transition-colors"
+              aria-expanded={showAdvanced}
+              className="mt-4 min-h-9 text-xs font-semibold transition-colors"
               style={{ color: 'var(--color-muted)' }}
             >
               <span className="inline-flex items-center gap-1">{showAdvanced ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />} Advanced scheduler hints</span>
@@ -720,6 +742,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                           </InfoTip>
                         </div>
                         <select
+                          aria-label="Preferred hour"
                           className="form-input"
                           value={preferredHour}
                           onChange={(e) => setPreferredHour(e.target.value)}
@@ -754,6 +777,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                             max={3}
                             step={0.1}
                             value={urgencyMult}
+                            aria-label="Urgency multiplier"
                             onChange={(e) => setUrgencyMult(Number(e.target.value))}
                             className="flex-1"
                           />
@@ -789,6 +813,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         max={1}
                         step={0.05}
                         value={tediousness}
+                        aria-label="Tediousness"
                         onChange={(e) => setTediousness(Number(e.target.value))}
                         className="w-full"
                       />
@@ -818,6 +843,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         max={1}
                         step={0.05}
                         value={setupCost}
+                        aria-label="Setup cost"
                         onChange={(e) => setSetupCost(Number(e.target.value))}
                         className="w-full"
                       />
@@ -858,8 +884,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
               <button type="button" onClick={onClose} className="btn-quiet min-h-10">
                 Cancel
               </button>
-              <button type="button" onClick={save} disabled={!title.trim() || saving} className="btn-primary">
-                {editing ? 'Save changes' : 'Add quest'}
+              <button type="button" onClick={save} disabled={saving} className="btn-primary">
+                {saving ? 'Saving…' : editing ? 'Save changes' : 'Add quest'}
               </button>
             </div>
 
@@ -921,18 +947,24 @@ function DeadlineField({ value, onChange }: { value: Date | null; onChange: (d: 
   );
 }
 
+/** A label and its control, tied together so a screen reader names the control and a tap on the label focuses it. */
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  const autoId = useId();
+  // The first element child is the control; anything after it (an error line) rides along.
+  const kids = Array.isArray(children) ? children : [children];
+  const control = kids.find((k) => isValidElement(k)) as React.ReactElement<{ id?: string }> | undefined;
+  const id = control ? (control.props.id ?? autoId) : undefined;
   return (
     <div className="mb-4">
-      <Label>{label}</Label>
-      {children}
+      <Label htmlFor={id}>{label}</Label>
+      {kids.map((k, i) => (k === control && control ? cloneElement(control, { id, key: 'control' }) : <span key={i} className="contents">{k}</span>))}
     </div>
   );
 }
 
-function Label({ children }: { children: React.ReactNode }) {
+function Label({ children, htmlFor }: { children: React.ReactNode; htmlFor?: string }) {
   return (
-    <label className="mb-1.5 block text-[13px] font-semibold text-(--color-muted)">
+    <label htmlFor={htmlFor} className="mb-1.5 block text-[13px] font-semibold text-(--color-muted)">
       {children}
     </label>
   );

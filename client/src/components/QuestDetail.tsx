@@ -9,7 +9,7 @@
  * down", which asks the AI for steps and files the ones you keep.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type Quest, type XPEventDTO } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
@@ -17,13 +17,20 @@ import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from './Toasts';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
 import { SubQuestList } from './SubQuestList';
-import { Check, Pencil, Star, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
+import { useDialog } from '../lib/useDialog';
+import { CalendarClock, Check, Pencil, Star, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
   quest: Quest | null;
   onClose: () => void;
   onEdit: () => void;
+  /**
+   * The page's own completion, so the sound, streak, trophies and level-up
+   * play exactly as they do from the row. Without it the sheet completes
+   * quietly with an XP toast.
+   */
+  onComplete?: (id: string) => Promise<unknown> | void;
 }
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -33,8 +40,10 @@ const CATEGORY_LABEL: Record<string, string> = {
   creative: 'Creative',
 };
 
-export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
-  const { complete, removeWithUndo, load: loadQuests } = useQuestStore();
+export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props) {
+  const { complete, removeWithUndo, notToday, load: loadQuests } = useQuestStore();
+  const titleId = useId();
+  const boxRef = useDialog(open && !!quest, onClose);
   const { applyXPGain } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
 
@@ -59,16 +68,6 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [open, quest?.id]);
-
-  // Esc to close
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
 
   if (!quest) return null;
 
@@ -139,6 +138,38 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
     onClose();
   };
 
+  // Held until the member's tomorrow; the planner leaves it alone until then.
+  const handleNotToday = async () => {
+    try {
+      await notToday(quest.id);
+      pushToast({ icon: CalendarClock, title: 'Not today', sub: `${quest.title} is back tomorrow`, variant: 'xp' });
+      onClose();
+    } catch (e) {
+      pushToast({ icon: TriangleAlert, title: 'Could not move it to tomorrow', sub: String(e), variant: 'error' });
+    }
+  };
+
+  const handleComplete = async () => {
+    try {
+      if (onComplete) {
+        onClose();
+        await onComplete(quest.id);
+        return;
+      }
+      const result = await complete(quest.id);
+      applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
+      pushToast({
+        icon: Star,
+        title: `+${result.xpAwarded} XP`,
+        sub: 'Quest complete',
+        variant: 'xp',
+      });
+      onClose();
+    } catch (e) {
+      pushToast({ icon: TriangleAlert, title: 'Could not complete', sub: String(e), variant: 'error' });
+    }
+  };
+
   const totalXP = xpEvents.reduce((s, e) => s + e.amount, 0);
 
   return (
@@ -152,11 +183,16 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
           className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-5"
         >
           <motion.div
+            ref={boxRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+            tabIndex={-1}
             initial={{ y: 60, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 60, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border p-5 max-h-[90vh] overflow-y-auto"
+            className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border p-5 max-h-[90vh] overflow-y-auto outline-none"
             style={{
               background: 'var(--color-surface2)',
               borderColor: 'var(--color-border)',
@@ -166,6 +202,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
             <div className="flex items-start justify-between gap-3 mb-3">
               <div className="flex-1 min-w-0">
                 <h2
+                  id={titleId}
                   className="text-base font-bold leading-snug"
                   style={{ color: 'var(--color-text)' }}
                 >
@@ -178,9 +215,9 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={onClose}
-                className="text-lg opacity-60 hover:opacity-100"
-                style={{ color: 'var(--color-muted)' }}
+                className="icon-btn -mr-2 -mt-1"
                 aria-label="Close"
               >
                 <X size={18} aria-hidden />
@@ -188,9 +225,11 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
             </div>
 
             {/* Top-line stats */}
-            <div className="grid grid-cols-3 gap-2 mb-4">
+            <div className="grid grid-cols-2 gap-2 mb-4 sm:grid-cols-4">
               <Pill label="Impact" value={`${quest.impact}/10`} />
               <Pill label="Mental load" value={`${quest.mentalLoad}/10`} />
+              {/* How the planner ranks it: deadline, impact and load together, out of 10. */}
+              <Pill label="Priority" value={(quest.priorityScore ?? 0).toFixed(1)} />
               <Pill label="XP earned" value={totalXP.toString()} />
             </div>
 
@@ -222,7 +261,7 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
                   onClick={askAi}
                   disabled={aiBusy}
                   title="Break down with AI"
-                  className="text-xs rounded-md px-2.5 py-1 font-semibold transition-opacity disabled:opacity-40"
+                  className="min-h-9 text-xs rounded-md px-2.5 py-1 font-semibold transition-opacity disabled:opacity-40"
                   style={{
                     background: 'color-mix(in srgb, var(--color-gold) 15%, transparent)',
                     color: 'var(--color-gold)',
@@ -365,45 +404,32 @@ export function QuestDetail({ open, quest, onClose, onEdit }: Props) {
               </p>
             )}
 
-            {/* Footer actions */}
-            <div className="flex justify-between gap-2 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+            {/* Footer actions. Complete is first in the code as well as first on a phone, so Tab meets it first. */}
+            <div className="flex flex-wrap items-center gap-2 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
               <button
+                type="button"
+                onClick={handleComplete}
+                className="btn-quiet w-full sm:order-last sm:w-auto"
+                style={{ background: 'var(--color-green)', color: 'var(--color-on-primary)' }}
+              >
+                <Check size={15} strokeWidth={2.5} aria-hidden /> Complete
+              </button>
+              <button
+                type="button"
                 onClick={handleDeleteParent}
-                className="text-xs px-3 py-1.5 rounded-md"
+                className="btn-quiet mr-auto bg-transparent px-2"
                 style={{ color: 'var(--color-fire)' }}
               >
-                <span className="inline-flex items-center gap-1.5"><Trash2 size={12} aria-hidden /> Delete</span>
+                <Trash2 size={15} aria-hidden /> Delete
               </button>
-              <div className="flex gap-2">
-                <button
-                  onClick={onEdit}
-                  className="text-xs rounded-md border px-3 py-1.5 font-semibold"
-                  style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
-                >
-                  <span className="inline-flex items-center gap-1.5"><Pencil size={12} aria-hidden /> Edit</span>
+              {!quest.isRecurring && (
+                <button type="button" onClick={handleNotToday} className="btn-quiet">
+                  <CalendarClock size={15} aria-hidden /> Not today
                 </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      const result = await complete(quest.id);
-                      applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-                      pushToast({
-                        icon: Star,
-                        title: `+${result.xpAwarded} XP`,
-                        sub: 'Quest complete',
-                        variant: 'xp',
-                      });
-                      onClose();
-                    } catch (e) {
-                      pushToast({ icon: TriangleAlert, title: 'Could not complete', sub: String(e), variant: 'xp' });
-                    }
-                  }}
-                  className="text-xs rounded-md px-3 py-1.5 font-semibold text-(--color-on-primary)"
-                  style={{ background: 'var(--color-green)' }}
-                >
-                  <span className="inline-flex items-center gap-1.5"><Check size={12} aria-hidden /> Complete</span>
-                </button>
-              </div>
+              )}
+              <button type="button" onClick={onEdit} className="btn-quiet">
+                <Pencil size={15} aria-hidden /> Edit
+              </button>
             </div>
           </motion.div>
         </motion.div>

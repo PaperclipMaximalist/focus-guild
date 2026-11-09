@@ -23,6 +23,8 @@ import { SpinWheel } from '../components/SpinWheel';
 import { EndOfDayReflection } from '../components/EndOfDayReflection';
 import { UpNextCard } from '../components/UpNextCard';
 import { QuickAddBar } from '../components/QuickAddBar';
+import { WelcomeGuide } from '../components/WelcomeGuide';
+import { welcomeHidden } from '../lib/welcome';
 import { useToastStore } from '../components/Toasts';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { api } from '../lib/api';
@@ -31,7 +33,7 @@ import { levelFromXP } from '../lib/levels';
 import { sfxComplete, sfxAchievement, sfxLevelUp } from '../lib/sfx';
 import { type Quest } from '../lib/api';
 import type { LucideIcon } from 'lucide-react';
-import { BatteryMedium, ChevronDown, ChevronRight, Dices, Flame, LifeBuoy, Plus, Star } from 'lucide-react';
+import { BatteryMedium, ChevronDown, ChevronRight, Dices, Flame, LifeBuoy, Plus, Star, TriangleAlert } from 'lucide-react';
 import { achievementIcon } from '../lib/achievementCatalog';
 import { QUEST_MODAL_OPEN, takePendingNewQuest } from '../lib/questEditor';
 
@@ -74,6 +76,7 @@ export default function Today() {
   const [overdueCount, setOverdueCount] = useState(0);
   const [detailQuest, setDetailQuest] = useState<Quest | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [guideHidden, setGuideHidden] = useState(welcomeHidden);
   const [scene, setScene] = useState(isSceneEnabled());
   useEffect(() => subscribeScene(() => setScene(isSceneEnabled())), []);
 
@@ -112,7 +115,14 @@ export default function Today() {
   const handleComplete = async (id: string) => {
     if (!user) return;
     const prevLevel = levelFromXP(user.totalXP).level;
-    const result = await complete(id);
+    let result: Awaited<ReturnType<typeof complete>>;
+    try {
+      result = await complete(id);
+    } catch (e) {
+      // The row puts its tick back; say why.
+      pushToast({ icon: TriangleAlert, title: 'Could not complete that quest', sub: 'Nothing changed. Check your connection and try again.', variant: 'error' });
+      throw e;
+    }
     applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
     sfxComplete();
 
@@ -182,6 +192,10 @@ export default function Today() {
   // The list here is the short one: what ranks highest right now. The whole
   // backlog lives on the Quests page.
   const shown = showAll ? quests : quests.slice(0, TOP_N);
+  // A member who has never finished anything: no zero-filled numbers, and a
+  // guide in place of three prompts that did not say which came first.
+  const fresh = (user?.totalXP ?? 0) === 0 && completed.length === 0;
+  const showGuide = fresh && !guideHidden;
 
   const masthead = (
     <>
@@ -207,33 +221,50 @@ export default function Today() {
 
         <div className="mt-5 grid gap-8 lg:grid-cols-[minmax(0,1fr)_288px]">
           <div className="min-w-0">
-            {/* What should I do right now? The scheduler answers on arrival. */}
-            <UpNextCard onCompleteQuest={handleComplete} />
+            {showGuide ? (
+              <>
+                <WelcomeGuide
+                  hasQuests={quests.length > 0}
+                  checkedIn={!!checkIn}
+                  onHide={() => setGuideHidden(true)}
+                  jot={<QuickAddBar />}
+                />
+                {/* Only once a plan has a stop to show: step 3 already says where the route is. */}
+                <div className="mt-3 empty:hidden">
+                  <UpNextCard onCompleteQuest={handleComplete} hideWhenEmpty />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* What should I do right now? The scheduler answers on arrival. */}
+                <UpNextCard onCompleteQuest={handleComplete} />
 
-            {(!checkIn || overdueCount > 0) && (
-              <div className="panel rows mt-3">
-                {!checkIn && (
-                  <NoticeRow
-                    to="/checkin"
-                    icon={BatteryMedium}
-                    title="Fuel check"
-                    sub="Your energy and free time set how far today’s route goes"
-                  />
+                {(!checkIn || overdueCount > 0) && (
+                  <div className="panel rows mt-3">
+                    {!checkIn && (
+                      <NoticeRow
+                        to="/checkin"
+                        icon={BatteryMedium}
+                        title="Fuel check"
+                        sub="Your energy and free time set how far today’s route goes"
+                      />
+                    )}
+                    {overdueCount > 0 && (
+                      <NoticeRow
+                        to="/rescue"
+                        icon={LifeBuoy}
+                        tone="var(--color-fire)"
+                        title={`${overdueCount} ${overdueCount === 1 ? 'straggler' : 'stragglers'}`}
+                        sub="Quests past their deadline. Round them up"
+                      />
+                    )}
+                  </div>
                 )}
-                {overdueCount > 0 && (
-                  <NoticeRow
-                    to="/rescue"
-                    icon={LifeBuoy}
-                    tone="var(--color-fire)"
-                    title={`${overdueCount} ${overdueCount === 1 ? 'straggler' : 'stragglers'}`}
-                    sub="Quests that fell behind. Round them up"
-                  />
-                )}
-              </div>
+
+                {/* Zero-friction capture: "Write report 2h by fri #work !high" */}
+                <QuickAddBar />
+              </>
             )}
-
-            {/* Zero-friction capture: "Write report 2h by fri #work !high" */}
-            <QuickAddBar />
 
             <EndOfDayReflection completionsToday={completionsToday} />
 
@@ -294,11 +325,11 @@ export default function Today() {
             <CompletedSection />
           </div>
 
-          <aside className="flex min-w-0 flex-col gap-4">
-            <StatsRow />
-            <WeekChart />
+          <aside aria-label="Progress" className="flex min-w-0 flex-col gap-4">
+            {!fresh && <StatsRow />}
+            {!fresh && <WeekChart />}
             <BadgesPanel />
-            <DeepStatsPanel />
+            {!fresh && <DeepStatsPanel />}
           </aside>
         </div>
       </div>
@@ -309,6 +340,7 @@ export default function Today() {
         open={!!detailQuest}
         quest={detailQuest}
         onClose={() => setDetailQuest(null)}
+        onComplete={handleComplete}
         onEdit={() => {
           if (detailQuest) openEdit(detailQuest);
           setDetailQuest(null);

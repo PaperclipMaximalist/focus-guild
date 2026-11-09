@@ -162,7 +162,7 @@ function Sidebar({
 
   return (
     <aside
-      aria-label="Main"
+      aria-label="Sidebar"
       className="app-sidebar fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r border-(--color-border) bg-(--color-surface) px-3 py-4 lg:flex"
     >
       <Wall />
@@ -178,15 +178,15 @@ function Sidebar({
         Focus Guild
       </Link>
 
-      <button type="button" onClick={newQuest} className="btn-strong mb-4 w-full">
+      <button type="button" onClick={newQuest} aria-keyshortcuts="n" className="btn-strong mb-4 w-full">
         <Plus size={16} strokeWidth={2.5} aria-hidden /> New quest
         <span className="ml-auto rounded-[4px] px-1.5 py-px text-[11px] font-semibold opacity-60" aria-hidden>N</span>
       </button>
 
-      <nav className="flex flex-col gap-0.5">{PRIMARY.map((i) => row(i))}</nav>
+      <nav aria-label="Main" className="flex flex-col gap-0.5">{PRIMARY.map((i) => row(i))}</nav>
 
-      <div className="section-label mb-1.5 mt-6 px-2.5">More</div>
-      <nav className="flex flex-col gap-0.5">
+      <div className="section-label mb-1.5 mt-6 px-2.5" aria-hidden>More</div>
+      <nav aria-label="More" className="flex flex-col gap-0.5">
         {SECONDARY.map((i) => row(i, i.to === '/rescue' ? overdue : undefined))}
       </nav>
 

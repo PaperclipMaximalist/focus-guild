@@ -142,12 +142,28 @@ export function QuestCard({
         onClick={selecting ? onToggleSelect : onOpen}
         style={{ cursor: selecting || onOpen ? 'pointer' : 'default' }}
       >
-        <div
-          className="text-[15px] font-semibold leading-snug transition-colors duration-200"
-          style={done ? { color: 'var(--color-muted)', textDecoration: 'line-through' } : undefined}
-        >
-          {quest.title}
-        </div>
+        {/* The title is the keyboard's way in: the whole area opens on a tap, the title on Enter. */}
+        {onOpen && !selecting ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpen();
+            }}
+            aria-haspopup="dialog"
+            className="block w-full text-left text-[15px] font-semibold leading-snug transition-colors duration-200"
+            style={done ? { color: 'var(--color-muted)', textDecoration: 'line-through' } : undefined}
+          >
+            {quest.title}
+          </button>
+        ) : (
+          <div
+            className="text-[15px] font-semibold leading-snug transition-colors duration-200"
+            style={done ? { color: 'var(--color-muted)', textDecoration: 'line-through' } : undefined}
+          >
+            {quest.title}
+          </div>
+        )}
         <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[13px] text-(--color-muted)">
           {hasDeadline && (
             <span
@@ -158,7 +174,8 @@ export function QuestCard({
             </span>
           )}
           <span className="tnum">{formatMinutes(quest.rolledUpMinutes ?? quest.estimatedMinutes)}</span>
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5" title="Mental load: how hard it is to think through">
+            <span className="sr-only">Mental load:</span>
             <span className="inline-flex items-end gap-px" aria-hidden>
               {[1, 2, 3, 4, 5].map((n) => (
                 <span
@@ -212,13 +229,9 @@ export function QuestCard({
               <Trash2 size={14} aria-hidden />
             </button>
           </span>
-          <span className="flex flex-col items-end gap-1">
-            <span className="status" style={{ color: TONE_COLOR[status.tone] }}>
-              {status.label}
-            </span>
-            <span className="tnum text-[11px] leading-none text-(--color-muted)" title="Priority score">
-              {score.toFixed(1)}
-            </span>
+          {/* The priority score lives in the detail sheet, where it has a name; a bare "3.0" here read as noise. */}
+          <span className="status" style={{ color: TONE_COLOR[status.tone] }}>
+            {status.label}
           </span>
         </div>
       )}

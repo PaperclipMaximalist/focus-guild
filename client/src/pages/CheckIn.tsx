@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCheckInStore } from '../store/useCheckInStore';
-import { BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, Zap } from 'lucide-react';
+import { BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, ChevronLeft, Zap } from 'lucide-react';
 
 // A battery that fills with the level: readable without colour or faces.
 const ENERGY_LABELS = [
@@ -43,6 +43,10 @@ export default function CheckIn() {
 
   return (
     <div className="mx-auto max-w-xl px-4 py-8 flex flex-col gap-8">
+      {/* The page has no navigation (it is a focused flow), so it needs its own way out. */}
+      <Link to="/" className="btn-quiet -mb-4 self-start bg-transparent px-2 text-sm">
+        <ChevronLeft size={16} aria-hidden /> Back to Today
+      </Link>
       <header>
         <h1 className="text-3xl font-bold text-(--color-text)">Fuel check</h1>
         <p className="mt-2 text-(--color-muted)">
@@ -51,13 +55,14 @@ export default function CheckIn() {
       </header>
 
       <section className="flex flex-col gap-3">
-        <label className="text-sm text-(--color-text)">Energy level</label>
-        <div className="grid grid-cols-5 gap-2">
+        <h2 id="energy-label" className="text-sm text-(--color-text)">Energy level</h2>
+        <div className="grid grid-cols-5 gap-2" role="group" aria-labelledby="energy-label">
           {ENERGY_LABELS.map(({ label, Icon }, i) => {
             const v = i + 1;
             return (
               <button
                 key={v}
+                type="button"
                 onClick={() => setEnergy(v)}
                 aria-pressed={energy === v}
                 className={`rounded-lg border p-3 text-sm transition-colors ${
@@ -74,20 +79,24 @@ export default function CheckIn() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <label className="text-sm text-(--color-text)">
-          Available hours today: <span className="font-medium text-(--color-text)">{hours}h</span>
+        <label htmlFor="checkin-hours" className="text-sm text-(--color-text)">
+          Free hours today: <span className="font-medium text-(--color-text)">{hours}h</span>
         </label>
         <input
+          id="checkin-hours"
           type="range"
           min={1}
           max={16}
           value={hours}
+          aria-valuetext={`${hours} hours`}
           onChange={(e) => setHours(Number(e.target.value))}
-          className="w-full accent-violet-500"
+          className="w-full"
+          style={{ accentColor: 'var(--color-primary)' }}
         />
       </section>
 
       <button
+        type="button"
         onClick={save}
         disabled={saving}
         className="rounded-lg bg-(--color-primary) px-4 py-3 font-medium text-(--color-on-primary) hover:bg-(--color-primary-d) disabled:opacity-40 transition-colors"

@@ -1,4 +1,5 @@
-import { Suspense, lazy, useEffect } from 'react';
+import { Suspense, lazy, useEffect, useRef } from 'react';
+import { MotionConfig } from 'framer-motion';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn, useAuth, useUser } from '@clerk/clerk-react';
 import { useUserStore } from './store/useUserStore';
@@ -147,9 +148,12 @@ function AuthenticatedApp() {
   }
 
   return (
+    // reducedMotion="user": with the system's reduce-motion setting on, framer-motion skips movement and keeps fades.
+    <MotionConfig reducedMotion="user">
     <BrowserRouter>
       <RankThemeController />
       <Shell>
+        <main id="main" tabIndex={-1} className="outline-none">
         <Routes>
           <Route path="/" element={<Today />} />
           <Route path="/feed" element={<GuildFeed />} />
@@ -173,6 +177,7 @@ function AuthenticatedApp() {
           <Route path="/advanced/quickstart" element={<TrackerRoute><Quickstart /></TrackerRoute>} />
           <Route path="/advanced/ai" element={<TrackerRoute><AiConnections /></TrackerRoute>} />
         </Routes>
+        </main>
         <ToastContainer />
         <KeyboardShortcuts />
         <CommandPalette />
@@ -181,6 +186,7 @@ function AuthenticatedApp() {
         <BottomNav />
       </Shell>
     </BrowserRouter>
+    </MotionConfig>
   );
 }
 
@@ -214,8 +220,31 @@ function Shell({ children }: { children: React.ReactNode }) {
     const name = PAGE_NAMES[pathname] ?? PAGE_NAMES[first];
     document.title = name ? `${name} · Focus Guild` : 'Focus Guild';
   }, [pathname]);
+  // After a move to another page, start the keyboard and the screen reader at
+  // the top of the new page rather than on a link that is no longer there.
+  // Not on the first load, and not when something (a dialog) already took focus.
+  const firstPath = useRef(true);
+  useEffect(() => {
+    if (firstPath.current) {
+      firstPath.current = false;
+      return;
+    }
+    const active = document.activeElement;
+    if (active && active !== document.body && active.closest('[role="dialog"]')) return;
+    document.getElementById('main')?.focus({ preventScroll: true });
+  }, [pathname]);
   return (
     <div className={nav ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60' : 'min-h-screen'}>
+      <a
+        href="#main"
+        className="skip-link"
+        onClick={(e) => {
+          e.preventDefault();
+          document.getElementById('main')?.focus();
+        }}
+      >
+        Skip to content
+      </a>
       {nav && <Header />}
       {children}
     </div>

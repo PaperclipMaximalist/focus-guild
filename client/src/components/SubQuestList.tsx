@@ -40,7 +40,8 @@ interface Props {
 }
 
 /** How long a deleted step can still be brought back; matches the quest store's Undo. */
-const UNDO_MS = 5500;
+// Outlasts the Undo toast (TOAST_ACTION_MS), so an Undo tapped while it shows always works.
+const UNDO_MS = 8500;
 
 export function SubQuestList({ quest, onChanged, reloadKey = 0 }: Props) {
   const { complete, removeWithUndo } = useQuestStore();

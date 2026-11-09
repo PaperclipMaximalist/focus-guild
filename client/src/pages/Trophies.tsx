@@ -37,6 +37,7 @@ export default function Trophies() {
     <div className="page flex flex-col gap-5">
       <header>
         <h1 className="page-title">Trophy Room</h1>
+        <p className="mt-1 text-[13px] text-(--color-muted)">Badges for finishing quests and keeping streaks. Each one adds XP.</p>
       </header>
 
       {/* Progress hero */}

@@ -78,18 +78,15 @@ async function resolveClerkId(c: Context): Promise<string | null> {
  * Middleware: resolve the user (creating them on first sight) and attach to
  * the context. Route handlers use `c.get('user')`.
  *
- * Skips routes that explicitly don't need a user (`/health`, `/users` POST).
+ * Skips routes that carry their own token (`/health`, `/inbox`, `/calendar/<token>.ics`).
+ * `POST /users` used to be skipped too, which let anyone create a row for any
+ * clerkId and read that member's whole record back; it now needs auth like
+ * everything else (the upsert below is what creates a new member).
  */
 export const requireUser: MiddlewareHandler = async (c, next) => {
-  // Skip the health check and the user-upsert endpoint itself.
   const path = c.req.path;
   // /inbox and /calendar/<token>.ics carry their own personal token.
-  if (
-    path === '/health' ||
-    path === '/inbox' ||
-    path.startsWith('/calendar/') ||
-    (path === '/users' && c.req.method === 'POST')
-  ) {
+  if (path === '/health' || path === '/inbox' || path.startsWith('/calendar/')) {
     return next();
   }
 

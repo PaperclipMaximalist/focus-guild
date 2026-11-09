@@ -40,7 +40,7 @@ export function QuickAddBar() {
       });
       setText('');
     } catch (e) {
-      pushToast({ icon: TriangleAlert, title: 'Could not add quest', sub: String(e), variant: 'xp' });
+      pushToast({ icon: TriangleAlert, title: 'Could not add that quest', sub: 'Your text is still in the box. Try again.', variant: 'error' });
     } finally {
       setBusy(false);
     }
@@ -56,17 +56,22 @@ export function QuickAddBar() {
           onKeyDown={(e) => { if (e.key === 'Enter') void submit(); }}
           placeholder="Jot a quest… 2h by fri !high"
           aria-label="Jot down a quest"
-          className="h-9 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-(--color-muted)"
+          aria-describedby={text.trim() ? 'quick-add-preview' : undefined}
+          className="h-9 min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-(--color-muted)"
           style={{ color: 'var(--color-text)' }}
-          disabled={busy}
+          enterKeyHint="done"
+          // Read-only while saving, not disabled: a disabled field drops focus, and the next jot could not be typed straight away.
+          readOnly={busy}
+          aria-busy={busy}
         />
         <button
           onClick={() => void submit()}
           disabled={!ready || busy}
+          type="button"
           className="btn-primary min-h-9 shrink-0 px-3 text-xs"
           style={!ready ? { visibility: 'hidden' } : undefined}
         >
-          {busy ? '…' : <span className="inline-flex items-center gap-1">Add <CornerDownLeft size={12} aria-hidden /></span>}
+          {busy ? 'Adding…' : <span className="inline-flex items-center gap-1">Add <CornerDownLeft size={12} aria-hidden /></span>}
         </button>
       </div>
 
@@ -79,7 +84,7 @@ export function QuickAddBar() {
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-7">
+            <div id="quick-add-preview" className="mt-2 flex flex-wrap items-center gap-1.5 pl-7">
               <span className="text-[11px]" style={{ color: 'var(--color-muted)' }}>
                 {parsed.title || '(no title yet)'}
               </span>

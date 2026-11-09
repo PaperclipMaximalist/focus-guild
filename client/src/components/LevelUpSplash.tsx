@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { LEVELS } from '../lib/levels';
+import { useDialog } from '../lib/useDialog';
 
 interface Props {
   newLevel: number | null;
@@ -8,6 +9,7 @@ interface Props {
 
 export function LevelUpSplash({ newLevel, onDismiss }: Props) {
   const level = newLevel ? LEVELS.find((l) => l.level === newLevel) : null;
+  const boxRef = useDialog(!!level, onDismiss);
 
   return (
     <AnimatePresence>
@@ -18,7 +20,12 @@ export function LevelUpSplash({ newLevel, onDismiss }: Props) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
           onClick={onDismiss}
-          className="fixed inset-0 z-[600] flex flex-col items-center justify-center bg-black/85 p-6"
+          ref={boxRef}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Level up: level ${level.level}, ${level.title}`}
+          tabIndex={-1}
+          className="fixed inset-0 z-[600] flex flex-col items-center justify-center bg-black/85 p-6 outline-none"
         >
           <motion.div
             initial={{ scale: 0.4, opacity: 0 }}
