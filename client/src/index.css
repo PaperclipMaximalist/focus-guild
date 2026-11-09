@@ -91,6 +91,15 @@ button { user-select: none; -webkit-user-select: none; }
 /* Only <html> paints the ground, so a line's backdrop (a fixed canvas behind
    everything) shows through wherever a page has no surface of its own. */
 html { background: var(--color-bg); }
+
+/* Below lg the top bar and the tab bar sit over the page. When Tab (or a
+   jump) scrolls something into view, stop it clear of both rather than under
+   them (WCAG 2.4.11). At 200 % zoom on a laptop they would hide whole rows.
+   It goes on #root because #root is the page's scroller: the rule below gives
+   it a fixed height and overflow-x: hidden, so its overflow-y becomes auto. */
+#root { scroll-padding-top: 4rem; scroll-padding-bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+@media (min-width: 64rem) { #root { scroll-padding-top: 0.5rem; scroll-padding-bottom: 0.5rem; } }
+
 html, body, #root {
   height: 100%;
   margin: 0;

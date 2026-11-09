@@ -109,7 +109,8 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
         aria-modal="true"
         aria-label="Focus timer"
         tabIndex={-1}
-        className="fixed inset-0 z-[200] flex flex-col items-center justify-center outline-none"
+        // justify-center-safe + overflow-y-auto: on a short window (200 % zoom) it scrolls instead of cutting off top and bottom.
+        className="fixed inset-0 z-[200] flex flex-col items-center justify-center-safe overflow-y-auto py-16 outline-none"
         style={{
           background: 'var(--color-bg)',
           // Overrun is signalled by a border and the red clock, not a glow.

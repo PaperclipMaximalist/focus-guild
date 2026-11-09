@@ -89,7 +89,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
             aria-modal="true"
             aria-labelledby="spin-title"
             tabIndex={-1}
-            className="w-full max-w-md rounded-2xl border p-6 text-center outline-none"
+            className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border p-6 text-center outline-none"
             style={{
               background: 'var(--color-surface2)',
               borderColor: 'var(--color-border)',

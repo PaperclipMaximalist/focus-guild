@@ -123,7 +123,7 @@ export function KeyboardShortcuts() {
               aria-modal="true"
               aria-labelledby="shortcuts-title"
               tabIndex={-1}
-              className="w-full max-w-md rounded-2xl border p-6 outline-none"
+              className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border p-6 outline-none"
               style={{ background: 'var(--color-surface2)', borderColor: 'var(--color-border)' }}
             >
               <h2 id="shortcuts-title" className="text-base font-bold mb-3" style={{ color: 'var(--color-text)' }}>
