@@ -202,6 +202,17 @@ function BlockTile({
   // A routine is always fixed in place; the pin is for work the user pinned.
   const showPin = !!block.locked && !isRoutine && !showRemove;
   const board = boardStatus(block, quest?.deadline, now);
+  const detail = isRoutine
+    ? ''
+    : isActive
+      ? `${formatCountdown(msRemaining)} left`
+      : [
+          quest?.parentTitle,
+          quest?.category ? CATEGORY_NAME[quest.category] ?? quest.category.replace('_', ' ') : 'Deep work',
+          block.reason && !isPast ? block.reason : null,
+        ].filter(Boolean).join(', ');
+  // What the row says, as one sentence for a screen reader: the visible columns are hidden from it.
+  const summary = `${formatTime(startD)}, ${formatMinutes(block.durationMin)}: ${title}${detail ? ` (${detail})` : ''}. ${board.label}.`;
 
   return (
     <div
@@ -215,15 +226,6 @@ function BlockTile({
       style={{ height, cursor: draggable ? 'grab' : 'pointer' }}
     >
       <motion.div
-        role="button"
-        tabIndex={0}
-        onClick={onSelect}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onSelect();
-          }
-        }}
         layout
         initial={{ opacity: 0 }}
         animate={{ opacity: isDragging ? 0.4 : isPast ? 0.55 : 1 }}
@@ -242,8 +244,26 @@ function BlockTile({
                 : 'none',
         }}
       >
+        {/* The whole row opens the stop. A layer over it rather than the row itself, so the
+            Remove button beside it is not a control inside a control (a screen reader cannot
+            reach that). A div, not a <button>: a button inside a draggable row will not start
+            a drag in Firefox. The board clips its rows, so the focus ring is drawn inside. */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label={summary}
+          onClick={onSelect}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              onSelect();
+            }
+          }}
+          className="focus-inset absolute inset-0"
+        />
+
         {/* Time column */}
-        <div className="tnum">
+        <div className="tnum" aria-hidden>
           <div
             className="whitespace-nowrap text-[14px] font-semibold leading-none"
             style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text)' }}
@@ -254,7 +274,7 @@ function BlockTile({
         </div>
 
         {/* Quest column */}
-        <div className="min-w-0">
+        <div className="min-w-0" aria-hidden>
           <div className="flex min-w-0 items-center gap-2">
             {isRoutine ? (
               <Repeat size={12} className="shrink-0 text-(--color-muted)" aria-label="Round" />
@@ -295,17 +315,18 @@ function BlockTile({
 
         {/* Status column */}
         <div className="flex items-center gap-1">
-          <span key={board.label} className="status flap" style={{ color: TONE_COLOR[board.tone] }}>
+          <span key={board.label} className="status flap" style={{ color: TONE_COLOR[board.tone] }} aria-hidden>
             {board.label}
           </span>
-          {showPin && <Pin size={13} className="text-(--color-muted)" aria-label="Pinned" />}
+          {showPin && <Pin size={13} className="text-(--color-muted)" aria-hidden />}
           {/* A mouse gets a one-click remove; a finger opens the row, which has Remove. */}
           {showRemove && (
             <button
+              type="button"
               onClick={(e) => { e.stopPropagation(); onQuickDelete(); }}
-              className="icon-btn h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-lg:hidden"
+              className="icon-btn relative z-10 h-7 w-7 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 max-lg:hidden"
               title="Remove this block"
-              aria-label="Remove this block"
+              aria-label={`Remove ${title} from the route`}
             >
               <X size={14} aria-hidden />
             </button>
@@ -474,10 +495,15 @@ function DayChip({
   const isToday = sameDay(date, today);
   const wkday = date.toLocaleDateString([], { weekday: 'short' });
   const day = date.getDate();
+  // Said in full: the chip itself reads "MON 9 1.3h".
+  const full = date.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
+  const planned = workMin > 0 ? `${formatMinutes(workMin)} planned` : 'nothing planned';
   return (
     <button
+      type="button"
       onClick={onClick}
       aria-pressed={active}
+      aria-label={`${isToday ? `Today, ${full}` : full}: ${planned}`}
       className="flex shrink-0 flex-col items-center gap-0.5 rounded-lg px-3 py-2 transition-colors"
       style={{
         background: active ? 'var(--color-primary)' : 'var(--color-surface)',

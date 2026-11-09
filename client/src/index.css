@@ -314,6 +314,10 @@ code { font-family: var(--font-mono); font-size: 0.92em; }
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+/* For something inside a box that clips (overflow-hidden), where a ring
+   outside it would be cut off: draw the ring just inside. A class here, not a
+   Tailwind utility, because this unlayered rule outranks the utilities layer. */
+.focus-inset:focus-visible { outline-offset: -2px; }
 
 /* For a keyboard: the first Tab on any page offers to jump past the navigation. Out of sight until then. */
 .skip-link {
