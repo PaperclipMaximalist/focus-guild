@@ -287,6 +287,12 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Biggest: a new member now gets a three-step guide on Today; every dialog handles focus (`lib/useDialog.ts`); quests open from the keyboard; "Not today" is back; Settings and the editor are labelled; two server holes closed (completing anyone's quest; `POST /users` open and returning a member's whole record).
 - Tests: 449 server, 86 client. Lint: no new problems (24 old ones in the touched files).
 
+### Sun 2026-11-08: The improvement loop (one session, nine rounds; hours not measured)
+- The owner's words: "I want you to run a loop to keep improving the website by youself". Committed the 11-07 work as `7be2841`, then one fix per round, each committed on its own on `claude/website-accessibility-usability-1658f6`; nothing pushed. Each round's finding is in `docs/NEW_MEMBER_TESTS.md` under Results.
+- 1 `3e5f680` sign-in screen says what the app is. 2 `cc6ec4b` server down: plain words, Try again always works (a failed background refresh used to swap the whole app for a dead-end error page). 3 `c8495f9` 200 % zoom: nothing Tab lands on hides under a bar; tall dialogs scroll. 4 `53d7a89` trophies: unseeded rows created on first earn, no week trophy on day one, Night Owl on the member's clock. 5 `8e73bfe` an evening route says when the next stop is. 6 `832ed03` a quest ticked on Today leaves the route. 7 `4145f0a` Route stops: visible focus ring, no button inside a button. 8 `08443f4` Expeditions fields named; command palette is a combobox and keeps keys typed after Ctrl+K. 9 `2ce8208` contrast passes in all seven lines; spinning Dealer's choice no longer earns completion trophies.
+- Stopped when the sweeps (axe at 375 and 1280 px on every page and dialog, contrast in every line) came back clean. Left for a person: a real screen reader, a real phone, reduced motion in a real browser.
+- Tests: 457 server, 91 client.
+
 
 ## Phases, as named in the project's own log
 
