@@ -21,6 +21,13 @@ against a throwaway database" at the end.
 
 ## The cases
 
+### 0. Before signing in (Sam, Ren)
+1. Open the app signed out (a build with the Clerk publishable key).
+2. Must: the screen says what Focus Guild is before asking for anything,
+   and nothing on it greets a first-time visitor as if they had been before.
+3. Must: a newcomer can see how to sign up without scrolling at 375 px.
+4. Must: the tab title names the screen; axe reports nothing.
+
 ### 1. First arrival (Sam)
 1. Open the app signed in, with no quests.
 2. Must: the first screen says in plain words what to do first (add a quest)
@@ -158,3 +165,8 @@ reduced motion in a browser (checked in code: `MotionConfig
 reducedMotion="user"`, confetti hidden, the scenes already hold still),
 case 12 (server down), the Clerk sign-in screen, and 200 % zoom on a real
 laptop (320 px reflow was checked instead).
+
+### 2026-11-08, improvement loop (same branch)
+One fix per round, each verified (client build with typecheck, tests, lint,
+the browser pane) and committed on its own.
+- **Round 1, case 0:** the signed-out screen said only "Sign in to enter the guild." and Clerk's card greeted everyone with "Welcome back!". Now a one-line pitch and three plain lines (jot, the day in order, XP) beside the card on a wide screen and above it on a phone; Clerk's subtitle reads "First time here? Choose Sign up at the bottom."; the screen is a `main` with the tab title "Sign in · Focus Guild"; "Loading auth…" became "Opening the guild…". Checked with the dev Clerk key at 375 px (Sign up visible without scrolling) and 1280 px; axe clean. Clerk's card brings its own h1, so the screen has two (ours is the app's name).

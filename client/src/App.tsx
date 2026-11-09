@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useRef } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn, useAuth, useUser } from '@clerk/clerk-react';
+import { PenLine, Route as RouteIcon, Trophy } from 'lucide-react';
 import { useUserStore } from './store/useUserStore';
 import { setAuthTokenGetter, setCurrentClerkId } from './lib/api';
 import Today from './pages/Today';
@@ -75,24 +76,40 @@ function AuthBridge({ children }: { children: React.ReactNode }) {
 
   if (!authLoaded || !userLoaded) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-(--color-muted)">Loading auth…</div>
+      <div className="flex min-h-screen items-center justify-center" role="status">
+        <div className="text-(--color-muted)">Opening the guild…</div>
       </div>
     );
   }
   return <>{children}</>;
 }
 
+/** What a stranger needs before signing in: what this is, in three lines. */
+const PITCH = [
+  { Icon: PenLine, text: 'Jot a quest down in one line. No forms, no folders.' },
+  { Icon: RouteIcon, text: 'The guild puts your day in order by deadline, effort and how much energy you have.' },
+  { Icon: Trophy, text: 'Every finished quest earns XP, streaks and trophies.' },
+];
+
 function SignInLanding() {
+  useEffect(() => {
+    document.title = 'Sign in · Focus Guild';
+  }, []);
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-8 p-6"
-      style={{ background: 'var(--color-bg)' }}
-    >
-      <div className="text-center">
-        <h1 className="mb-2 text-4xl" style={{ color: 'var(--color-primary)' }}>
+    <main className="mx-auto grid min-h-screen max-w-5xl items-center gap-8 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:gap-12">
+      <div className="mx-auto max-w-md lg:mx-0">
+        <h1 className="font-display text-4xl font-bold" style={{ color: 'var(--color-primary)' }}>
           Focus Guild
         </h1>
-        <p className="text-sm text-(--color-muted)">Sign in to enter the guild.</p>
+        <p className="mt-2 text-lg">A to-do list that plays like a quest board, for brains that wander.</p>
+        <ul className="mt-5 space-y-3">
+          {PITCH.map(({ Icon, text }) => (
+            <li key={text} className="flex gap-3 text-sm text-(--color-muted)">
+              <Icon size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-(--color-primary)" />
+              <span>{text}</span>
+            </li>
+          ))}
+        </ul>
       </div>
       <SignIn
         routing="hash"
@@ -103,7 +120,7 @@ function SignInLanding() {
           },
         }}
       />
-    </div>
+    </main>
   );
 }
 

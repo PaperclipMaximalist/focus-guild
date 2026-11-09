@@ -16,6 +16,15 @@ const Root = PUBLISHABLE_KEY ? (
     publishableKey={PUBLISHABLE_KEY}
     afterSignOutUrl="/"
     appearance={{ variables: { colorPrimary: '#F2B33D' } }}
+    // Clerk's default greets everyone with "Welcome back!", which tells a first-time visitor they are in the wrong place.
+    localization={{
+      signIn: {
+        start: {
+          subtitle: 'First time here? Choose Sign up at the bottom.',
+          subtitleCombined: 'First time here? Enter your email to join.',
+        },
+      },
+    }}
   >
     <App />
   </ClerkProvider>
