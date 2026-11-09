@@ -22,6 +22,12 @@ interface CompletedQuestInput {
   status: string;
   /** The member's getTimezoneOffset(), from the request; UTC when the client did not send it. */
   tzOffsetMin?: number;
+  /**
+   * Only these trophies may unlock. For a call that is not a completion (a
+   * spin of Dealer's choice), where the "completed quest" is only the one the
+   * wheel landed on and must not earn Brain Drain, Marathon or Night Owl.
+   */
+  only?: string[];
 }
 
 export async function evalAndUnlockAchievements(
@@ -77,7 +83,7 @@ export async function evalAndUnlockAchievements(
     where: { userId, status: 'COMPLETE' },
   });
 
-  const candidateSlugs = evaluateAchievements({
+  const evaluated = evaluateAchievements({
     completedQuest: {
       id: completedQuest.id,
       mentalLoad: completedQuest.mentalLoad,
@@ -103,6 +109,9 @@ export async function evalAndUnlockAchievements(
     tzOffsetMin: completedQuest.tzOffsetMin ?? 0,
   });
 
+  const candidateSlugs = completedQuest.only
+    ? evaluated.filter((slug) => completedQuest.only!.includes(slug))
+    : evaluated;
   if (candidateSlugs.length === 0) return [];
 
   // Look up the Achievement rows for these slugs.

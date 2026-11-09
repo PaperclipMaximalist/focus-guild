@@ -1000,8 +1000,8 @@ quests.post('/spin-wheel', async (c) => {
   });
 
   // Run achievement evaluator so Chaos Agent fires when the user hits 10 spins.
-  // We don't pass a completed quest, so we use a synthetic context: the evaluator
-  // only checks the spin-related slug. Pass minimal completedQuest fields.
+  // Nothing was completed: the picked quest only fills the context, and `only`
+  // keeps it from earning completion trophies (Brain Drain, Marathon, Night Owl).
   const newlyUnlocked = await evalAndUnlockAchievements({
     id: picked.id,
     userId: user.id,
@@ -1011,6 +1011,7 @@ quests.post('/spin-wheel', async (c) => {
     completedAt: new Date(),
     status: picked.status,
     tzOffsetMin: tzFromQuery(c.req.query('tz')),
+    only: ['chaos-agent'],
   });
 
   return c.json({
