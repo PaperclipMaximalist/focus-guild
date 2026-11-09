@@ -40,6 +40,7 @@ function fmtCountdown(ms: number): string {
 export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
   const { schedule, blockQuests, fetch: fetchSchedule } = useScheduleStore();
   const quests = useQuestStore((s) => s.quests);
+  const completed = useQuestStore((s) => s.completed);
   const startTimer = useTimerStore((s) => s.start);
   const timerActive = useTimerStore((s) => s.active);
   const [timerOpen, setTimerOpen] = useState(false);
@@ -61,8 +62,11 @@ export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
   } => {
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
+    // The saved plan still holds a quest ticked since it was made: skip those, or
+    // the card names as "next stop" something that is already done.
+    const done = new Set(completed.map((q) => q.id));
     const work = schedule
-      .filter((b) => b.type === 'work' && b.taskId)
+      .filter((b) => b.type === 'work' && b.taskId && !done.has(b.taskId) && blockQuests[b.taskId]?.status !== 'COMPLETE')
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     const later = work.find((b) => new Date(b.start).getTime() > endOfDay.getTime()) ?? null;
     const active = work.find(
@@ -73,7 +77,7 @@ export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
       (b) => new Date(b.start).getTime() > now && new Date(b.start).getTime() <= endOfDay.getTime(),
     );
     return { block: next ?? null, isActive: false, later };
-  }, [schedule, now]);
+  }, [schedule, now, completed, blockQuests]);
 
   // A step or a straggler is not in the quest list; the plan carries its own.
   const questFor = (b: ScheduleBlock | null) =>

@@ -742,7 +742,7 @@ export default function GuildFeed() {
   const loadPlan = useCallback(() => {
     loadQuests();
     useScheduleStore.getState().fetch().then(() => {
-      const { schedule: blocks, generatedAt, generate, replan } = useScheduleStore.getState();
+      const { schedule: blocks, blockQuests, generatedAt, generate, replan } = useScheduleStore.getState();
       if (blocks.length === 0) {
         generate();
         return;
@@ -752,7 +752,11 @@ export default function GuildFeed() {
       // still stands) so the day opens with work in it.
       const midnight = new Date();
       midnight.setHours(0, 0, 0, 0);
-      if (!generatedAt || new Date(generatedAt).getTime() < midnight.getTime()) replan();
+      // A quest ticked elsewhere (on Today) since the plan was made would
+      // still be listed as an on-time stop. The plan carries each quest's
+      // current row, so a finished one is how to tell.
+      const finished = blocks.some((b) => b.type === 'work' && b.taskId && blockQuests[b.taskId]?.status === 'COMPLETE');
+      if (!generatedAt || new Date(generatedAt).getTime() < midnight.getTime() || finished) replan();
     });
   }, [loadQuests]);
   useEffect(() => {
