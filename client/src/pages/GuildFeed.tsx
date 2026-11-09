@@ -12,7 +12,7 @@ import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint } from '../lib/api';
 import { levelFromXP } from '../lib/levels';
-import { formatMinutes } from '../lib/formatters';
+import { formatDayAndTime, formatMinutes } from '../lib/formatters';
 import { blockStatus as boardStatus, TONE_COLOR } from '../lib/departure';
 import { BoardSign } from '../components/BoardSign';
 import { useDialog } from '../lib/useDialog';
@@ -815,6 +815,15 @@ export default function GuildFeed() {
     return dayBlocks.length; // all blocks are in the past — append at end
   }, [dayBlocks, now, selectedDay]);
 
+  // The first work after the day on screen: where to send someone looking at an empty day.
+  const isTodaySelected = selectedDay === startOfDayMs(now);
+  const nextPlanned = useMemo(() => {
+    const after = selectedDay + 24 * 60 * 60_000;
+    return schedule
+      .filter((b) => b.type === 'work' && new Date(b.start).getTime() >= after)
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0] ?? null;
+  }, [schedule, selectedDay]);
+
   const todayBlocks = schedule.filter((b) => sameDay(new Date(b.start), new Date(now)) && b.type === 'work');
   const totalWorkMin = todayBlocks.reduce((a, b) => a + b.durationMin, 0);
   const doneWorkMin = todayBlocks
@@ -1045,8 +1054,30 @@ export default function GuildFeed() {
           <div className="panel px-6 py-10 text-center">
             <div className="line-spot mb-3" aria-hidden />
             <CloudSun size={28} strokeWidth={1.5} className="spot-fallback mx-auto mb-2 text-(--color-muted)" aria-hidden />
-            <p className="font-semibold">Nothing planned for this day</p>
-            <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or reroute from the menu.</p>
+            {nextPlanned ? (
+              // Someone who plots a route in the evening finds today empty: say where the quests went.
+              <>
+                <p className="font-semibold">
+                  {isTodaySelected ? 'Nothing more planned today' : 'Nothing planned for this day'}
+                </p>
+                <p className="mt-1 text-sm text-(--color-muted)">
+                  Your next stop is {formatDayAndTime(nextPlanned.start)}. The planner only fills your working
+                  hours, which you can change in <Link to="/settings" className="underline underline-offset-2">Settings</Link>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => { setSelectedDay(startOfDayMs(new Date(nextPlanned.start).getTime())); setSelectedBlockId(null); }}
+                  className="btn-primary mt-4"
+                >
+                  Show {new Date(nextPlanned.start).toLocaleDateString(undefined, { weekday: 'long' })}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="font-semibold">Nothing planned for this day</p>
+                <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or reroute from the menu.</p>
+              </>
+            )}
           </div>
         )}
 

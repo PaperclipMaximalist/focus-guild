@@ -17,6 +17,7 @@ import { useTimerStore } from '../store/useTimerStore';
 import { FocusTimer } from './FocusTimer';
 import { sfxStart } from '../lib/sfx';
 import type { ScheduleBlock } from '../lib/api';
+import { formatDayAndTime } from '../lib/formatters';
 import { CalendarDays, ChevronRight, Play, Timer } from 'lucide-react';
 
 interface Props {
@@ -52,28 +53,54 @@ export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { block, isActive } = useMemo((): { block: ScheduleBlock | null; isActive: boolean } => {
+  const { block, isActive, later } = useMemo((): {
+    block: ScheduleBlock | null;
+    isActive: boolean;
+    /** The first stop after today, for when today has none left. */
+    later: ScheduleBlock | null;
+  } => {
     const endOfDay = new Date(now);
     endOfDay.setHours(23, 59, 59, 999);
     const work = schedule
       .filter((b) => b.type === 'work' && b.taskId)
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    const later = work.find((b) => new Date(b.start).getTime() > endOfDay.getTime()) ?? null;
     const active = work.find(
       (b) => new Date(b.start).getTime() <= now && new Date(b.end).getTime() > now,
     );
-    if (active) return { block: active, isActive: true };
+    if (active) return { block: active, isActive: true, later };
     const next = work.find(
       (b) => new Date(b.start).getTime() > now && new Date(b.start).getTime() <= endOfDay.getTime(),
     );
-    return { block: next ?? null, isActive: false };
+    return { block: next ?? null, isActive: false, later };
   }, [schedule, now]);
 
   // A step or a straggler is not in the quest list; the plan carries its own.
-  const quest = block?.taskId ? quests.find((q) => q.id === block.taskId) ?? blockQuests[block.taskId] ?? null : null;
+  const questFor = (b: ScheduleBlock | null) =>
+    b?.taskId ? quests.find((q) => q.id === b.taskId) ?? blockQuests[b.taskId] ?? null : null;
+  const quest = questFor(block);
 
   // Nothing planned (or nothing left today): a quiet pointer to the feed.
   if (!block || !quest) {
     if (hideWhenEmpty) return null;
+    // Today is done but the route goes on (an evening, or a day already full): say when, not "plot the day".
+    const laterQuest = questFor(later);
+    if (later && laterQuest) {
+      return (
+        <Link to="/feed" className="panel flex items-center gap-3 px-3.5 py-3.5 transition-colors hover:bg-(--color-surface2)">
+          <CalendarDays size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">Nothing more planned today</span>
+            <span className="block text-xs text-(--color-muted)">
+              Next stop {formatDayAndTime(later.start)}: {laterQuest.title}
+            </span>
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-(--color-muted)" aria-hidden />
+        </Link>
+      );
+    }
+    // Nothing on the list: the jot box below is the next step, not an empty route.
+    if (quests.length === 0) return null;
     // With quests waiting and no plan yet (a new member, or a new day), say what the Route will do with them.
     const waiting = quests.length > 0 && schedule.length === 0;
     return (
@@ -81,11 +108,12 @@ export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
         <CalendarDays size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">
-            {waiting ? 'Plot today’s route' : 'Nothing planned for the rest of today'}
+            {/* Not "for today": in the evening the route starts on the next working day. */}
+            {waiting ? 'Plot your route' : 'Nothing planned for the rest of today'}
           </span>
           <span className="block text-xs text-(--color-muted)">
             {waiting
-              ? `Put your ${quests.length} ${quests.length === 1 ? 'quest' : 'quests'} in order for today`
+              ? `Put your ${quests.length} ${quests.length === 1 ? 'quest' : 'quests'} in order, each with a time`
               : 'Open the Route to plot the day'}
           </span>
         </span>
