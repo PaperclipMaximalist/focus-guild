@@ -10,7 +10,7 @@
  */
 
 import { useDialog } from '../lib/useDialog';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
@@ -105,16 +105,25 @@ export function CommandPalette() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Reset + focus on open.
+  // Reset on open. Focus comes from the input's autoFocus, as it mounts: a
+  // timer here dropped whatever was typed straight after Ctrl+K.
   useEffect(() => {
     if (open) {
       setQuery('');
       setActive(0);
-      setTimeout(() => inputRef.current?.focus(), 20);
     }
   }, [open]);
 
   useEffect(() => { setActive(0); }, [query]);
+
+  const listId = useId();
+  const optionId = (i: number) => `${listId}-option-${i}`;
+  // The arrows can move past the bottom of a short window: keep the highlight in sight.
+  useEffect(() => {
+    if (open) document.getElementById(optionId(active))?.scrollIntoView({ block: 'nearest' });
+    // optionId is derived from listId, which never changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, open]);
 
   const choose = (cmd: Command | undefined) => {
     if (!cmd) return;
@@ -157,11 +166,19 @@ export function CommandPalette() {
           >
             <div className="flex items-center gap-2 border-b px-4 py-3" style={{ borderColor: 'var(--color-border)' }}>
               <Command size={16} strokeWidth={2} className="opacity-60" aria-hidden />
+              {/* A combobox: focus stays in the box while the arrows move through the list,
+                  so the box names the highlighted command for a screen reader. */}
               <input
                 ref={inputRef}
+                autoFocus
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onInputKey}
+                role="combobox"
+                aria-expanded={results.length > 0}
+                aria-controls={listId}
+                aria-autocomplete="list"
+                aria-activedescendant={results.length > 0 ? optionId(active) : undefined}
                 aria-label="Type a command or a page to jump to"
                 placeholder="Type a command or jump to…"
                 className="flex-1 bg-transparent text-sm outline-none"
@@ -173,13 +190,18 @@ export function CommandPalette() {
             </div>
             <div className="max-h-[52vh] overflow-y-auto py-1.5">
               {results.length === 0 && (
-                <div className="px-4 py-6 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
+                <div role="status" className="px-4 py-6 text-center text-sm" style={{ color: 'var(--color-muted)' }}>
                   No matching command.
                 </div>
               )}
+              <div role="listbox" id={listId} aria-label="Commands">
               {results.map((c, i) => (
                 <button
                   key={c.id}
+                  id={optionId(i)}
+                  type="button"
+                  role="option"
+                  aria-selected={i === active}
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose(c)}
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors"
@@ -188,12 +210,13 @@ export function CommandPalette() {
                   <c.icon size={18} strokeWidth={1.75} className="shrink-0 opacity-80" aria-hidden />
                   <span className="flex-1 text-sm" style={{ color: 'var(--color-text)' }}>{c.label}</span>
                   {c.hint && (
-                    <kbd className="rounded px-1.5 py-0.5 text-[11px] font-mono" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-muted)' }}>
+                    <kbd aria-hidden className="rounded px-1.5 py-0.5 text-[11px] font-mono" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--color-muted)' }}>
                       {c.hint}
                     </kbd>
                   )}
                 </button>
               ))}
+              </div>
             </div>
           </motion.div>
         </motion.div>

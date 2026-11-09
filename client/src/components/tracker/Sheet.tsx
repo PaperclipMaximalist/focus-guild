@@ -104,12 +104,13 @@ export const fieldStyle: React.CSSProperties = {
 export const fieldClass =
   'w-full rounded-lg border px-3 py-2 text-sm outline-none transition-colors';
 
-export function Label({ children, hint }: { children: React.ReactNode; hint?: string }) {
+/** A field's name above it. Pass `htmlFor` with the control's id so a screen reader (and a click) finds the field. */
+export function Label({ children, hint, htmlFor }: { children: React.ReactNode; hint?: string; htmlFor?: string }) {
   return (
     <div className="mb-1.5">
-      <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
+      <label htmlFor={htmlFor} className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--color-muted)' }}>
         {children}
-      </span>
+      </label>
       {hint && (
         <p className="mt-0.5 text-xs" style={{ color: 'var(--color-muted)', opacity: 0.75 }}>
           {hint}

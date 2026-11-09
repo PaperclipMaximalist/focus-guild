@@ -79,8 +79,9 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
         </p>
 
         <div>
-          <Label>Reflection</Label>
+          <Label htmlFor="reflection-text">Reflection</Label>
           <textarea
+            id="reflection-text"
             value={text}
             onChange={(e) => setText(e.target.value)}
             rows={4}
@@ -115,8 +116,9 @@ export function ReflectionSheet({ open, onClose, item }: Props) {
         </div>
 
         <div>
-          <Label hint="A link to evidence hosted elsewhere. Nothing is uploaded.">Media URL</Label>
+          <Label htmlFor="reflection-media" hint="A link to evidence hosted elsewhere. Nothing is uploaded.">Media URL</Label>
           <input
+            id="reflection-media"
             type="url"
             value={mediaUrl}
             onChange={(e) => setMediaUrl(e.target.value)}

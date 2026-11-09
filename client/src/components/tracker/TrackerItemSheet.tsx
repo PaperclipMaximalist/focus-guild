@@ -9,7 +9,7 @@
  * create only — the number after it is still the server's to hand out.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   CAS_STRANDS,
   LEARNING_OUTCOMES,
@@ -53,6 +53,8 @@ function readLastDomain(): string {
 export function TrackerItemSheet({ open, onClose, editing, config, domains, defaultCas }: Props) {
   const { createItem, updateItem } = useTrackerStore();
   const pushToast = useToastStore((s) => s.push);
+  // Ties each field's label to it.
+  const fid = useId();
 
   const [title, setTitle] = useState('');
   const [nextAction, setNextAction] = useState('');
@@ -228,8 +230,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
           </div>
         )}
         <div>
-          <Label hint="A physical first step, not a topic.">Next action</Label>
+          <Label htmlFor={`${fid}-next`} hint="A physical first step, not a topic.">Next action</Label>
           <input
+            id={`${fid}-next`}
             value={nextAction}
             onChange={(e) => setNextAction(e.target.value)}
             placeholder="Open the doc and write the first paragraph"
@@ -248,8 +251,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
         </div>
 
         <div>
-          <Label>Title</Label>
+          <Label htmlFor={`${fid}-title`}>Title</Label>
           <input
+            id={`${fid}-title`}
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Extended essay"
@@ -260,8 +264,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <Label>Status</Label>
+            <Label htmlFor={`${fid}-status`}>Status</Label>
             <select
+              id={`${fid}-status`}
               value={status}
               onChange={(e) => setStatus(e.target.value as TrackerStatus)}
               className={fieldClass}
@@ -275,8 +280,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
             </select>
           </div>
           <div>
-            <Label>Due</Label>
+            <Label htmlFor={`${fid}-due`}>Due</Label>
             <input
+              id={`${fid}-due`}
               type="date"
               ref={dueRef}
               value={dueDate}
@@ -288,8 +294,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
         </div>
 
         <div>
-          <Label>Domain</Label>
+          <Label htmlFor={`${fid}-domain`}>Domain</Label>
           <select
+            id={`${fid}-domain`}
             value={domainId}
             onChange={(e) => setDomainId(e.target.value)}
             className={fieldClass}
@@ -327,8 +334,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
         )}
 
         <div>
-          <Label>Notes</Label>
+          <Label htmlFor={`${fid}-notes`}>Notes</Label>
           <textarea
+            id={`${fid}-notes`}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
@@ -400,8 +408,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label>Started</Label>
+                  <Label htmlFor={`${fid}-cas-start`}>Started</Label>
                   <input
+                    id={`${fid}-cas-start`}
                     type="date"
                     value={casStart}
                     onChange={(e) => setCasStart(e.target.value)}
@@ -410,8 +419,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
                   />
                 </div>
                 <div>
-                  <Label>Ended</Label>
+                  <Label htmlFor={`${fid}-cas-end`}>Ended</Label>
                   <input
+                    id={`${fid}-cas-end`}
                     type="date"
                     value={casEnd}
                     onChange={(e) => setCasEnd(e.target.value)}
@@ -423,8 +433,9 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
 
               {config.showHours && (
                 <div>
-                  <Label>Hours</Label>
+                  <Label htmlFor={`${fid}-hours`}>Hours</Label>
                   <input
+                    id={`${fid}-hours`}
                     type="number"
                     step="0.25"
                     min="0"

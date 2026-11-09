@@ -218,12 +218,13 @@ function CalendarsSection({ calendars, onChange, fail }: { calendars: CalendarSo
 
       <div className="flex flex-col gap-2 rounded-(--radius-card) border p-3" style={card}>
         <div>
-          <Label>Name</Label>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="School timetable" maxLength={60} className={fieldClass} style={fieldStyle} />
+          <Label htmlFor="calendar-name">Name</Label>
+          <input id="calendar-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="School timetable" maxLength={60} className={fieldClass} style={fieldStyle} />
         </div>
         <div>
-          <Label hint="The secret iCal / ICS link. It starts with https:// or webcal://.">Calendar link</Label>
+          <Label htmlFor="calendar-url" hint="The secret iCal / ICS link. It starts with https:// or webcal://.">Calendar link</Label>
           <input
+            id="calendar-url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://calendar.google.com/calendar/ical/…/basic.ics"

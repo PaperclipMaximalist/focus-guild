@@ -186,9 +186,10 @@ export default function TrackerMarkdown() {
           className="rounded-(--radius-card) border p-3"
           style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
         >
-          <Label hint="Only items touched on or after this date.">Changes since</Label>
+          <Label htmlFor="markdown-since" hint="Only items touched on or after this date.">Changes since</Label>
           <div className="flex flex-wrap gap-2">
             <input
+              id="markdown-since"
               type="date"
               value={since}
               onChange={(e) => setSince(e.target.value)}
