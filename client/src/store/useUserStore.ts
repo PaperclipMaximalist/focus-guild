@@ -19,7 +19,11 @@ export const useUserStore = create<UserState>((set, get) => ({
   error: null,
 
   init: async () => {
-    if (get().user) return;
+    // Already signed in: nothing to load, and no reason to keep showing an error.
+    if (get().user) {
+      if (get().error) set({ error: null });
+      return;
+    }
     set({ loading: true, error: null });
     try {
       const user = await api.users.upsert();
@@ -33,8 +37,10 @@ export const useUserStore = create<UserState>((set, get) => ({
     try {
       const user = await api.users.get();
       set({ user });
-    } catch (err) {
-      set({ error: String(err) });
+    } catch {
+      // A background re-sync. Keep what is on screen: `error` is the
+      // app-wide "Can't reach the Guild" page, and a dropped refresh must not
+      // throw away a page the member is using. (Saves report their own failures.)
     }
   },
 

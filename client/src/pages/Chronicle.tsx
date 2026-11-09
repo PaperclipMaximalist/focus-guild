@@ -244,7 +244,7 @@ export default function Journal() {
       </section>
 
       {failed && (
-        <p className="text-[14px] text-(--color-muted)">
+        <p role="alert" className="text-[14px] text-(--color-muted)">
           The journal didn't load.{' '}
           <button type="button" onClick={() => void load()} className="font-semibold text-(--color-text) underline underline-offset-2">
             Try again

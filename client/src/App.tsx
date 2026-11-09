@@ -133,23 +133,7 @@ function AuthenticatedApp() {
     init();
   }, [init]);
 
-  if (error) {
-    return (
-      <div className="grid min-h-screen place-items-center p-6">
-        <div className="panel w-full max-w-sm p-6 text-center">
-          <h1 className="text-xl font-bold">Can’t reach the Guild</h1>
-          <p className="mt-2 text-sm text-(--color-muted)">
-            Your quests are safe. This is usually a dropped connection, or the server waking up.
-          </p>
-          <button type="button" onClick={() => init()} className="btn-primary mt-5 w-full">
-            Try again
-          </button>
-          {/* The raw error is for whoever is debugging, not the headline. */}
-          <p className="mt-4 break-words font-mono text-[11px] text-(--color-muted)">{error}</p>
-        </div>
-      </div>
-    );
-  }
+  if (error) return <CannotReach error={error} onRetry={() => init()} />;
 
   if (!user) {
     return (
@@ -204,6 +188,30 @@ function AuthenticatedApp() {
       </Shell>
     </BrowserRouter>
     </MotionConfig>
+  );
+}
+
+/** The whole-app stop when the first load fails: says so, is announced, and offers the one way on. */
+function CannotReach({ error, onRetry }: { error: string; onRetry: () => void }) {
+  useEffect(() => {
+    document.title = 'Can’t reach the Guild · Focus Guild';
+  }, []);
+  return (
+    <main className="grid min-h-screen place-items-center p-6">
+      <div className="panel w-full max-w-sm p-6 text-center">
+        <div role="alert">
+          <h1 className="text-xl font-bold">Can’t reach the Guild</h1>
+          <p className="mt-2 text-sm text-(--color-muted)">
+            Your quests are safe. This is usually a dropped connection, or the server waking up.
+          </p>
+        </div>
+        <button type="button" onClick={onRetry} className="btn-primary mt-5 w-full">
+          Try again
+        </button>
+        {/* The raw error is for whoever is debugging, not the headline. */}
+        <p className="mt-4 break-words font-mono text-[11px] text-(--color-muted)">{error}</p>
+      </div>
+    </main>
   );
 }
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCheckInStore } from '../store/useCheckInStore';
-import { BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, ChevronLeft, Zap } from 'lucide-react';
+import { useToastStore } from '../components/Toasts';
+import { BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, ChevronLeft, TriangleAlert, Zap } from 'lucide-react';
 
 // A battery that fills with the level: readable without colour or faces.
 const ENERGY_LABELS = [
@@ -14,6 +15,7 @@ const ENERGY_LABELS = [
 
 export default function CheckIn() {
   const { today, submit, load } = useCheckInStore();
+  const pushToast = useToastStore((s) => s.push);
   const navigate = useNavigate();
 
   const [energy, setEnergy] = useState(3);
@@ -36,6 +38,9 @@ export default function CheckIn() {
     try {
       await submit({ energyLevel: energy, availableMinutes: hours * 60 });
       navigate('/');
+    } catch (e) {
+      // Stay here with the answers still set, so Save works again once the connection is back.
+      pushToast({ icon: TriangleAlert, title: 'Fuel check not saved', sub: String(e), variant: 'error' });
     } finally {
       setSaving(false);
     }

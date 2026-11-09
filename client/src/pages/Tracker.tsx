@@ -192,8 +192,9 @@ export default function Tracker() {
   if (error) {
     return (
       <div className="mx-auto max-w-2xl p-5">
-        <div className="rounded-(--radius-card) border p-5" style={{ borderColor: 'color-mix(in srgb, var(--color-fire) 40%, transparent)', background: 'color-mix(in srgb, var(--color-fire) 8%, transparent)' }}>
-          <h2 className="font-bold text-(--color-fire)">Could not load the tracker</h2>
+        <h1 className="page-title mb-4">Expeditions</h1>
+        <div role="alert" className="rounded-(--radius-card) border p-5" style={{ borderColor: 'color-mix(in srgb, var(--color-fire) 40%, transparent)', background: 'color-mix(in srgb, var(--color-fire) 8%, transparent)' }}>
+          <p className="font-bold">Your expeditions didn’t load.</p>
           <p className="mt-1 text-sm text-(--color-muted)">{error}</p>
           <button
             type="button"
@@ -201,7 +202,7 @@ export default function Tracker() {
             className="mt-3 rounded-lg px-4 py-2 text-sm font-bold"
             style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
-            Retry
+            Try again
           </button>
         </div>
       </div>

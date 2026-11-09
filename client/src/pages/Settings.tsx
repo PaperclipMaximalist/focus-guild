@@ -12,7 +12,7 @@
  * constructor derives breaks from gaps and reads none of those fields.
  */
 
-import { useEffect, useState, useMemo, createContext, useContext, useId } from 'react';
+import { useCallback, useEffect, useState, useMemo, createContext, useContext, useId } from 'react';
 import { Link } from 'react-router-dom';
 import {
   api,
@@ -84,13 +84,15 @@ const WEIGHT_ORDER: Array<keyof ScoreWeights> = [
 export default function Settings() {
   const pushToast = useToastStore((s) => s.push);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [defaults, setDefaults] = useState<SchedulerConfigShape | null>(null);
   const [overrides, setOverrides] = useState<Partial<SchedulerConfigShape>>({});
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const { armed, fire } = useArmed();
 
-  useEffect(() => {
+  // State is only set once the request settles, so the first run can live in an effect.
+  const load = useCallback(() => {
     api.settings
       .get()
       .then(({ defaults, overrides }) => {
@@ -107,8 +109,13 @@ export default function Settings() {
           ...(chronotype ? { chronotype } : {}),
         });
       })
+      .catch((e: unknown) => setLoadError(String(e)))
       .finally(() => setLoaded(true));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Merge defaults + overrides for display.
   const current = useMemo<SchedulerConfigShape | null>(() => {
@@ -154,7 +161,7 @@ export default function Settings() {
       await api.settings.save(payload);
       pushToast({ icon: SettingsIcon, title: 'Settings saved', sub: 'Next reflow will use them', variant: 'xp' });
     } catch (e) {
-      pushToast({ icon: TriangleAlert, title: 'Save failed', sub: String(e), variant: 'xp' });
+      pushToast({ icon: TriangleAlert, title: 'Settings not saved', sub: String(e), variant: 'error' });
     } finally {
       setSaving(false);
     }
@@ -166,10 +173,37 @@ export default function Settings() {
       await api.settings.reset();
       setOverrides({});
       pushToast({ icon: RotateCcw, title: 'Reset to defaults', sub: '', variant: 'xp' });
+    } catch (e) {
+      pushToast({ icon: TriangleAlert, title: 'Nothing was reset', sub: String(e), variant: 'error' });
     } finally {
       setResetting(false);
     }
   };
+
+  if (loaded && loadError) {
+    return (
+      <div className="page flex flex-col gap-5">
+        <header>
+          <h1 className="page-title">Settings</h1>
+        </header>
+        <div className="panel p-5" role="alert">
+          <p className="font-semibold">Your settings didn’t load.</p>
+          <p className="mt-1 text-sm text-(--color-muted)">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setLoaded(false);
+              setLoadError(null);
+              load();
+            }}
+            className="btn-primary mt-4"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!loaded || !defaults || !current) {
     return (

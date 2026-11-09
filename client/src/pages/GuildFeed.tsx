@@ -738,7 +738,8 @@ export default function GuildFeed() {
     return () => clearInterval(id);
   }, []);
 
-  useEffect(() => {
+  // Load today's plan, building one if there is none. Also the error box's Try again.
+  const loadPlan = useCallback(() => {
     loadQuests();
     useScheduleStore.getState().fetch().then(() => {
       const { schedule: blocks, generatedAt, generate, replan } = useScheduleStore.getState();
@@ -754,6 +755,9 @@ export default function GuildFeed() {
       if (!generatedAt || new Date(generatedAt).getTime() < midnight.getTime()) replan();
     });
   }, [loadQuests]);
+  useEffect(() => {
+    loadPlan();
+  }, [loadPlan]);
 
   // The plan's own quests first (steps and stragglers are only there), then the
   // quest list over them, since its rows are fresher and carry more.
@@ -932,10 +936,16 @@ export default function GuildFeed() {
 
         {error && (
           <div
+            role="alert"
             className="rounded-lg p-4 mb-3 text-sm"
-            style={{ background: 'color-mix(in srgb, var(--color-fire) 10%, transparent)', color: 'var(--color-fire)', border: '1px solid color-mix(in srgb, var(--color-fire) 30%, transparent)' }}
+            style={{ background: 'color-mix(in srgb, var(--color-fire) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--color-fire) 30%, transparent)' }}
           >
-            {error}
+            {/* Any plan request lands here (load, reroute, an edit), so it says what is true for all of them. */}
+            <p className="font-semibold">Today’s route isn’t up to date.</p>
+            <p className="mt-1 text-(--color-muted)">{error}</p>
+            <button type="button" onClick={loadPlan} disabled={loading} className="btn-primary mt-3">
+              {loading ? 'Trying…' : 'Try again'}
+            </button>
           </div>
         )}
 

@@ -62,6 +62,21 @@ export class ApiRequestError extends Error {
   }
 }
 
+/**
+ * The server could not be reached, or answered with something that is not
+ * the API (a proxy's error page). Screens show `String(err)`, so it reads as
+ * one plain sentence instead of "TypeError: Failed to fetch".
+ */
+export class ConnectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConnectionError';
+  }
+  override toString(): string {
+    return this.message;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -82,8 +97,20 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers['X-Dev-Clerk-Id'] = _currentClerkId;
   }
 
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers });
-  const body = (await res.json()) as ApiResponse<T>;
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, { ...init, headers });
+  } catch {
+    // No answer at all: offline, or the server is down or waking up.
+    throw new ConnectionError('Can’t reach the Guild right now. Check your connection, then try again.');
+  }
+  let body: ApiResponse<T>;
+  try {
+    body = (await res.json()) as ApiResponse<T>;
+  } catch {
+    // An answer that is not ours (a proxy's error page while the server restarts).
+    throw new ConnectionError(`The Guild’s server is having trouble (${res.status}). Try again in a moment.`);
+  }
   if (!body.success) {
     throw new ApiRequestError(body.error.code, body.error.message);
   }
