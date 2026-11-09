@@ -791,6 +791,13 @@ quests.patch('/:id', async (c) => {
   return c.json({ success: true, data: quest });
 });
 
+/** The client's getTimezoneOffset() from `?tz=`, within real-world offsets; undefined (UTC) when missing or nonsense. */
+function tzFromQuery(raw: string | undefined): number | undefined {
+  if (raw === undefined || raw === '') return undefined;
+  const n = Number(raw);
+  return Number.isFinite(n) && Math.abs(n) <= 14 * 60 ? n : undefined;
+}
+
 // POST /quests/:id/complete — complete a quest, award XP, update streak
 quests.post('/:id/complete', async (c) => {
   const questId = c.req.param('id');
@@ -903,6 +910,7 @@ quests.post('/:id/complete', async (c) => {
     actualMinutes: updatedQuest.actualMinutes,
     completedAt: updatedQuest.completedAt ?? new Date(),
     status: quest.status, // RESCUE flag survives only on the pre-update copy
+    tzOffsetMin: tzFromQuery(c.req.query('tz')),
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
   const finalTotalXP = updatedUser.totalXP + bonusXP;
@@ -1002,6 +1010,7 @@ quests.post('/spin-wheel', async (c) => {
     actualMinutes: null,
     completedAt: new Date(),
     status: picked.status,
+    tzOffsetMin: tzFromQuery(c.req.query('tz')),
   });
 
   return c.json({
@@ -1112,6 +1121,7 @@ quests.post('/:id/complete-daily', async (c) => {
     actualMinutes: null,
     completedAt: new Date(),
     status: 'COMPLETE',
+    tzOffsetMin: tzFromQuery(c.req.query('tz')),
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
   void logActivity(user.id, 'quest.daily', `Did daily quest "${quest.title}" (+${xp} XP)`, { subjectId: quest.id });

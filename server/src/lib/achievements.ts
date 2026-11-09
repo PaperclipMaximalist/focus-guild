@@ -45,6 +45,15 @@ export interface AchievementContext {
   totalXP: number;
   // Total quests this user has completed, including this one.
   totalCompleted: number;
+  // The member's offset from UTC in minutes, as the browser's
+  // getTimezoneOffset() gives it (positive west of UTC). Time-of-day trophies
+  // are judged on the member's own clock, not the server's (UTC on Railway).
+  tzOffsetMin: number;
+}
+
+/** A Date shifted so its UTC fields read as the member's local clock. */
+function onMemberClock(d: Date, tzOffsetMin: number): Date {
+  return new Date(d.getTime() - tzOffsetMin * 60_000);
 }
 
 export interface AchievementDef {
@@ -67,9 +76,10 @@ export const ACHIEVEMENTS: AchievementDef[] = [
       // Get the earliest-completed quest for each of the last 3 days
       const byDay = new Map<string, Date>();
       for (const c of ctx.recentCompletions) {
-        const key = c.completedAt.toISOString().slice(0, 10);
+        const local = onMemberClock(c.completedAt, ctx.tzOffsetMin);
+        const key = local.toISOString().slice(0, 10);
         const existing = byDay.get(key);
-        if (!existing || c.completedAt < existing) byDay.set(key, c.completedAt);
+        if (!existing || local < existing) byDay.set(key, local);
       }
       const days = [...byDay.entries()]
         .sort((a, b) => (a[0] < b[0] ? 1 : -1))
@@ -174,7 +184,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     icon: '🦉',
     xpReward: 60,
     check: (ctx) => {
-      const h = ctx.completedQuest.completedAt.getUTCHours();
+      const h = onMemberClock(ctx.completedQuest.completedAt, ctx.tzOffsetMin).getUTCHours();
       return h >= 22 || h < 5;
     },
   },

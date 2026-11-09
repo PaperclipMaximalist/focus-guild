@@ -334,7 +334,7 @@ export const api = {
       }),
     spinWheel: () =>
       request<{ picked: Quest; newlyUnlocked: UnlockedAchievement[] }>(
-        '/quests/spin-wheel',
+        `/quests/spin-wheel?tz=${tzOffset()}`,
         { method: 'POST', body: '{}' },
       ),
     /** The nested sub-quest tree beneath a quest, MAX_QUEST_DEPTH tiers in all. */
@@ -397,10 +397,11 @@ export const api = {
       fields: Partial<Pick<Quest, 'title' | 'estimatedMinutes' | 'mentalLoad' | 'impact' | 'deadline' | 'tags'>> &
         QuestSchedulerHints & { parentQuestId?: string | null; openEnded?: boolean },
     ) => request<Quest>(`/quests/${id}`, { method: 'PATCH', body: JSON.stringify(fields) }),
+    // `tz`: trophies like Night Owl are judged on the member's clock, not the server's.
     complete: (id: string) =>
-      request<CompleteQuestResult>(`/quests/${id}/complete`, { method: 'POST' }),
+      request<CompleteQuestResult>(`/quests/${id}/complete?tz=${tzOffset()}`, { method: 'POST' }),
     completeDaily: (id: string) =>
-      request<CompleteQuestResult>(`/quests/${id}/complete-daily`, { method: 'POST' }),
+      request<CompleteQuestResult>(`/quests/${id}/complete-daily?tz=${tzOffset()}`, { method: 'POST' }),
     /** Log focused minutes against a quest (feeds progress and estimate calibration). */
     focus: (id: string, minutes: number) =>
       request<Quest>(`/quests/${id}/focus`, { method: 'POST', body: JSON.stringify({ minutes }) }),

@@ -8,7 +8,7 @@
  */
 
 import { db } from '../db/client.js';
-import { evaluateAchievements } from './achievements.js';
+import { ACHIEVEMENTS, evaluateAchievements } from './achievements.js';
 import type { Achievement } from '../../generated/prisma/client.js';
 
 interface CompletedQuestInput {
@@ -20,6 +20,8 @@ interface CompletedQuestInput {
   completedAt: Date;
   /** RESCUE if it was overdue. */
   status: string;
+  /** The member's getTimezoneOffset(), from the request; UTC when the client did not send it. */
+  tzOffsetMin?: number;
 }
 
 export async function evalAndUnlockAchievements(
@@ -53,16 +55,19 @@ export async function evalAndUnlockAchievements(
     where: { userId, status: 'RESCUE' },
   });
 
-  // daysWithZeroOverdue — count consecutive prior days with no overdue quests.
-  // Lightweight approximation: 0 if any overdue exists now; otherwise null-safe 0
-  // until a proper tracker is built. Good enough for MVP unlock signaling.
-  const daysWithZeroOverdue = overdueCount === 0 ? 7 : 0;
-
   // Spin the Wheel usage + streak + XP — sourced from the User row.
   const userRow = await db.user.findUnique({
     where: { id: userId },
-    select: { spinCount: true, currentStreak: true, totalXP: true },
+    select: { spinCount: true, currentStreak: true, totalXP: true, createdAt: true },
   });
+
+  // daysWithZeroOverdue — count consecutive prior days with no overdue quests.
+  // Lightweight approximation until a proper tracker is built: 0 if anything is
+  // overdue now, else the account's age capped at 7. Without the cap on age a
+  // member who joined today got "Ended a full week with no overdue quests" on
+  // their first tick.
+  const accountDays = userRow ? Math.floor((Date.now() - userRow.createdAt.getTime()) / 86_400_000) : 0;
+  const daysWithZeroOverdue = overdueCount === 0 ? Math.min(7, accountDays) : 0;
   const spinWheelUses = userRow?.spinCount ?? 0;
   const currentStreak = userRow?.currentStreak ?? 0;
   const totalXP = userRow?.totalXP ?? 0;
@@ -95,14 +100,31 @@ export async function evalAndUnlockAchievements(
     currentStreak,
     totalXP,
     totalCompleted,
+    tzOffsetMin: completedQuest.tzOffsetMin ?? 0,
   });
 
   if (candidateSlugs.length === 0) return [];
 
   // Look up the Achievement rows for these slugs.
-  const achievements = await db.achievement.findMany({
+  let achievements = await db.achievement.findMany({
     where: { slug: { in: candidateSlugs } },
   });
+  // A trophy that exists in code but not in the table (added after the last
+  // `db:seed`, or a database that was never seeded) would otherwise never
+  // unlock, silently. Create its row from the definition the first time it is earned.
+  const missing = ACHIEVEMENTS.filter(
+    (a) => candidateSlugs.includes(a.slug) && !achievements.some((row) => row.slug === a.slug),
+  );
+  if (missing.length > 0) {
+    for (const a of missing) {
+      await db.achievement.upsert({
+        where: { slug: a.slug },
+        create: { slug: a.slug, title: a.title, description: a.description, icon: a.icon, xpReward: a.xpReward },
+        update: {},
+      });
+    }
+    achievements = await db.achievement.findMany({ where: { slug: { in: candidateSlugs } } });
+  }
 
   // Find which ones the user does NOT already have.
   const alreadyUnlocked = await db.userAchievement.findMany({
