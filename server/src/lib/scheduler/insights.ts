@@ -221,8 +221,8 @@ export function computeInsights(input: InsightInput): PlanInsights {
   if (overdue.length) {
     notes.push(
       overdue.length === 1
-        ? `"${overdue[0]!.title}" is overdue and isn't in the plan. Rescue it to give it a new date.`
-        : `${overdue.length} overdue quests aren't in the plan. Rescue them to give them new dates.`,
+        ? `"${overdue[0]!.title}" is past its deadline and isn't in the plan. Give it a new date in Stragglers.`
+        : `${overdue.length} quests are past their deadlines and aren't in the plan. Give them new dates in Stragglers.`,
     );
   }
 
