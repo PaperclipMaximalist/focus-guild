@@ -885,11 +885,16 @@ export default function GuildFeed() {
   const { quests, load: loadQuests } = useQuestStore();
   const startTimer = useTimerStore((s) => s.start);
 
-  // The app-wide timer screen completes the quest; the route re-plans around it.
+  // The app-wide timer screen completes the quest, and an Undo takes a
+  // completion back: either way the route re-plans around what is now true.
   useEffect(() => {
-    const onDone = () => { void replan(); };
-    window.addEventListener('fg:timer-completed', onDone);
-    return () => window.removeEventListener('fg:timer-completed', onDone);
+    const onChange = () => { void replan(); };
+    window.addEventListener('fg:timer-completed', onChange);
+    window.addEventListener('fg:quest-uncompleted', onChange);
+    return () => {
+      window.removeEventListener('fg:timer-completed', onChange);
+      window.removeEventListener('fg:quest-uncompleted', onChange);
+    };
   }, [replan]);
 
   const [now, setNow] = useState(Date.now());

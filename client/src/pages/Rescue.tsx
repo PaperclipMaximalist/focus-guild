@@ -45,6 +45,10 @@ export default function Rescue() {
 
   useEffect(() => {
     load();
+    // A completion taken back (Undo) puts a straggler on this list again.
+    const onUndo = () => { void load(); };
+    window.addEventListener('fg:quest-uncompleted', onUndo);
+    return () => window.removeEventListener('fg:quest-uncompleted', onUndo);
   }, []);
 
   // The duck notices the pile once it loads, and cheers when it's gone —
