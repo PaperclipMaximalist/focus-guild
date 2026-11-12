@@ -4,7 +4,7 @@
  * Rubber-duck debugging is the devcave ritual of explaining a problem to a
  * duck that just listens — so the duck is on your side by definition. Its
  * voice is lowercase terminal chatter: encouraging, a little absurd, and
- * never judgemental. Nothing here scolds; an overdue pile is something to
+ * never judgemental. Nothing here scolds; a pile of stragglers is something to
  * triage together, a dropped item is a good call, an empty day is fine.
  *
  * Lines stay short enough to read at a glance (roughly one line on a phone).
@@ -31,11 +31,14 @@ export type MascotEvent =
 
 export type MascotMood = 'idle' | 'happy' | 'party' | 'sleepy' | 'sweat';
 
+/** A line, or a pair of lines when the wording depends on the count (`one` is used when n is 1). */
+export type MascotLine = string | { one: string; other: string };
+
 interface EventSpec {
   mood: MascotMood;
   /** Higher interrupts lower; equal or lower waits its turn. */
   priority: 1 | 2 | 3;
-  lines: string[];
+  lines: MascotLine[];
 }
 
 export const MASCOT_EVENTS: Record<MascotEvent, EventSpec> = {
@@ -89,8 +92,14 @@ export const MASCOT_EVENTS: Record<MascotEvent, EventSpec> = {
     mood: 'party',
     priority: 2,
     lines: [
-      '{n} days in a row. uptime looking good.',
-      '{n}-day streak. i’m telling the other ducks.',
+      {
+        one: 'day one of the streak. uptime starting.',
+        other: '{n} days in a row. uptime looking good.',
+      },
+      {
+        one: 'a streak begins. i’m telling the other ducks.',
+        other: '{n}-day streak. i’m telling the other ducks.',
+      },
     ],
   },
   levelUp: {
@@ -152,15 +161,21 @@ export const MASCOT_EVENTS: Record<MascotEvent, EventSpec> = {
     mood: 'sweat',
     priority: 2,
     lines: [
-      '{n} stragglers. we triage, we don’t panic.',
-      'overdue isn’t failure. pick one and nudge it.',
-      '{n} late ones. push a date, finish one, or drop one. all valid.',
+      {
+        one: '1 straggler. we triage, we don’t panic.',
+        other: '{n} stragglers. we triage, we don’t panic.',
+      },
+      'behind isn’t failure. pick one and nudge it.',
+      {
+        one: 'one late one. push the date, finish it, or drop it. all valid.',
+        other: '{n} late ones. push a date, finish one, or drop one. all valid.',
+      },
     ],
   },
   rescueClear: {
     mood: 'party',
     priority: 3,
-    lines: ['zero overdue. the pond is calm.', 'all clear. i can finally float in peace.'],
+    lines: ['no stragglers. the pond is calm.', 'all clear. i can finally float in peace.'],
   },
   poke: {
     mood: 'happy',
@@ -187,9 +202,17 @@ export function greetingFor(hour: number): MascotEvent {
   return 'greetNight';
 }
 
+/** Every line of an event as the duck would say it for a count, with `{n}` filled in. */
+export function linesFor(event: MascotEvent, n: number | undefined): string[] {
+  return MASCOT_EVENTS[event].lines.map((l) => {
+    const text = typeof l === 'string' ? l : n === 1 ? l.one : l.other;
+    return text.replace('{n}', String(n ?? ''));
+  });
+}
+
 /** Pick a line, avoiding the one said last time where there's a choice. */
 export function pickLine(event: MascotEvent, n: number | undefined, previous: string | null): string {
-  const pool = MASCOT_EVENTS[event].lines.map((l) => l.replace('{n}', String(n ?? '')));
+  const pool = linesFor(event, n);
   const fresh = pool.length > 1 ? pool.filter((l) => l !== previous) : pool;
   return fresh[Math.floor(Math.random() * fresh.length)]!;
 }
