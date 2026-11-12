@@ -84,6 +84,11 @@ model Quest {
   urgencyMult     Float?    @default(1.0)
   /// True = recurring daily quest; placed as a fixed block; never goes COMPLETE.
   isRecurring     Boolean   @default(false)
+  /// For a recurring quest: which days it comes round (lib/scheduler/repeat.ts).
+  /// Null = every day.
+  repeat          Json?
+  /// Done in one sitting, never split into pieces (scheduler Task.oneGo).
+  oneSitting      Boolean   @default(false)
   /// User-set priority tier — HIGH/MED/LOW. HIGH boosts importance and urgency;
   /// LOW dampens both and is excluded in "crush" planning mode.
   priorityTier    PriorityTier @default(MED)

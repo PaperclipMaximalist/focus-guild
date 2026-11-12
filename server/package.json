@@ -12,6 +12,7 @@
     "lab": "tsx scripts/scenario-lab.ts",
     "lab:pop": "tsx scripts/population-lab.ts",
     "lab:fuzz": "tsx scripts/fuzz-lab.ts",
+    "lab:week": "tsx scripts/intense-week.ts",
     "test:watch": "vitest",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

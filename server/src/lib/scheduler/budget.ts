@@ -28,6 +28,14 @@ const MS_PER_HOUR = 60 * MS_PER_MIN;
 const MS_PER_DAY = 24 * MS_PER_HOUR;
 const EPSILON_MIN = 0.5;
 
+/**
+ * How far over its estimated room a quest may be and still be kept by
+ * triage. The room is an estimate (rests as if every block were half an
+ * hour), and on the low side: a two-hour fix due at 20:00 was given up, and
+ * got nothing at all, for being two minutes over it.
+ */
+const NEAR_FIT_MIN = 10;
+
 export interface FreeInterval {
   start: number;
   end: number;
@@ -67,6 +75,23 @@ function sortBlocks(blocks: Block[]): Block[] {
  * working window — same algorithm the old planner used inline, hoisted
  * so budget + constructor share it.
  */
+/**
+ * Is the "available time" end in force for the working day `now` falls in?
+ * While it is still ahead, always. Once it has passed, for the rest of that
+ * working day: the person said when they stop, and that time has come. An
+ * end from before today's window opened belongs to another day.
+ */
+export function todayEndInForce(
+  config: Pick<UserConfig, 'todayEndsAt' | 'workingHours' | 'tzOffsetMin'>,
+  now: number,
+): boolean {
+  const ends = config.todayEndsAt;
+  if (ends === undefined) return false;
+  if (ends > now) return true;
+  const midnight = workDayMidnightUtc(now, config.tzOffsetMin ?? 0, config.workingHours);
+  return ends >= workWindowUtc(midnight, config.workingHours).start;
+}
+
 export function buildDayInfo(
   config: UserConfig,
   now: number,
@@ -86,8 +111,23 @@ export function buildDayInfo(
     // An end before the start is tomorrow's: the window, and so a work block,
     // may run past midnight. The day keeps the date its window starts on.
     const window = workWindowUtc(midnight, config.workingHours);
-    const wStart = Math.max(window.start, now);
-    const wEnd = Math.min(window.end, horizonEnd);
+    let wStart = Math.max(window.start, now);
+    let wEnd = Math.min(window.end, horizonEnd);
+    // "Available time": today runs from now to when the person said they stop,
+    // whatever the working hours say. Once that time has passed, today is over.
+    // Set in the small hours for an hour or two, it ends before the working
+    // hours have even opened: that is an extra stretch now, not the whole of
+    // today, and the working hours still open as usual after it.
+    let shut: { start: number; end: number } | null = null;
+    if (d === 0 && todayEndInForce(config, now)) {
+      const ends = config.todayEndsAt!;
+      wStart = now;
+      if (ends > now && ends < window.start) shut = { start: ends, end: window.start };
+      else wEnd = Math.min(ends, horizonEnd);
+    }
+    // A day can't start before the one before it has ended (today stretched past midnight).
+    const before = out[out.length - 1];
+    if (before) wStart = Math.max(wStart, before.workEnd);
     if (wEnd <= wStart) continue;
 
     const key = dayKey(midnight, tz);
@@ -96,16 +136,32 @@ export function buildDayInfo(
     const free: FreeInterval[] = [];
     let cursor = wStart;
     for (const b of todayImmov) {
-      const bs = Math.max(b.start, wStart);
+      // With a fixed gap, work already in place (pinned, or under way) keeps
+      // that gap either side of it, like any other block.
+      const pad = b.type === 'work' && config.gapMin !== undefined ? config.gapMin * MS_PER_MIN : 0;
+      const bs = Math.max(b.start - pad, wStart);
       // Nobody walks out of six hours of school straight into an essay.
       // After a long fixed block, the next free time starts a little later.
-      const long = b.end - b.start >= TRANSITION_AFTER_MIN * MS_PER_MIN;
-      const be = Math.min(b.end + (long ? TRANSITION_MIN * MS_PER_MIN : 0), wEnd);
+      // (A long sitting of a quest is not school: with a fixed gap it gets the gap, not the transition.)
+      const long = !(pad > 0 || (b.type === 'work' && config.gapMin !== undefined)) && b.end - b.start >= TRANSITION_AFTER_MIN * MS_PER_MIN;
+      const be = Math.min(b.end + (long ? TRANSITION_MIN * MS_PER_MIN : 0) + pad, wEnd);
       if (bs > cursor) free.push({ start: cursor, end: bs, day: key });
       cursor = Math.max(cursor, be);
     }
     if (cursor < wEnd) free.push({ start: cursor, end: wEnd, day: key });
-    if (config.mealGap && !crossesMidnight(config.workingHours)) keepMealFree(free, todayImmov, midnight, wStart, wEnd, config.mealGap);
+    if (shut) {
+      const open = free.splice(0, free.length);
+      for (const iv of open) {
+        if (iv.end <= shut.start || iv.start >= shut.end) free.push(iv);
+        else {
+          if (iv.start < shut.start) free.push({ ...iv, end: shut.start });
+          if (iv.end > shut.end) free.push({ ...iv, start: shut.end });
+        }
+      }
+    }
+    if (config.mealGap && !crossesMidnight(config.workingHours)) {
+      keepMealFree(free, todayImmov, midnight, wStart, wEnd, config.mealGap, (config.gapMin ?? 0) * MS_PER_MIN);
+    }
 
     const freeMinutes = free.reduce((s, iv) => s + (iv.end - iv.start) / MS_PER_MIN, 0);
     out.push({
@@ -126,6 +182,11 @@ export function buildDayInfo(
  * something that isn't quest work already breaks it (a class, a lunch
  * date, a routine). The meal sits as near the middle of the span as the
  * day allows, so a replan finds the same half hour between its kept blocks.
+ * With a fixed gap, the meal is the gap as well: the free time between two
+ * kept blocks is already short a gap at either end, and a 35-minute hole
+ * (meal and gap) left 25, too short for the meal. The replan put work in it,
+ * and laying the day out again put the meal back and pushed the rest of the
+ * day half an hour later.
  */
 function keepMealFree(
   free: FreeInterval[],
@@ -134,6 +195,7 @@ function keepMealFree(
   wStart: number,
   wEnd: number,
   meal: { fromHour: number; toHour: number; minutes: number },
+  gap = 0,
 ): void {
   const len = meal.minutes * MS_PER_MIN;
   const spanStart = userHourUtc(midnight, meal.fromHour);
@@ -150,8 +212,8 @@ function keepMealFree(
   const ideal = spanStart + (spanEnd - spanStart - len) / 2;
   let best: { i: number; start: number } | null = null;
   for (let i = 0; i < free.length; i += 1) {
-    const lo = Math.max(free[i]!.start, from);
-    const hi = Math.min(free[i]!.end, to) - len;
+    const lo = Math.max(free[i]!.start - gap, from);
+    const hi = Math.min(free[i]!.end + gap, to) - len;
     if (hi < lo) continue;
     const start = Math.min(hi, Math.max(lo, ideal));
     if (!best || Math.abs(start - ideal) < Math.abs(best.start - ideal)) best = { i, start };
@@ -172,7 +234,15 @@ function keepMealFree(
  */
 function softMaxPerDay(t: Task): number {
   const [, hi] = idealSessionRange(t);
-  return Math.max(hi * 3, hi);
+  return Math.max(hi * 3, hi, t.oneGo ? t.remainingMin : 0);
+}
+
+/**
+ * One round's helping of `task` when a day is shared out a sitting at a time
+ * (`rotate`): a full sitting, or all of a quest that is small or done in one go.
+ */
+function rotationSitting(task: Task, reach: number): number {
+  return Math.min(reach, Math.max(minSitting(task, reach), FULL_SITTING_MIN));
 }
 
 /** Below this many minutes a day, nobody's day is crowded enough to level. */
@@ -183,6 +253,9 @@ const SLIVER_MIN = 15;
 
 /** Smallest piece the permissive deadline repair will hand out. */
 const REPAIR_MIN_GRAB = 10;
+
+/** Free time on a day below this isn't worth bringing work forward for. */
+const FILL_MIN = 10;
 
 /** A fixed block at least this long earns a transition gap after it. */
 export const TRANSITION_AFTER_MIN = 90;
@@ -200,7 +273,8 @@ export const MIN_SITTING_MIN = 25;
  * (30 min for mid-size, 45 for big), never less than MIN_SITTING_MIN.
  */
 export function minSitting(task: Task, left: number): number {
-  if (left <= WHOLE_TASK_MAX_MIN) return left;
+  // In one go: the only sitting there is, is all of it.
+  if (left <= WHOLE_TASK_MAX_MIN || task.oneGo) return left;
   const [, hi] = idealSessionRange(task);
   return Math.min(left, Math.max(MIN_SITTING_MIN, Math.round(hi / 2)));
 }
@@ -253,12 +327,12 @@ export function workableMin(
   lengthMin: number,
   policy?: { shortBreakAfterMin: number; shortBreakDurationMin: number; longBreakAfterMin?: number; longBreakDurationMin?: number },
 ): number {
-  if (!policy || policy.shortBreakDurationMin <= 0) return lengthMin;
-  const cycle = Math.max(1, policy.shortBreakAfterMin) + policy.shortBreakDurationMin;
-  const breaks = Math.floor(lengthMin / cycle);
-  let work = lengthMin - breaks * policy.shortBreakDurationMin;
+  if (!policy) return lengthMin;
+  const short = Math.max(0, policy.shortBreakDurationMin);
+  let work = lengthMin;
+  if (short > 0) work -= Math.floor(lengthMin / (Math.max(1, policy.shortBreakAfterMin) + short)) * short;
   const longAfter = policy.longBreakAfterMin ?? 0;
-  const extra = (policy.longBreakDurationMin ?? 0) - policy.shortBreakDurationMin;
+  const extra = (policy.longBreakDurationMin ?? 0) - short;
   if (longAfter > 0 && extra > 0) work -= Math.floor(work / (longAfter + extra)) * extra;
   return work;
 }
@@ -356,6 +430,10 @@ export function allocateBudgets(
    * repaired last, and never take time from a quest that can still finish.
    */
   dropped: ReadonlySet<string> = new Set(),
+  /** Fill each day before the next (`fillDays`): see pass 3. */
+  fill = false,
+  /** Share a day out a sitting per quest per round (`rotate`): see pass 3. */
+  rotate = false,
 ): DayBudget[] {
   const usable = (day: DayInfo, deadline: number) => usableMinBeforeDeadline(day, deadline, policy);
   const remaining = new Map<string, number>(tasks.map((t) => [t.id, t.remainingMin]));
@@ -528,6 +606,8 @@ export function allocateBudgets(
       if (strict && grab < left && grab < minSitting(task, left)) continue;
       // Even a deadline doesn't justify a 3-minute block.
       if (!strict && grab < left && grab < REPAIR_MIN_GRAB) continue;
+      // Nor does it split a quest that is done in one go.
+      if (task.oneGo && grab < left) continue;
       addQuota(budgets[dayIdx]!, task, grab);
       residuals[dayIdx]! -= grab;
       left -= grab;
@@ -556,6 +636,19 @@ export function allocateBudgets(
       const donors = budget.quotas
         .filter((q) => canDonate(q.task, task, days, dropped))
         .sort((a, b) => Number(dropped.has(b.task.id)) - Number(dropped.has(a.task.id)) || b.task.deadline - a.task.deadline || (a.task.id < b.task.id ? -1 : 1));
+      // A quest done in one go takes the whole of it here, or nothing: the day's
+      // spare time first, then what the donors give up.
+      if (task.oneGo) {
+        const pool = residuals[dayIdx]! + donors.reduce((m, d) => m + d.targetMin, 0);
+        if (room < left - EPSILON_MIN || pool < left - EPSILON_MIN) continue;
+        const own = Math.floor(Math.min(residuals[dayIdx]!, left));
+        if (own > 0) {
+          addQuota(budget, task, own);
+          residuals[dayIdx]! -= own;
+          left -= own;
+          room -= own;
+        }
+      }
       for (const donor of donors) {
         if (left <= EPSILON_MIN || room <= EPSILON_MIN) break;
         let take = Math.floor(Math.min(donor.targetMin, left, room));
@@ -629,6 +722,80 @@ export function allocateBudgets(
     }
   }
 
+  // ── PASS 3: fill ──
+  // Asked for by `fillDays`: every day is filled before the next one is
+  // started, so nothing waits for a lighter day while there is free time
+  // now. Work comes forward from the latest day that holds it, and what the
+  // passes above left unplaced (its pace, a day's level) goes in too. A quest
+  // keeps to its usual share of a day while other quests can use the room;
+  // when none can, it takes the rest.
+  if (fill) {
+    const order = [...tasks].sort((a, b) => {
+      const diff = (priority.get(b.id) ?? 0) - (priority.get(a.id) ?? 0);
+      if (Math.abs(diff) > 1e-6) return diff;
+      return a.deadline - b.deadline || (a.id < b.id ? -1 : 1);
+    });
+    for (let dayIdx = 0; dayIdx < days.length; dayIdx += 1) {
+      const day = days[dayIdx]!;
+      for (const shared of [true, false]) {
+        // With `rotate` the day goes round the quests a sitting at a time, so
+        // every quest that can use the day gets some of it before any quest
+        // gets a second helping. Without it, one pass: each its usual share.
+        for (let round = 0, moving = true, held = false; (moving || held) && round < (rotate ? 64 : 1); round += 1) {
+        moving = false;
+        held = false;
+        for (const task of order) {
+          if (residuals[dayIdx]! < FILL_MIN) break;
+          if (day.workStart >= task.deadline || (task.notBefore ?? 0) >= day.workEnd) continue;
+          const here = grantedOnDay(budgets[dayIdx]!, task.id);
+          // A round serves only quests without its helping yet (the passes above may have given one).
+          if (rotate && here >= (round + 1) * FULL_SITTING_MIN - EPSILON_MIN) {
+            held = true;
+            continue;
+          }
+          let room = Math.min(residuals[dayIdx]!, usable(day, task.deadline) - here);
+          if (shared) room = Math.min(room, softMaxPerDay(task) - here);
+          room = Math.floor(room);
+          if (room < 1) continue;
+          const spare = Math.floor(remaining.get(task.id) ?? 0);
+          const later: Array<{ idx: number; quota: { task: Task; targetMin: number } }> = [];
+          for (let j = days.length - 1; j > dayIdx; j -= 1) {
+            const quota = budgets[j]!.quotas.find((q) => q.task.id === task.id);
+            if (quota && quota.targetMin >= 1) later.push({ idx: j, quota });
+          }
+          const reach = spare + later.reduce((m, x) => m + x.quota.targetMin, 0);
+          const want = Math.min(room, Math.floor(rotate ? rotationSitting(task, reach) : reach));
+          // A real sitting, or all there is. (Topping up a sitting already here
+          // by a few minutes used to be allowed, and came out as a separate
+          // quarter-hour fragment of heavy work later in the day.)
+          if (want < 1 || (want < reach && want < minSitting(task, reach))) continue;
+          let moved = Math.min(want, spare);
+          if (moved > 0) remaining.set(task.id, (remaining.get(task.id) ?? 0) - moved);
+          for (const x of later) {
+            if (moved >= want) break;
+            let take = Math.min(want - moved, x.quota.targetMin);
+            // Don't leave the later day a crumb: bring it all, or leave it a sitting.
+            const stays = x.quota.targetMin - take;
+            if (stays > 0 && stays < MIN_SITTING_MIN) {
+              take = x.quota.targetMin <= room - moved ? x.quota.targetMin : x.quota.targetMin - MIN_SITTING_MIN;
+            }
+            take = Math.floor(take);
+            if (take < 1) continue;
+            x.quota.targetMin -= take;
+            residuals[x.idx]! += take;
+            moved += take;
+          }
+          if (moved < 1) continue;
+          addQuota(budgets[dayIdx]!, task, moved);
+          residuals[dayIdx]! -= moved;
+          moving = true;
+        }
+        }
+      }
+    }
+    for (const b of budgets) b.quotas = b.quotas.filter((q) => q.targetMin >= 1);
+  }
+
   return budgets;
 }
 
@@ -686,7 +853,7 @@ export function triage(
     kept.push(t);
     sum += t.remainingMin;
     const cap = capacityBefore(t.deadline);
-    while (sum > cap + EPSILON_MIN && kept.length) {
+    while (sum > cap + NEAR_FIT_MIN && kept.length) {
       let worst = 0;
       for (let i = 1; i < kept.length; i += 1) if (worse(kept[i]!, kept[worst]!)) worst = i;
       const [gone] = kept.splice(worst, 1);

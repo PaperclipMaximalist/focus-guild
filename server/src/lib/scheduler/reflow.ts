@@ -38,8 +38,10 @@
  *     in place of work today already held (see URGENT_WITHIN_DAYS).
  */
 
-import { buildDayInfo, todayCap, triage } from './budget.js';
-import { plan } from './planner.js';
+import { buildDayInfo, dueWithinPlan, todayCap, triage } from './budget.js';
+import { restPolicy } from './config.js';
+import { packDays } from './pack.js';
+import { plan, suggestForShortfall } from './planner.js';
 import { workDayEndUtc, workDayStartUtc } from './tz.js';
 import type { Block, ReplanOptions, Schedule, SchedulerResult, Task, UserConfig } from './types.js';
 
@@ -120,6 +122,8 @@ export function reflow(
     if (!Number.isFinite(b.start) || !Number.isFinite(b.end)) continue;
     if (b.end <= now) past.push(b);
     else if (b.type === 'fixed') fixedFuture.push(b);
+    // A break under way is not rerouted over: it stays, like a fixed block.
+    else if (b.type === 'break' && b.start <= now) fixedFuture.push(b);
     else if (b.locked) {
       // A pin holds time for a quest. Once the quest is finished or deleted
       // there is nothing to hold it for: pin tomorrow's block, finish the
@@ -145,7 +149,12 @@ export function reflow(
   // The working windows ahead. The user may have changed their hours since
   // the plan was made; unpinned work outside them is no longer stable.
   const windows = buildDayInfo(config, now, []);
-  const inHours = (b: Block) => windows.some((d) => b.start >= d.workStart && b.end <= d.workEnd);
+  // With packing a block only has to start inside a window: where it ends is
+  // decided again when the plan is laid out (a block dragged to the end of a
+  // short day is cut there, or goes first in the next stretch).
+  const laidOutAgain = config.gapMin !== undefined || !!config.fillDays;
+  const inHours = (b: Block) =>
+    windows.some((d) => b.start >= d.workStart && (laidOutAgain ? b.start < d.workEnd : b.end <= d.workEnd));
 
   // ── Which unlocked blocks stay ──
   // In time order, so when a quest holds more than it needs the latest
@@ -154,6 +163,8 @@ export function reflow(
   for (const b of userLockedFuture) {
     if (isWork(b) && need.has(b.taskId!)) need.set(b.taskId!, need.get(b.taskId!)! - pinCounts(b));
   }
+  /** Is the plan laid out again in order at the end (pack.ts)? */
+  const packs = config.gapMin !== undefined || !!config.fillDays;
   const stableFuture: Block[] = [];
   for (const raw of [...candidates].sort((a, b) => a.start - b.start || a.end - b.end)) {
     const t = taskMap.get(raw.taskId!);
@@ -170,7 +181,10 @@ export function reflow(
     if (!inHours(b)) continue;
     // A fixed block can arrive after the plan was made (a meeting synced
     // from a calendar), and the user can drag a block onto another.
-    if (overlaps(b, fixedFuture) || overlaps(b, userLockedFuture) || overlaps(b, stableFuture)) continue;
+    // Without packing, a block that now overlaps something has lost its
+    // place. With it, the whole plan is laid out again in order at the end,
+    // so the block keeps its turn (this is what a drag to reorder relies on).
+    if (!packs && (overlaps(b, fixedFuture) || overlaps(b, userLockedFuture) || overlaps(b, stableFuture))) continue;
     const left = need.get(t.id) ?? 0;
     if (left < 1) continue;
     const len = (b.end - b.start) / MS_PER_MIN;
@@ -188,6 +202,22 @@ export function reflow(
   /** What the cap has left once done-or-passed and pinned work is counted. */
   const capForUnpinned = capTotal === undefined ? undefined : Math.max(0, capTotal - workToday(past) - workToday(userLockedFuture));
   let kept = stableFuture;
+
+  // Quest work behind now with no long pause in it: the first long break is
+  // measured from there, not from now. A break under way starts the count afresh.
+  const breakLen = (config.breakMin ?? 0) * MS_PER_MIN;
+  let runBefore = 0;
+  if (breakLen > 0 && !fixedFuture.some((b) => b.type === 'break')) {
+    let cursor = now;
+    // The sitting under way counts for the part already behind now.
+    const begun = currentSchedule.filter((b) => isWork(b) && Number.isFinite(b.start) && b.start < now).sort((x, y) => y.start - x.start);
+    for (const b of begun) {
+      const end = Math.min(b.end, now);
+      if (cursor - end >= breakLen) break;
+      runBefore += Math.max(0, end - b.start) / MS_PER_MIN;
+      cursor = Math.min(cursor, b.start);
+    }
+  }
   if (capForUnpinned !== undefined) {
     // The check-in came after the plan, or was lowered: today's blocks give
     // way from the least pressing end, work due soonest stays.
@@ -206,19 +236,26 @@ export function reflow(
   // ── Today doesn't grow ──
   // What today held ahead of now when the replan began, pinned or not.
   const heldToday = [...candidates, ...userLockedFuture].reduce((m, b) => (isWork(b) && isToday(b) ? m + ahead(b) : m), 0);
-  const plannedToday = currentSchedule.some((b) => isWork(b) && isToday(b));
+  const plannedToday = !config.fillDays && currentSchedule.some((b) => isWork(b) && isToday(b));
   const added = new Set(options.addTaskIds ?? []);
   const urgentBy = now + URGENT_WITHIN_DAYS * MS_PER_DAY;
   /** May wait for another day: not due soon, and not the quest just added. */
   const canWait = (t: Task) => t.deadline > urgentBy && !added.has(t.id);
 
-  const run = (stable: Block[], necessary: ReadonlySet<string>) => {
+  const run = (stable: Block[], necessary: ReadonlySet<string>, breaks: Block[]) => {
     // Subtract minutes already committed by stable + user-locked work blocks
     // from each task's remainingMin so the planner doesn't double-book.
     const consumed = new Map<string, number>();
     for (const b of stable) consumed.set(b.taskId!, (consumed.get(b.taskId!) ?? 0) + ahead(b));
     for (const b of userLockedFuture) {
       if (isWork(b)) consumed.set(b.taskId!, (consumed.get(b.taskId!) ?? 0) + pinCounts(b));
+    }
+    // A quest done in one go with a sitting kept (under way, or pinned) is in
+    // that sitting: none of it is planned again. Counting only the part ahead,
+    // the minutes already behind now came back as a 5-minute block of their own.
+    for (const b of [...stable, ...userLockedFuture]) {
+      const t = isWork(b) ? taskMap.get(b.taskId!) : undefined;
+      if (t?.oneGo) consumed.set(t.id, Math.max(consumed.get(t.id) ?? 0, t.remainingMin));
     }
 
     let capLeft = capForUnpinned === undefined ? undefined : Math.max(0, capForUnpinned - workToday(stable));
@@ -288,8 +325,9 @@ export function reflow(
     const result = plan({
       tasks: adjusted,
       fixedBlocks: fixedFuture,
-      lockedBlocks: [...userLockedFuture, ...stable],
+      lockedBlocks: [...userLockedFuture, ...stable, ...breaks],
       config: { ...config, todayCapMin: capLeft },
+      runBefore,
       // The real clock: plan() rounds it the same way, and uses the seconds
       // only to tell which quests are still due.
       now: clock,
@@ -306,16 +344,115 @@ export function reflow(
    * then can't make its deadline has become necessary today: plan again
    * with it (and today) released.
    */
-  const settle = (stable: Block[]) => {
-    const first = run(stable, new Set());
+  const settle = (stable: Block[], breaks: Block[] = keptBreaks) => {
+    const first = run(stable, new Set(), breaks);
     if (!first.pinched) return first.result;
     const necessary = new Set(first.result.feasibilityReport.issues.map((i) => i.taskId));
-    const second = run(stable, necessary).result;
+    const second = run(stable, necessary, breaks).result;
     const short = (r: SchedulerResult) => r.feasibilityReport.issues.reduce((m, i) => m + i.shortfallMin, 0);
     return short(second) < short(first.result) ? second : first.result;
   };
 
-  let result = settle(kept);
+  // ── Laid out before it is planned round ──
+  // The blocks that stay are still where the old plan had them: a quest
+  // finished early, or a block dragged elsewhere, leaves a hole in the middle
+  // of the day, and the planner would fill that hole with some other quest.
+  // With packing they first close up in the order they have, breaks and all,
+  // so the only free time the planner sees is at the end of a stretch.
+  let n = 0;
+  const taken = new Set(currentSchedule.map((b) => b.id));
+  const freshId = () => {
+    let id = `blk-p${(n += 1)}`;
+    while (taken.has(id)) id = `blk-p${(n += 1)}`;
+    taken.add(id);
+    return id;
+  };
+  /** Lay `movable` out again, in order, in the free time `held` leaves (pack.ts). Breaks come back with it. */
+  const layOut = (movable: Block[], held: Block[]): Block[] => {
+    const daysOf = buildDayInfo(config, now, held);
+    const groups = daysOf.map((d) => ({
+      blocks: movable.filter((b) => b.start >= d.workStart && b.start < d.workEnd),
+      totalScore: 0,
+      unfulfilledByTaskId: new Map<string, number>(),
+    }));
+    const grouped = new Set(groups.flatMap((g) => g.blocks.map((b) => b.id)));
+    const packed = packDays(daysOf, groups, taskMap, { ...config, todayCapMin: capTotal }, {
+      capped: (d) => d === daysOf[0],
+      mint: (piece) => ({ ...piece, id: freshId() }),
+      runBefore,
+      now,
+    });
+    return [...movable.filter((b) => !grouped.has(b.id)), ...packed.flatMap((g) => g.blocks as Block[])];
+  };
+  /** The breaks between the kept blocks: the planner must not see them as free time. */
+  let keptBreaks: Block[] = [];
+  if (packs) {
+    const underWay = kept.filter((b) => b.start <= now);
+    const laid = layOut(kept.filter((b) => b.start > now), [...fixedFuture, ...userLockedFuture, ...underWay]);
+    kept = [...underWay, ...laid.filter(isWork)];
+    keptBreaks = laid.filter((b) => b.type === 'break');
+  }
+
+  // Strip our temporary `locked=true` off the stable blocks so they look the
+  // same to the client as they did before reflow. User-locked blocks keep
+  // their locked flag (they were genuinely pinned).
+  // With packing, lay the whole plan out again: everything unpinned slides up
+  // in the order it had, and the time that opens at the end of a day takes the
+  // next day's work. The sitting under way stays where it is.
+  const finish = (r: SchedulerResult, stable: Block[]): Block[] => {
+    const stableIds = new Set(stable.map((b) => b.id));
+    let out = r.schedule.map((b) => (stableIds.has(b.id) ? { ...b, locked: false } : b));
+    if (!packs) return out;
+    // The breaks go (the inner plan's own, and the ones laid out above): they
+    // are placed again with everything else.
+    const placeholders = new Set(keptBreaks.map((b) => b.id));
+    out = out.filter((b) => !placeholders.has(b.id) && (b.type !== 'break' || b.locked || b.start <= now));
+    const held = out.filter((b) => !isWork(b) || b.locked || b.start <= now);
+    const heldIds = new Set(held.map((b) => b.id));
+    for (const b of out) taken.add(b.id);
+    return [...held, ...layOut(out.filter((b) => !heldIds.has(b.id)), held)];
+  };
+
+  /**
+   * With packing, a plan is judged by what it holds once laid out. Laying it
+   * out again can cut a piece at a deadline or leave one out, and the inner
+   * plan's report then promised minutes the plan didn't have: one replan kept
+   * a plan it thought short of nothing, the next one found it two hours short
+   * and moved half the week again.
+   */
+  const recount = (r: SchedulerResult, laid: Block[]): SchedulerResult['feasibilityReport'] => {
+    const minutes = (s: Block[]) => {
+      const m = new Map<string, number>();
+      for (const b of s) {
+        const t = isWork(b) ? taskMap.get(b.taskId!) : undefined;
+        if (!t) continue;
+        const mins = (Math.min(b.end, t.deadline) - Math.max(b.start, now)) / MS_PER_MIN;
+        if (mins > 0) m.set(t.id, (m.get(t.id) ?? 0) + mins);
+      }
+      return m;
+    };
+    const before = minutes(r.schedule);
+    const after = minutes(laid);
+    const short = new Map(r.feasibilityReport.issues.map((i) => [i.taskId, i.shortfallMin]));
+    for (const id of new Set([...before.keys(), ...after.keys()])) {
+      const lost = (before.get(id) ?? 0) - (after.get(id) ?? 0);
+      const t = taskMap.get(id);
+      if (Math.abs(lost) < 1 || !t || !dueWithinPlan(t, days)) continue;
+      short.set(id, Math.max(0, Math.ceil((short.get(id) ?? 0) + lost)));
+    }
+    const issues = [...short]
+      .filter(([, m]) => m > 0)
+      .map(([taskId, m]) => r.feasibilityReport.issues.find((i) => i.taskId === taskId && i.shortfallMin === m) ?? { taskId, shortfallMin: m, suggestions: suggestForShortfall(m) });
+    return { ok: issues.length === 0, issues };
+  };
+  /** A plan around `stable` (and the breaks laid out among it), and what it comes to laid out. */
+  const option = (stable: Block[], breaks: Block[] = keptBreaks) => {
+    const r = settle(stable, breaks);
+    const laid = finish(r, stable);
+    return { result: packs ? { schedule: r.schedule, feasibilityReport: recount(r, laid) } : r, laid };
+  };
+  let best = option(kept);
+  let result = best.result;
 
   // Deadline safety outranks stability. After a skipped block, the work due
   // tomorrow could only use the gaps, while this week's other quests kept
@@ -324,22 +461,62 @@ export function reflow(
   // that can still make it (triage) may take stable blocks of work due later.
   if (result.feasibilityReport.issues.length) {
     const live = tasks.filter((t) => t.status !== 'done' && t.remainingMin > 0.5 && t.deadline > now);
-    const dropped = triage(live, days, capForUnpinned, config.breakPolicy);
+    const dropped = triage(live, days, capForUnpinned, restPolicy(config));
     const shortOf = (r: SchedulerResult) =>
       r.feasibilityReport.issues.filter((i) => !dropped.has(i.taskId)).reduce((m, i) => m + i.shortfallMin, 0);
+    /**
+     * Is `next` better for deadlines than `prev`? By total minutes short,
+     * without packing. With it, the quest due first decides: a plan that
+     * gets the work due in three hours done beats one that is a little less
+     * short overall but leaves that quest with nothing (the minutes it moves
+     * belong to work due days later, which still has those days).
+     */
+    const better = (next: SchedulerResult, prev: SchedulerResult) => {
+      if (!packs) return shortOf(next) < shortOf(prev);
+      const a = new Map(prev.feasibilityReport.issues.filter((i) => !dropped.has(i.taskId)).map((i) => [i.taskId, i.shortfallMin]));
+      const b = new Map(next.feasibilityReport.issues.filter((i) => !dropped.has(i.taskId)).map((i) => [i.taskId, i.shortfallMin]));
+      const ids = [...new Set([...a.keys(), ...b.keys()])].sort((x, y) => (taskMap.get(x)?.deadline ?? 0) - (taskMap.get(y)?.deadline ?? 0) || (x < y ? -1 : 1));
+      for (const id of ids) {
+        const d = (b.get(id) ?? 0) - (a.get(id) ?? 0);
+        if (Math.abs(d) >= 1) return d < 0;
+      }
+      return false;
+    };
+    /**
+     * Does `next` get a quest done by its deadline that `prev` left short,
+     * with nothing due before it worse off? Planning from scratch throws away
+     * the order the day had (the user's drags among it), so it has to be
+     * worth that: a few minutes less short somewhere is not.
+     */
+    const rescues = (next: SchedulerResult, prev: SchedulerResult) => {
+      const a = new Map(prev.feasibilityReport.issues.filter((i) => !dropped.has(i.taskId)).map((i) => [i.taskId, i.shortfallMin]));
+      const b = new Map(next.feasibilityReport.issues.map((i) => [i.taskId, i.shortfallMin]));
+      const due = (id: string) => taskMap.get(id)?.deadline ?? 0;
+      return [...a.keys()].some(
+        (id) => (b.get(id) ?? 0) < 1 && [...b.entries()].every(([other, m]) => due(other) > due(id) || m <= (a.get(other) ?? 0)),
+      );
+    };
 
     for (let round = 0; round < 3; round += 1) {
       const release = new Set<string>();
       for (const issue of result.feasibilityReport.issues) {
         const t = taskMap.get(issue.taskId);
         if (!t || dropped.has(t.id)) continue;
-        let short = issue.shortfallMin;
+        // With packing the time freed has to hold the gaps and a break as well
+        // as the work: a quest 120 minutes short got 120 minutes of holes, the
+        // gaps ate a fifth of them, and the planner gave it nothing.
+        let short = packs ? issue.shortfallMin * 1.25 + (config.breakMin ?? 0) + 2 * (config.gapMin ?? 0) : issue.shortfallMin;
         const from = Math.max(now, t.notBefore ?? 0);
         const movable = kept
-          .filter((b) => !release.has(b.id) && b.taskId !== t.id && b.start >= from && b.end <= t.deadline)
-          .map((b) => ({ b, owner: taskMap.get(b.taskId!)! }))
+          // (With packing, a block that runs over the deadline counts too: it holds time before it.)
+          .filter((b) => !release.has(b.id) && b.taskId !== t.id && b.start >= from && (packs ? b.start < t.deadline : b.end <= t.deadline))
+          .map((b) => ({ b, owner: taskMap.get(b.taskId!)!, day: days.findIndex((d) => b.start < d.workEnd) }))
           .filter((x) => x.owner && x.owner.deadline > t.deadline)
-          .sort((x, y) => y.owner.deadline - x.owner.deadline || x.b.start - y.b.start);
+          // With packing, the days nearest the deadline give first: today is
+          // the day the user is looking at, and has arranged. (Saturday's
+          // quest took Monday morning's chores, the one just dragged first
+          // among them, and Thursday's blocks stayed where they were.)
+          .sort((x, y) => (packs ? y.day - x.day : 0) || y.owner.deadline - x.owner.deadline || x.b.start - y.b.start);
         for (const { b } of movable) {
           if (short <= 0) break;
           release.add(b.id);
@@ -348,22 +525,56 @@ export function reflow(
       }
       if (!release.size) break;
       const nextKept = kept.filter((b) => !release.has(b.id));
-      const next = settle(nextKept);
-      if (shortOf(next) >= shortOf(result)) break;
-      kept = nextKept;
-      result = next;
+      const next = option(nextKept);
+      if (better(next.result, result)) {
+        kept = nextKept;
+        best = next;
+        result = next.result;
+        continue;
+      }
+      // Freeing only the blocks before the deadline can be too little: the
+      // work they held still needs room later, and that room is held by the
+      // blocks of work due later still. (A two-hour fix due at 20:00 arrived
+      // at 16:50; the lab report due at midnight it pushed out had nowhere to
+      // go, so the planner gave up the fix.) Then the days after today are
+      // planned again from scratch, today kept as the user arranged it; and
+      // if that doesn't do it either, today with them. From scratch depends
+      // only on the quests and the clock, so the next replan comes back to
+      // the same plan.
+      if (!packs) break;
+      const levels = [
+        { stable: kept.filter((b) => b.start < dayEnd), breaks: keptBreaks.filter((b) => b.start < dayEnd) },
+        // (A block due to start this minute hasn't begun: it moves too.)
+        { stable: kept.filter((b) => b.start < now), breaks: [] },
+      ];
+      for (const level of levels) {
+        if (level.stable.length === kept.length) continue;
+        const whole = option(level.stable, level.breaks);
+        if (!rescues(whole.result, result)) continue;
+        kept = level.stable;
+        best = whole;
+        result = whole.result;
+        break;
+      }
+      break;
     }
   }
 
-  // Strip our temporary `locked=true` off the stable blocks so they look the
-  // same to the client as they did before reflow. User-locked blocks keep
-  // their locked flag (they were genuinely pinned).
-  const stableIds = new Set(kept.map((b) => b.id));
-  const restored: Block[] = result.schedule.map((b) =>
-    stableIds.has(b.id) ? { ...b, locked: false } : b,
-  );
 
   // Stitch past at the front.
-  const merged = [...past, ...restored].sort((a, b) => a.start - b.start);
+  // With packing, the part of a sitting already behind now stays in the plan
+  // as a block of its own. Cut away, it was gone from the next replan's view
+  // of the day, and that replan measured the run to the next break without
+  // it: the same plan, rerouted twice, put its break in two places.
+  const elapsed: Block[] = [];
+  if (packs) {
+    for (const b of currentSchedule) {
+      // (One ending within this minute is in `past` already, whole: cut again
+      // here it was there twice, and once more on every replan after.)
+      if (!isWork(b) || b.locked || !(b.start < clock && b.end > now) || clock - b.start < MS_PER_MIN) continue;
+      elapsed.push({ ...b, id: `${b.id}@${Math.round(b.start / MS_PER_MIN)}`, end: clock });
+    }
+  }
+  const merged = [...past, ...elapsed, ...best.laid].sort((a, b) => a.start - b.start);
   return { schedule: merged, feasibilityReport: result.feasibilityReport };
 }

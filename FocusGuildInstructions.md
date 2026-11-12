@@ -191,7 +191,7 @@ Never commit .env files. Never log API keys.
 ## Current Build Phase
 [Update this at the end of every session. History lives in WORKLOG.md and git; this section is the current state only.]
 
-**As of 2026-10-08: everything below is built. Production is `main` @ `29783f0` (deployed 2026-10-06), auto-deployed from `main` (Railway server + Vercel client).** The working branch `presets-and-chronicle` is ahead of it and not deployed yet: a quest's max session, routines with no hour (one time of day; they step aside for a short deadline), a meal gap at midday, and `/health` reporting the commit. The open work, and a finished branch that waits on a decision, are in `PLAN.md`.
+**As of 2026-10-19: production is `main` @ `08d40fb`** (the Quests page's New quest button, deployed 2026-10-19), auto-deployed from `main` (Railway server + Vercel client). **Built and not deployed: branch `improve-loop`** (worktree `.claude/worktrees/improve-loop`), which holds both undeployed lines of work, merged on 2026-11-11: the launch prep of 2026-11-07/08 (dialogs, labels, the welcome guide, honest empty states, ownership and trophy fixes) and `scheduler-coverage`, which carries everything the scheduler gained since 2026-10-11: filling the time, the five-minute gap, long breaks, the Time available slider, dragging (from `ui-refresh`), the crowded-week fixes of 2026-10-15, and rotation, quests in one go and routines that repeat weekly or every few days (2026-10-19). It has a migration (`20261019000000_one_sitting_and_repeat`). The open work is in `PLAN.md`.
 
 ### Live
 - Client: https://focus-guild-ten.vercel.app · Server: https://focus-guild-production.up.railway.app (`/health`)
@@ -367,6 +367,27 @@ Prisma ScheduleBlock persistence shape (unchanged from current schema):
 }
 This is the on-disk shape; the in-memory algorithm uses the richer
 Block type above. Mapping happens at the route layer.
+
+### Fill the time, five minutes apart, a break every two hours (owner's rules, 2026-10-11 and 12)
+
+"Now it's not routing all the stuff, like the schedule just ends at 8:35. Make the available time a slider that is outside the menu, make it super accessible, and make the scheduler always fill the time available, and always add 5 minutes between each quest." Then: "add in a large 30 minute break every roughly 2 hours but make that appear like a quest slot but in a different color, and make the in-between time and auto-scheduled breaks an adjustable amount of time in the menu … flexible enough to be used for any amount of time over 1.5 hours, and also make the tasks rearrangeable by dragging."
+
+So, for every user (`lib/userConfig.ts`):
+
+- **The plan fills the time.** Today is filled from now to the end of the available time before anything goes on tomorrow, then tomorrow before the day after. Pacing work toward its deadline and levelling the days is off.
+- **Rests are fixed, and the user's to set.** Consecutive quests are exactly the gap apart (5 minutes). After about two hours of work with no pause, a 30-minute break goes in: its own row on the Route, the size of a quest's, in the rest colour with diagonal bands. The break policy described above no longer applies. The gap (0 to 30), the break (off, or up to 90) and how often (1 to 4 hours) are steppers in the Route's Menu, under "Rests".
+- **Time available** is a slider on the Route and on Today (`components/AvailableTime.tsx`): minutes from now, in quarter hours, up to 24 hours; letting go reroutes; the arrow beside it goes back to the working hours. It may run past the working hours or stop short of them. Once its time has passed there is no more work today, unless it was set before the working hours opened, in which case they still open.
+- **Quests are rearranged by dragging** a row onto another (a mouse), or with Earlier and Later in the block's card (a finger, a keyboard). Only the order changes: the day is laid out again in the new order, same gaps, same breaks, and nothing is pinned. A drag cannot make a quest miss its deadline; it is put back ahead of whatever it would have waited behind.
+
+Deadlines, triage, pins, routines, the lunch half hour and the transition after a long fixed block still hold. How it is built is in `server/src/lib/scheduler/README.md`; the scheduler labs do not grade this mode yet.
+
+### Round the quests, in one go, routines that skip days (owner's rules, 2026-10-19)
+
+"Right now it's … giving back to back same things, make it progressively recalculate every chunk so that everything will be somewhat covered, add an option for a task that must be done in one go, add an option for custom/weekly recurring tasks."
+
+- **Rotation** (`rotate`, on for every user in `lib/userConfig.ts`). The plan is picked a block at a time: the next slot goes to whatever has had least of the day so far, never to the quest just placed while another can take it, and a day's time is shared out a sitting per quest per round before any quest gets a second. A quest still follows itself when a deadline that day needs it to, or when nothing else is left. This replaces the "session" rule above (a quest keeping the slot for a few sittings) for the app; the library default and the three labs keep sessions. `npm run lab:week` grades the app's mode; `-- --no-rotate` shows the old one.
+- **In one go** (`Quest.oneSitting`, a toggle in the quest editor). All of what is left in one block on one day, never cut by a break, a class or a repair. With no stretch long enough before its deadline it is reported short instead of split. The quest's row says "in one go" beside its time.
+- **Repeat** (`Quest.repeat`, the editor's Repeat card). A routine comes round every day (no rule, as before), weekly on chosen days (every 1 to 4 weeks), or every N days, by the user's own calendar (`lib/scheduler/repeat.ts`; the client's copy is `client/src/lib/repeat.ts`). Today's Rounds count only the routines due today; the others are listed after them with the day they next come round.
 
 ### Live Rescheduling Triggers
 The feed rebuilds automatically when:

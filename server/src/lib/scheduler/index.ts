@@ -16,6 +16,8 @@ export { questToTask, questsToTasks, ADAPTER_DEFAULTS } from './adapter.js';
 export type { QuestLike, QuestSchedulerOverrides } from './adapter.js';
 export { placeDailyFillers } from './dailyFiller.js';
 export type { DailyFiller, FillerPlacementInput } from './dailyFiller.js';
+export { parseRepeat, repeatsOn } from './repeat.js';
+export type { RepeatRule } from './repeat.js';
 export {
   defaultConfig,
   DEFAULT_WEIGHTS,

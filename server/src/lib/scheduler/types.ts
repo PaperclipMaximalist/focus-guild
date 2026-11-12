@@ -55,6 +55,12 @@ export interface Task {
    * tell someone an undated quest is "due in 8 days".
    */
   undated?: boolean;
+  /**
+   * Done in one sitting, never split: the whole of what is left goes in one
+   * block, on one day, or not at all (and the shortfall is reported). The
+   * quest's own min and max session don't apply.
+   */
+  oneGo?: boolean;
 }
 
 export interface Block {
@@ -151,6 +157,46 @@ export interface UserConfig {
   workingHours: WorkingHours;
   horizonDays: number;
   /**
+   * A fixed rest after every work block, in minutes. When set it is the only
+   * rest there is: it replaces the break policy (no ten after fifty, no long
+   * break, no stepping away between blocks of the same kind), and the plan is
+   * packed so consecutive blocks sit exactly this far apart (pack.ts).
+   */
+  gapMin?: number;
+  /**
+   * A long break, in minutes, taken once about `breakEveryMin` of work has
+   * gone by without a pause that long. It is a block of its own in the plan
+   * (type 'break'), put there by the packing pass. 0 or unset = none. Needs
+   * `gapMin` to be set (it is part of the same fixed rhythm).
+   */
+  breakMin?: number;
+  /** Minutes of work between long breaks. Default 120. */
+  breakEveryMin?: number;
+  /**
+   * Fill each day's free time before starting the next, earliest first,
+   * instead of pacing work toward its deadline and levelling the days. A
+   * replan then builds afresh from now around pinned and fixed blocks, so
+   * time that opens up today is always used.
+   */
+  fillDays?: boolean;
+  /**
+   * Pick again after every block, so the time goes round the quests instead
+   * of one quest's sittings running back to back: the budget shares a day out
+   * a sitting per quest per round, the constructor gives the next slot to
+   * whatever has had least of the day so far and never to the quest it just
+   * placed while anything else can go there (a deadline that needs the slot
+   * still gets it), and the packing pass keeps that order. Off = sessions:
+   * a quest keeps the slot for a few sittings in a row.
+   */
+  rotate?: boolean;
+  /**
+   * "Available time": today's work runs from now until this instant (UTC ms)
+   * instead of to the end of working hours. In force while it is still ahead,
+   * and after it has passed for as long as it falls inside today's working
+   * day (the person said when they stop; once that time has come, today is over).
+   */
+  todayEndsAt?: number;
+  /**
    * Time kept free of quests for a meal: `minutes` somewhere between
    * `fromHour` and `toHour`, on a day whose quest hours run through that
    * span. Unset = none.
@@ -223,6 +269,8 @@ export interface ReplanOptions {
 export type Edit =
   | { kind: 'move_block'; blockId: string; newStart: number }
   | { kind: 'swap_blocks'; aId: string; bId: string }
+  /** Drag a block to a new place in the order: just before `beforeId`, or just after `afterId`. Not a pin. */
+  | { kind: 'reorder_block'; blockId: string; beforeId?: string; afterId?: string }
   | { kind: 'delete_block'; blockId: string }
   | { kind: 'pin_block'; blockId: string }
   | { kind: 'unpin_block'; blockId: string };

@@ -25,6 +25,7 @@ import {
   whyFromNote,
   questsToTasks,
   placeDailyFillers,
+  parseRepeat,
   type Schedule,
   type Block,
   type DailyFiller,
@@ -33,7 +34,7 @@ import {
   type QuestSchedulerOverrides,
 } from '../lib/scheduler/index.js';
 import { computeEnergyTrace } from '../lib/scheduler/planner.js';
-import { getUserConfig } from '../lib/userConfig.js';
+import { getUserConfig, REST_LIMITS, restsFor } from '../lib/userConfig.js';
 import { blockToRow, rowToBlock } from '../lib/scheduler/persistence.js';
 import { eventsToFixedBlocks, isCalendarBlock } from '../lib/calendar/ics.js';
 import { reviveDeferred } from '../lib/deferral.js';
@@ -41,6 +42,7 @@ import { calibrateEstimates, computeInsights, type PlanInsights } from '../lib/s
 import { syncStaleForUser, upcomingEvents } from '../lib/calendar/sync.js';
 import { workDayKey, workDayMidnightUtc, workWindowUtc } from '../lib/scheduler/tz.js';
 import { parentIds } from '../lib/questTree.js';
+import { buildDayInfo, isToday, todayEndInForce } from '../lib/scheduler/budget.js';
 import { isOpenEnded } from '../lib/hourLog.js';
 
 export const schedule = new Hono();
@@ -104,7 +106,29 @@ async function configForUser(
   return {
     ...cfg,
     energyCurve: (h: number) => Math.min(1, Math.max(0, baseCurve(h) * scale)),
-    todayCapMin: checkIn.availableMinutes,
+    // The slider says when today ends; the check-in's hours are the older,
+    // coarser way to say the same thing and give way to it.
+    ...(todayEndInForce(cfg, Date.now()) ? {} : { todayCapMin: checkIn.availableMinutes }),
+  };
+}
+
+/**
+ * The time available for quests today, for the slider: minutes from now to
+ * the end of today's window, and whether that end is the slider's or the
+ * working hours'.
+ */
+function availableNow(cfg: ReturnType<typeof getUserConfig>, now: number) {
+  const set = todayEndInForce(cfg, now);
+  // The slider's own end, while it is still ahead.
+  if (set && cfg.todayEndsAt! > now) {
+    return { minutes: Math.round((cfg.todayEndsAt! - now) / 60_000), until: new Date(cfg.todayEndsAt!).toISOString(), set };
+  }
+  const first = buildDayInfo(cfg, now, [])[0];
+  if (!first || !isToday(first, now, cfg.tzOffsetMin ?? 0) || first.workEnd <= now) return { minutes: 0, until: null, set };
+  return {
+    minutes: Math.round((first.workEnd - Math.max(now, first.workStart)) / 60_000),
+    until: new Date(first.workEnd).toISOString(),
+    set,
   };
 }
 
@@ -180,7 +204,7 @@ async function loadQuestsForUser(user: { id: string }) {
 const ROUTINE_MAX_MIN = 240;
 
 function recurringToFillers(
-  recurring: Array<{ id: string; title: string; estimatedMinutes: number; preferredHour: number | null }>,
+  recurring: Array<{ id: string; title: string; estimatedMinutes: number; preferredHour: number | null; repeat?: unknown }>,
 ): DailyFiller[] {
   return recurring.map((q) => ({
     // Prefix to namespace away from user-configured state.fillers ids.
@@ -189,6 +213,8 @@ function recurringToFillers(
     durationMin: Math.min(ROUTINE_MAX_MIN, Math.max(5, q.estimatedMinutes)),
     preferredHour: q.preferredHour,
     enabled: true,
+    // Weekly, every few days, or (none) every day.
+    repeat: parseRepeat(q.repeat),
   }));
 }
 
@@ -385,6 +411,8 @@ const EditSchema = z.object({
       newStart: z.string().refine((s) => Number.isFinite(new Date(s).getTime()), 'newStart must be a date-time'),
     }),
     z.object({ kind: z.literal('swap_blocks'), aId: z.string(), bId: z.string() }),
+    // A drag to a new place in the order: before one block or after another.
+    z.object({ kind: z.literal('reorder_block'), blockId: z.string(), beforeId: z.string().optional(), afterId: z.string().optional() }),
     z.object({ kind: z.literal('delete_block'), blockId: z.string() }),
     z.object({ kind: z.literal('pin_block'), blockId: z.string() }),
     z.object({ kind: z.literal('unpin_block'), blockId: z.string() }),
@@ -412,6 +440,8 @@ schedule.post('/generate', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     quests: await blockQuests(user.id, state.schedule),
+    available: availableNow(cfg, Date.now()),
+    rests: restsFor(user),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
@@ -437,9 +467,13 @@ schedule.get('/:clerkId', async (c) => {
     }
   }
 
+  const tz = Number(c.req.query('tz'));
+  const cfg = await configForUser(user, Number.isFinite(tz) && c.req.query('tz') ? tz : undefined);
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     quests: await blockQuests(user.id, state.schedule),
+    available: availableNow(cfg, Date.now()),
+    rests: restsFor(user),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: state.lastGeneratedAt
@@ -448,12 +482,8 @@ schedule.get('/:clerkId', async (c) => {
   });
 });
 
-schedule.post('/:clerkId/replan', async (c) => {
-  const raw = await c.req.json().catch(() => ({}));
-  const parsed = GenerateSchema.safeParse(raw ?? {});
-  const tzOffsetMin = parsed.success ? parsed.data.tzOffsetMin : undefined;
-
-  const user = c.get('user');
+/** Reroute: keep what is pinned, done or under way, and plan the rest again from now. */
+async function replanFor(user: { id: string; schedulerSettings?: unknown }, tzOffsetMin: number | undefined) {
   const loaded = await loadQuestsForUser(user);
 
   const state = getState(user.id);
@@ -474,13 +504,76 @@ schedule.post('/:clerkId/replan', async (c) => {
   const questIdSet = new Set(loaded.regular.map((q) => q.id));
   await persistSchedule(user.id, state.schedule, questIdSet, now);
 
-  return ok(c, {
+  return {
     schedule: state.schedule.map(serializeBlock),
     quests: await blockQuests(user.id, state.schedule),
+    available: availableNow(cfg, Date.now()),
+    rests: restsFor(user),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),
-  });
+  };
+}
+
+schedule.post('/:clerkId/replan', async (c) => {
+  const raw = await c.req.json().catch(() => ({}));
+  const parsed = GenerateSchema.safeParse(raw ?? {});
+  return ok(c, await replanFor(c.get('user'), parsed.success ? parsed.data.tzOffsetMin : undefined));
+});
+
+const RestsSchema = z
+  .object({
+    /** Minutes between two quests. */
+    gapMin: z.number().int().min(REST_LIMITS.gapMin.min).max(REST_LIMITS.gapMin.max).optional(),
+    /** Length of the long break; 0 switches it off. */
+    breakMin: z.number().int().min(REST_LIMITS.breakMin.min).max(REST_LIMITS.breakMin.max).optional(),
+    /** Minutes of work between long breaks. */
+    breakEveryMin: z.number().int().min(REST_LIMITS.breakEveryMin.min).max(REST_LIMITS.breakEveryMin.max).optional(),
+    tzOffsetMin: z.number().int().min(-720).max(840).optional(),
+  })
+  .strict();
+
+// POST /schedule/:clerkId/rests: the gap between quests and the long break,
+// from the Route's menu. Saves what was sent and reroutes with it.
+schedule.post('/:clerkId/rests', async (c) => {
+  const user = c.get('user');
+  const parsed = RestsSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return err(c, 'BAD_REQUEST', parsed.error.message);
+  const { tzOffsetMin, ...rests } = parsed.data;
+
+  const settings: Record<string, unknown> =
+    typeof user.schedulerSettings === 'object' && user.schedulerSettings !== null && !Array.isArray(user.schedulerSettings)
+      ? { ...(user.schedulerSettings as Record<string, unknown>) }
+      : {};
+  for (const [key, value] of Object.entries(rests)) if (value !== undefined) settings[key] = value;
+  await db.user.update({ where: { id: user.id }, data: { schedulerSettings: settings as object } });
+
+  return ok(c, await replanFor({ id: user.id, schedulerSettings: settings }, tzOffsetMin));
+});
+
+const AvailableSchema = z.object({
+  /** Minutes from now that today's quests may run for; null goes back to working hours. */
+  minutes: z.number().min(0).max(24 * 60).nullable(),
+  tzOffsetMin: z.number().int().min(-720).max(840).optional(),
+});
+
+// POST /schedule/:clerkId/available: the "available time" slider. Today's
+// quests run from now for this many minutes, whatever the working hours say,
+// and the plan is rerouted to fill exactly that.
+schedule.post('/:clerkId/available', async (c) => {
+  const user = c.get('user');
+  const parsed = AvailableSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return err(c, 'BAD_REQUEST', parsed.error.message);
+
+  const settings: Record<string, unknown> =
+    typeof user.schedulerSettings === 'object' && user.schedulerSettings !== null && !Array.isArray(user.schedulerSettings)
+      ? { ...(user.schedulerSettings as Record<string, unknown>) }
+      : {};
+  if (parsed.data.minutes === null) delete settings.availableUntil;
+  else settings.availableUntil = new Date(Date.now() + Math.round(parsed.data.minutes) * 60_000).toISOString();
+  await db.user.update({ where: { id: user.id }, data: { schedulerSettings: settings as object } });
+
+  return ok(c, await replanFor({ id: user.id, schedulerSettings: settings }, parsed.data.tzOffsetMin));
 });
 
 schedule.post('/:clerkId/edit', async (c) => {
@@ -495,6 +588,9 @@ schedule.post('/:clerkId/edit', async (c) => {
 
   let edit: Edit;
   const raw = parsed.data.edit;
+  if (raw.kind === 'reorder_block' && !!raw.beforeId === !!raw.afterId) {
+    return err(c, 'BAD_REQUEST', 'reorder_block needs beforeId or afterId, and not both');
+  }
   if (raw.kind === 'move_block') {
     edit = { kind: 'move_block', blockId: raw.blockId, newStart: new Date(raw.newStart).getTime() };
   } else {
@@ -521,6 +617,8 @@ schedule.post('/:clerkId/edit', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     quests: await blockQuests(user.id, state.schedule),
+    available: availableNow(cfg, Date.now()),
+    rests: restsFor(user),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
   });
@@ -596,6 +694,8 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     quests: await blockQuests(user.id, state.schedule),
+    available: availableNow(cfg, Date.now()),
+    rests: restsFor(user),
     feasibilityReport: state.feasibilityReport,
     insights: state.insights ?? null,
     generatedAt: new Date(state.lastGeneratedAt).toISOString(),

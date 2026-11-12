@@ -29,7 +29,8 @@
 import { allocateBudgets, buildDayInfo, dueWithinPlan, todayCap, triage } from './budget.js';
 import { reconcile } from './reconcile.js';
 import { explainPlan } from './explain.js';
-import { DEFAULT_SCORE_WEIGHTS } from './config.js';
+import { DEFAULT_SCORE_WEIGHTS, restPolicy } from './config.js';
+import { packDays } from './pack.js';
 import { buildDay } from './constructor.js';
 import { userHourOf, userMidnightUtc } from './tz.js';
 import type {
@@ -240,6 +241,8 @@ function modesEqual(a: Mode, b: Mode): boolean {
  */
 export function idealSessionRange(task: Task): [number, number] {
   const rem = task.remainingMin;
+  // In one go: the one sitting is the whole of it.
+  if (task.oneGo) return [rem, rem];
   const userMin = task.minChunkMin > 0 ? task.minChunkMin : 1;
   const userMax = task.maxChunkMin > 0 ? task.maxChunkMin : 240;
   let lo: number;
@@ -529,7 +532,7 @@ function depsMet(task: Task, taskMap: Map<string, Task>): boolean {
   return true;
 }
 
-function suggestForShortfall(shortfall: number): string[] {
+export function suggestForShortfall(shortfall: number): string[] {
   return [
     `extend_deadline_by:${shortfall}m`,
     `reduce_scope_by:${shortfall}m`,
@@ -552,6 +555,8 @@ export interface PlanInputs {
    * too: two tiles with one React key, one row in the database.
    */
   reservedIds?: Iterable<string>;
+  /** Minutes of quest work already behind `now` with no long pause in them (for the first long break). */
+  runBefore?: number;
 }
 
 /**
@@ -603,8 +608,9 @@ export function plan(inputs: PlanInputs): SchedulerResult {
   // When the deadlines can't all be met, decide up front which quests to
   // stop prioritising, so as many as possible finish on time.
   const cap = todayCap(days, now, config);
-  const dropped = triage(sorted, days, cap, config.breakPolicy);
-  const budgets = allocateBudgets(sorted, days, now, cap, config.breakPolicy, dropped);
+  const rests = restPolicy(config);
+  const dropped = triage(sorted, days, cap, rests);
+  const budgets = allocateBudgets(sorted, days, now, cap, rests, dropped, !!config.fillDays, !!config.rotate);
 
   // ── 4. Construct each day, then settle deadline work against what fit ─
   const allWorkBlocks: Block[] = [];
@@ -612,7 +618,7 @@ export function plan(inputs: PlanInputs): SchedulerResult {
   // Track how many minutes each task actually got placed (vs granted).
   const placedByTask = new Map<string, number>();
 
-  const built = reconcile(
+  const settled = reconcile(
     budgets,
     budgets.map((budget) => buildDay(budget, taskMap, config, now)),
     sorted,
@@ -621,6 +627,11 @@ export function plan(inputs: PlanInputs): SchedulerResult {
     dropped,
     now,
   );
+  // A fixed gap or filled days are made exact last, over the whole plan.
+  const built =
+    config.gapMin !== undefined || config.fillDays
+      ? packDays(days, settled, taskMap, { ...config, todayCapMin: cap }, { capped: (d) => d === days[0], runBefore: inputs.runBefore, now })
+      : settled;
   for (const day of built) {
     for (const b of day.blocks) {
       const blk: Block = { ...b, id: idGen() };

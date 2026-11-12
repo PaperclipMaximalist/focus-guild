@@ -173,7 +173,10 @@ export function QuestCard({
               <CalendarDays size={12} aria-hidden /> {deadline}
             </span>
           )}
-          <span className="tnum">{formatMinutes(quest.rolledUpMinutes ?? quest.estimatedMinutes)}</span>
+          <span className="tnum">
+            {formatMinutes(quest.rolledUpMinutes ?? quest.estimatedMinutes)}
+            {quest.oneSitting && ' in one go'}
+          </span>
           <span className="inline-flex items-center gap-1.5" title="Mental load: how hard it is to think through">
             <span className="sr-only">Mental load:</span>
             <span className="inline-flex items-end gap-px" aria-hidden>

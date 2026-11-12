@@ -35,6 +35,23 @@ export function applyEdit(schedule: Schedule, edit: Edit): Schedule {
         return blk;
       });
     }
+    case 'reorder_block': {
+      // Only the order changes: the block is given its new neighbour's start
+      // (or a moment after it), and the packing pass lays the day
+      // out again in that order. Its length is kept, and it is not pinned.
+      const moved = schedule.find((b) => b.id === edit.blockId);
+      const anchor = schedule.find((b) => b.id === (edit.beforeId ?? edit.afterId));
+      if (!moved || !anchor || moved.id === anchor.id || moved.locked) return schedule;
+      // Before: it takes the neighbour's start and the neighbour steps a moment
+      // later, so neither leaves the working window (the first block of a day
+      // starts exactly when the window opens).
+      const start = edit.beforeId ? anchor.start : anchor.start + 1;
+      return schedule.map((b) => {
+        if (b.id === moved.id) return { ...b, start, end: start + (moved.end - moved.start) };
+        if (edit.beforeId && b.id === anchor.id) return { ...b, start: b.start + 1, end: b.end + 1 };
+        return b;
+      });
+    }
     case 'delete_block': {
       return schedule.filter((b) => b.id !== edit.blockId);
     }

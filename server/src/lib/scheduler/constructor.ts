@@ -35,6 +35,7 @@ import {
 import { MIN_SITTING_MIN, isToday, minSitting } from './budget.js';
 import { userHourOf } from './tz.js';
 import { composeWhy } from './explain.js';
+import { restPolicy } from './config.js';
 import type { DayBudget, FreeInterval } from './budget.js';
 import type { Block, Task, UserConfig } from './types.js';
 
@@ -78,6 +79,15 @@ const SAME_QUEST_RUN_MAX_MIN = 150;
  * errand first.
  */
 const INTERRUPT_PENALTY = 1;
+
+/**
+ * With `rotate`: cost, on the score scale, of each hour a quest has already
+ * had today. The next slot goes to what has had least of the day, unless a
+ * deadline or the hour's fit says otherwise strongly enough.
+ */
+const COVERAGE_PER_HOUR = 1;
+/** ...and never more than this, so a quest well behind on a deadline still gets its slots. */
+const COVERAGE_MAX = 2;
 
 /** Smallest share of the day that opens with a starter push. */
 const STARTER_SHARE_MIN = 60;
@@ -147,6 +157,7 @@ function refsForState(
 }
 
 function maxBlockMin(task: Task, config: UserConfig): number {
+  if (task.oneGo) return Math.max(1, task.remainingMin);
   const setupLifts = task.setupCost >= 0.7 || (task.urgencyMultiplier ?? 1) >= 1.5;
   return setupLifts ? task.maxChunkMin : Math.min(task.maxChunkMin, config.softMaxBlockMin);
 }
@@ -197,13 +208,20 @@ function enumerateCandidates(
     if (left < EPSILON_MIN) continue;
     if (iv.start >= q.task.deadline) continue;
 
+    const usableEnd = Math.min(iv.end, q.task.deadline);
+    const usableMin = (usableEnd - iv.start) / MS_PER_MIN;
+    let chunkMin: number;
+    if (q.task.oneGo) {
+      // In one go: all that is left of it, in this slot, or not in this slot.
+      // (A share of less than all of it is a split, and is never placed.)
+      chunkMin = Math.round(left);
+      if (chunkMin < 1 || left < q.task.remainingMin - EPSILON_MIN || usableMin + EPSILON_MIN < chunkMin) continue;
+    } else {
     // Chunk sizing: pull toward ideal, never exceed slot or hard cap.
     const [idealLo, idealHi] = idealSessionRange(q.task);
     const cap = maxBlockMin(q.task, config);
-    const usableEnd = Math.min(iv.end, q.task.deadline);
-    const usableMin = (usableEnd - iv.start) / MS_PER_MIN;
     const target = clamp(left, idealLo, idealHi);
-    let chunkMin = Math.floor(Math.min(target, usableMin, cap, left));
+    chunkMin = Math.floor(Math.min(target, usableMin, cap, left));
     // Never leave a tail shorter than a real sitting: a 60-min quota placed
     // as 50 + 10 gives a 10-minute block nobody will start. Either finish it
     // in this block (small overshoot of the ideal) or leave a proper sitting.
@@ -237,17 +255,28 @@ function enumerateCandidates(
     // (A quest capped below that by its own max session sits in full sessions.)
     if (chunkMin < Math.min(SLIVER_MIN, cap) && q.task.totalMin >= 2 * SLIVER_MIN && q.task.remainingMin > chunkMin) continue;
     if (chunkMin < 1) continue;
+    }
 
-    if (variety !== 'off') {
+    // A quest due within the day without the time to wait out another quest's
+    // session (less to spare before its deadline than it has left) stays
+    // however long its own has run: a two-hour fix due at 20:00 had its last
+    // 25 minutes refused as a fourth sitting, and the lab report due at
+    // midnight took the slot.
+    const spare = freeBetween(state, iv.start, q.task.deadline) - left;
+    const pressed = q.task.deadline < budget.day.workEnd && spare < Math.max(DEADLINE_MARGIN_MIN, left);
+    if (variety !== 'off' && !pressed) {
+      // Sessions are the opposite of `rotate`, which never keeps a quest on.
+      if (!config.rotate) {
       const session = sessionOf(q.task, refs, iv.start);
       // A session's last sitting shrinks to what the run still has room for,
       // if that is a real sitting: 25 + 50 + 50 + 25 on a crunch day, rather
       // than leaving at 125 minutes and coming back a third time for the rest.
       const room = SAME_QUEST_RUN_MAX_MIN - session.minutes;
-      if (session.blocks > 0 && chunkMin > room && room >= MIN_SITTING_MIN && left - room >= minSitting(q.task, left - room)) {
+      if (!q.task.oneGo && session.blocks > 0 && chunkMin > room && room >= MIN_SITTING_MIN && left - room >= minSitting(q.task, left - room)) {
         chunkMin = room;
       }
       if (!sessionAllows(q.task, chunkMin, left, q.targetMin, session, floorN, config)) continue;
+      }
       // Variety floor: no same-mode run past `floorN`, except for what the
       // quest in hand may do with its own session (see sessionAllows).
       if (variety === 'mode') {
@@ -265,7 +294,8 @@ function enumerateCandidates(
     const score =
       placementScore(q.task, chunkMin, iv.start, refs, weights, config) +
       peakGuard(q.task, iv.start, state, budget, config) -
-      (jumpsQueue ? DUE_TODAY_PULL : 0);
+      (jumpsQueue ? DUE_TODAY_PULL : 0) -
+      (config.rotate ? Math.min(COVERAGE_MAX, (minutesToday(q.task.id, refs, iv.start) / 60) * COVERAGE_PER_HOUR) : 0);
     out.push({ task: q.task, chunkMin, start: iv.start, score });
   }
 
@@ -280,6 +310,15 @@ function enumerateCandidates(
   // "feasible". Only when nothing leaves the margin does bare feasibility do.
   const roomy = out.filter((c) => keepsDeadlines(c, state, budget, config, DEADLINE_MARGIN_MIN));
   const safe = roomy.length ? roomy : out.filter((c) => keepsDeadlines(c, state, budget, config));
+  // Rotate: pick again after every block, and not the quest just placed while
+  // anything else can take the slot without costing a deadline (the deadline
+  // checks above already left out whatever would).
+  if (config.rotate) {
+    const pool = safe.length ? safe : out;
+    const last = inHand?.id;
+    const others = last ? pool.filter((c) => c.task.id !== last) : pool;
+    return others.length ? others : pool;
+  }
   // Stay with the quest in hand. While its session is open (the rules above
   // still allow it) and a deadline doesn't need the slot, it is the only
   // candidate: every score term judged one slot at a time, so the essay's
@@ -295,6 +334,17 @@ function enumerateCandidates(
   return safe.length ? safe : out;
 }
 
+/** Free minutes in the beam's day between `from` and `to`. */
+function freeBetween(state: BeamState, from: number, to: number): number {
+  let free = 0;
+  for (const iv of state.freeIntervals) {
+    const a = Math.max(iv.start, from);
+    const b = Math.min(iv.end, to);
+    if (b > a) free += (b - a) / MS_PER_MIN;
+  }
+  return free;
+}
+
 /**
  * Earliest-deadline feasibility: would placing `c` leave a quest due later
  * today without enough free time before its deadline? The beam orders the
@@ -303,7 +353,7 @@ function enumerateCandidates(
  * had a quest flagged short with the time sitting right there).
  */
 function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, config: UserConfig, marginMin = 0): boolean {
-  const after = c.start + (c.chunkMin + config.breakPolicy.shortBreakDurationMin) * MS_PER_MIN;
+  const after = c.start + (c.chunkMin + restPolicy(config).shortBreakDurationMin) * MS_PER_MIN;
   // Only deadlines inside the working day: one at the end of it (or tonight)
   // is the budget's and reconcile's business, and guarding it here too turned
   // the whole day into strict deadline order, starving paced work.
@@ -320,13 +370,7 @@ function keepsDeadlines(c: Candidate, state: BeamState, budget: DayBudget, confi
       if (q.task.id === c.task.id || q.task.deadline > d) continue;
       need += Math.max(0, state.remaining.get(q.task.id) ?? 0);
     }
-    let free = 0;
-    for (const iv of state.freeIntervals) {
-      const a = Math.max(iv.start, after);
-      const b = Math.min(iv.end, d);
-      if (b > a) free += (b - a) / MS_PER_MIN;
-    }
-    if (free < need + marginMin) return false;
+    if (freeBetween(state, after, d) < need + marginMin) return false;
   }
   return true;
 }
@@ -459,6 +503,16 @@ export function workBefore(refs: PlacedRef[], cursor: number): { task: Task; end
   return last ? { task: last.task, end: last.block.end } : null;
 }
 
+/** Minutes of `taskId` the day already has before `cursor` (placed, kept or pinned). */
+function minutesToday(taskId: string, refs: PlacedRef[], cursor: number): number {
+  let m = 0;
+  for (const r of refs) {
+    if (r.task.id !== taskId || r.block.start >= cursor) continue;
+    m += (Math.min(r.block.end, cursor) - r.block.start) / MS_PER_MIN;
+  }
+  return m;
+}
+
 /**
  * Work minutes in the unbroken run that ends at `end` (this block included),
  * plus the minutes worked since the last LONG rest. A gap of at least
@@ -496,6 +550,17 @@ function runsEndingAt(
  * and four straight hours of work was normal.
  */
 function restAfter(blocks: BeamState['blocks'], end: number, config: UserConfig, task: Task, chunkMin: number): number {
+  // A fixed gap is the rest after every block, and a long break comes when
+  // about `breakEveryMin` of work has gone by. The packing pass places both
+  // exactly (pack.ts); here the time is only kept free for them.
+  if (config.gapMin !== undefined) {
+    const long = config.breakMin ?? 0;
+    if (long > 0) {
+      const { sinceLong } = runsEndingAt(blocks, end, { ...config, breakPolicy: restPolicy(config) });
+      if (sinceLong >= (config.breakEveryMin ?? 120) - 15) return long;
+    }
+    return config.gapMin;
+  }
   const p = config.breakPolicy;
   const { run, sinceLong } = runsEndingAt(blocks, end, config);
   if (sinceLong >= p.longBreakAfterMin) return p.longBreakDurationMin;
@@ -579,6 +644,8 @@ const WINDOW_MIN_GAIN = 0.05;
  */
 export function focusWindow(budget: DayBudget, config: UserConfig, now: number): FreeInterval[] | null {
   const day = budget.day;
+  // Days that are filled in order start at their start.
+  if (config.fillDays) return null;
   if (isToday(day, now, config.tzOffsetMin ?? 0)) return null;
   const need = budget.quotas.reduce((m, q) => m + q.targetMin, 0);
   if (need <= 0) return null;
@@ -685,7 +752,7 @@ export function constructDay(
         // step away long enough for the run to end (a walk between two
         // essays) rather than chaining a fourth heavy block. On a tight day
         // the work goes in anyway: finishing beats variety.
-        if (candidates.length > 0 && slackMin(state) >= varietyResetMin()) {
+        if (candidates.length > 0 && config.gapMin === undefined && slackMin(state) >= varietyResetMin()) {
           next.push(restFor(state, varietyResetMin()));
           progressed = true;
           continue;
