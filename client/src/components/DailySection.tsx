@@ -73,7 +73,9 @@ export function DailySection({ onEdit }: Props) {
                   background: q.doneToday ? 'var(--color-green)' : 'transparent',
                   cursor: q.doneToday ? 'default' : 'pointer',
                 }}
-                title={q.doneToday ? 'Done today' : 'Mark done'}
+                // Named with the round, so two ticks in a row are not both just "button".
+                title={q.doneToday ? 'Completed today' : 'Complete for today'}
+                aria-label={q.doneToday ? `${q.title}: complete for today` : `Complete ${q.title} for today`}
               >
                 {q.doneToday
                   ? <Check size={13} strokeWidth={3} className="text-(--color-on-primary)" aria-hidden />
@@ -102,7 +104,7 @@ export function DailySection({ onEdit }: Props) {
                   onClick={() => onEdit(q)}
                   className="icon-btn h-8 w-8"
                   title="Edit"
-                  aria-label="Edit"
+                  aria-label={`Edit ${q.title}`}
                 >
                   <Pencil size={14} aria-hidden />
                 </button>
@@ -110,7 +112,7 @@ export function DailySection({ onEdit }: Props) {
                   onClick={() => removeWithUndo(q.id)}
                   className="icon-btn h-8 w-8 max-lg:hidden"
                   title="Delete"
-                  aria-label="Delete"
+                  aria-label={`Delete ${q.title}`}
                 >
                   <Trash2 size={14} aria-hidden />
                 </button>
@@ -142,10 +144,10 @@ export function DailySection({ onEdit }: Props) {
                 </p>
               </div>
               <div className="flex items-center transition-opacity lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100">
-                <button onClick={() => onEdit(q)} className="icon-btn h-8 w-8" title="Edit" aria-label="Edit">
+                <button onClick={() => onEdit(q)} className="icon-btn h-8 w-8" title="Edit" aria-label={`Edit ${q.title}`}>
                   <Pencil size={14} aria-hidden />
                 </button>
-                <button onClick={() => removeWithUndo(q.id)} className="icon-btn h-8 w-8 max-lg:hidden" title="Delete" aria-label="Delete">
+                <button onClick={() => removeWithUndo(q.id)} className="icon-btn h-8 w-8 max-lg:hidden" title="Delete" aria-label={`Delete ${q.title}`}>
                   <Trash2 size={14} aria-hidden />
                 </button>
               </div>
