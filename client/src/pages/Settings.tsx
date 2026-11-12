@@ -28,7 +28,7 @@ import {
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { ChevronRight, RotateCcw, SettingsIcon, TriangleAlert, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, RotateCcw, SettingsIcon, TriangleAlert, Wrench } from 'lucide-react';
 import { useArmed } from '../lib/useArmed';
 import { isSceneEnabled, setSceneEnabled } from '../lib/scene';
 import { LinePicker } from '../lines/LinePicker';
@@ -90,6 +90,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [resetting, setResetting] = useState(false);
   const { armed, fire } = useArmed();
+  const [dialsOpen, setDialsOpen] = useState(false);
+  const dialsId = useId();
 
   // State is only set once the request settles, so the first run can live in an effect.
   const load = useCallback(() => {
@@ -215,6 +217,10 @@ export default function Settings() {
     );
   }
 
+  const changedDials = WEIGHT_ORDER.filter(
+    (k) => current.scoreWeights[k] !== defaults.scoreWeights[k],
+  ).length;
+
   const updateWeight = (k: keyof ScoreWeights, v: number) => {
     setOverrides((prev) => ({ ...prev, scoreWeights: { ...(prev.scoreWeights ?? {}), [k]: v } as ScoreWeights }));
   };
@@ -278,24 +284,50 @@ export default function Settings() {
       </Section>
 
       {/* Scoring weights */}
-      <Section title="Day-building priorities">
-        <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
-          Each slider sets how much that force matters when the scheduler picks what goes
-          in each slot. They're relative to each other — doubling everything changes nothing.
+      <Section title="Fine-tune the planner">
+        <p className="text-xs px-1" style={{ color: 'var(--color-muted)' }}>
+          Eight dials for how the planner weighs things. The defaults suit most people.{' '}
+          <span className="font-semibold" style={{ color: changedDials ? 'var(--color-gold)' : undefined }}>
+            {changedDials ? `${changedDials} changed` : 'All at their defaults'}
+          </span>
         </p>
-        {WEIGHT_ORDER.map((k) => (
-          <SliderRow
-            key={k}
-            label={WEIGHT_INFO[k].label}
-            help={WEIGHT_INFO[k].help}
-            value={current.scoreWeights[k]}
-            defaultValue={defaults.scoreWeights[k]}
-            min={0}
-            max={4}
-            step={0.1}
-            onChange={(v) => updateWeight(k, v)}
+        <button
+          type="button"
+          onClick={() => setDialsOpen((o) => !o)}
+          aria-expanded={dialsOpen}
+          aria-controls={dialsId}
+          className="btn-quiet h-8 min-h-0 px-2.5 text-xs"
+        >
+          {dialsOpen ? 'Hide the dials' : 'Show the dials'}
+          <ChevronDown
+            size={14}
+            aria-hidden
+            className={`transition-transform ${dialsOpen ? 'rotate-180' : ''}`}
           />
-        ))}
+        </button>
+        <div id={dialsId}>
+          {dialsOpen && (
+            <div className="space-y-3">
+              <p className="text-xs mb-2 px-1" style={{ color: 'var(--color-muted)' }}>
+                Each slider sets how much that force matters when the scheduler picks what goes
+                in each slot. They're relative to each other — doubling everything changes nothing.
+              </p>
+              {WEIGHT_ORDER.map((k) => (
+                <SliderRow
+                  key={k}
+                  label={WEIGHT_INFO[k].label}
+                  help={WEIGHT_INFO[k].help}
+                  value={current.scoreWeights[k]}
+                  defaultValue={defaults.scoreWeights[k]}
+                  min={0}
+                  max={4}
+                  step={0.1}
+                  onChange={(v) => updateWeight(k, v)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
       </Section>
 
       {/* Experience (client-side, saved instantly to this device) */}
@@ -532,7 +564,12 @@ function NumberInput({
   );
 }
 
-const fmtHour = (h: number) => `${String(Math.floor(h)).padStart(2, '0')}:${h % 1 ? '30' : '00'}`;
+/** An hour (0 to 24, halves allowed) written the way the member's locale writes times. */
+const fmtHour = (h: number) =>
+  new Date(2000, 0, 1, Math.floor(h), h % 1 ? 30 : 0).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
 
 /** Hours that start and end at the same time leave nothing to plan (the server refuses them too). */
 function hoursAreEmpty({ startHour, endHour }: WorkingHours): boolean {
@@ -576,7 +613,7 @@ function HourInput({ value, onChange, last = 24 }: { value: number; onChange: (v
     >
       {Array.from({ length: last * 2 + 1 }, (_, i) => i / 2).map((h) => (
         <option key={h} value={h}>
-          {fmtHour(h)}
+          {h === 24 ? `${fmtHour(h)} (midnight)` : fmtHour(h)}
         </option>
       ))}
     </select>

@@ -192,14 +192,14 @@ export default function Rescue() {
                         {' · '}{formatMinutes(q.estimatedMinutes)}
                       </p>
                     </div>
-                    <button onClick={() => handleDelete(q.id)} className="icon-btn -mr-1.5 -mt-1 h-8 w-8" title="Drop this quest" aria-label="Drop this quest">
+                    <button onClick={() => handleDelete(q.id)} className="icon-btn -mr-1.5 -mt-1 h-8 w-8" title={`Delete ${q.title}`} aria-label={`Delete ${q.title}`}>
                       <Trash2 size={15} aria-hidden />
                     </button>
                   </div>
 
                   <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <button onClick={() => handleComplete(q.id)} disabled={busyId === q.id} className="btn-quiet h-8 min-h-0 px-2.5 text-xs disabled:opacity-50">
-                      <Check size={13} strokeWidth={2.5} aria-hidden style={{ color: 'var(--color-green)' }} /> Done
+                    <button onClick={() => handleComplete(q.id)} disabled={busyId === q.id} aria-label={`Complete ${q.title}`} className="btn-quiet h-8 min-h-0 px-2.5 text-xs disabled:opacity-50">
+                      <Check size={13} strokeWidth={2.5} aria-hidden style={{ color: 'var(--color-green)' }} /> Complete
                     </button>
                     <span className="mx-1 text-xs text-(--color-muted)">or push</span>
                     {[1, 3, 7].map((d) => (
@@ -208,7 +208,7 @@ export default function Rescue() {
                         onClick={() => handleExtend(q.id, d)}
                         disabled={busyId === q.id}
                         className="btn-quiet tnum h-8 min-h-0 px-2.5 text-xs disabled:opacity-50"
-                        aria-label={`Push ${d} ${d === 1 ? 'day' : 'days'}`}
+                        aria-label={`Push ${q.title} by ${d} ${d === 1 ? 'day' : 'days'}`}
                       >
                         {d === 1 ? '1 day' : `${d} days`}
                       </button>

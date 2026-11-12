@@ -116,7 +116,7 @@ export function EndOfDayReflection({ completionsToday }: Props) {
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
-              placeholder="Shipped the auth refactor; carry over the docs polish."
+              placeholder="Finished the lab report. Tomorrow: start the essay before lunch."
               rows={2}
               className="mt-2 w-full rounded-lg border bg-white/5 px-3 py-2 text-sm outline-none transition-colors"
               style={{ borderColor: 'var(--color-border)', color: 'var(--color-text)' }}
