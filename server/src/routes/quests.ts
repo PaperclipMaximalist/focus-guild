@@ -34,6 +34,8 @@ import {
 } from '../lib/hourLog.js';
 import { Prisma, type Quest, type User } from '../../generated/prisma/client.js';
 import { parseRepeat } from '../lib/scheduler/repeat.js';
+import { keyWindow, memberDay, planRoundTick, tzHint, tzOf } from '../lib/memberDay.js';
+import { roundsDoneToday, todaysCheckIn } from '../lib/memberDayStore.js';
 
 export const quests = new Hono();
 
@@ -199,15 +201,13 @@ const MOVE_MESSAGE = {
 async function logTime(
   user: User,
   quest: Quest,
-  opts: { minutes: number; note?: string; at: Date; kind: string; isToday: boolean },
+  opts: { minutes: number; note?: string; at: Date; kind: string; isToday: boolean; tz: number },
 ) {
-  const { minutes, note, at, kind, isToday } = opts;
+  const { minutes, note, at, kind, isToday, tz } = opts;
   const earns = isOpenEnded(quest);
 
   let streak = { newStreak: user.currentStreak, newMultiplier: user.multiplier, event: 'unchanged' as string };
   if (earns && isToday) {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
     const lastActivity = await db.xPEvent.findFirst({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
@@ -216,8 +216,10 @@ async function logTime(
     streak = updateStreak({
       currentStreak: user.currentStreak,
       lastActivityDate: lastActivity?.createdAt ?? null,
-      today,
+      today: new Date(),
       completedQuestToday: true,
+      tzOffsetMin: tz,
+      workingHours: getUserConfig(user).workingHours,
     });
   }
   const xp = earns
@@ -281,20 +283,17 @@ function timeEntry(e: { id: string; at: Date; kind: string; data: unknown }) {
 // GET /quests — active quests sorted by priority score
 quests.get('/', async (c) => {
   const user = c.get('user');
+  const tz = tzHint(c, c.req.query('tz'));
+  const { workingHours } = getUserConfig(user);
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const checkIn = await db.dailyCheckIn.findUnique({
-    where: { userId_date: { userId: user.id, date: today } },
-  });
+  const checkIn = await todaysCheckIn(user.id, memberDay(Date.now(), tz ?? 0, workingHours));
 
   const availableMinutes = checkIn?.availableMinutes ?? 480;
   const energyLevel = checkIn?.energyLevel ?? 3;
 
   // "Not Today" lasts until the user's local midnight, then the quest is back
   // (until their session ends, for working hours that run past midnight).
-  const tz = Number(c.req.query('tz'));
-  await reviveDeferred(user.id, Number.isFinite(tz) ? tz : undefined, Date.now(), getUserConfig(user).workingHours);
+  await reviveDeferred(user.id, tz, Date.now(), workingHours);
 
   // Non-recurring active quests only — recurring are surfaced via /quests/recurring,
   // and hour logs (no estimate, nothing to prioritise) via /quests/hours.
@@ -379,8 +378,7 @@ quests.get('/parents', async (c) => {
 // written against each (all time, this week from Monday, today).
 quests.get('/hours', async (c) => {
   const user = c.get('user');
-  const tzRaw = Number(c.req.query('tz'));
-  const tz = Number.isFinite(tzRaw) ? tzRaw : 0;
+  const tz = tzOf(c, c.req.query('tz'));
   const now = new Date();
 
   const logs = await db.quest.findMany({
@@ -455,7 +453,8 @@ quests.post('/:id/hours', async (c) => {
   const quest = await db.quest.findUnique({ where: { id } });
   if (!quest || quest.userId !== user.id) return c.json(notFound(), 404);
 
-  const { minutes, note, date, tz = 0 } = parsed.data;
+  const { minutes, note, date } = parsed.data;
+  const tz = tzOf(c, parsed.data.tz);
   const now = new Date();
   const at = entryInstant(date, tz, now);
   if (!at) return c.json(refused('BAD_DATE', 'Pick today or a day that has already happened.'), 400);
@@ -466,6 +465,7 @@ quests.post('/:id/hours', async (c) => {
     at,
     kind: HOURS_KIND,
     isToday: localDay(at, tz) === localDay(now, tz),
+    tz,
   });
   return c.json(
     {
@@ -534,7 +534,7 @@ Quest: "${quest.title}"
 Estimated total time: ${quest.estimatedMinutes} minutes
 Mental load (1-10): ${quest.mentalLoad}
 Impact (1-10): ${quest.impact}
-${quest.deadline ? `Deadline: ${quest.deadline.toISOString().slice(0, 10)}` : ''}
+${quest.deadline ? `Deadline: ${localDay(quest.deadline, tzOf(c))}` : ''}
 ${quest.category ? `Category: ${quest.category}` : ''}
 
 Break this into 3 to 6 sub-tasks. Each sub-task should be:
@@ -646,17 +646,15 @@ quests.post('/:id/extend-deadline', async (c) => {
 // GET /quests/recurring — recurring (daily) quests with today's completion state
 quests.get('/recurring', async (c) => {
   const user = c.get('user');
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
   const recurring = await db.quest.findMany({
     where: { userId: user.id, isRecurring: true, status: 'ACTIVE' },
     orderBy: { preferredHour: 'asc' },
   });
-  const completionsToday = await db.recurringCompletion.findMany({
-    where: { userId: user.id, date: today },
-    select: { questId: true },
-  });
-  const completedSet = new Set(completionsToday.map((r) => r.questId));
+  // Done today = ticked within the member's own day (see lib/memberDay.ts).
+  const completedSet = await roundsDoneToday(
+    user.id,
+    memberDay(Date.now(), tzOf(c, c.req.query('tz')), getUserConfig(user).workingHours),
+  );
   const data = recurring.map((q) => ({ ...q, doneToday: completedSet.has(q.id) }));
   return c.json({ success: true, data });
 });
@@ -825,11 +823,14 @@ quests.patch('/:id', async (c) => {
   return c.json({ success: true, data: quest });
 });
 
-/** The client's getTimezoneOffset() from `?tz=`, within real-world offsets; undefined (UTC) when missing or nonsense. */
-function tzFromQuery(raw: string | undefined): number | undefined {
-  if (raw === undefined || raw === '') return undefined;
-  const n = Number(raw);
-  return Number.isFinite(n) && Math.abs(n) <= 14 * 60 ? n : undefined;
+const ALREADY_DONE_TODAY = {
+  success: false,
+  error: { code: 'ALREADY_DONE_TODAY', message: 'Already completed today' },
+} as const;
+
+/** A unique-constraint clash: here, a second tick of the same round racing the first. */
+function isUniqueClash(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 }
 
 // POST /quests/:id/complete — complete a quest, award XP, update streak
@@ -844,18 +845,26 @@ quests.post('/:id/complete', async (c) => {
   if (quest.status === 'COMPLETE') {
     return c.json({ success: false, error: { code: 'ALREADY_COMPLETE', message: 'Quest already completed' } }, 409);
   }
+  // A round is ticked for today (complete-daily) and comes back tomorrow.
+  // Completed here it would be closed for good, which nobody means by a tick.
+  if (quest.isRecurring) {
+    return c.json(
+      { success: false, error: { code: 'IS_RECURRING', message: 'This quest repeats: tick it for today with /complete-daily' } },
+      400,
+    );
+  }
 
   const user = await db.user.findUnique({ where: { id: quest.userId } });
   if (!user) {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } }, 404);
   }
 
+  // The member's clock: their offset, and their day (see lib/memberDay.ts).
+  const tz = tzOf(c, c.req.query('tz'));
+  const { workingHours } = getUserConfig(user);
+
   // Fetch today's check-in for energy + available time
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const checkIn = await db.dailyCheckIn.findUnique({
-    where: { userId_date: { userId: user.id, date: today } },
-  });
+  const checkIn = await todaysCheckIn(user.id, memberDay(Date.now(), tz, workingHours));
 
   const availableMinutes = checkIn?.availableMinutes ?? 480;
   const energyLevel = checkIn?.energyLevel ?? 3;
@@ -883,8 +892,10 @@ quests.post('/:id/complete', async (c) => {
   const streakResult = updateStreak({
     currentStreak: user.currentStreak,
     lastActivityDate: lastActivity?.createdAt ?? null,
-    today,
+    today: new Date(),
     completedQuestToday: true,
+    tzOffsetMin: tz,
+    workingHours,
   });
 
   // Sub-quests count towards the parent, so completing the parent must not
@@ -944,7 +955,7 @@ quests.post('/:id/complete', async (c) => {
     actualMinutes: updatedQuest.actualMinutes,
     completedAt: updatedQuest.completedAt ?? new Date(),
     status: quest.status, // RESCUE flag survives only on the pre-update copy
-    tzOffsetMin: tzFromQuery(c.req.query('tz')),
+    tzOffsetMin: tz,
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
   const finalTotalXP = updatedUser.totalXP + bonusXP;
@@ -985,12 +996,9 @@ quests.post('/:id/complete', async (c) => {
 // Increments the user's spinCount (drives Chaos Agent achievement).
 quests.post('/spin-wheel', async (c) => {
   const user = c.get('user');
+  const tz = tzOf(c, c.req.query('tz'));
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const checkIn = await db.dailyCheckIn.findUnique({
-    where: { userId_date: { userId: user.id, date: today } },
-  });
+  const checkIn = await todaysCheckIn(user.id, memberDay(Date.now(), tz, getUserConfig(user).workingHours));
   const availableMinutes = checkIn?.availableMinutes ?? 480;
   const energyLevel = checkIn?.energyLevel ?? 3;
 
@@ -1044,7 +1052,7 @@ quests.post('/spin-wheel', async (c) => {
     actualMinutes: null,
     completedAt: new Date(),
     status: picked.status,
-    tzOffsetMin: tzFromQuery(c.req.query('tz')),
+    tzOffsetMin: tz,
     only: ['chaos-agent'],
   });
 
@@ -1082,23 +1090,22 @@ quests.post('/:id/complete-daily', async (c) => {
     return c.json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } }, 404);
   }
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
+  const tz = tzOf(c, c.req.query('tz'));
+  const { workingHours } = getUserConfig(user);
+  const day = memberDay(Date.now(), tz, workingHours);
 
-  // Check if already completed today.
-  const existing = await db.recurringCompletion.findUnique({
-    where: { questId_date: { questId, date: today } },
+  // Already done today? Decided by when each recent tick happened, not by its
+  // key alone: ticks from before the member's-day change are keyed by the UTC
+  // date, so yesterday evening's (Pacific) sits under today's key. Such a
+  // stale row gives way to today's tick instead of refusing it.
+  const recent = await db.recurringCompletion.findMany({
+    where: { questId, date: keyWindow(day) },
+    select: { id: true, date: true, createdAt: true },
   });
-  if (existing) {
-    return c.json(
-      { success: false, error: { code: 'ALREADY_DONE_TODAY', message: 'Already completed today' } },
-      409,
-    );
-  }
+  const tick = planRoundTick(recent, day);
+  if (tick.kind === 'already-done') return c.json(ALREADY_DONE_TODAY, 409);
 
-  const checkIn = await db.dailyCheckIn.findUnique({
-    where: { userId_date: { userId: user.id, date: today } },
-  });
+  const checkIn = await todaysCheckIn(user.id, day);
   const availableMinutes = checkIn?.availableMinutes ?? 480;
   const energyLevel = checkIn?.energyLevel ?? 3;
 
@@ -1120,8 +1127,10 @@ quests.post('/:id/complete-daily', async (c) => {
   const streakResult = updateStreak({
     currentStreak: user.currentStreak,
     lastActivityDate: lastActivity?.createdAt ?? null,
-    today,
+    today: new Date(),
     completedQuestToday: true,
+    tzOffsetMin: tz,
+    workingHours,
   });
 
   const { xp } = computeXP({
@@ -1131,22 +1140,34 @@ quests.post('/:id/complete-daily', async (c) => {
     streakMultiplier: streakResult.newMultiplier,
   });
 
-  const [, xpEvent, updatedUser] = await db.$transaction([
-    db.recurringCompletion.create({
-      data: { questId, userId: user.id, date: today, xpAwarded: xp },
-    }),
-    db.xPEvent.create({
-      data: { userId: user.id, questId, amount: xp, reason: 'recurring_complete' },
-    }),
-    db.user.update({
-      where: { id: user.id },
-      data: {
-        totalXP: { increment: xp },
-        currentStreak: streakResult.newStreak,
-        multiplier: streakResult.newMultiplier,
-      },
-    }),
-  ]);
+  // The stale row (if any) goes and today's is created in one transaction, so
+  // the (questId, date) constraint still guards against a double tick: of two
+  // racing requests, the second's create clashes and the whole tick rolls back.
+  let updatedUser: User;
+  try {
+    [, , , updatedUser] = await db.$transaction([
+      db.recurringCompletion.deleteMany({
+        where: { id: { in: tick.kind === 'replace-stale' ? [tick.staleId] : [] } },
+      }),
+      db.recurringCompletion.create({
+        data: { questId, userId: user.id, date: day.key, xpAwarded: xp },
+      }),
+      db.xPEvent.create({
+        data: { userId: user.id, questId, amount: xp, reason: 'recurring_complete' },
+      }),
+      db.user.update({
+        where: { id: user.id },
+        data: {
+          totalXP: { increment: xp },
+          currentStreak: streakResult.newStreak,
+          multiplier: streakResult.newMultiplier,
+        },
+      }),
+    ]);
+  } catch (err) {
+    if (isUniqueClash(err)) return c.json(ALREADY_DONE_TODAY, 409);
+    throw err;
+  }
 
   const newlyUnlocked = await evalAndUnlockAchievements({
     id: quest.id,
@@ -1156,7 +1177,7 @@ quests.post('/:id/complete-daily', async (c) => {
     actualMinutes: null,
     completedAt: new Date(),
     status: 'COMPLETE',
-    tzOffsetMin: tzFromQuery(c.req.query('tz')),
+    tzOffsetMin: tz,
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
   void logActivity(user.id, 'quest.daily', `Did daily quest "${quest.title}" (+${xp} XP)`, { subjectId: quest.id });
@@ -1206,6 +1227,7 @@ quests.post('/:id/focus', async (c) => {
     at: new Date(),
     kind: FOCUS_KIND,
     isToday: true,
+    tz: tzOf(c),
   });
   return c.json({ success: true, data: quest });
 });

@@ -82,6 +82,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     'Content-Type': 'application/json',
     ...((init?.headers ?? {}) as Record<string, string>),
   };
+  // The server's "today" (rounds, streaks, the fuel check) is the member's own
+  // day; `tz` on every call is how it knows their clock (server lib/memberDay.ts).
+  // A query value, not a header: a new header must be allowed by the server's
+  // CORS list first, so a client deployed a minute before its server would have
+  // every request refused by the browser. A query value needs no permission.
+  if (!/[?&]tz=/.test(path)) path += `${path.includes('?') ? '&' : '?'}tz=${tzOffset()}`;
 
   if (_tokenGetter) {
     // Real Clerk: send the JWT. The server's auth.ts extracts the clerkId

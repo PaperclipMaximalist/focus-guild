@@ -133,6 +133,62 @@ describe('updateStreak', () => {
   });
 });
 
+describe("updateStreak on the member's clock", () => {
+  const PST = 480;
+  const run = (last: string, now: string, currentStreak = 3) =>
+    updateStreak({
+      currentStreak,
+      lastActivityDate: new Date(last),
+      today: new Date(now),
+      completedQuestToday: true,
+      tzOffsetMin: PST,
+    });
+
+  it('3 pm then 5 pm Pacific on the same day does not extend twice (UTC midnight falls between)', () => {
+    // Wed 3 pm PST = 23:00Z Wed; Wed 5 pm PST = 01:00Z Thu
+    const r = run('2026-11-11T23:00:00Z', '2026-11-12T01:00:00Z');
+    expect(r.event).toBe('unchanged');
+    expect(r.newStreak).toBe(3);
+  });
+
+  it('the same pair read as UTC would have extended: the offset is what fixes it', () => {
+    const r = updateStreak({
+      currentStreak: 3,
+      lastActivityDate: new Date('2026-11-11T23:00:00Z'),
+      today: new Date('2026-11-12T01:00:00Z'),
+      completedQuestToday: true,
+    });
+    expect(r.event).toBe('extended');
+  });
+
+  it('Monday 10 am then Tuesday 5 pm Pacific extends (UTC says a gap of 2)', () => {
+    // Mon 10 am PST = 18:00Z Mon; Tue 5 pm PST = 01:00Z Wed
+    const r = run('2026-11-09T18:00:00Z', '2026-11-11T01:00:00Z');
+    expect(r.event).toBe('extended');
+    expect(r.newStreak).toBe(4);
+  });
+
+  it('a skipped local day pauses', () => {
+    // Mon 10 am PST, then Wed 9 am PST: Tuesday had nothing
+    const r = run('2026-11-09T18:00:00Z', '2026-11-11T17:00:00Z');
+    expect(r.event).toBe('paused');
+    expect(r.newMultiplier).toBe(0.75);
+  });
+
+  it('with a 22:00 to 06:00 window, 11 pm and 1 am are the same working day', () => {
+    // Wed 11 pm PST = 07:00Z Thu; Thu 1 am PST = 09:00Z Thu
+    const r = updateStreak({
+      currentStreak: 2,
+      lastActivityDate: new Date('2026-11-12T07:00:00Z'),
+      today: new Date('2026-11-12T09:00:00Z'),
+      completedQuestToday: true,
+      tzOffsetMin: PST,
+      workingHours: { startHour: 22, endHour: 6 },
+    });
+    expect(r.event).toBe('unchanged');
+  });
+});
+
 describe('applyMidnightRollover', () => {
   it('pauses an active streak when no quest was completed', () => {
     const result = applyMidnightRollover({ currentStreak: 5, multiplier: 1.6 });

@@ -38,7 +38,9 @@ app.use(
       if (!origin) return origin;
       return clientUrls.includes(origin) ? origin : null;
     },
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Dev-Clerk-Id'],
+    // X-Tz-Offset: the browser's getTimezoneOffset(), on every request, so
+    // "today" is the member's day (lib/memberDay.ts).
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Dev-Clerk-Id', 'X-Tz-Offset'],
     allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     credentials: true,
   }),

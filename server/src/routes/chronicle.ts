@@ -14,13 +14,15 @@
  *   POST /chronicle/ask                     ask Claude about all three (needs a key)
  *
  * `tz` is `Date.prototype.getTimezoneOffset()` in minutes, the same
- * convention the scheduler uses.
+ * convention the scheduler uses. The browser's `X-Tz-Offset` header, when
+ * present, wins over it (lib/memberDay.ts).
  */
 
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { logActivity } from '../lib/activity.js';
+import { tzOf } from '../lib/memberDay.js';
 import {
   BY_HAND_KINDS,
   GUILD_SYSTEM_PROMPT,
@@ -45,11 +47,6 @@ const bad = (message: string) => ({ success: false as const, error: { code: 'BAD
 function readDays(raw: string | undefined, fallback = 7): number {
   const n = Number(raw ?? fallback);
   return Number.isFinite(n) ? Math.min(90, Math.max(1, Math.round(n))) : fallback;
-}
-
-function readTz(raw: string | undefined): number {
-  const n = Number(raw ?? 0);
-  return Number.isFinite(n) ? Math.min(840, Math.max(-720, Math.round(n))) : 0;
 }
 
 function entriesSince(userId: string, days: number) {
@@ -81,7 +78,7 @@ chronicle.get('/log', async (c) => {
 chronicle.get('/log/markdown', async (c) => {
   const user = c.get('user');
   const entries = await entriesSince(user.id, readDays(c.req.query('days')));
-  const markdown = renderLogMarkdown(entries, readTz(c.req.query('tz')));
+  const markdown = renderLogMarkdown(entries, tzOf(c, c.req.query('tz')));
   return c.json({ success: true, data: { markdown, chars: markdown.length } });
 });
 
@@ -231,7 +228,7 @@ async function buildBundle(user: { id: string; trackerSettings?: unknown }, days
 }
 
 chronicle.get('/bundle', async (c) => {
-  const bundle = await buildBundle(c.get('user'), readDays(c.req.query('days')), readTz(c.req.query('tz')));
+  const bundle = await buildBundle(c.get('user'), readDays(c.req.query('days')), tzOf(c, c.req.query('tz')));
   return c.json({ success: true, data: bundle });
 });
 
@@ -254,7 +251,7 @@ chronicle.post('/ask', async (c) => {
   if (!parsed.success) return c.json(bad(parsed.error.message), 400);
 
   const days = readDays(String(parsed.data.days ?? 14));
-  const bundle = await buildBundle(user, days, readTz(String(parsed.data.tz ?? 0)));
+  const bundle = await buildBundle(user, days, tzOf(c, parsed.data.tz));
 
   try {
     // Whichever AI this person connected, or the server's own (lib/ai.ts).

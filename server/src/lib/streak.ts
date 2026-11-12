@@ -5,8 +5,12 @@
  *   - Completing ≥ 1 quest per day increments streak
  *   - Missing a day sets multiplier to 0.75× (no shame spirals — not zero)
  *   - Streak multiplier scales 1.0× → 2.5× linearly over 7 days
- *   - Recalculates at midnight UTC (called by a scheduled job)
+ *   - "A day" is the member's own calendar day (their timezone, and their
+ *     working day when their hours run past midnight), not the UTC date
  */
+
+import { memberDay, MS_PER_DAY } from './memberDay.js';
+import type { HoursWindow } from './scheduler/tz.js';
 
 export interface StreakState {
   currentStreak: number;
@@ -24,9 +28,16 @@ export function computeMultiplier(streakDays: number): number {
 
 export interface StreakUpdateInput {
   currentStreak: number;
-  lastActivityDate: Date | null; // UTC date of most recent quest completion
-  today: Date;                   // UTC date being processed (midnight rollover)
+  lastActivityDate: Date | null; // instant of the most recent quest completion
+  today: Date;                   // the instant being processed (now)
   completedQuestToday: boolean;
+  /**
+   * The member's `getTimezoneOffset()`: both instants are read as days on
+   * their clock. 0 (UTC) when not given.
+   */
+  tzOffsetMin?: number;
+  /** Their working hours: a window past midnight keeps 01:00 on the day it started. */
+  workingHours?: HoursWindow;
 }
 
 export interface StreakUpdateResult {
@@ -35,15 +46,11 @@ export interface StreakUpdateResult {
   event: 'extended' | 'started' | 'paused' | 'unchanged';
 }
 
-function toUTCDateString(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function daysBetween(a: Date, b: Date): number {
-  const msPerDay = 86_400_000;
-  const aMs = Date.UTC(a.getUTCFullYear(), a.getUTCMonth(), a.getUTCDate());
-  const bMs = Date.UTC(b.getUTCFullYear(), b.getUTCMonth(), b.getUTCDate());
-  return Math.round((bMs - aMs) / msPerDay);
+/** Whole member days from `a` to `b`. */
+function daysBetween(a: Date, b: Date, tzOffsetMin: number, hours?: HoursWindow): number {
+  const aKey = memberDay(a.getTime(), tzOffsetMin, hours).key.getTime();
+  const bKey = memberDay(b.getTime(), tzOffsetMin, hours).key.getTime();
+  return Math.round((bKey - aKey) / MS_PER_DAY);
 }
 
 export function updateStreak(input: StreakUpdateInput): StreakUpdateResult {
@@ -57,7 +64,7 @@ export function updateStreak(input: StreakUpdateInput): StreakUpdateResult {
     return { newStreak: 1, newMultiplier: computeMultiplier(1), event: 'started' };
   }
 
-  const gap = daysBetween(lastActivityDate, today);
+  const gap = daysBetween(lastActivityDate, today, input.tzOffsetMin ?? 0, input.workingHours);
 
   // Same calendar day — already counted; just ensure multiplier is correct
   if (gap === 0) {

@@ -44,6 +44,8 @@ import { workDayKey, workDayMidnightUtc, workWindowUtc } from '../lib/scheduler/
 import { parentIds } from '../lib/questTree.js';
 import { buildDayInfo, isToday, todayEndInForce } from '../lib/scheduler/budget.js';
 import { isOpenEnded } from '../lib/hourLog.js';
+import { memberDay, tzHint } from '../lib/memberDay.js';
+import { roundsDoneToday, todaysCheckIn } from '../lib/memberDayStore.js';
 
 export const schedule = new Hono();
 
@@ -93,11 +95,7 @@ async function configForUser(
   tzOffsetMin?: number,
 ): Promise<ReturnType<typeof getUserConfig>> {
   const cfg = getUserConfig(user, tzOffsetMin);
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const checkIn = await db.dailyCheckIn.findUnique({
-    where: { userId_date: { userId: user.id, date: today } },
-  }).catch(() => null);
+  const checkIn = await todaysCheckIn(user.id, memberDay(Date.now(), tzOffsetMin ?? 0, cfg.workingHours)).catch(() => null);
   if (!checkIn) return cfg;
 
   // energyLevel 1→0.74, 2→0.83, 3→0.92, 4→1.01 (≈neutral), 5→1.10.
@@ -155,20 +153,17 @@ function refreshInsights(
   });
 }
 
-async function loadQuestsForUser(user: { id: string }) {
-  await reviveDeferred(user.id);
+async function loadQuestsForUser(user: { id: string; schedulerSettings?: unknown }, tzOffsetMin: number | undefined) {
+  const { workingHours } = getUserConfig(user);
+  // Without an offset, reviveDeferred falls back to its 20-hour rule.
+  await reviveDeferred(user.id, tzOffsetMin, Date.now(), workingHours);
   // NOT_TODAY quests stay in the plan; the adapter holds them to tomorrow.
   const all = await db.quest.findMany({
     where: { userId: user.id, status: { in: ['ACTIVE', 'RESCUE', 'NOT_TODAY'] } },
   });
   // Split: planner consumes non-recurring; recurring become daily fillers.
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const completionsToday = await db.recurringCompletion.findMany({
-    where: { userId: user.id, date: today },
-    select: { questId: true },
-  });
-  const completedSet = new Set(completionsToday.map((r) => r.questId));
+  // A round ticked today (the member's day, lib/memberDay.ts) is not planned.
+  const completedSet = await roundsDoneToday(user.id, memberDay(Date.now(), tzOffsetMin ?? 0, workingHours));
   // A quest that has been broken into sub-quests is planned through them, not
   // alongside them: its steps carry the real minutes (see lib/questTree.ts),
   // so planning the parent too would book the same work twice. Leaves only,
@@ -321,13 +316,13 @@ async function persistSchedule(
  * We trust the DB IDs over freshly-generated ones so that a `locked` block's
  * id survives across requests (lets the client reference it by id).
  */
-async function hydrateSchedule(userId: string): Promise<Block[]> {
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  // Show today + future. Past blocks live in DB but we don't push them
+async function hydrateSchedule(userId: string, tzOffsetMin: number | undefined): Promise<Block[]> {
+  // Show today + future: from the member's local midnight (UTC midnight when
+  // no offset is known). Past blocks live in DB but we don't push them
   // through the API unless explicitly requested elsewhere.
+  const since = new Date(memberDay(Date.now(), tzOffsetMin ?? 0).start);
   const rows = await db.scheduleBlock.findMany({
-    where: { userId, endTime: { gte: today } },
+    where: { userId, endTime: { gte: since } },
     orderBy: { startTime: 'asc' },
   });
   return rows.map((r) => rowToBlock(r));
@@ -425,10 +420,10 @@ const EditSchema = z.object({
 schedule.post('/generate', async (c) => {
   const raw = await c.req.json().catch(() => ({}));
   const parsed = GenerateSchema.safeParse(raw ?? {});
-  const tzOffsetMin = parsed.success ? parsed.data.tzOffsetMin : undefined;
+  const tzOffsetMin = tzHint(c, parsed.success ? parsed.data.tzOffsetMin : undefined);
 
   const user = c.get('user');
-  const loaded = await loadQuestsForUser(user);
+  const loaded = await loadQuestsForUser(user, tzOffsetMin);
 
   const state = getState(user.id);
   const cfg = await configForUser(user, tzOffsetMin);
@@ -451,11 +446,12 @@ schedule.post('/generate', async (c) => {
 schedule.get('/:clerkId', async (c) => {
   const user = c.get('user');
   const state = getState(user.id);
+  const tz = tzHint(c, c.req.query('tz'));
 
   // Hydrate from DB on cold cache. Subsequent requests use in-memory state
   // (which mutations keep in sync).
   if (state.schedule.length === 0) {
-    const persisted = await hydrateSchedule(user.id);
+    const persisted = await hydrateSchedule(user.id, tz);
     if (persisted.length > 0) {
       state.schedule = persisted;
       const latest = await db.scheduleBlock.findFirst({
@@ -467,8 +463,7 @@ schedule.get('/:clerkId', async (c) => {
     }
   }
 
-  const tz = Number(c.req.query('tz'));
-  const cfg = await configForUser(user, Number.isFinite(tz) && c.req.query('tz') ? tz : undefined);
+  const cfg = await configForUser(user, tz);
   return ok(c, {
     schedule: state.schedule.map(serializeBlock),
     quests: await blockQuests(user.id, state.schedule),
@@ -484,7 +479,7 @@ schedule.get('/:clerkId', async (c) => {
 
 /** Reroute: keep what is pinned, done or under way, and plan the rest again from now. */
 async function replanFor(user: { id: string; schedulerSettings?: unknown }, tzOffsetMin: number | undefined) {
-  const loaded = await loadQuestsForUser(user);
+  const loaded = await loadQuestsForUser(user, tzOffsetMin);
 
   const state = getState(user.id);
   const now = Date.now();
@@ -518,7 +513,7 @@ async function replanFor(user: { id: string; schedulerSettings?: unknown }, tzOf
 schedule.post('/:clerkId/replan', async (c) => {
   const raw = await c.req.json().catch(() => ({}));
   const parsed = GenerateSchema.safeParse(raw ?? {});
-  return ok(c, await replanFor(c.get('user'), parsed.success ? parsed.data.tzOffsetMin : undefined));
+  return ok(c, await replanFor(c.get('user'), tzHint(c, parsed.success ? parsed.data.tzOffsetMin : undefined)));
 });
 
 const RestsSchema = z
@@ -548,7 +543,7 @@ schedule.post('/:clerkId/rests', async (c) => {
   for (const [key, value] of Object.entries(rests)) if (value !== undefined) settings[key] = value;
   await db.user.update({ where: { id: user.id }, data: { schedulerSettings: settings as object } });
 
-  return ok(c, await replanFor({ id: user.id, schedulerSettings: settings }, tzOffsetMin));
+  return ok(c, await replanFor({ id: user.id, schedulerSettings: settings }, tzHint(c, tzOffsetMin)));
 });
 
 const AvailableSchema = z.object({
@@ -573,7 +568,7 @@ schedule.post('/:clerkId/available', async (c) => {
   else settings.availableUntil = new Date(Date.now() + Math.round(parsed.data.minutes) * 60_000).toISOString();
   await db.user.update({ where: { id: user.id }, data: { schedulerSettings: settings as object } });
 
-  return ok(c, await replanFor({ id: user.id, schedulerSettings: settings }, parsed.data.tzOffsetMin));
+  return ok(c, await replanFor({ id: user.id, schedulerSettings: settings }, tzHint(c, parsed.data.tzOffsetMin)));
 });
 
 schedule.post('/:clerkId/edit', async (c) => {
@@ -599,9 +594,10 @@ schedule.post('/:clerkId/edit', async (c) => {
   state.schedule = applyEdit(state.schedule, edit);
 
   // Re-flow around the new edit. Reuse caller's tz hint if they sent one.
-  const loaded = await loadQuestsForUser(user);
+  const tz = tzHint(c, parsed.data.tzOffsetMin);
+  const loaded = await loadQuestsForUser(user, tz);
   const now = Date.now();
-  const cfg = await configForUser(user, parsed.data.tzOffsetMin);
+  const cfg = await configForUser(user, tz);
   const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
   // Swap stale calendar blocks for fresh ones; reflow keeps fixed blocks in place.
   const calendar = await calendarBlocksFor(user.id, cfg.horizonDays);
@@ -645,8 +641,9 @@ schedule.get('/:clerkId/explain', async (c) => {
   if (!blockId) return err(c, 'BAD_REQUEST', 'blockId query param required');
   const state = getState(user.id);
   // Hydrate task names so the explanation can reference the quest by title.
-  const loaded = await loadQuestsForUser(user);
-  const tasks = questsToTasks(loaded.regular, state.overrides, Date.now(), 0, loaded.calibration);
+  const tz = tzHint(c);
+  const loaded = await loadQuestsForUser(user, tz);
+  const tasks = questsToTasks(loaded.regular, state.overrides, Date.now(), tz ?? 0, loaded.calibration);
   return ok(c, { explanation: explainBlock(blockId, state.schedule, tasks) });
 });
 
@@ -657,7 +654,7 @@ schedule.get('/:clerkId/explain', async (c) => {
 schedule.post('/:clerkId/insert/:questId', async (c) => {
   const raw = await c.req.json().catch(() => ({}));
   const parsed = GenerateSchema.safeParse(raw ?? {});
-  const tzOffsetMin = parsed.success ? parsed.data.tzOffsetMin : undefined;
+  const tzOffsetMin = tzHint(c, parsed.success ? parsed.data.tzOffsetMin : undefined);
 
   const user = c.get('user');
   const questId = c.req.param('questId');
@@ -669,11 +666,11 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
   const state = getState(user.id);
   // Hydrate if cold.
   if (state.schedule.length === 0) {
-    const persisted = await hydrateSchedule(user.id);
+    const persisted = await hydrateSchedule(user.id, tzOffsetMin);
     if (persisted.length > 0) state.schedule = persisted;
   }
 
-  const loaded = await loadQuestsForUser(user);
+  const loaded = await loadQuestsForUser(user, tzOffsetMin);
   const now = Date.now();
   const cfg = await configForUser(user, tzOffsetMin);
   // Only the requested quest is "new" — pass everything to replan, which
@@ -708,16 +705,15 @@ schedule.post('/:clerkId/insert/:questId', async (c) => {
 schedule.get('/:clerkId/energy', async (c) => {
   const user = c.get('user');
   const state = getState(user.id);
+  // Use the client's tz hint so the sparkline range matches the user's local
+  // working day rather than the server's UTC day.
+  const tzOffsetMin = tzHint(c, c.req.query('tzOffsetMin'));
   if (state.schedule.length === 0) {
-    const persisted = await hydrateSchedule(user.id);
+    const persisted = await hydrateSchedule(user.id, tzOffsetMin);
     if (persisted.length > 0) state.schedule = persisted;
   }
-  // Use the client's tz hint (query param) so the sparkline range matches
-  // the user's local working day rather than the server's UTC day.
-  const tzQuery = c.req.query('tzOffsetMin');
-  const tzOffsetMin = tzQuery !== undefined ? Number(tzQuery) : undefined;
   const cfg = getUserConfig(user, tzOffsetMin);
-  const loaded = await loadQuestsForUser(user);
+  const loaded = await loadQuestsForUser(user, tzOffsetMin);
   const now = Date.now();
   const tasks = questsToTasks(loaded.regular, state.overrides, now, cfg.tzOffsetMin, loaded.calibration, cfg.workingHours);
   const tz = cfg.tzOffsetMin ?? 0;

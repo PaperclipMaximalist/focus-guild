@@ -2,6 +2,9 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { logActivity } from '../lib/activity.js';
 import { db } from '../db/client.js';
+import { memberDay, tzOf } from '../lib/memberDay.js';
+import { todaysCheckIn } from '../lib/memberDayStore.js';
+import { getUserConfig } from '../lib/userConfig.js';
 
 export const checkin = new Hono();
 
@@ -25,13 +28,14 @@ checkin.post('/', async (c) => {
 
   const { energyLevel, availableMinutes } = parsed.data;
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-
+  // Filed under the member's own date. A row already on that key may be an
+  // old one (keyed by the UTC date: yesterday evening, Pacific); it is
+  // overwritten and re-stamped, so it reads as today's from now on.
+  const day = memberDay(Date.now(), tzOf(c), getUserConfig(user).workingHours);
   const record = await db.dailyCheckIn.upsert({
-    where: { userId_date: { userId: user.id, date: today } },
-    create: { userId: user.id, date: today, energyLevel, availableMinutes },
-    update: { energyLevel, availableMinutes },
+    where: { userId_date: { userId: user.id, date: day.key } },
+    create: { userId: user.id, date: day.key, energyLevel, availableMinutes },
+    update: { energyLevel, availableMinutes, createdAt: new Date() },
   });
   void logActivity(user.id, 'checkin', `Checked in: energy ${energyLevel}` + (availableMinutes != null ? `, ${availableMinutes} min available` : ''));
 
@@ -43,12 +47,8 @@ checkin.post('/', async (c) => {
 checkin.get('/today/:clerkId', async (c) => {
   const user = c.get('user');
 
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-
-  const record = await db.dailyCheckIn.findUnique({
-    where: { userId_date: { userId: user.id, date: today } },
-  });
+  const day = memberDay(Date.now(), tzOf(c), getUserConfig(user).workingHours);
+  const record = await todaysCheckIn(user.id, day);
 
   return c.json({ success: true, data: record ?? null });
 });
