@@ -101,7 +101,7 @@ export function AvailableTime({ className = '' }: { className?: string }) {
       <div className="flex items-center justify-end gap-1.5">
         <div className="text-right">
           <div className="tnum text-[15px] font-bold leading-none text-(--color-text)">{spell(shown)}</div>
-          <div className="mt-1 text-[11px] leading-none text-(--color-muted)">{shown > 0 ? `until ${until}` : 'nothing more today'}</div>
+          <div className="mt-1 text-[11px] leading-none text-(--color-muted)">{shown > 0 ? `until ${until}` : 'drag to add time today'}</div>
         </div>
         {available.set && (
           <button type="button" onClick={reset} disabled={saving} className="icon-btn" title="Back to working hours" aria-label="Back to working hours">

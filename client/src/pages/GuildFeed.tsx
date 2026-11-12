@@ -8,6 +8,7 @@ import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint, type PlanRests } from '../lib/api';
 import { AvailableTime } from '../components/AvailableTime';
+import { AddTimeNow } from '../components/AddTimeNow';
 import { formatDayAndTime, formatMinutes } from '../lib/formatters';
 import { blockStatus as boardStatus, TONE_COLOR } from '../lib/departure';
 import { BoardSign } from '../components/BoardSign';
@@ -1260,9 +1261,22 @@ export default function GuildFeed() {
                   {isTodaySelected ? 'Nothing more planned today' : 'Nothing planned for this day'}
                 </p>
                 <p className="mt-1 text-sm text-(--color-muted)">
-                  Your next stop is {formatDayAndTime(nextPlanned.start)}. The planner only fills your working
-                  hours, which you can change in <Link to="/settings" className="underline underline-offset-2">Settings</Link>.
+                  Your next stop is {formatDayAndTime(nextPlanned.start)}.
                 </p>
+                {isTodaySelected ? (
+                  <AddTimeNow
+                    className="mt-3 flex flex-col items-center"
+                    fallback={(
+                      <p className="mt-1 text-sm text-(--color-muted)">
+                        The planner only fills your working hours, which you can change in <Link to="/settings" className="underline underline-offset-2">Settings</Link>.
+                      </p>
+                    )}
+                  />
+                ) : (
+                  <p className="mt-1 text-sm text-(--color-muted)">
+                    The planner only fills your working hours, which you can change in <Link to="/settings" className="underline underline-offset-2">Settings</Link>.
+                  </p>
+                )}
                 <button
                   type="button"
                   onClick={() => { setSelectedDay(startOfDayMs(new Date(nextPlanned.start).getTime())); setSelectedBlockId(null); }}
@@ -1274,7 +1288,14 @@ export default function GuildFeed() {
             ) : (
               <>
                 <p className="font-semibold">Nothing planned for this day</p>
-                <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or reroute from the menu.</p>
+                {isTodaySelected ? (
+                  <AddTimeNow
+                    className="mt-3 flex flex-col items-center"
+                    fallback={<p className="mt-1 text-sm text-(--color-muted)">Pick another day, or reroute from the menu.</p>}
+                  />
+                ) : (
+                  <p className="mt-1 text-sm text-(--color-muted)">Pick another day, or reroute from the menu.</p>
+                )}
               </>
             )}
           </div>

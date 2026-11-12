@@ -17,6 +17,7 @@ import { useTimerStore } from '../store/useTimerStore';
 import { sfxStart } from '../lib/sfx';
 import type { ScheduleBlock } from '../lib/api';
 import { formatDayAndTime } from '../lib/formatters';
+import { AddTimeNow } from './AddTimeNow';
 import { CalendarDays, ChevronRight, Play, Timer } from 'lucide-react';
 
 interface Props {
@@ -90,16 +91,20 @@ export function UpNextCard({ hideWhenEmpty }: Props) {
     const laterQuest = questFor(later);
     if (later && laterQuest) {
       return (
-        <Link to="/feed" className="panel flex items-center gap-3 px-3.5 py-3.5 transition-colors hover:bg-(--color-surface2)">
-          <CalendarDays size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold">Nothing more planned today</span>
-            <span className="block text-xs text-(--color-muted)">
-              Next stop {formatDayAndTime(later.start)}: {laterQuest.title}
+        // Buttons cannot sit inside a link, so the link is the top of the card and the buttons sit under it.
+        <div className="panel">
+          <Link to="/feed" className="flex items-center gap-3 px-3.5 py-3.5 transition-colors hover:bg-(--color-surface2)">
+            <CalendarDays size={18} className="shrink-0 text-(--color-muted)" aria-hidden />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">Nothing more planned today</span>
+              <span className="block text-xs text-(--color-muted)">
+                Next stop {formatDayAndTime(later.start)}: {laterQuest.title}
+              </span>
             </span>
-          </span>
-          <ChevronRight size={16} className="shrink-0 text-(--color-muted)" aria-hidden />
-        </Link>
+            <ChevronRight size={16} className="shrink-0 text-(--color-muted)" aria-hidden />
+          </Link>
+          <AddTimeNow className="px-3.5 pb-3.5" />
+        </div>
       );
     }
     // Nothing on the list: the jot box below is the next step, not an empty route.
