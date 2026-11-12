@@ -310,6 +310,18 @@ export interface CompleteQuestResult {
   newlyUnlocked?: UnlockedAchievement[];
 }
 
+/** A completion taken back (server lib/undoCompletion.ts): the quest and totals as they are again. */
+export interface UncompleteQuestResult {
+  quest: Quest;
+  totalXP: number;
+  currentStreak: number;
+  multiplier: number;
+  /** Slugs of the trophies the completion had unlocked, locked again. */
+  relockedAchievements: string[];
+  /** No receipt was found: status and XP were put back, streak and trophies left as they are. */
+  partial?: true;
+}
+
 export interface AchievementSummary extends UnlockedAchievement {
   unlockedAt: string;
 }
@@ -414,6 +426,12 @@ export const api = {
       request<CompleteQuestResult>(`/quests/${id}/complete?tz=${tzOffset()}`, { method: 'POST' }),
     completeDaily: (id: string) =>
       request<CompleteQuestResult>(`/quests/${id}/complete-daily?tz=${tzOffset()}`, { method: 'POST' }),
+    /** Take back a completion made in the last few minutes (a mis-tap). */
+    uncomplete: (id: string) =>
+      request<UncompleteQuestResult>(`/quests/${id}/uncomplete?tz=${tzOffset()}`, { method: 'POST' }),
+    /** Take back today's tick of a round. */
+    uncompleteDaily: (id: string) =>
+      request<UncompleteQuestResult>(`/quests/${id}/uncomplete-daily?tz=${tzOffset()}`, { method: 'POST' }),
     /** Log focused minutes against a quest (feeds progress and estimate calibration). */
     focus: (id: string, minutes: number) =>
       request<Quest>(`/quests/${id}/focus`, { method: 'POST', body: JSON.stringify({ minutes }) }),

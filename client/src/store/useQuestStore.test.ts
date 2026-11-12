@@ -7,7 +7,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../lib/api', () => ({
-  api: { quests: { delete: vi.fn(() => Promise.resolve(null)) } },
+  api: {
+    quests: {
+      delete: vi.fn(() => Promise.resolve(null)),
+      uncomplete: vi.fn(),
+      uncompleteDaily: vi.fn(),
+      list: vi.fn(),
+      completed: vi.fn(),
+      recurring: vi.fn(),
+    },
+  },
 }));
 
 import { api, type Quest } from '../lib/api';
@@ -67,5 +76,44 @@ describe('removeWithUndo', () => {
     expect(ids()).toEqual(['a', 'b', 'c']);
     expect(onUndo).toHaveBeenCalled();
     expect(useToastStore.getState().toasts.at(-1)?.variant).toBe('error');
+  });
+});
+
+/**
+ * Undo for a mistaken tick: the server reopens the quest (and any steps the
+ * completion closed), so the store reloads its lists from the server rather
+ * than guessing what came back.
+ */
+describe('uncomplete', () => {
+  const back = { quest: quest('d'), totalXP: 40, currentStreak: 2, multiplier: 1.43, relockedAchievements: [] };
+
+  it('takes a quest off the completed list and reloads the active one', async () => {
+    vi.mocked(api.quests.uncomplete).mockResolvedValue(back);
+    vi.mocked(api.quests.list).mockResolvedValue([quest('a'), quest('d')]);
+    vi.mocked(api.quests.completed).mockResolvedValue([]);
+    useQuestStore.setState({ quests: [quest('a')], completed: [quest('d')] });
+
+    const result = await useQuestStore.getState().uncomplete('d');
+    expect(result.totalXP).toBe(40);
+    expect(api.quests.uncomplete).toHaveBeenCalledWith('d');
+    expect(ids()).toEqual(['a', 'd']);
+    expect(useQuestStore.getState().completed).toEqual([]);
+  });
+
+  it('a round reads as not done today again', async () => {
+    vi.mocked(api.quests.uncompleteDaily).mockResolvedValue({ ...back, quest: quest('r') });
+    vi.mocked(api.quests.recurring).mockResolvedValue([{ ...quest('r'), doneToday: false }]);
+    useQuestStore.setState({ recurring: [{ ...quest('r'), doneToday: true }] });
+
+    await useQuestStore.getState().uncompleteDaily('r');
+    expect(useQuestStore.getState().recurring[0]?.doneToday).toBe(false);
+  });
+
+  it('leaves the lists alone when the server refuses', async () => {
+    vi.mocked(api.quests.uncomplete).mockRejectedValue(new Error('TOO_LATE'));
+    useQuestStore.setState({ quests: [quest('a')], completed: [quest('d')] });
+
+    await expect(useQuestStore.getState().uncomplete('d')).rejects.toThrow('TOO_LATE');
+    expect(useQuestStore.getState().completed.map((q) => q.id)).toEqual(['d']);
   });
 });

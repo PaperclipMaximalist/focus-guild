@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { computePriorityScore } from '../lib/priority.js';
@@ -34,8 +34,17 @@ import {
 } from '../lib/hourLog.js';
 import { Prisma, type Quest, type User } from '../../generated/prisma/client.js';
 import { parseRepeat } from '../lib/scheduler/repeat.js';
-import { keyWindow, memberDay, planRoundTick, tzHint, tzOf } from '../lib/memberDay.js';
+import { keyWindow, memberDay, planRoundTick, tzHint, tzOf, withinDay } from '../lib/memberDay.js';
 import { roundsDoneToday, todaysCheckIn } from '../lib/memberDayStore.js';
+import {
+  UNDO_WINDOW_MS,
+  planUndo,
+  readReceipt,
+  type CompletionReceipt,
+  type QuestStatus as QuestStatusName,
+  type UndoPlan,
+  type UndoRefusal,
+} from '../lib/undoCompletion.js';
 
 export const quests = new Hono();
 
@@ -833,6 +842,204 @@ function isUniqueClash(err: unknown): boolean {
   return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
 }
 
+/** A strict write found nothing to change: here, a second Undo racing the first. */
+function isGone(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025';
+}
+
+/** The trophies part of a completion's receipt: which unlocked, their XP, and their bonus XP events. */
+async function unlockReceipt(
+  userId: string,
+  unlocked: Array<{ id: string; slug: string; xpReward: number }>,
+): Promise<Pick<CompletionReceipt, 'unlocked' | 'achievementEventIds'>> {
+  if (unlocked.length === 0) return { unlocked: [], achievementEventIds: [] };
+  // A trophy unlocks once per member, so its bonus event is the one with its reason.
+  const events = await db.xPEvent.findMany({
+    where: { userId, reason: { in: unlocked.map((a) => `achievement:${a.slug}`) } },
+    select: { id: true },
+  });
+  return {
+    unlocked: unlocked.map((a) => ({ slug: a.slug, achievementId: a.id, xpReward: a.xpReward })),
+    achievementEventIds: events.map((e) => e.id),
+  };
+}
+
+const UNDO_MESSAGE: Record<UndoRefusal, string> = {
+  NOT_COMPLETE: 'There is no completion to take back.',
+  TOO_LATE: `A completion can be taken back for ${UNDO_WINDOW_MS / 60_000} minutes. This one stands.`,
+  SUPERSEDED: 'Something has been completed since, so this completion stands.',
+};
+
+/**
+ * Take back a fresh completion of `quest` (a plain quest or a round): gather
+ * what lib/undoCompletion.ts needs, let it decide, then reverse it in one
+ * transaction. Time logged on the quest is real time spent and stays.
+ */
+async function undoCompletion(user: User, quest: Quest, kind: 'quest' | 'round', tz: number) {
+  const now = Date.now();
+  const entries = await db.activityEntry.findMany({
+    where: { userId: user.id, subjectId: quest.id, kind: kind === 'quest' ? 'quest.completed' : 'quest.daily' },
+    orderBy: { at: 'desc' },
+    take: 1,
+  });
+  const entry = entries[0] ?? null;
+  const receipt = entry ? readReceipt(entry.data) : null;
+  const receiptEvent = receipt
+    ? await db.xPEvent.findFirst({
+        where: { id: receipt.xpEventId, userId: user.id },
+        select: { id: true, amount: true, createdAt: true },
+      })
+    : null;
+
+  let tick: { id: string; createdAt: Date; xpAwarded: number; isToday: boolean } | null = null;
+  if (kind === 'round') {
+    const last = await db.recurringCompletion.findFirst({
+      where: { questId: quest.id, userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, createdAt: true, xpAwarded: true },
+    });
+    tick = last
+      ? { ...last, isToday: withinDay(last.createdAt, memberDay(now, tz, getUserConfig(user).workingHours)) }
+      : null;
+  }
+
+  // Without a live receipt: the completion's own event, by quest and reason, from about when it happened.
+  const completedAt = kind === 'quest' ? quest.completedAt : tick?.createdAt ?? null;
+  const fallbackEvent =
+    !receiptEvent && completedAt
+      ? await db.xPEvent.findFirst({
+          where: {
+            userId: user.id,
+            questId: quest.id,
+            reason: kind === 'quest' ? 'quest_complete' : 'recurring_complete',
+            createdAt: { gte: new Date(completedAt.getTime() - 60_000) },
+          },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, amount: true, createdAt: true },
+        })
+      : null;
+
+  const eventsSince = receiptEvent
+    ? await db.xPEvent.findMany({
+        where: { userId: user.id, createdAt: { gte: receiptEvent.createdAt } },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, createdAt: true },
+        take: 50,
+      })
+    : [];
+
+  const decision = planUndo({
+    kind,
+    now,
+    totalXP: user.totalXP,
+    quest: { status: quest.status, completedAt: quest.completedAt, deadline: quest.deadline },
+    tick,
+    receipt,
+    receiptEvent,
+    fallbackEvent,
+    eventsSince,
+  });
+  if (!decision.ok) return decision;
+  const plan: UndoPlan = decision.plan;
+
+  const byStatus = new Map<QuestStatusName, string[]>();
+  for (const s of plan.reopenSteps) byStatus.set(s.status, [...(byStatus.get(s.status) ?? []), s.id]);
+
+  const relockedSlugs = plan.relock.map((r) => r.slug);
+  try {
+    const results = await db.$transaction([
+      // Strict where-clauses: a second Undo racing this one finds nothing and rolls back.
+      kind === 'quest'
+        ? db.quest.update({
+            where: { id: quest.id, status: 'COMPLETE' },
+            data: { status: plan.questStatus ?? 'ACTIVE', completedAt: null },
+          })
+        : db.quest.findUniqueOrThrow({ where: { id: quest.id } }),
+      ...(plan.deleteTickId ? [db.recurringCompletion.delete({ where: { id: plan.deleteTickId } })] : []),
+      ...(plan.restoreStale
+        ? [
+            db.recurringCompletion.create({
+              data: { questId: quest.id, userId: user.id, ...plan.restoreStale },
+            }),
+          ]
+        : []),
+      // Only the steps this completion closed; steps ticked by hand stay complete.
+      ...[...byStatus].map(([status, ids]) =>
+        db.quest.updateMany({
+          where: { id: { in: ids }, userId: user.id, status: 'COMPLETE' },
+          data: { status, completedAt: null },
+        }),
+      ),
+      ...(plan.ownEventId ? [db.xPEvent.delete({ where: { id: plan.ownEventId } })] : []),
+      db.xPEvent.deleteMany({ where: { id: { in: plan.achievementEventIds }, userId: user.id } }),
+      db.userAchievement.deleteMany({
+        where: { userId: user.id, achievementId: { in: plan.relock.map((r) => r.achievementId) } },
+      }),
+      db.activityEntry.create({
+        data: {
+          userId: user.id,
+          kind: 'quest.uncompleted',
+          line: `Took back the completion of "${quest.title}"`.slice(0, 500),
+          subjectId: quest.id,
+          data: {
+            receiptId: plan.partial ? null : entry?.id ?? null,
+            xpBack: plan.xpBack,
+            relocked: relockedSlugs,
+            ...(plan.partial ? { partial: true } : {}),
+          },
+        },
+      }),
+      db.user.update({
+        where: { id: user.id },
+        data: {
+          totalXP: { decrement: plan.xpBack },
+          ...(plan.streak ?? {}),
+        },
+      }),
+    ]);
+    const updatedQuest = results[0] as Quest;
+    const updatedUser = results[results.length - 1] as User;
+    return {
+      ok: true as const,
+      data: {
+        quest: updatedQuest,
+        totalXP: updatedUser.totalXP,
+        currentStreak: updatedUser.currentStreak,
+        multiplier: updatedUser.multiplier,
+        relockedAchievements: relockedSlugs,
+        ...(plan.partial ? { partial: true as const } : {}),
+      },
+    };
+  } catch (err) {
+    if (isGone(err)) return { ok: false as const, code: 'NOT_COMPLETE' as const };
+    throw err;
+  }
+}
+
+async function undoRoute(c: Context, kind: 'quest' | 'round') {
+  const user = c.get('user');
+  const quest = await db.quest.findUnique({ where: { id: c.req.param('id') } });
+  if (!quest || quest.userId !== user.id) return c.json(notFound(), 404);
+  if (kind === 'quest' && quest.isRecurring) {
+    return c.json(refused('IS_RECURRING', 'This quest repeats: take back today\'s tick with /uncomplete-daily'), 400);
+  }
+  if (kind === 'round' && !quest.isRecurring) {
+    return c.json(refused('NOT_RECURRING', 'Quest is not recurring; use /uncomplete'), 400);
+  }
+  // The member row as it is now, not as the auth middleware read it.
+  const fresh = await db.user.findUnique({ where: { id: user.id } });
+  if (!fresh) return c.json(notFound('User not found'), 404);
+  const result = await undoCompletion(fresh, quest, kind, tzOf(c, c.req.query('tz')));
+  if (!result.ok) return c.json(refused(result.code, UNDO_MESSAGE[result.code]), 409);
+  return c.json({ success: true, data: result.data });
+}
+
+// POST /quests/:id/uncomplete — take back a mistaken tick, within minutes of it
+quests.post('/:id/uncomplete', (c) => undoRoute(c, 'quest'));
+
+// POST /quests/:id/uncomplete-daily — take back today's tick of a round
+quests.post('/:id/uncomplete-daily', (c) => undoRoute(c, 'round'));
+
 // POST /quests/:id/complete — complete a quest, award XP, update streak
 quests.post('/:id/complete', async (c) => {
   const questId = c.req.param('id');
@@ -920,7 +1127,7 @@ quests.post('/:id/complete', async (c) => {
   });
 
   // Persist everything in one transaction
-  const [updatedQuest, closedSteps, , updatedUser] = await db.$transaction([
+  const [updatedQuest, closedSteps, xpEvent, updatedUser] = await db.$transaction([
     db.quest.update({
       where: { id: questId },
       data: { status: 'COMPLETE', completedAt: new Date() },
@@ -959,7 +1166,22 @@ quests.post('/:id/complete', async (c) => {
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
   const finalTotalXP = updatedUser.totalXP + bonusXP;
-  void logActivity(
+  const openStatus = new Map(treeRows.map((r) => [r.id, r.status]));
+  // Awaited, unlike most log lines: it carries the receipt an Undo (seconds
+  // from now) reverses this completion by. See lib/undoCompletion.ts.
+  const receipt: CompletionReceipt = {
+    v: 1,
+    kind: 'quest',
+    at: (updatedQuest.completedAt ?? new Date()).toISOString(),
+    priorStatus: quest.status,
+    priorStreak: user.currentStreak,
+    priorMultiplier: user.multiplier,
+    xpEventId: xpEvent.id,
+    xp,
+    closedSteps: openDescendantIds.map((id) => ({ id, status: (openStatus.get(id) ?? 'ACTIVE') as QuestStatusName })),
+    ...(await unlockReceipt(user.id, newlyUnlocked)),
+  };
+  await logActivity(
     user.id,
     'quest.completed',
     `Completed quest "${updatedQuest.title}"` +
@@ -967,7 +1189,10 @@ quests.post('/:id/complete', async (c) => {
       ` (+${xp} XP${streakResult.newStreak ? `, streak ${streakResult.newStreak}` : ''})` +
       (closedSteps.count ? `, closing ${closedSteps.count} open sub-quest${closedSteps.count === 1 ? '' : 's'} with it` : '') +
       (newlyUnlocked.length ? `. Unlocked ${newlyUnlocked.map((a) => a.title).join(', ')}` : ''),
-    { subjectId: updatedQuest.id, data: { xp, estimatedMinutes: updatedQuest.estimatedMinutes, actualMinutes: updatedQuest.actualMinutes } },
+    {
+      subjectId: updatedQuest.id,
+      data: { xp, estimatedMinutes: updatedQuest.estimatedMinutes, actualMinutes: updatedQuest.actualMinutes, receipt },
+    },
   );
 
   return c.json({
@@ -1100,9 +1325,10 @@ quests.post('/:id/complete-daily', async (c) => {
   // stale row gives way to today's tick instead of refusing it.
   const recent = await db.recurringCompletion.findMany({
     where: { questId, date: keyWindow(day) },
-    select: { id: true, date: true, createdAt: true },
+    select: { id: true, date: true, createdAt: true, xpAwarded: true },
   });
   const tick = planRoundTick(recent, day);
+  const stale = tick.kind === 'replace-stale' ? recent.find((r) => r.id === tick.staleId) : undefined;
   if (tick.kind === 'already-done') return c.json(ALREADY_DONE_TODAY, 409);
 
   const checkIn = await todaysCheckIn(user.id, day);
@@ -1144,8 +1370,10 @@ quests.post('/:id/complete-daily', async (c) => {
   // the (questId, date) constraint still guards against a double tick: of two
   // racing requests, the second's create clashes and the whole tick rolls back.
   let updatedUser: User;
+  let tickRow: { id: string; createdAt: Date };
+  let xpEvent: { id: string };
   try {
-    [, , , updatedUser] = await db.$transaction([
+    [, tickRow, xpEvent, updatedUser] = await db.$transaction([
       db.recurringCompletion.deleteMany({
         where: { id: { in: tick.kind === 'replace-stale' ? [tick.staleId] : [] } },
       }),
@@ -1180,7 +1408,27 @@ quests.post('/:id/complete-daily', async (c) => {
     tzOffsetMin: tz,
   });
   const bonusXP = newlyUnlocked.reduce((s, a) => s + a.xpReward, 0);
-  void logActivity(user.id, 'quest.daily', `Did daily quest "${quest.title}" (+${xp} XP)`, { subjectId: quest.id });
+  // Awaited: the receipt an Undo reverses this tick by (lib/undoCompletion.ts).
+  const receipt: CompletionReceipt = {
+    v: 1,
+    kind: 'round',
+    at: tickRow.createdAt.toISOString(),
+    priorStatus: 'ACTIVE',
+    priorStreak: user.currentStreak,
+    priorMultiplier: user.multiplier,
+    xpEventId: xpEvent.id,
+    xp,
+    closedSteps: [],
+    ...(await unlockReceipt(user.id, newlyUnlocked)),
+    roundCompletionId: tickRow.id,
+    replacedStale: stale
+      ? { date: stale.date.toISOString(), createdAt: stale.createdAt.toISOString(), xpAwarded: stale.xpAwarded }
+      : null,
+  };
+  await logActivity(user.id, 'quest.daily', `Did daily quest "${quest.title}" (+${xp} XP)`, {
+    subjectId: quest.id,
+    data: { xp, receipt },
+  });
 
   return c.json({
     success: true,

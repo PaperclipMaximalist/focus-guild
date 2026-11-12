@@ -5,7 +5,13 @@ import { useToastStore } from '../components/Toasts';
 /** How long a deleted quest can still be brought back. Just under the toast's own lifetime. */
 // The delete is sent just after the Undo toast goes, never while it is still on screen.
 const UNDO_WINDOW_MS = 8500;
-import { api, type Quest, type CompleteQuestResult, type QuestSchedulerHints } from '../lib/api';
+import {
+  api,
+  type Quest,
+  type CompleteQuestResult,
+  type QuestSchedulerHints,
+  type UncompleteQuestResult,
+} from '../lib/api';
 import { useScheduleStore } from './useScheduleStore';
 import { duckReact } from './useMascotStore';
 
@@ -38,6 +44,13 @@ interface QuestState {
   ) => Promise<Quest>;
   complete: (id: string) => Promise<CompleteQuestResult>;
   completeDaily: (id: string) => Promise<CompleteQuestResult>;
+  /**
+   * Take back a fresh completion (a mis-tap). The server reopens the steps it
+   * closed, so the lists are reloaded rather than patched by hand.
+   */
+  uncomplete: (id: string) => Promise<UncompleteQuestResult>;
+  /** Take back today's tick of a round. */
+  uncompleteDaily: (id: string) => Promise<UncompleteQuestResult>;
   notToday: (id: string) => Promise<void>;
   remove: (id: string) => Promise<void>;
   /**
@@ -134,6 +147,22 @@ export const useQuestStore = create<QuestState>((set, get) => ({
         q.id === id ? { ...q, doneToday: true } : q,
       ),
     });
+    return result;
+  },
+
+  uncomplete: async (id) => {
+    const result = await api.quests.uncomplete(id);
+    // Off the completed list at once; the reload brings it (and any steps it
+    // had closed) back onto the active list where the server now has them.
+    set({ completed: get().completed.filter((q) => q.id !== id) });
+    await Promise.all([get().load(), get().loadCompleted()]);
+    return result;
+  },
+
+  uncompleteDaily: async (id) => {
+    const result = await api.quests.uncompleteDaily(id);
+    set({ recurring: get().recurring.map((q) => (q.id === id ? { ...q, doneToday: false } : q)) });
+    await get().loadRecurring();
     return result;
   },
 
