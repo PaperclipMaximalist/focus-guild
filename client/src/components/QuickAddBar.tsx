@@ -15,10 +15,15 @@ import { useQuestStore } from '../store/useQuestStore';
 import { useToastStore } from './Toasts';
 import { parseQuickAdd, questFields } from '../lib/quickAdd';
 import { sfxClick } from '../lib/sfx';
+import { findDuplicate } from '../lib/duplicates';
+import { formatDeadline } from '../lib/formatters';
 import { CornerDownLeft, Swords, TriangleAlert, Plus } from 'lucide-react';
 
 export function QuickAddBar() {
   const add = useQuestStore((s) => s.add);
+  const removeQuest = useQuestStore((s) => s.remove);
+  const quests = useQuestStore((s) => s.quests);
+  const rounds = useQuestStore((s) => s.recurring);
   const pushToast = useToastStore((s) => s.push);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -26,20 +31,45 @@ export function QuickAddBar() {
   const parsed = useMemo(() => parseQuickAdd(text), [text]);
   const ready = parsed.title.length > 0;
 
+  // Already on the list: an active quest, or failing that a round. It never blocks adding.
+  const dupQuest = useMemo(() => findDuplicate(parsed.title, quests), [parsed.title, quests]);
+  const dupRound = useMemo(() => (dupQuest ? undefined : findDuplicate(parsed.title, rounds)), [parsed.title, dupQuest, rounds]);
+  const dup = dupQuest ?? dupRound;
+  const dupNote = dup
+    ? `Already on your list: “${dup.title}”${dupQuest ? (dupQuest.deadline ? ` · ${formatDeadline(dupQuest.deadline)}` : '') : ' · a round'}`
+    : null;
+
   const submit = async () => {
     if (!ready || busy) return;
     setBusy(true);
     try {
-      await add(questFields(parsed));
+      const created = await add(questFields(parsed));
       sfxClick();
-      pushToast({
-        icon: Swords,
-        title: `Quest added: ${parsed.title}`,
-        sub: parsed.chips.map((c) => c.label).join(' · ') || 'Slotted into your feed.',
-        variant: 'xp',
-      });
+      if (dup) {
+        pushToast({
+          icon: Swords,
+          title: `Added again: ${parsed.title}`,
+          sub: 'You already had one. Undo to take this one back.',
+          variant: 'xp',
+          action: {
+            label: 'Undo',
+            run: () => {
+              removeQuest(created.id).catch(() => {
+                pushToast({ icon: TriangleAlert, title: 'Could not undo that', sub: 'The quest is still on your list.', variant: 'error' });
+              });
+            },
+          },
+        });
+      } else {
+        pushToast({
+          icon: Swords,
+          title: `Quest added: ${parsed.title}`,
+          sub: parsed.chips.map((c) => c.label).join(' · ') || 'Slotted into your feed.',
+          variant: 'xp',
+        });
+      }
       setText('');
-    } catch (e) {
+    } catch {
       pushToast({ icon: TriangleAlert, title: 'Could not add that quest', sub: 'Your text is still in the box. Try again.', variant: 'error' });
     } finally {
       setBusy(false);
@@ -77,7 +107,7 @@ export function QuickAddBar() {
 
       {/* Live parse preview */}
       <AnimatePresence>
-        {text.trim() && (parsed.chips.length > 0 || parsed.warnings.length > 0) && (
+        {text.trim() && (parsed.chips.length > 0 || parsed.warnings.length > 0 || dupNote) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
@@ -98,6 +128,11 @@ export function QuickAddBar() {
                 </span>
               ))}
             </div>
+            {dupNote && (
+              <p className="mt-1 pl-7 text-[0.65rem]" style={{ color: 'var(--color-gold)' }}>
+                {dupNote}
+              </p>
+            )}
             {parsed.warnings.map((w) => (
               <p key={w} className="mt-1 pl-7 text-[0.65rem]" style={{ color: 'var(--color-gold)' }}>
                 {w}

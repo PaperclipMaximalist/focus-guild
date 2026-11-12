@@ -15,7 +15,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { aiApi, manifestApi } from '../lib/api';
-import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manifestBody, manifestGuide, parseManifest } from '../lib/manifest';
+import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manifestBody, manifestGuide, parseManifest, type ManifestQuest } from '../lib/manifest';
+import { findDuplicate, titleKey } from '../lib/duplicates';
 import { sfxClick } from '../lib/sfx';
 import { useQuestStore } from '../store/useQuestStore';
 import { useToastStore } from '../components/Toasts';
@@ -23,11 +24,34 @@ import { ArrowLeft, Bot, Check, ChevronDown, Copy, CornerDownRight, ListPlus, Tr
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** What a tree of quests will create, counted the way `parseManifest` counts its own. */
+function countTree(quests: ManifestQuest[]) {
+  const c = { quests: 0, steps: 0, hourLogs: 0, routines: 0, total: 0 };
+  const steps = (list: ManifestQuest[] | undefined) => {
+    for (const q of list ?? []) {
+      c.steps += 1;
+      c.total += 1;
+      steps(q.steps);
+    }
+  };
+  for (const q of quests) {
+    c.total += 1;
+    if (q.trackHours) c.hourLogs += 1;
+    else if (q.isRecurring) c.routines += 1;
+    else c.quests += 1;
+    steps(q.steps);
+  }
+  return c;
+}
+
 export default function QuestImport() {
   const navigate = useNavigate();
   const pushToast = useToastStore((s) => s.push);
   const loadQuests = useQuestStore((s) => s.load);
   const loadRecurring = useQuestStore((s) => s.loadRecurring);
+  const activeQuests = useQuestStore((s) => s.quests);
+  const rounds = useQuestStore((s) => s.recurring);
+  const [leaveOut, setLeaveOut] = useState(true);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -38,6 +62,13 @@ export default function QuestImport() {
   const [notes, setNotes] = useState('');
   const [writing, setWriting] = useState(false);
   const [wrote, setWrote] = useState<string | null>(null);
+
+  // The lists to compare against: make sure they are there.
+  useEffect(() => {
+    void loadQuests();
+    void loadRecurring();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on mount
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -84,10 +115,45 @@ export default function QuestImport() {
   };
 
   const parsed = useMemo(() => parseManifest(text), [text]);
-  const { rows, counts } = parsed;
+  const { rows } = parsed;
+
+  // Top-level quests already on the list, or repeated earlier in this paste. Rows share their
+  // quest object with the tree, so a row is tied to its node by identity; steps go with their parent.
+  const dupTops = useMemo(() => {
+    const known = [...activeQuests, ...rounds];
+    const seen = new Set<string>();
+    const dups = new Set<ManifestQuest>();
+    for (const q of parsed.quests) {
+      const key = titleKey(q.title);
+      if (!key) continue;
+      if (seen.has(key) || findDuplicate(q.title, known)) dups.add(q);
+      else seen.add(key);
+    }
+    return dups;
+  }, [parsed.quests, activeQuests, rounds]);
+  const dupLines = useMemo(() => {
+    const lines = new Set<number>();
+    let inDup = false;
+    for (const r of rows) {
+      if (r.tier === 1) inDup = r.quest !== null && dupTops.has(r.quest);
+      if (r.quest && inDup) lines.add(r.line);
+    }
+    return lines;
+  }, [rows, dupTops]);
+  const leaving = leaveOut && dupTops.size > 0;
+  const toImport = useMemo(
+    () => (leaving ? parsed.quests.filter((q) => !dupTops.has(q)) : parsed.quests),
+    [leaving, parsed.quests, dupTops],
+  );
+  const counts = useMemo(() => (leaving ? countTree(toImport) : parsed.counts), [leaving, toImport, parsed.counts]);
+  const allThere = leaving && toImport.length === 0;
+  const leftOutTitles = parsed.quests.filter((q) => dupTops.has(q)).map((q) => q.title);
+
   const skipped = rows.filter((r) => r.skipped).length;
-  const warned = rows.filter((r) => r.warnings.length > 0).length;
+  const warned = rows.filter((r) => r.warnings.length > 0 && !(leaving && dupLines.has(r.line))).length;
   const tooMany = counts.total > MAX_IMPORT;
+  // The parser's "too many" note counts the whole paste; once duplicates are out it may no longer hold.
+  const pageNotes = tooMany ? parsed.notes : parsed.notes.filter((n) => !n.startsWith('That is '));
 
   // "12 quests, 5 steps, 1 hour log and 2 rounds", with only the parts there are.
   const summary = [
@@ -100,7 +166,7 @@ export default function QuestImport() {
   const doImport = async () => {
     setBusy(true);
     try {
-      const res = await manifestApi.import(parsed.quests);
+      const res = await manifestApi.import(toImport);
       await Promise.all([loadQuests(), counts.routines > 0 ? loadRecurring() : null]);
       sfxClick();
       pushToast({
@@ -244,16 +310,34 @@ export default function QuestImport() {
       {rows.length > 0 && (
         <section className="flex flex-col gap-2" aria-live="polite">
           <h2 className="section-label">
-            Preview: {summary.length > 0 ? summary.join(', ') : 'nothing to import'}
+            Preview: {allThere ? 'Everything here is already on your list' : summary.length > 0 ? summary.join(', ') : 'nothing to import'}
             {skipped > 0 && `, ${plural(skipped, 'line')} left out`}
           </h2>
 
-          {parsed.notes.map((note) => (
+          {pageNotes.map((note) => (
             <p key={note} className="panel flex items-start gap-2 px-4 py-3 text-sm" style={{ color: 'var(--color-gold)' }}>
               <TriangleAlert size={15} aria-hidden className="mt-0.5 shrink-0" />
               {note}
             </p>
           ))}
+
+          {dupTops.size > 0 && (
+            <div className="panel px-4 py-3 text-sm">
+              <label className="flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={leaveOut}
+                  onChange={(e) => setLeaveOut(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-(--color-primary)"
+                />
+                <span>Leave out the {dupTops.size} already on your list</span>
+              </label>
+              <p className="mt-1.5 pl-7 text-[13px] leading-snug text-(--color-muted)">
+                {leftOutTitles.slice(0, 5).join(', ')}
+                {leftOutTitles.length > 5 && ` and ${leftOutTitles.length - 5} more`}
+              </p>
+            </div>
+          )}
 
           <ul className="panel rows overflow-hidden">
             {rows.slice(0, 250).map((r) => (
@@ -264,7 +348,15 @@ export default function QuestImport() {
                 <span className="flex min-w-0 flex-1 gap-1.5" style={{ paddingLeft: (r.tier - 1) * 18 }}>
                   {r.tier > 1 && <CornerDownRight size={14} aria-label="Step of the quest above" className="mt-0.5 shrink-0 text-(--color-muted)" />}
                   <span className="min-w-0 flex-1">
-                    {r.quest ? (
+                    {r.quest && leaving && dupLines.has(r.line) ? (
+                      <>
+                        <span className="block break-words text-(--color-muted) line-through">{r.quest.title}</span>
+                        <span className="mt-0.5 flex items-start gap-1 text-[12px] text-(--color-muted)">
+                          <TriangleAlert size={11} aria-hidden className="mt-0.5 shrink-0" />
+                          already on your list
+                        </span>
+                      </>
+                    ) : r.quest ? (
                       <>
                         <span className={`block break-words ${r.tier === 1 ? 'font-semibold' : ''}`}>{r.quest.title}</span>
                         {r.chips.length > 0 && (
@@ -303,7 +395,7 @@ export default function QuestImport() {
         </section>
       )}
 
-      <button type="button" onClick={doImport} disabled={busy || counts.total === 0 || tooMany} className="btn-primary min-h-11">
+      <button type="button" onClick={doImport} disabled={busy || counts.total === 0 || tooMany || allThere} className="btn-primary min-h-11">
         {busy ? 'Importing…' : counts.total === 0 ? 'Import' : `Import ${plural(counts.total, 'quest')}`}
       </button>
 
