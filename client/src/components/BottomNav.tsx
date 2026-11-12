@@ -19,6 +19,7 @@ import { Wall } from '../lines/Dressing';
 import { reportOverdue } from '../lines/live';
 import { levelFromXP, nextLevel, progressToNextLevel } from '../lib/levels';
 import { openNewQuest } from '../lib/questEditor';
+import { TimerChip } from './TimerChip';
 import {
   CalendarDays,
   ChartColumn,
@@ -182,6 +183,9 @@ function Sidebar({
         <Plus size={16} strokeWidth={2.5} aria-hidden /> New quest
         <span className="ml-auto rounded-[4px] px-1.5 py-px text-[11px] font-semibold opacity-60" aria-hidden>N</span>
       </button>
+
+      {/* A running focus session, directly under New quest. */}
+      <TimerChip className="mb-4 -mt-1" />
 
       <nav aria-label="Main" className="flex flex-col gap-0.5">{PRIMARY.map((i) => row(i))}</nav>
 

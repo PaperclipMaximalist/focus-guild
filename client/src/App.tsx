@@ -30,6 +30,7 @@ import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { Header } from './components/Header';
 import { LevelUpSplash } from './components/LevelUpSplash';
+import { FocusTimerHost } from './components/FocusTimerHost';
 import { useLevelUpStore } from './store/useLevelUpStore';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
@@ -276,6 +277,7 @@ function Shell({ children }: { children: React.ReactNode }) {
       </a>
       {nav && <Header />}
       <LevelUpSplash newLevel={levelUp} onDismiss={dismissLevelUp} />
+      <FocusTimerHost />
       {children}
     </div>
   );

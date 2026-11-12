@@ -13,12 +13,14 @@ import { useEffect, useId, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type Quest, type XPEventDTO } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
+import { useTimerStore } from '../store/useTimerStore';
+import { sfxStart } from '../lib/sfx';
 import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { useToastStore } from './Toasts';
 import { formatDeadline, formatDeadlineExact, formatMinutes } from '../lib/formatters';
 import { SubQuestList } from './SubQuestList';
 import { useDialog } from '../lib/useDialog';
-import { CalendarClock, Check, Pencil, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
+import { CalendarClock, Check, Pencil, Play, Timer, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -46,6 +48,9 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
   const titleId = useId();
   const boxRef = useDialog(open && !!quest, onClose);
   const pushToast = useToastStore((s) => s.push);
+  const startTimer = useTimerStore((s) => s.start);
+  const showTimer = useTimerStore((s) => s.show);
+  const timerRunning = useTimerStore((s) => !!s.active);
 
   const [xpEvents, setXpEvents] = useState<XPEventDTO[]>([]);
   const [loading, setLoading] = useState(false);
@@ -161,6 +166,23 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
     } catch {
       // useCompleteQuest (here, or behind the page's onComplete) has already said why.
     }
+  };
+
+  // What is left of the quest, in one sitting: at least 5, at most its chunk size. An hour log has no estimate: 25.
+  const startDurationMin = () => {
+    if (quest.estimatedMinutes === 0) return 25;
+    const left = (quest.rolledUpMinutes ?? quest.estimatedMinutes) - (quest.actualMinutes ?? 0);
+    return Math.min(quest.maxChunkMin ?? 50, Math.max(5, left));
+  };
+
+  const handleStart = () => {
+    if (timerRunning) {
+      showTimer();
+    } else {
+      sfxStart();
+      startTimer({ questId: quest.id, questTitle: quest.title, durationMin: startDurationMin(), daily: quest.isRecurring });
+    }
+    onClose();
   };
 
   const totalXP = xpEvents.reduce((s, e) => s + e.amount, 0);
@@ -414,32 +436,45 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
               </p>
             )}
 
-            {/* Footer actions. Complete is first in the code as well as first on a phone, so Tab meets it first. */}
-            <div className="flex flex-wrap items-center gap-2 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
-              <button
-                type="button"
-                onClick={handleComplete}
-                className="btn-quiet w-full sm:order-last sm:w-auto"
-                style={{ background: 'var(--color-green)', color: 'var(--color-on-primary)' }}
-              >
-                <Check size={15} strokeWidth={2.5} aria-hidden /> Complete
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteParent}
-                className="btn-quiet mr-auto bg-transparent px-2"
-                style={{ color: 'var(--color-fire)' }}
-              >
-                <Trash2 size={15} aria-hidden /> Delete
-              </button>
-              {!quest.isRecurring && (
-                <button type="button" onClick={handleNotToday} className="btn-quiet">
-                  <CalendarClock size={15} aria-hidden /> Not today
+            {/*
+              Footer: two rows on purpose. What to do with the quest now (Start,
+              then Complete) comes first in the code and on screen, so Tab and a
+              thumb both meet it first; what to do about it (Not today, Edit,
+              Delete) sits under it, quieter. One accent-filled button: Start.
+            */}
+            <div className="flex flex-col gap-2 pt-3 border-t" style={{ borderColor: 'var(--color-border)' }}>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                {quest.status !== 'COMPLETE' && (
+                  <button type="button" onClick={handleStart} className="btn-primary w-full sm:flex-1">
+                    {timerRunning ? (
+                      <><Timer size={15} aria-hidden /> Open timer</>
+                    ) : (
+                      <><Play size={15} aria-hidden /> Start</>
+                    )}
+                  </button>
+                )}
+                <button type="button" onClick={handleComplete} className="btn-quiet w-full sm:flex-1">
+                  <Check size={15} strokeWidth={2.5} aria-hidden style={{ color: 'var(--color-green)' }} /> Complete
                 </button>
-              )}
-              <button type="button" onClick={onEdit} className="btn-quiet">
-                <Pencil size={15} aria-hidden /> Edit
-              </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {!quest.isRecurring && (
+                  <button type="button" onClick={handleNotToday} className="btn-quiet">
+                    <CalendarClock size={15} aria-hidden /> Not today
+                  </button>
+                )}
+                <button type="button" onClick={onEdit} className="btn-quiet">
+                  <Pencil size={15} aria-hidden /> Edit
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteParent}
+                  className="btn-quiet ml-auto bg-transparent px-2"
+                  style={{ color: 'var(--color-fire)' }}
+                >
+                  <Trash2 size={15} aria-hidden /> Delete
+                </button>
+              </div>
             </div>
           </motion.div>
         </motion.div>

@@ -3,14 +3,11 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence, useIsPresent } from 'framer-motion';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useQuestStore } from '../store/useQuestStore';
-import { useUserStore } from '../store/useUserStore';
 import { useTimerStore } from '../store/useTimerStore';
-import { FocusTimer } from '../components/FocusTimer';
 import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint, type PlanRests } from '../lib/api';
 import { AvailableTime } from '../components/AvailableTime';
-import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { formatDayAndTime, formatMinutes } from '../lib/formatters';
 import { blockStatus as boardStatus, TONE_COLOR } from '../lib/departure';
 import { BoardSign } from '../components/BoardSign';
@@ -886,11 +883,14 @@ export default function GuildFeed() {
     useScheduleStore();
   const [energyTrace, setEnergyTrace] = useState<EnergyTracePoint[]>([]);
   const { quests, load: loadQuests } = useQuestStore();
-  const complete = useCompleteQuest();
-  const user = useUserStore((s) => s.user);
   const startTimer = useTimerStore((s) => s.start);
-  const timerActive = useTimerStore((s) => s.active);
-  const [timerOpen, setTimerOpen] = useState(false);
+
+  // The app-wide timer screen completes the quest; the route re-plans around it.
+  useEffect(() => {
+    const onDone = () => { void replan(); };
+    window.addEventListener('fg:timer-completed', onDone);
+    return () => window.removeEventListener('fg:timer-completed', onDone);
+  }, [replan]);
 
   const [now, setNow] = useState(Date.now());
   const [selectedDay, setSelectedDay] = useState<number>(startOfDayMs(Date.now()));
@@ -1370,8 +1370,8 @@ export default function GuildFeed() {
                   questId: selectedQuest.id,
                   questTitle: selectedQuest.title,
                   durationMin: selectedBlock.durationMin,
+                  daily: selectedQuest.isRecurring,
                 });
-                setTimerOpen(true);
                 setSelectedBlockId(null);
               }
             }}
@@ -1384,28 +1384,6 @@ export default function GuildFeed() {
           />
         )}
       </AnimatePresence>
-
-      {/* Focus timer overlay */}
-      <FocusTimer
-        open={timerOpen && !!timerActive}
-        onClose={() => setTimerOpen(false)}
-        onComplete={async (questId) => {
-          if (!user) return;
-          const q = quests.find((x) => x.id === questId);
-          await complete(questId, { daily: q?.isRecurring, sub: 'Focus block complete' });
-          replan();
-        }}
-      />
-
-      {timerActive && !timerOpen && (
-        <button
-          onClick={() => setTimerOpen(true)}
-          className="fixed bottom-20 right-4 z-50 rounded-md px-4 py-2 text-sm font-semibold shadow-lg"
-          style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
-        >
-          <span className="inline-flex items-center gap-1.5"><Timer size={14} aria-hidden /> Resume timer</span>
-        </button>
-      )}
 
       <style>{`.scrollbar-hide::-webkit-scrollbar { display: none; } .scrollbar-hide { scrollbar-width: none; }`}</style>
     </div>

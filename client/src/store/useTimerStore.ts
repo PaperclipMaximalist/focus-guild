@@ -21,11 +21,21 @@ interface ActiveSession {
   pausedAt: number | null; // ms-epoch when paused; null when running
   /** Cumulative paused milliseconds, applied as offset to expected-end. */
   pausedTotalMs: number;
+  /**
+   * The quest is a round (repeats). Kept with the session because the timer can
+   * be finished from any page, including ones that never loaded the rounds, and
+   * a round finished through the ordinary route would be closed for good.
+   */
+  daily?: boolean;
 }
 
 interface TimerState {
   active: ActiveSession | null;
-  start: (input: { questId: string; questTitle: string; durationMin: number }) => void;
+  /** Whether the timer's screen is showing. Never persisted: after a reload the session runs and the screen is closed. */
+  open: boolean;
+  show: () => void;
+  hide: () => void;
+  start: (input: { questId: string; questTitle: string; durationMin: number; daily?: boolean }) => void;
   pause: () => void;
   resume: () => void;
   stop: () => void;
@@ -52,18 +62,23 @@ function saveToStorage(session: ActiveSession | null) {
 
 export const useTimerStore = create<TimerState>((set, get) => ({
   active: loadFromStorage(),
+  open: false,
+
+  show: () => set({ open: true }),
+  hide: () => set({ open: false }),
 
   start: (input) => {
     const session: ActiveSession = {
       questId: input.questId,
       questTitle: input.questTitle,
       durationMin: input.durationMin,
+      daily: input.daily ?? false,
       startedAt: Date.now(),
       pausedAt: null,
       pausedTotalMs: 0,
     };
     saveToStorage(session);
-    set({ active: session });
+    set({ active: session, open: true });
   },
 
   pause: () => {
@@ -89,7 +104,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
 
   stop: () => {
     saveToStorage(null);
-    set({ active: null });
+    set({ active: null, open: false });
   },
 
   remainingMs: () => {

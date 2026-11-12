@@ -200,7 +200,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
             className="rounded-md px-6 py-2.5 text-sm font-semibold text-(--color-on-primary) disabled:opacity-50"
             style={{ background: 'var(--color-green)' }}
           >
-            {completing ? '…' : <span className="inline-flex items-center gap-2"><Check size={16} strokeWidth={2.5} aria-hidden /> Done</span>}
+            {completing ? '…' : <span className="inline-flex items-center gap-2"><Check size={16} strokeWidth={2.5} aria-hidden /> Complete</span>}
           </button>
           <button
             onClick={() => fire('drop', handleDiscard)}

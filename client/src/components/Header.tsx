@@ -17,6 +17,8 @@ import { SignedIn, UserButton } from '@clerk/clerk-react';
 import { Flame, NotebookPen, SettingsIcon } from 'lucide-react';
 import { useUserStore } from '../store/useUserStore';
 import { useMascotStore } from '../store/useMascotStore';
+import { useTimerStore } from '../store/useTimerStore';
+import { TimerChip } from './TimerChip';
 import { levelFromXP, progressToNextLevel } from '../lib/levels';
 
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
@@ -24,6 +26,7 @@ const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 export function Header() {
   const user = useUserStore((s) => s.user);
   const duck = useMascotStore((s) => s.enabled);
+  const chipShown = useTimerStore((s) => !!s.active && !s.open);
   if (!user) return null;
 
   const level = levelFromXP(user.totalXP);
@@ -82,6 +85,12 @@ export function Header() {
           </SignedIn>
         )}
       </div>
+      {/* A running focus session, under the top row so it sticks with the bar. */}
+      {chipShown && (
+        <div className="px-3 pb-2">
+          <TimerChip />
+        </div>
+      )}
     </header>
   );
 }

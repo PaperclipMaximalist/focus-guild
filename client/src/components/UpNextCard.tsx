@@ -14,15 +14,14 @@ import { Link } from 'react-router-dom';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { useTimerStore } from '../store/useTimerStore';
-import { FocusTimer } from './FocusTimer';
 import { sfxStart } from '../lib/sfx';
 import type { ScheduleBlock } from '../lib/api';
 import { formatDayAndTime } from '../lib/formatters';
 import { CalendarDays, ChevronRight, Play, Timer } from 'lucide-react';
 
 interface Props {
-  /** Same completion pipeline the Today quest cards use. */
-  onCompleteQuest: (questId: string) => Promise<void> | void;
+  /** No longer needed for the timer (the app-wide timer screen completes quests itself); kept so callers need no change. */
+  onCompleteQuest?: (questId: string) => Promise<void> | void;
   /** Render nothing while there is no block to show (the welcome guide already points at the route). */
   hideWhenEmpty?: boolean;
 }
@@ -37,13 +36,13 @@ function fmtCountdown(ms: number): string {
   return `${total}m`;
 }
 
-export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
+export function UpNextCard({ hideWhenEmpty }: Props) {
   const { schedule, blockQuests, fetch: fetchSchedule } = useScheduleStore();
   const quests = useQuestStore((s) => s.quests);
   const completed = useQuestStore((s) => s.completed);
   const startTimer = useTimerStore((s) => s.start);
   const timerActive = useTimerStore((s) => s.active);
-  const [timerOpen, setTimerOpen] = useState(false);
+  const showTimer = useTimerStore((s) => s.show);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -138,8 +137,8 @@ export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
       questId: quest.id,
       questTitle: quest.title,
       durationMin: block.durationMin,
+      daily: quest.isRecurring,
     });
-    setTimerOpen(true);
   };
 
   return (
@@ -156,7 +155,7 @@ export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
         <p className="tnum mt-0.5 text-[13px] text-(--color-muted)">{subtitle}</p>
         <div className="mt-3.5 flex items-center gap-2">
           {timerActive?.questId === quest.id ? (
-            <button type="button" onClick={() => setTimerOpen(true)} className="btn-primary">
+            <button type="button" onClick={showTimer} className="btn-primary">
               <Timer size={15} aria-hidden /> Resume
             </button>
           ) : (
@@ -169,14 +168,6 @@ export function UpNextCard({ onCompleteQuest, hideWhenEmpty }: Props) {
           </Link>
         </div>
       </div>
-
-      <FocusTimer
-        open={timerOpen && !!timerActive}
-        onClose={() => setTimerOpen(false)}
-        onComplete={async (questId) => {
-          await onCompleteQuest(questId);
-        }}
-      />
     </>
   );
 }
