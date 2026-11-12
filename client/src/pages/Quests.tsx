@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
-import { useUserStore } from '../store/useUserStore';
+import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { useToastStore } from '../components/Toasts';
 import { QuestCard } from '../components/QuestCard';
 import { QuestModal } from '../components/QuestModal';
@@ -10,13 +10,13 @@ import { HourLogs } from '../components/HourLogs';
 import { api, type Quest } from '../lib/api';
 import { QUEST_MODAL_OPEN } from '../lib/questEditor';
 import { Link } from 'react-router-dom';
-import { Check, Hourglass, ListPlus, MapIcon, Plus, Search, SquareCheck, Star, Trash2, X } from 'lucide-react';
+import { Check, Hourglass, ListPlus, MapIcon, Plus, Search, SquareCheck, Trash2, X } from 'lucide-react';
 
 type Sort = 'priority' | 'deadline' | 'created' | 'title';
 
 export default function Quests() {
-  const { quests, load, complete, removeWithUndo } = useQuestStore();
-  const { applyXPGain } = useUserStore();
+  const { quests, load, removeWithUndo } = useQuestStore();
+  const complete = useCompleteQuest();
   const pushToast = useToastStore((s) => s.push);
 
   const [editing, setEditing] = useState<Quest | null>(null);
@@ -138,9 +138,7 @@ export default function Quests() {
   const clearSelection = () => setSelected(new Set());
 
   const handleComplete = async (id: string) => {
-    const result = await complete(id);
-    applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-    pushToast({ icon: Star, title: `+${result.xpAwarded} XP`, sub: 'Quest complete', variant: 'xp' });
+    await complete(id);
   };
 
   const bulkComplete = async () => {

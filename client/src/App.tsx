@@ -29,6 +29,8 @@ const AiConnections = lazy(() => import('./pages/AiConnections'));
 import { ToastContainer } from './components/Toasts';
 import { BottomNav } from './components/BottomNav';
 import { Header } from './components/Header';
+import { LevelUpSplash } from './components/LevelUpSplash';
+import { useLevelUpStore } from './store/useLevelUpStore';
 import { KeyboardShortcuts } from './components/KeyboardShortcuts';
 import { CommandPalette } from './components/CommandPalette';
 import { RankThemeController } from './components/RankThemeController';
@@ -236,6 +238,8 @@ const PAGE_NAMES: Record<string, string> = {
 
 /** Leaves room for whichever navigation is showing: top bar and bottom bar on a phone, sidebar on a wide screen. */
 function Shell({ children }: { children: React.ReactNode }) {
+  const levelUp = useLevelUpStore((s) => s.level);
+  const dismissLevelUp = useLevelUpStore((s) => s.dismiss);
   // /checkin is a focused full-screen flow: no navigation, so no room left for it.
   const { pathname } = useLocation();
   const nav = pathname !== '/checkin';
@@ -271,6 +275,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
       {nav && <Header />}
+      <LevelUpSplash newLevel={levelUp} onDismiss={dismissLevelUp} />
       {children}
     </div>
   );

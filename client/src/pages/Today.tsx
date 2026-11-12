@@ -14,8 +14,7 @@ import { DeepStatsPanel } from '../components/DeepStatsPanel';
 import { FAB } from '../components/FAB';
 import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
-import { LevelUpSplash } from '../components/LevelUpSplash';
-import { duckReact } from '../store/useMascotStore';
+import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { SceneWindow } from '../lines/SceneWindow';
 import { reportOverdue } from '../lines/live';
 import { isSceneEnabled, subscribeScene } from '../lib/scene';
@@ -26,16 +25,10 @@ import { AvailableTime } from '../components/AvailableTime';
 import { QuickAddBar } from '../components/QuickAddBar';
 import { WelcomeGuide } from '../components/WelcomeGuide';
 import { welcomeHidden } from '../lib/welcome';
-import { useToastStore } from '../components/Toasts';
-import { useAchievementsStore } from '../store/useAchievementsStore';
 import { api } from '../lib/api';
-import { spawnConfetti } from '../lib/confetti';
-import { levelFromXP } from '../lib/levels';
-import { sfxComplete, sfxAchievement, sfxLevelUp } from '../lib/sfx';
 import { type Quest } from '../lib/api';
 import type { LucideIcon } from 'lucide-react';
-import { BatteryMedium, ChevronDown, ChevronRight, Dices, Flame, LifeBuoy, Plus, Star, TriangleAlert } from 'lucide-react';
-import { achievementIcon } from '../lib/achievementCatalog';
+import { BatteryMedium, ChevronDown, ChevronRight, Dices, LifeBuoy, Plus } from 'lucide-react';
 import { QUEST_MODAL_OPEN, takePendingNewQuest } from '../lib/questEditor';
 
 /** How many quests Today lists before "show more": the Bible's hard rule is five. */
@@ -56,8 +49,9 @@ function NoticeRow({ to, icon: Icon, title, sub, tone }: { to: string; icon: Luc
 }
 
 export default function Today() {
-  const { quests, completed, load, loadCompleted, loadRecurring, complete, removeWithUndo } = useQuestStore();
-  const { user, applyXPGain } = useUserStore();
+  const { quests, completed, load, loadCompleted, loadRecurring, removeWithUndo } = useQuestStore();
+  const complete = useCompleteQuest();
+  const { user } = useUserStore();
   const { today: checkIn, load: loadCheckIn } = useCheckInStore();
   const completionsToday = (() => {
     const t = new Date();
@@ -67,12 +61,9 @@ export default function Today() {
       return c.getFullYear() === t.getFullYear() && c.getMonth() === t.getMonth() && c.getDate() === t.getDate();
     }).length;
   })();
-  const pushToast = useToastStore((s) => s.push);
-  const addUnlockedToStore = useAchievementsStore((s) => s.addUnlocked);
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Quest | null>(null);
-  const [levelUp, setLevelUp] = useState<number | null>(null);
   const [spinOpen, setSpinOpen] = useState(false);
   const [overdueCount, setOverdueCount] = useState(0);
   const [detailQuest, setDetailQuest] = useState<Quest | null>(null);
@@ -114,68 +105,7 @@ export default function Today() {
   }, [load, loadCompleted, loadRecurring, loadCheckIn]);
 
   const handleComplete = async (id: string) => {
-    if (!user) return;
-    const prevLevel = levelFromXP(user.totalXP).level;
-    let result: Awaited<ReturnType<typeof complete>>;
-    try {
-      result = await complete(id);
-    } catch (e) {
-      // The row puts its tick back; say why.
-      pushToast({ icon: TriangleAlert, title: 'Could not complete that quest', sub: 'Nothing changed. Check your connection and try again.', variant: 'error' });
-      throw e;
-    }
-    applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-    sfxComplete();
-
-    pushToast({
-      icon: Star,
-      title: `+${result.xpAwarded} XP`,
-      sub: `Quest completed`,
-      variant: 'xp',
-    });
-
-    if (result.streakEvent === 'extended' && [3, 5, 7, 10, 14, 21, 30].includes(result.newStreak)) {
-      pushToast({
-        icon: Flame,
-        title: `${result.newStreak}-day streak`,
-        sub: 'Keep the momentum.',
-        variant: 'streak',
-      });
-    } else if (result.streakEvent === 'started') {
-      pushToast({
-        icon: Flame,
-        title: 'Streak started',
-        sub: 'Show up tomorrow to keep it.',
-        variant: 'streak',
-      });
-    }
-
-    if (result.newlyUnlocked && result.newlyUnlocked.length > 0) {
-      addUnlockedToStore(
-        result.newlyUnlocked.map((a) => ({ ...a, unlockedAt: new Date().toISOString() })),
-      );
-      result.newlyUnlocked.forEach((a, idx) => {
-        setTimeout(() => {
-          sfxAchievement();
-          pushToast({
-            icon: achievementIcon(a.slug),
-            title: `Achievement unlocked: ${a.title}`,
-            sub: `+${a.xpReward} XP — ${a.description}`,
-            variant: 'badge',
-          });
-        }, 400 + idx * 350);
-      });
-    }
-
-    const newLevel = levelFromXP(result.totalXP).level;
-    if (newLevel > prevLevel) {
-      setTimeout(() => {
-        sfxLevelUp();
-        setLevelUp(newLevel);
-        duckReact('levelUp');
-        spawnConfetti();
-      }, 500);
-    }
+    await complete(id);
   };
 
   const openNew = () => {
@@ -348,7 +278,6 @@ export default function Today() {
           setDetailQuest(null);
         }}
       />
-      <LevelUpSplash newLevel={levelUp} onDismiss={() => setLevelUp(null)} />
       <SpinWheel
         open={spinOpen}
         onClose={() => setSpinOpen(false)}

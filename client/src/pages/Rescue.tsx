@@ -10,7 +10,6 @@
  *   - Extend all overdue by 7 days ("rescue everyone")
  */
 
-import { achievementIcon } from '../lib/achievementCatalog';
 import { useEffect, useState } from 'react';
 import { duckReact } from '../store/useMascotStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,22 +17,21 @@ import { api, type Quest } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from '../components/Toasts';
-import { useAchievementsStore } from '../store/useAchievementsStore';
-import { levelFromXP } from '../lib/levels';
+import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
 import { useArmed } from '../lib/useArmed';
-import { Check, ChevronsUp, Hourglass, LifeBuoy, Sparkles, Trash2 } from 'lucide-react';
+import { Check, ChevronsUp, Hourglass, Sparkles, Trash2 } from 'lucide-react';
 
 export default function Rescue() {
   const [rescue, setRescue] = useState<Quest[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const { complete, removeWithUndo } = useQuestStore();
+  const { removeWithUndo } = useQuestStore();
+  const complete = useCompleteQuest();
   const { armed, fire } = useArmed();
-  const { user, applyXPGain } = useUserStore();
+  const { user } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
-  const addUnlocked = useAchievementsStore((s) => s.addUnlocked);
 
   const load = async () => {
     setLoading(true);
@@ -77,35 +75,10 @@ export default function Rescue() {
     if (!user) return;
     setBusyId(id);
     try {
-      const prevLevel = levelFromXP(user.totalXP).level;
-      const result = await complete(id);
-      applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
+      await complete(id, { sub: 'One less straggler' });
       setRescue((r) => r.filter((q) => q.id !== id));
-      pushToast({
-        icon: LifeBuoy,
-        title: `+${result.xpAwarded} XP`,
-        sub: 'One less straggler',
-        variant: 'xp',
-      });
-      if (result.newlyUnlocked && result.newlyUnlocked.length > 0) {
-        addUnlocked(
-          result.newlyUnlocked.map((a) => ({ ...a, unlockedAt: new Date().toISOString() })),
-        );
-        result.newlyUnlocked.forEach((a, idx) => {
-          setTimeout(() => {
-            pushToast({
-              icon: achievementIcon(a.slug),
-              title: `Achievement: ${a.title}`,
-              sub: `+${a.xpReward} XP`,
-              variant: 'badge',
-            });
-          }, 400 + idx * 350);
-        });
-      }
-      const newLevel = levelFromXP(result.totalXP).level;
-      if (newLevel > prevLevel) {
-        pushToast({ icon: ChevronsUp, title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
-      }
+    } catch {
+      // useCompleteQuest has already said why; the row stays.
     } finally {
       setBusyId(null);
     }

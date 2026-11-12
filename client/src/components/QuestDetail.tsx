@@ -13,12 +13,12 @@ import { useEffect, useId, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type Quest, type XPEventDTO } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
-import { useUserStore } from '../store/useUserStore';
+import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { useToastStore } from './Toasts';
 import { formatDeadline, formatDeadlineExact, formatMinutes } from '../lib/formatters';
 import { SubQuestList } from './SubQuestList';
 import { useDialog } from '../lib/useDialog';
-import { CalendarClock, Check, Pencil, Star, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
+import { CalendarClock, Check, Pencil, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
 
 interface Props {
   open: boolean;
@@ -41,10 +41,10 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props) {
-  const { complete, removeWithUndo, notToday, load: loadQuests } = useQuestStore();
+  const { removeWithUndo, notToday, load: loadQuests } = useQuestStore();
+  const complete = useCompleteQuest();
   const titleId = useId();
   const boxRef = useDialog(open && !!quest, onClose);
-  const { applyXPGain } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
 
   const [xpEvents, setXpEvents] = useState<XPEventDTO[]>([]);
@@ -156,17 +156,10 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
         await onComplete(quest.id);
         return;
       }
-      const result = await complete(quest.id);
-      applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-      pushToast({
-        icon: Star,
-        title: `+${result.xpAwarded} XP`,
-        sub: 'Quest complete',
-        variant: 'xp',
-      });
+      await complete(quest.id);
       onClose();
-    } catch (e) {
-      pushToast({ icon: TriangleAlert, title: 'Could not complete', sub: String(e), variant: 'error' });
+    } catch {
+      // useCompleteQuest (here, or behind the page's onComplete) has already said why.
     }
   };
 

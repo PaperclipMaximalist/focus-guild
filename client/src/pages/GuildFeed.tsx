@@ -5,14 +5,12 @@ import { useScheduleStore } from '../store/useScheduleStore';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useTimerStore } from '../store/useTimerStore';
-import { useAchievementsStore } from '../store/useAchievementsStore';
-import { useToastStore } from '../components/Toasts';
 import { FocusTimer } from '../components/FocusTimer';
 import { PlanInsights } from '../components/PlanInsights';
 import { MiniCalendar } from '../components/MiniCalendar';
 import { api, type ScheduleBlock, type Quest, type EnergyTracePoint, type PlanRests } from '../lib/api';
 import { AvailableTime } from '../components/AvailableTime';
-import { levelFromXP } from '../lib/levels';
+import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { formatDayAndTime, formatMinutes } from '../lib/formatters';
 import { blockStatus as boardStatus, TONE_COLOR } from '../lib/departure';
 import { BoardSign } from '../components/BoardSign';
@@ -20,9 +18,8 @@ import { useDialog } from '../lib/useDialog';
 import { shortfallLine, type ShortfallChoice } from '../lib/shortfall';
 import { blockDetail } from '../lib/blockDetail';
 import { sameDay as sameDayD, dayKey } from '../lib/date';
-import { sfxComplete, sfxAchievement, sfxLevelUp, sfxStart } from '../lib/sfx';
-import { ArrowDown, ArrowUp, BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, ChevronsUp, Clock9, CloudSun, Coffee, Diamond, Ellipsis, Lightbulb, Minus, Pin, Play, Plus, RefreshCw, Repeat, RotateCw, Scissors, Star, Timer, TriangleAlert, X } from 'lucide-react';
-import { achievementIcon } from '../lib/achievementCatalog';
+import { sfxStart } from '../lib/sfx';
+import { ArrowDown, ArrowUp, BatteryMedium, CalendarClock, CalendarDays, ChevronDown, ChevronUp, Clock9, CloudSun, Coffee, Diamond, Ellipsis, Lightbulb, Minus, Pin, Play, Plus, RefreshCw, Repeat, RotateCw, Scissors, Timer, TriangleAlert, X } from 'lucide-react';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -888,13 +885,11 @@ export default function GuildFeed() {
   const { schedule, blockQuests, rests, setRests, feasibilityReport, insights, generatedAt, loading, error, generate, replan, applyEdit, setActiveBlock } =
     useScheduleStore();
   const [energyTrace, setEnergyTrace] = useState<EnergyTracePoint[]>([]);
-  const { quests, load: loadQuests, complete: completeQuest, completeDaily } = useQuestStore();
+  const { quests, load: loadQuests } = useQuestStore();
+  const complete = useCompleteQuest();
   const user = useUserStore((s) => s.user);
-  const applyXPGain = useUserStore((s) => s.applyXPGain);
   const startTimer = useTimerStore((s) => s.start);
   const timerActive = useTimerStore((s) => s.active);
-  const pushToast = useToastStore((s) => s.push);
-  const addUnlocked = useAchievementsStore((s) => s.addUnlocked);
   const [timerOpen, setTimerOpen] = useState(false);
 
   const [now, setNow] = useState(Date.now());
@@ -1396,40 +1391,8 @@ export default function GuildFeed() {
         onClose={() => setTimerOpen(false)}
         onComplete={async (questId) => {
           if (!user) return;
-          const prevLevel = levelFromXP(user.totalXP).level;
           const q = quests.find((x) => x.id === questId);
-          const result = q?.isRecurring
-            ? await completeDaily(questId)
-            : await completeQuest(questId);
-          applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-          sfxComplete();
-          pushToast({
-            icon: Star,
-            title: `+${result.xpAwarded} XP`,
-            sub: 'Focus block complete',
-            variant: 'xp',
-          });
-          if (result.newlyUnlocked && result.newlyUnlocked.length > 0) {
-            addUnlocked(
-              result.newlyUnlocked.map((a) => ({ ...a, unlockedAt: new Date().toISOString() })),
-            );
-            result.newlyUnlocked.forEach((a, idx) => {
-              setTimeout(() => {
-                sfxAchievement();
-                pushToast({
-                  icon: achievementIcon(a.slug),
-                  title: `Achievement: ${a.title}`,
-                  sub: `+${a.xpReward} XP`,
-                  variant: 'badge',
-                });
-              }, 400 + idx * 350);
-            });
-          }
-          const newLevel = levelFromXP(result.totalXP).level;
-          if (newLevel > prevLevel) {
-            sfxLevelUp();
-            pushToast({ icon: ChevronsUp, title: `Level ${newLevel}!`, sub: 'New rank unlocked', variant: 'levelup' });
-          }
+          await complete(questId, { daily: q?.isRecurring, sub: 'Focus block complete' });
           replan();
         }}
       />

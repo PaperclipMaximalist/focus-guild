@@ -9,25 +9,20 @@
  *  - tick button when not done; subtle "Done today" state once completed
  */
 
-import { achievementIcon } from '../lib/achievementCatalog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
-import { useUserStore } from '../store/useUserStore';
-import { useToastStore } from './Toasts';
-import { useAchievementsStore } from '../store/useAchievementsStore';
+import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { type Quest } from '../lib/api';
 import { describeRepeat, nextLabel, repeatsOn, todayKey } from '../lib/repeat';
-import { CalendarClock, Check, Pencil, Repeat, Trash2, TriangleAlert } from 'lucide-react';
+import { CalendarClock, Check, Pencil, Repeat, Trash2 } from 'lucide-react';
 
 interface Props {
   onEdit: (q: Quest) => void;
 }
 
 export function DailySection({ onEdit }: Props) {
-  const { recurring, completeDaily, removeWithUndo } = useQuestStore();
-  const { applyXPGain } = useUserStore();
-  const pushToast = useToastStore((s) => s.push);
-  const addUnlockedToStore = useAchievementsStore((s) => s.addUnlocked);
+  const { recurring, removeWithUndo } = useQuestStore();
+  const complete = useCompleteQuest();
 
   if (recurring.length === 0) return null;
 
@@ -40,36 +35,9 @@ export function DailySection({ onEdit }: Props) {
 
   const handleComplete = async (id: string) => {
     try {
-      const result = await completeDaily(id);
-      applyXPGain(result.totalXP, result.newStreak, result.newMultiplier);
-      pushToast({
-        icon: Repeat,
-        title: `+${result.xpAwarded} XP`,
-        sub: 'Round done',
-        variant: 'xp',
-      });
-      if (result.newlyUnlocked && result.newlyUnlocked.length > 0) {
-        addUnlockedToStore(
-          result.newlyUnlocked.map((a) => ({ ...a, unlockedAt: new Date().toISOString() })),
-        );
-        result.newlyUnlocked.forEach((a, idx) => {
-          setTimeout(() => {
-            pushToast({
-              icon: achievementIcon(a.slug),
-              title: `Achievement unlocked: ${a.title}`,
-              sub: `+${a.xpReward} XP — ${a.description}`,
-              variant: 'badge',
-            });
-          }, 400 + idx * 350);
-        });
-      }
-    } catch (err) {
-      pushToast({
-        icon: TriangleAlert,
-        title: 'Could not complete',
-        sub: String(err),
-        variant: 'xp',
-      });
+      await complete(id, { daily: true, sub: 'Round done' });
+    } catch {
+      // useCompleteQuest has already said why; the row stays undone.
     }
   };
 
