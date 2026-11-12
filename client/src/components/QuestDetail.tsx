@@ -2,7 +2,7 @@
  * QuestDetail — tap a quest card → opens this overlay.
  *
  * Shows: full metadata, the quest's steps, XP history, and shortcut buttons
- * (Edit → QuestModal, Complete, Delete, Start timer).
+ * (Edit → QuestModal, Complete, Delete).
  *
  * The steps are the same dropdown list a quest's row opens (SubQuestList):
  * three tiers, ticked and added in place. What this sheet adds is "Break
@@ -15,7 +15,7 @@ import { api, type Quest, type XPEventDTO } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useToastStore } from './Toasts';
-import { formatDeadline, formatMinutes } from '../lib/formatters';
+import { formatDeadline, formatDeadlineExact, formatMinutes } from '../lib/formatters';
 import { SubQuestList } from './SubQuestList';
 import { useDialog } from '../lib/useDialog';
 import { CalendarClock, Check, Pencil, Star, Trash2, TriangleAlert, WandSparkles, X } from 'lucide-react';
@@ -172,6 +172,13 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
 
   const totalXP = xpEvents.reduce((s, e) => s + e.amount, 0);
 
+  const now = new Date();
+  const deadlineLine = !quest.deadline
+    ? 'No deadline'
+    : new Date(quest.deadline) < now
+      ? `Was due ${formatDeadlineExact(quest.deadline, now)} (${formatDeadline(quest.deadline, now)})`
+      : `Due ${formatDeadlineExact(quest.deadline, now)}`;
+
   return (
     <AnimatePresence>
       {open && (
@@ -203,14 +210,24 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
               <div className="flex-1 min-w-0">
                 <h2
                   id={titleId}
-                  className="text-base font-bold leading-snug"
-                  style={{ color: 'var(--color-text)' }}
+                  className="text-lg leading-snug"
+                  // A quest's title is the member's own words, never signage. The
+                  // heading rule in index.css is unlayered, so utilities cannot
+                  // undo its capitals and display face; inline styles can.
+                  style={{
+                    color: 'var(--color-text)',
+                    fontFamily: 'var(--font-sans)',
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    letterSpacing: 'normal',
+                    lineHeight: 1.3,
+                  }}
                 >
                   {quest.title}
                 </h2>
                 <p className="text-xs mt-1" style={{ color: 'var(--color-muted)' }}>
                   {formatMinutes(quest.rolledUpMinutes ?? quest.estimatedMinutes)}
-                  {quest.deadline && ` · ${formatDeadline(quest.deadline)}`}
+                  {` · ${deadlineLine}`}
                   {quest.category && ` · ${CATEGORY_LABEL[quest.category] ?? quest.category}`}
                 </p>
               </div>
@@ -225,12 +242,12 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
             </div>
 
             {/* Top-line stats */}
-            <div className="grid grid-cols-2 gap-2 mb-4 sm:grid-cols-4">
+            <div className={`grid grid-cols-2 gap-2 mb-4 ${totalXP > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
               <Pill label="Impact" value={`${quest.impact}/10`} />
               <Pill label="Mental load" value={`${quest.mentalLoad}/10`} />
               {/* How the planner ranks it: deadline, impact and load together, out of 10. */}
               <Pill label="Priority" value={(quest.priorityScore ?? 0).toFixed(1)} />
-              <Pill label="XP earned" value={totalXP.toString()} />
+              {totalXP > 0 && <Pill label="XP earned" value={totalXP.toString()} />}
             </div>
 
             {/* Tags */}
