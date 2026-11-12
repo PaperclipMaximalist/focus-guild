@@ -83,7 +83,9 @@ describe('computeInsights', () => {
       quests: [{ id: 'a', title: 'Lab report', deadline: new Date(now - 2 * DAY) }],
     });
     expect(r.overdue).toEqual([{ id: 'a', title: 'Lab report', daysOverdue: 2 }]);
-    expect(r.notes[0]).toMatch(/Lab report.*overdue/);
+    // In the app's own words: the page is Stragglers, and nothing on screen says "overdue".
+    expect(r.notes[0]).toMatch(/Lab report.*past its deadline.*Stragglers/);
+    expect(r.notes[0]).not.toMatch(/overdue|Rescue/i);
   });
 
   it('says when routines crowd out quest time', () => {
