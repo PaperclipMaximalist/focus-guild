@@ -12,6 +12,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
 import { useCompleteQuest } from '../lib/useCompleteQuest';
+import { formatHour } from '../lib/formatters';
 import { type Quest } from '../lib/api';
 import { describeRepeat, nextLabel, repeatsOn, todayKey } from '../lib/repeat';
 import { CalendarClock, Check, Pencil, Repeat, Trash2 } from 'lucide-react';
@@ -91,7 +92,7 @@ export function DailySection({ onEdit }: Props) {
                 </p>
                 <p className="tnum text-xs" style={{ color: 'var(--color-muted)' }}>
                   {q.estimatedMinutes}m
-                  {q.preferredHour != null && ` · ${String(q.preferredHour).padStart(2, '0')}:00`}
+                  {q.preferredHour != null && ` · ${formatHour(q.preferredHour)}`}
                   {q.repeat ? ` · ${describeRepeat(q.repeat)}` : q.category && ` · ${q.category.replace('_', ' ')}`}
                 </p>
               </div>

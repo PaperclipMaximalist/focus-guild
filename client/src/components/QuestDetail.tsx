@@ -257,7 +257,8 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
             </div>
 
             {/* Top-line stats */}
-            <div className={`grid grid-cols-2 gap-2 mb-4 ${totalXP > 0 ? 'sm:grid-cols-4' : 'sm:grid-cols-3'}`}>
+            {/* Three boxes sit in one row at any width; a fourth (XP earned) makes it two rows of two on a phone. */}
+            <div className={`grid gap-2 mb-4 ${totalXP > 0 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3'}`}>
               <Pill label="Impact" value={`${quest.impact}/10`} />
               <Pill label="Mental load" value={`${quest.mentalLoad}/10`} />
               {/* How the planner ranks it: deadline, impact and load together, out of 10. */}

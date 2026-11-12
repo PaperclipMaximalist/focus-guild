@@ -5,6 +5,7 @@ import type { LucideIcon } from 'lucide-react';
 import { useQuestStore } from '../store/useQuestStore';
 import { api, isHourLog, type ParentChoice, type Quest, type PriorityTier } from '../lib/api';
 import { MiniCalendar } from './MiniCalendar';
+import { formatHour } from '../lib/formatters';
 import { InfoTip } from './InfoTip';
 import { WEEK, todayKey, type RepeatRule } from '../lib/repeat';
 import { BookOpen, Brush, ChevronDown, ChevronRight, Dumbbell, Inbox, Phone, CalendarDays, Target, X } from 'lucide-react';
@@ -988,7 +989,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                           <option value="">No preference</option>
                           {Array.from({ length: 24 }, (_, i) => (
                             <option key={i} value={i}>
-                              {String(i).padStart(2, '0')}:00
+                              {formatHour(i)}
                             </option>
                           ))}
                         </select>

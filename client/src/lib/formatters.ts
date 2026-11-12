@@ -28,6 +28,11 @@ export function formatDayAndTime(at: string | Date, now: Date = new Date()): str
 
 const timeOf = (d: Date) => d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
+/** An hour of the day as the member's clock writes it: 8 -> "8:00 AM" (or "08:00" where that is the custom). */
+export function formatHour(hour: number): string {
+  return timeOf(new Date(2000, 0, 1, Math.floor(hour), Math.round((hour % 1) * 60)));
+}
+
 /** "Fri, Nov 13", with the year only when it is not this one: never a bare 11/13/2026. */
 function shortDate(d: Date, now: Date): string {
   return d.toLocaleDateString(undefined, {
