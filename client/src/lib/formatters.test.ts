@@ -116,3 +116,22 @@ describe('formatDeadlineExact', () => {
     expect(formatDeadlineExact(d.toISOString(), wed)).toBe(formatDeadlineExact(d, wed));
   });
 });
+
+// The editor gives a date with no time 23:59 of that day: a whole day, not a moment.
+describe('a deadline that is a whole day', () => {
+  it('needs no clock today or tomorrow', () => {
+    expect(formatDeadline(on(10, 11, 23, 59), wed)).toBe('due today');
+    expect(formatDeadline(on(10, 12, 23, 59), wed)).toBe('due tomorrow');
+  });
+
+  it('is written as the date alone where there is room', () => {
+    const d = on(10, 13, 23, 59);
+    expect(formatDeadlineExact(d, wed)).toBe(
+      d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }),
+    );
+  });
+
+  it('still counts as late once the day is over', () => {
+    expect(formatDeadline(on(10, 10, 23, 59), wed)).toBe('18h late');
+  });
+});

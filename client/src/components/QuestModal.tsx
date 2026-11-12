@@ -38,6 +38,14 @@ const chip = (active: boolean) => ({
 /** A mouse or trackpad: safe to focus a field without summoning an on-screen keyboard. */
 const FINE_POINTER = typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches;
 
+/** Quick lengths for "How long", in hours. */
+const HOUR_CHIPS = [
+  { label: '15m', value: 0.25 },
+  { label: '30m', value: 0.5 },
+  { label: '1h', value: 1 },
+  { label: '2h', value: 2 },
+];
+
 const CATEGORIES = [
   { value: 'deep_work', label: 'Deep work', desc: 'High focus, code/writing/design' },
   { value: 'comms', label: 'Comms', desc: 'Email, chats, meetings' },
@@ -185,6 +193,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
   const [setupCost, setSetupCost] = useState(0.3);
   const [urgencyMult, setUrgencyMult] = useState(1.0);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  /** The "More options" section; its fields are drawn only while it is open. */
+  const [showMore, setShowMore] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [tagDraft, setTagDraft] = useState('');
 
@@ -195,6 +205,25 @@ export function QuestModal({ open, onClose, editing }: Props) {
   const boxRef = useDialog(open, onClose);
   const repeatWeeksId = useId();
   const repeatEveryId = useId();
+  const hoursId = useId();
+  const moreId = useId();
+
+  /** What is set inside "More options" and not default, shown beside it while it is closed. */
+  const moreSummary = [
+    isRecurring ? 'Round' : null,
+    openEnded ? 'Hour log' : null,
+    oneSitting && !isRecurring && !openEnded ? 'In one go' : null,
+    parentId && !isRecurring && !openEnded ? 'Part of a quest' : null,
+    load5 !== 3 ? `Load ${LOAD_LABELS[load5]!.toLowerCase()}` : null,
+    impact !== 5 ? `Impact ${impact}` : null,
+    category !== 'deep_work' ? (CATEGORIES.find((c) => c.value === category)?.label ?? null) : null,
+    tags.length ? `${tags.length} ${tags.length === 1 ? 'tag' : 'tags'}` : null,
+    preferredHour !== '' || urgencyMult !== 1 || tediousness !== 0.4 || setupCost !== 0.3 || minChunk !== '15' || maxChunk !== '50'
+      ? 'Scheduler hints'
+      : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   useEffect(() => {
     if (!open) return;
@@ -229,6 +258,14 @@ export function QuestModal({ open, onClose, editing }: Props) {
           editing.urgencyMult !== 1 ||
           editing.tediousness != null,
       );
+      // Open when the quest uses anything in there that is not the default.
+      setShowMore(
+        !!editing.isRecurring ||
+          isHourLog(editing) ||
+          !!editing.oneSitting ||
+          !!editing.parentQuestId ||
+          (editing.tags?.length ?? 0) > 0,
+      );
     } else {
       setTitle('');
       setDeadline(null);
@@ -254,6 +291,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setTags([]);
       setTagDraft('');
       setShowAdvanced(false);
+      setShowMore(false);
     }
   }, [open, editing]);
 
@@ -400,6 +438,111 @@ export function QuestModal({ open, onClose, editing }: Props) {
               )}
             </Field>
 
+            {/* Deadline picker (hidden for recurring and for hour logs) */}
+            {!isRecurring && !openEnded && (
+              <DeadlineField value={deadline} onChange={setDeadline} />
+            )}
+
+            {/* How long: quick chips, then the exact number of hours (hidden for hour logs) */}
+            {!openEnded && (
+              <div className="mb-4">
+                <Label htmlFor={hoursId}>How long (hours)</Label>
+                <div className="mb-2 flex flex-wrap gap-1.5" role="group" aria-label="Quick lengths">
+                  {HOUR_CHIPS.map((c) => {
+                    const on = hours.trim() !== '' && Number(hours) === c.value;
+                    return (
+                      <button
+                        key={c.label}
+                        type="button"
+                        aria-pressed={on}
+                        onClick={() => setHours(String(c.value))}
+                        className="btn-quiet h-9 min-h-0 px-3 text-xs"
+                        style={chip(on)}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <input
+                  id={hoursId}
+                  type="number"
+                  min={0.1}
+                  max={40}
+                  step={0.5}
+                  className="form-input"
+                  placeholder="e.g. 2"
+                  value={hours}
+                  onChange={(e) => setHours(e.target.value)}
+                />
+              </div>
+            )}
+
+            {/* Priority tier — 3-stop slider/dragger */}
+            <div className="mb-4">
+              <div className="mb-1.5 flex items-center gap-1.5">
+                <Label>Priority</Label>
+                <InfoTip>
+                  <p className="font-semibold mb-1">Three tiers</p>
+                  <p>
+                    <b>High</b> = must-do today; boosts importance and urgency.
+                  </p>
+                  <p>
+                    <b>Med</b> = default; algorithm decides based on deadline + impact.
+                  </p>
+                  <p>
+                    <b>Low</b> = nice-to-have; dampened and dropped entirely in Crush mode.
+                  </p>
+                </InfoTip>
+              </div>
+              {/* Three choices are three buttons. (This was a drag slider whose labels ran off a phone screen.) */}
+              <div className="grid grid-cols-3 gap-1 rounded-lg bg-(--color-surface2) p-1" role="radiogroup" aria-label="Priority">
+                {([
+                  { id: 'LOW', label: 'Low', sub: 'If there is time' },
+                  { id: 'MED', label: 'Normal', sub: 'Planner decides' },
+                  { id: 'HIGH', label: 'High', sub: 'Must do' },
+                ] as const).map((o) => {
+                  const on = priorityTier === o.id;
+                  return (
+                    <button
+                      key={o.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      onClick={() => setPriorityTier(o.id)}
+                      className="rounded-md px-2 py-1.5 text-center transition-colors"
+                      style={{
+                        background: on ? 'var(--color-primary)' : 'transparent',
+                        color: on ? 'var(--color-on-primary)' : 'var(--color-text)',
+                      }}
+                    >
+                      <span className="block text-sm font-bold">{o.label}</span>
+                      <span className="block text-[11px] opacity-75">{o.sub}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* More options: everything most quests never touch. Closed, its fields are not rendered (their state is kept). */}
+            <div className="mb-4 flex flex-wrap items-center gap-x-3">
+              <button
+                type="button"
+                onClick={() => setShowMore((v) => !v)}
+                aria-expanded={showMore}
+                aria-controls={moreId}
+                className="min-h-9 text-xs font-semibold transition-colors"
+                style={{ color: 'var(--color-muted)' }}
+              >
+                <span className="inline-flex items-center gap-1">{showMore ? <ChevronDown size={14} aria-hidden /> : <ChevronRight size={14} aria-hidden />} More options</span>
+              </button>
+              {!showMore && moreSummary && (
+                <span className="text-xs" style={{ color: 'var(--color-muted)' }}>{moreSummary}</span>
+              )}
+            </div>
+            {showMore && (
+              <div id={moreId}>
+
             {/* Quick-start templates — only on create */}
             {!editing && (
               <div className="mb-4">
@@ -430,39 +573,6 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 </div>
               </div>
             )}
-
-            {/* Quick cheat-sheet so the four overlapping fields feel distinct */}
-            <details
-              className="mb-4 rounded-lg bg-(--color-surface2) p-3 text-xs"
-            >
-              <summary
-                className="cursor-pointer font-semibold"
-                style={{ color: 'var(--color-text)' }}
-              >
-                How are these fields different?
-              </summary>
-              <ul className="mt-2 space-y-1.5" style={{ color: 'var(--color-muted)' }}>
-                <li>
-                  <b style={{ color: 'var(--color-text)' }}>Mental load</b> — how hard is it
-                  to <i>think through</i>? Drives <b>when</b> in the day this lands (peak energy
-                  vs slump).
-                </li>
-                <li>
-                  <b style={{ color: 'var(--color-text)' }}>Impact</b> — how much does the
-                  <i> outcome</i> matter? Pushes high-impact quests up the priority list, even
-                  when deadlines are far.
-                </li>
-                <li>
-                  <b style={{ color: 'var(--color-text)' }}>Tediousness</b> — how <i>boring
-                  / draining</i> is it? Prevents stacking two tedious quests back-to-back.
-                </li>
-                <li>
-                  <b style={{ color: 'var(--color-text)' }}>Urgency multiplier</b> — manual
-                  override on deadline pressure. Use only when something is{' '}
-                  <i>more urgent than its deadline suggests</i>.
-                </li>
-              </ul>
-            </details>
 
             {/* Repeat: a routine, and how often it comes round */}
             {!openEnded && (
@@ -630,52 +740,6 @@ export function QuestModal({ open, onClose, editing }: Props) {
               </label>
             )}
 
-            {/* Priority tier — 3-stop slider/dragger */}
-            <div className="mb-4">
-              <div className="mb-1.5 flex items-center gap-1.5">
-                <Label>Priority</Label>
-                <InfoTip>
-                  <p className="font-semibold mb-1">Three tiers</p>
-                  <p>
-                    <b>High</b> = must-do today; boosts importance and urgency.
-                  </p>
-                  <p>
-                    <b>Med</b> = default; algorithm decides based on deadline + impact.
-                  </p>
-                  <p>
-                    <b>Low</b> = nice-to-have; dampened and dropped entirely in Crush mode.
-                  </p>
-                </InfoTip>
-              </div>
-              {/* Three choices are three buttons. (This was a drag slider whose labels ran off a phone screen.) */}
-              <div className="grid grid-cols-3 gap-1 rounded-lg bg-(--color-surface2) p-1" role="radiogroup" aria-label="Priority">
-                {([
-                  { id: 'LOW', label: 'Low', sub: 'If there is time' },
-                  { id: 'MED', label: 'Normal', sub: 'Planner decides' },
-                  { id: 'HIGH', label: 'High', sub: 'Must do' },
-                ] as const).map((o) => {
-                  const on = priorityTier === o.id;
-                  return (
-                    <button
-                      key={o.id}
-                      type="button"
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => setPriorityTier(o.id)}
-                      className="rounded-md px-2 py-1.5 text-center transition-colors"
-                      style={{
-                        background: on ? 'var(--color-primary)' : 'transparent',
-                        color: on ? 'var(--color-on-primary)' : 'var(--color-text)',
-                      }}
-                    >
-                      <span className="block text-sm font-bold">{o.label}</span>
-                      <span className="block text-[11px] opacity-75">{o.sub}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
             {/* Part of: file this quest under another, as one of its steps. */}
             {!isRecurring && !openEnded && (parents.length > 0 || parentId) && (
               <Field label="Part of">
@@ -701,55 +765,6 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 )}
               </Field>
             )}
-
-            {/* Deadline picker (hidden for recurring and for hour logs) */}
-            {!isRecurring && !openEnded && (
-              <DeadlineField value={deadline} onChange={setDeadline} />
-            )}
-
-            <div className="grid grid-cols-2 gap-3">
-              {!openEnded && (
-              <Field label="Est. hours">
-                <input
-                  type="number"
-                  min={0.1}
-                  max={40}
-                  step={0.5}
-                  className="form-input"
-                  placeholder="e.g. 2"
-                  value={hours}
-                  onChange={(e) => setHours(e.target.value)}
-                />
-              </Field>
-              )}
-              <div className="mb-4">
-                <div className="mb-1.5 flex items-center gap-1.5">
-                  <label htmlFor="quest-impact" className="text-[13px] font-semibold text-(--color-muted)">
-                    Impact (1–10)
-                  </label>
-                  <InfoTip>
-                    <p className="font-semibold mb-1">Outcome importance</p>
-                    <p>
-                      How much does <i>finishing this</i> matter? 10 = high-stakes (project
-                      deliverable, exam). 1 = nice-to-have.
-                    </p>
-                    <p className="mt-1.5 opacity-70">
-                      Scheduler use: amplifies urgency contribution so important quests beat
-                      similar-deadline trivial ones.
-                    </p>
-                  </InfoTip>
-                </div>
-                <input
-                  id="quest-impact"
-                  type="number"
-                  min={1}
-                  max={10}
-                  className="form-input"
-                  value={impact}
-                  onChange={(e) => setImpact(Math.max(1, Math.min(10, Number(e.target.value) || 5)))}
-                />
-              </div>
-            </div>
 
             <div className="mt-4">
               <div className="mb-1.5 flex items-center gap-1.5">
@@ -786,6 +801,34 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 ))}
               </div>
             </div>
+
+              <div className="mb-4">
+                <div className="mb-1.5 flex items-center gap-1.5">
+                  <label htmlFor="quest-impact" className="text-[13px] font-semibold text-(--color-muted)">
+                    Impact (1–10)
+                  </label>
+                  <InfoTip>
+                    <p className="font-semibold mb-1">Outcome importance</p>
+                    <p>
+                      How much does <i>finishing this</i> matter? 10 = high-stakes (project
+                      deliverable, exam). 1 = nice-to-have.
+                    </p>
+                    <p className="mt-1.5 opacity-70">
+                      Scheduler use: amplifies urgency contribution so important quests beat
+                      similar-deadline trivial ones.
+                    </p>
+                  </InfoTip>
+                </div>
+                <input
+                  id="quest-impact"
+                  type="number"
+                  min={1}
+                  max={10}
+                  className="form-input"
+                  value={impact}
+                  onChange={(e) => setImpact(Math.max(1, Math.min(10, Number(e.target.value) || 5)))}
+                />
+              </div>
 
             {/* Category */}
             <div className="mt-4">
@@ -870,6 +913,39 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 />
               </div>
             </div>
+
+            {/* Quick cheat-sheet so the four overlapping fields feel distinct */}
+            <details
+              className="mb-4 rounded-lg bg-(--color-surface2) p-3 text-xs"
+            >
+              <summary
+                className="cursor-pointer font-semibold"
+                style={{ color: 'var(--color-text)' }}
+              >
+                How are these fields different?
+              </summary>
+              <ul className="mt-2 space-y-1.5" style={{ color: 'var(--color-muted)' }}>
+                <li>
+                  <b style={{ color: 'var(--color-text)' }}>Mental load</b> — how hard is it
+                  to <i>think through</i>? Drives <b>when</b> in the day this lands (peak energy
+                  vs slump).
+                </li>
+                <li>
+                  <b style={{ color: 'var(--color-text)' }}>Impact</b> — how much does the
+                  <i> outcome</i> matter? Pushes high-impact quests up the priority list, even
+                  when deadlines are far.
+                </li>
+                <li>
+                  <b style={{ color: 'var(--color-text)' }}>Tediousness</b> — how <i>boring
+                  / draining</i> is it? Prevents stacking two tedious quests back-to-back.
+                </li>
+                <li>
+                  <b style={{ color: 'var(--color-text)' }}>Urgency multiplier</b> — manual
+                  override on deadline pressure. Use only when something is{' '}
+                  <i>more urgent than its deadline suggests</i>.
+                </li>
+              </ul>
+            </details>
 
             {/* Advanced section */}
             <button
@@ -1040,6 +1116,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
                 </motion.div>
               )}
             </AnimatePresence>
+              </div>
+            )}
 
             {/* Always in reach, however long the form above gets. */}
             {/* Sticky, so Add is always in reach; the box's scroll-pb-20 keeps a field Tab lands on above it. */}
@@ -1066,14 +1144,22 @@ export function QuestModal({ open, onClose, editing }: Props) {
  */
 function DeadlineField({ value, onChange }: { value: Date | null; onChange: (d: Date | null) => void }) {
   const [calendar, setCalendar] = useState(false);
+  // A day with no time means "by the end of that day". (These sat at 00:00, the
+  // START of the day: a quest "due tomorrow" was planned to finish today, and
+  // read as late from the first minute of tomorrow.)
+  const endOfDay = (day: Date) => {
+    const d = new Date(day);
+    d.setHours(23, 59, 0, 0);
+    return d;
+  };
   const inDays = (n: number) => {
     const d = new Date();
-    d.setHours(0, 0, 0, 0);
     d.setDate(d.getDate() + n);
-    return d;
+    return endOfDay(d);
   };
   const same = (a: Date | null, b: Date) => !!a && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
   const choices = [
+    { label: 'Today', date: inDays(0) },
     { label: 'Tomorrow', date: inDays(1) },
     { label: 'In 3 days', date: inDays(3) },
     { label: 'In a week', date: inDays(7) },
@@ -1099,7 +1185,7 @@ function DeadlineField({ value, onChange }: { value: Date | null; onChange: (d: 
       </div>
       {calendar && (
         <div className="mt-2">
-          <MiniCalendar value={value} onChange={onChange} />
+          <MiniCalendar value={value} onChange={(d) => onChange(d ? endOfDay(d) : null)} />
         </div>
       )}
     </div>

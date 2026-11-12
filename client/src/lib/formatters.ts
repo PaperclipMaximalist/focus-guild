@@ -57,14 +57,24 @@ export function formatDeadline(deadline: string | Date | null, now: Date = new D
   const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
   // Rounded, so a daylight-saving change (a 23 or 25 hour day) still counts as one day.
   const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
-  if (days <= 0) return `due today ${timeOf(d)}`;
-  if (days === 1) return `due tomorrow ${timeOf(d)}`;
+  // A day with no time of its own (the editor's dates) needs no clock beside it.
+  const clock = isEndOfDay(d) ? '' : ` ${timeOf(d)}`;
+  if (days <= 0) return `due today${clock}`;
+  if (days === 1) return `due tomorrow${clock}`;
   if (days < 7) return `due ${d.toLocaleDateString(undefined, { weekday: 'short' })}`;
   return shortDate(d, now);
 }
 
-/** The full stamp for places with room: "Fri, Nov 13 at 9:00 PM". */
+/**
+ * The editor sets a date with no time to 23:59 of that day: "by the end of
+ * the day". Such a deadline is a day, not a moment, and is written as one.
+ */
+export function isEndOfDay(d: Date): boolean {
+  return d.getHours() === 23 && d.getMinutes() === 59;
+}
+
+/** The full stamp for places with room: "Fri, Nov 13 at 9:00 PM", or "Fri, Nov 13" for a whole day. */
 export function formatDeadlineExact(deadline: string | Date, now: Date = new Date()): string {
   const d = new Date(deadline);
-  return `${shortDate(d, now)} at ${timeOf(d)}`;
+  return isEndOfDay(d) ? shortDate(d, now) : `${shortDate(d, now)} at ${timeOf(d)}`;
 }
