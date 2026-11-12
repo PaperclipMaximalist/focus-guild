@@ -225,10 +225,10 @@ export function QuestCard({
       {!selecting && (
         <div className="flex shrink-0 items-center gap-0.5">
           <span className="hidden gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 lg:flex">
-            <button type="button" onClick={onEdit} title="Edit" aria-label="Edit quest" className="icon-btn h-8 w-8">
+            <button type="button" onClick={onEdit} title="Edit" aria-label={`Edit ${quest.title}`} className="icon-btn h-8 w-8">
               <Pencil size={14} aria-hidden />
             </button>
-            <button type="button" onClick={onDelete} title="Delete" aria-label="Delete quest" className="icon-btn h-8 w-8">
+            <button type="button" onClick={onDelete} title="Delete" aria-label={`Delete ${quest.title}`} className="icon-btn h-8 w-8">
               <Trash2 size={14} aria-hidden />
             </button>
           </span>

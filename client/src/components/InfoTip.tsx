@@ -13,9 +13,11 @@ interface Props {
   children: React.ReactNode;
   /** Label shown on the trigger; defaults to ⓘ. */
   trigger?: React.ReactNode;
+  /** What the tip explains, so ten of these on one page are not all named alike: "About Energy match". */
+  about?: string;
 }
 
-export function InfoTip({ children, trigger }: Props) {
+export function InfoTip({ children, trigger, about }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -41,7 +43,8 @@ export function InfoTip({ children, trigger }: Props) {
         className="inline-grid h-5 w-5 place-items-center rounded-full align-middle transition-colors hover:text-(--color-text)"
         style={{ color: open ? 'var(--color-text)' : 'var(--color-muted)' }}
         title="What does this do?"
-        aria-label="What does this do?"
+        aria-label={about ? `About ${about}` : 'What does this do?'}
+        aria-expanded={open}
       >
         {trigger ?? <Info size={14} aria-hidden />}
       </button>

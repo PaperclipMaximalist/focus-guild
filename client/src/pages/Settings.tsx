@@ -251,7 +251,7 @@ export default function Settings() {
         <div>
           <div className="flex items-center gap-1.5 mb-2">
             <span className="text-sm" style={{ color: 'var(--color-text)' }}>Sharpest time of day</span>
-            <InfoTip>Where the planner puts your heaviest quests. Standard is an office day (peak mid-morning, second wind late afternoon); pick the one that matches when hard thinking actually works for you.</InfoTip>
+            <InfoTip about="Sharpest time of day">Where the planner puts your heaviest quests. Standard is an office day (peak mid-morning, second wind late afternoon); pick the one that matches when hard thinking actually works for you.</InfoTip>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2" role="group" aria-label="Sharpest time of day">
             {CHRONOTYPES.map((c) => {
@@ -446,7 +446,7 @@ function Toggle({
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-1.5 min-w-0">
         <span className="text-sm" style={{ color: 'var(--color-text)' }}>{label}</span>
-        <InfoTip>{hint}</InfoTip>
+        <InfoTip about={label}>{hint}</InfoTip>
       </div>
       <button
         type="button"
@@ -491,7 +491,7 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
     <div className="flex items-center justify-between gap-3">
       <div className="flex items-center gap-1.5 min-w-0">
         <span id={labelId} className="text-sm" style={{ color: 'var(--color-text)' }}>{label}</span>
-        {hint && <InfoTip>{hint}</InfoTip>}
+        {hint && <InfoTip about={label}>{hint}</InfoTip>}
       </div>
       <div className="shrink-0">
         <RowLabel.Provider value={labelId}>{children}</RowLabel.Provider>
@@ -512,7 +512,7 @@ function SliderRow({
       <div className="flex items-center justify-between gap-2 mb-1">
         <div className="flex items-center gap-1.5">
           <span className="text-sm" style={{ color: 'var(--color-text)' }}>{label}</span>
-          <InfoTip>{help}</InfoTip>
+          <InfoTip about={label}>{help}</InfoTip>
           <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>
             (default {defaultValue})
           </span>

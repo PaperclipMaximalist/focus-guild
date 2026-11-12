@@ -128,13 +128,16 @@ export function EndOfDayReflection({ completionsToday }: Props) {
               }}
             />
 
-            <div className="mt-2 flex items-center gap-2">
-              <span className="text-xs" style={{ color: 'var(--color-muted)' }}>How'd today feel?</span>
+            {/* Faces are icon buttons (36px, tapped as 46 on a touch screen): five 22px targets in a row were easy to miss. */}
+            <div className="mt-2 flex flex-wrap items-center gap-x-1 gap-y-1">
+              {/* On a phone the question takes its own line, so the five faces stay in one row. */}
+              <span className="w-full text-xs sm:mr-1 sm:w-auto" style={{ color: 'var(--color-muted)' }}>How’d today feel?</span>
               {([1, 2, 3, 4, 5] as const).map((n) => (
                 <button
                   key={n}
+                  type="button"
                   onClick={() => setRating(n)}
-                  className="text-lg transition-transform"
+                  className="icon-btn transition-transform"
                   style={{
                     opacity: rating === n ? 1 : 0.4,
                     transform: rating === n ? 'scale(1.2)' : 'scale(1)',
@@ -149,19 +152,11 @@ export function EndOfDayReflection({ completionsToday }: Props) {
             </div>
 
             <div className="mt-3 flex justify-end gap-2">
-              <button
-                onClick={() => setDismissed(true)}
-                className="text-xs px-3 py-1 rounded-md"
-                style={{ color: 'var(--color-muted)' }}
-              >
+              <button type="button" onClick={() => setDismissed(true)} className="btn-quiet bg-transparent text-xs" style={{ color: 'var(--color-muted)' }}>
                 Maybe later
               </button>
-              <button
-                onClick={handleSave}
-                disabled={!text.trim()}
-                className="text-xs px-3 py-1 rounded-md font-semibold text-(--color-on-primary) disabled:opacity-40"
-                style={{ background: 'var(--color-primary)' }}
-              >
+              {/* Strong but neutral: the page's one filled button is Start. */}
+              <button type="button" onClick={handleSave} disabled={!text.trim()} className="btn-strong text-xs disabled:opacity-40">
                 Save
               </button>
             </div>

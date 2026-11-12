@@ -176,6 +176,11 @@ h1, h2, h3 {
   .icon-btn, .quest-check { position: relative; }
   .icon-btn::after { content: ''; position: absolute; inset: -5px; }
   .quest-check::after { content: ''; position: absolute; inset: -11px; }
+  /* The same for text buttons: drawn 32 to 40px tall (a row of them would not
+     fit a phone at 44), tapped as 44 or more. Nothing moves; only the area a
+     finger can land on grows, above and below. */
+  .btn-primary, .btn-strong, .btn-quiet { position: relative; }
+  .btn-primary::after, .btn-strong::after, .btn-quiet::after { content: ''; position: absolute; inset: -6px 0; }
 }
 
 .btn-primary {
