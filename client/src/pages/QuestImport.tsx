@@ -119,17 +119,23 @@ export default function QuestImport() {
 
   // Top-level quests already on the list, or repeated earlier in this paste. Rows share their
   // quest object with the tree, so a row is tied to its node by identity; steps go with their parent.
-  const dupTops = useMemo(() => {
+  // `repeatTops` are the ones that only repeat a line of this paste: they are told apart in the
+  // preview, because "already on your list" would not be true of them.
+  const { dupTops, repeatTops } = useMemo(() => {
     const known = [...activeQuests, ...rounds];
     const seen = new Set<string>();
     const dups = new Set<ManifestQuest>();
+    const repeats = new Set<ManifestQuest>();
     for (const q of parsed.quests) {
       const key = titleKey(q.title);
       if (!key) continue;
-      if (seen.has(key) || findDuplicate(q.title, known)) dups.add(q);
-      else seen.add(key);
+      if (findDuplicate(q.title, known)) dups.add(q);
+      else if (seen.has(key)) {
+        dups.add(q);
+        repeats.add(q);
+      } else seen.add(key);
     }
-    return dups;
+    return { dupTops: dups, repeatTops: repeats };
   }, [parsed.quests, activeQuests, rounds]);
   const dupLines = useMemo(() => {
     const lines = new Set<number>();
@@ -147,7 +153,10 @@ export default function QuestImport() {
   );
   const counts = useMemo(() => (leaving ? countTree(toImport) : parsed.counts), [leaving, toImport, parsed.counts]);
   const allThere = leaving && toImport.length === 0;
-  const leftOutTitles = parsed.quests.filter((q) => dupTops.has(q)).map((q) => q.title);
+  // Each title once, however many times it was written.
+  const leftOutTitles = [
+    ...new Map(parsed.quests.filter((q) => dupTops.has(q)).map((q) => [titleKey(q.title), q.title])).values(),
+  ];
 
   const skipped = rows.filter((r) => r.skipped).length;
   const warned = rows.filter((r) => r.warnings.length > 0 && !(leaving && dupLines.has(r.line))).length;
@@ -330,7 +339,9 @@ export default function QuestImport() {
                   onChange={(e) => setLeaveOut(e.target.checked)}
                   className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-(--color-primary)"
                 />
-                <span>Leave out the {dupTops.size} already on your list</span>
+                <span>
+                  Leave out the {dupTops.size} {repeatTops.size > 0 ? 'already on your list or written twice here' : 'already on your list'}
+                </span>
               </label>
               <p className="mt-1.5 pl-7 text-[13px] leading-snug text-(--color-muted)">
                 {leftOutTitles.slice(0, 5).join(', ')}
@@ -353,7 +364,11 @@ export default function QuestImport() {
                         <span className="block break-words text-(--color-muted) line-through">{r.quest.title}</span>
                         <span className="mt-0.5 flex items-start gap-1 text-[12px] text-(--color-muted)">
                           <TriangleAlert size={11} aria-hidden className="mt-0.5 shrink-0" />
-                          already on your list
+                          {r.tier > 1
+                            ? 'left out with the quest above'
+                            : repeatTops.has(r.quest)
+                              ? 'written twice in this list'
+                              : 'already on your list'}
                         </span>
                       </>
                     ) : r.quest ? (
