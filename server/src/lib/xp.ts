@@ -30,7 +30,9 @@ export function computeXP(input: XPInput): XPResult {
   const mentalBonus = mentalLoad / 5;
   // timePressure 0→10 maps to a bonus of 1.0→1.5
   const timePressureBonus = Math.min(1 + timePressure / 20, 1.5);
-  const xp = Math.round(base * mentalBonus * timePressureBonus * streakMultiplier);
+  // Finishing something is never worth nothing: a 5-minute, load-1 quest
+  // rounds to 0 (1 × 0.2), and "+0 XP" reads as a bug. Floor of 1.
+  const xp = Math.max(1, Math.round(base * mentalBonus * timePressureBonus * streakMultiplier));
 
   return { xp, base, mentalBonus, timePressureBonus, streakMultiplier };
 }

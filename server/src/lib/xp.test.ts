@@ -110,4 +110,19 @@ describe('computeXP', () => {
       expect(result.xp).toBe(90);
     });
   });
+
+  describe('floor', () => {
+    it('a completion is always worth at least 1 XP (5 min at load 1 would round to 0)', () => {
+      // base = 1, mental = 0.2, so round(0.2) = 0 before the floor
+      const result = computeXP({ estimatedMinutes: 5, mentalLoad: 1, timePressure: 0, streakMultiplier: 1.0 });
+      expect(result.xp).toBe(1);
+      expect(computeXP({ ...base, estimatedMinutes: 1 }).xp).toBe(1);
+      // and with the paused-streak multiplier
+      expect(computeXP({ estimatedMinutes: 5, mentalLoad: 2, timePressure: 0, streakMultiplier: 0.75 }).xp).toBe(1);
+    });
+
+    it('leaves larger awards alone', () => {
+      expect(computeXP({ ...base, estimatedMinutes: 30 }).xp).toBe(6);
+    });
+  });
 });
