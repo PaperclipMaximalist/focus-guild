@@ -82,8 +82,10 @@ export function AvailableTime({ className = '' }: { className?: string }) {
         max={MAX_MIN}
         step={STEP_MIN}
         value={shown}
-        disabled={saving}
+        // Not `disabled` while saving: that would throw keyboard focus off the slider mid-use.
+        aria-busy={saving}
         onChange={(e) => {
+          if (saving) return;
           const minutes = Number(e.target.value);
           setDrag((d) => ({ minutes, from: d?.from ?? Date.now() }));
         }}
@@ -94,7 +96,7 @@ export function AvailableTime({ className = '' }: { className?: string }) {
         }}
         onBlur={commit}
         aria-valuetext={shown > 0 ? `${spell(shown)}, until ${until}` : 'None today'}
-        className="order-last col-span-2 h-8 w-full cursor-pointer [accent-color:var(--color-primary)] sm:order-none sm:col-span-1"
+        className="order-last col-span-2 h-8 w-full cursor-pointer pointer-coarse:h-11 [accent-color:var(--color-primary)] sm:order-none sm:col-span-1"
       />
       <div className="flex items-center justify-end gap-1.5">
         <div className="text-right">

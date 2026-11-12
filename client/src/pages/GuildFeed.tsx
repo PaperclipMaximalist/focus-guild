@@ -455,7 +455,7 @@ function RestStepper({
       <span className="min-w-0 flex-1 text-sm text-(--color-text)">{label}</span>
       <button
         type="button"
-        className="icon-btn h-7 w-7"
+        className="icon-btn"
         disabled={disabled || value <= min}
         onClick={() => onChange(to(value - step))}
         aria-label={`${label}: less`}
@@ -465,7 +465,7 @@ function RestStepper({
       <span className="tnum w-14 text-center text-sm font-semibold text-(--color-text)" aria-live="polite">{show(value)}</span>
       <button
         type="button"
-        className="icon-btn h-7 w-7"
+        className="icon-btn"
         disabled={disabled || value >= max}
         onClick={() => onChange(to(value + step))}
         aria-label={`${label}: more`}
@@ -841,6 +841,7 @@ function SelectedDrawer({
             {onMove && (
               <>
                 <button
+                  type="button"
                   onClick={() => onMove(-1)}
                   disabled={!canMoveEarlier}
                   className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40"
@@ -849,6 +850,7 @@ function SelectedDrawer({
                   <span className="inline-flex items-center gap-1.5"><ArrowUp size={12} aria-hidden /> Earlier</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => onMove(1)}
                   disabled={!canMoveLater}
                   className="text-xs px-3 py-1.5 rounded-md border disabled:opacity-40"
