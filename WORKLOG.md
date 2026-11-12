@@ -305,6 +305,28 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - Tests: 457 server, 91 client.
 
 
+### Wed 2026-11-11: A director and a team of coders (one session; hours not measured)
+- The owner's words: "look into the web apps progress and find ways to improve it, any painpoints, annoyances, features that would make it better just implement them, run a loop where you direct what's next on the app and how to make it better while prompting other models to do the code, eg sonnet for basic codes opus 5.5 to debug. create a loop set your own goals/end condition".
+- How it ran. The director (the main session) ran the real app on a throwaway database as a student with a week of deadlines, wrote down what got in the way, and gave each piece to a coder as a brief with the decisions already made: Sonnet for building (seven jobs), Opus for the merge, the two bugs and Undo (four jobs), two or three at a time. Coders worked in one shared worktree on the files named in their brief and ran no git; the director read each diff, reran the tests, looked at the result in the browser, fixed what was small, and committed by path.
+- Goals set at the start: one branch holding everything undeployed; nothing on screen contradicting anything else on it; any quest startable in one action; a mis-tap recoverable; the first screen of a form being the short version; a next action after working hours. End condition: every goal checked in the browser at 1280 and 375 px with the suites green, and a last pass over the changed screens that finds nothing new a member would meet.
+- Round 0, the merge (`6009517`, `f71442e`): `scheduler-coverage` into the launch-prep branch, as branch `improve-loop`. Five conflicted files, both sides kept; every lab identical to `scheduler-coverage`.
+- What the audit found, and what was built (each its own commit on `improve-loop`):
+  - `1f531f0` Deadline labels counted 24-hour periods: a quest due at 9 pm read "due tomorrow" beside a status saying "Due today". Calendar days now ("due today 9:00 PM", "due Fri"); the quest sheet shows the exact date, and the title as it was typed.
+  - `5019bdf` Settings: the eight scheduler weights fold under "Fine-tune the planner"; hours in the member's own clock. The duck said "1 stragglers". Stragglers says Complete.
+  - `603f641`, `d1a1838` The jot box and the importer notice a quest that is already there (the owner's account has every round twice, from pasting one list in two times).
+  - `05df4fe` The editor's first screen is title, deadline, how long and priority; the rest is under "More options". Found on the way: a date picked in the editor was 00:00 at the START of that day, so a quest "due tomorrow" was planned to finish today and read as late all of tomorrow. A date is now the end of its day.
+  - `5d6f75d` Completing a quest was written six times, each a little different. One hook now (`client/src/lib/useCompleteQuest.ts`).
+  - `9aee557` "Today" was the UTC date. In Pacific time every round un-ticked itself at 4 pm and a round ticked in the evening read as done the next morning; streak days and the fuel check had the same fault (`server/src/lib/memberDay.ts`). `8bd3fc2` a small quest could earn "+0 XP".
+  - `5e71631` One focus timer for the whole app: Start on any quest's sheet, and a chip on every page while a session runs.
+  - `ded3857` After hours, "Have time now?" with 30 min / 1 hour / 2 hours on the empty Route and on Today.
+  - `21bd313` Undo on the XP toast, for quests and rounds. A completion leaves a receipt and the undo reverses exactly that.
+  - `e3b5d74` The 30-minute button exposed a planner bug: the added time went to a quest due in two days while a 10-minute email due that night was reported impossible. Three causes, in the replan's first layout pass and in triage; `lab:week` 18/24 to 19/24 deadlines.
+  - `6ab674c`, `a5bee2b`, `cfbb4a5`, `806857d` Names for repeated buttons, a 44px tap area for text buttons, the reflection card, smaller wording.
+- What the director's review caught that a coder's own checks did not: a title still in capitals (an unlayered CSS rule beats utilities; only the browser showed it); a footer that wrapped its main button onto a second row; a new request header that would have locked out a client deployed a minute before its server (it is a query value now); a timer finished on a page that had not loaded the rounds would have closed a round for good (the session remembers now, and the server refuses). And one of the director's own: a wording change committed without rerunning the server tests broke an assertion, found on the next run.
+- Checked: every round in the browser at 1280 and 375 px on the throwaway database; the timezone and Undo routes against a database with planted rows; the planner fix on the real endpoints and in all four labs, rerun by the director. A hand-written check (unnamed or nested controls, duplicate ids, dangling references, heading count, sideways scroll, touch targets) on Today, Quests, Route, Settings, Stragglers and the importer at both widths. axe was NOT run this time: loading it from a CDN is not allowed in the session's permission mode, and it is not a dependency of the project.
+- Tests: 558 server, 137 client (457 and 91 on the launch-prep branch; 514 and 97 after the merge). Client lint 40 problems, one fewer than before and all older than this loop. Nothing pushed, nothing deployed.
+
+
 ## Phases, as named in the project's own log
 
 | Phase | What | When |

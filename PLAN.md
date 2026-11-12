@@ -4,10 +4,14 @@ The living roadmap: what's done, what's open, in priority order. Current
 state and how to run everything: `FocusGuildInstructions.md` → "Current
 Build Phase". History with hours: `WORKLOG.md`.
 
-**Status 2026-10-08:** production is `main` @ `29783f0` (deployed 2026-10-06).
-The working branch `presets-and-chronicle` is ahead of it and **not deployed**:
-the "Follow-up round" row below. One piece of work is finished but waits on a
-decision (see "Parked branches").
+**Status 2026-11-11:** production is `main` @ `08d40fb` (deployed 2026-10-19).
+Branch `improve-loop` (worktree `.claude/worktrees/improve-loop`, local only, not
+pushed) holds everything built since and **not deployed**: October's scheduler
+work (fill the time, breaks, the slider, dragging, rotation, quests in one go,
+rounds that repeat weekly), the launch prep of 2026-11-07/08, and the
+director-and-coders loop of 2026-11-11 (last row of the table below). It has one
+migration (`20261019000000_one_sitting_and_repeat`) and waits on the owner's
+word. One other piece of work waits on a decision (see "Parked branches").
 
 ---
 
@@ -32,6 +36,7 @@ decision (see "Parked branches").
 | + Your AI | Asked for by the owner on 2026-10-11: "some way for the popular AIs to be API connected into the app by the user". `/advanced/ai`: Claude, ChatGPT, Gemini, Grok, Mistral, DeepSeek, OpenRouter or any OpenAI-compatible address, connected with the person's own API key. The key is checked with the provider before it is stored, sealed (AES-256-GCM), and never sent back. Break down, Ask the Guild and a new list writer on the importer (notes in, manifest out, previewed before anything is made) run on the one marked in use, with the server's own key as the fallback. Migration `20261011000000_ai_connections` (one new table, idempotent). Not yet called with a real key for any provider. | branch `quickstart-connections` |
 | + Follow-up round | A quest's max session is honoured (a "max 15" quest got one 45-minute block); plans are made in whole minutes. Routines with no hour keep one time of day and step aside for a deadline the plan is short on. Half an hour is kept free for a meal on a day worked through midday. `GET /health` reports the commit that is running. A unit test for the planner crash of `e8809fd`. Deadlines met 64.2% → 65.0%; 94.4% → 95.0% of the best possible; routine in front of a short deadline 18% → 7% of people; no pause at midday 17% → 0.2% | `6aa20b3` … `b2e43c5`, **not deployed** |
 | + Steps, hour logs, journal | Asked for by the owner on 2026-10-10. **Steps**: sub-quests nest three tiers and count towards the main quest (rollups over the subtree, planner schedules leaves only, completing or deleting a parent takes its steps along); on a quest's row "Steps" is a dropdown, and the editor has a "Part of" menu. **Hour logs**: quests with no estimate, where time is written down by hand and adds up; never planned or late. **Journal**: `/chronicle` is a plain notebook of what was written by hand; the Logbook's four tabs moved to `/advanced/records`. No migration. | branch `quests-hours-journal`, not merged |
+| + Director-and-coders loop | Asked for by the owner on 2026-11-11: find what gets in the way and fix it, directing cheaper coders. **True labels**: deadlines in calendar days with the time when it matters; a date picked in the editor means the end of that day (it was the start, so "due tomorrow" read late all of tomorrow). **The member's day**: rounds, streaks and the fuel check turn over at the member's midnight, not at UTC's (4 pm in Pacific time). **Start anywhere**: Start on every quest's sheet, one focus timer for the app, a chip on every page while it runs. **Undo** for a mistaken tick, quests and rounds, exact (a completion leaves a receipt). **After hours**: "Have time now?" 30 min / 1 hour / 2 hours, and the planner bug it exposed fixed (added time went to work due later while a quest due that night was called impossible). **Shorter forms**: the editor's first screen is title, deadline, how long, priority; Settings shows the scheduler's eight weights only on request. **Duplicates** noticed by the jot box and left out by the importer. One completion path (`useCompleteQuest`) instead of six. Names and 44px tap areas for buttons. Tests 558 server, 137 client; `lab:week` 18/24 to 19/24 deadlines. | branch `improve-loop`, `6009517` … `e3b5d74`, **not deployed** |
 
 ---
 
@@ -47,6 +52,8 @@ decision (see "Parked branches").
 7. **After hours:** opened after quest hours with something small due tonight, the Feed is empty plus a banner. Add an insight with a "Start now" action. Working hours stay a hard wall for planning.
 8. **Banner:** "move the deadline" is +1 day and may need a second tap; compute the first date it fits (additive field on the issue).
 9. Smaller: night-shift users — the Feed groups by calendar date, `planner.meterAt` resets at midnight, the check-in lookup uses the UTC date; daylight-saving changes shift blocks an hour (single `tzOffsetMin`); generate at 200 quests × 30 days takes ~240 ms and grows faster than linearly; on compact Feed tiles the delete button overlaps the load dots; fuzz: `minutes:over-planned, kept blocks not trimmed` 3% of cases, one ui-tier case of a block longer than its quest's max session (`npm run lab:fuzz -- --show 1431`).
+
+10. Found 2026-11-11, in fill mode: a quest that cannot make its deadline gets no leftover time (work that is not dropped always takes the slack first); room under 15 minutes after a short quest stays empty; the randomised fill test fails on one seed in 2000 (`SEEDS = 2000`, seed 1609, a 4-minute block), before and after that day's fix. On the Route: the stop sheet's buttons are about 30px tall, Earlier/Later lose keyboard focus when they turn disabled, and the slider's reset button disappears under the finger.
 
 ### UI, after the 2026-10-06 refresh (rules are in the Bible → "UI rules" and "Craft checklist")
 - **Departures is built** (2026-10-08; deployed 2026-10-10 with the lines): theme, board rows with a status column on Route and the quest lists, the yellow sign with a flip clock, the night platform scene, and the route vocabulary. Not yet in board style: Stragglers, Expeditions, Mileage, Logbook, Settings, the block drawer and the quest editor wear the colours and type but keep their earlier layouts.
@@ -65,7 +72,13 @@ decision (see "Parked branches").
 - The dev account's duplicated quests make every screenshot look broken; see Duplicate detection below.
 
 ### Product
-- **Duplicate detection.** The dev account has every recurring quest twice, most likely from a double import. Warn on import or creation when the title matches and the duration is the same, and offer to merge.
+- **Duplicates, what is left.** The jot box says when a title is already on the list and the importer leaves such quests out (2026-11-11). Not done: the copies already in the dev account are still there (nothing merges or removes them), and the quest editor does not check.
+- **Small quests earn almost nothing.** XP is minutes / 5 times load / 5, so a ten-minute easy quest is +1 XP (it could be +0 until 2026-11-11). The things ADHD makes hardest, an email or a phone call, are the least rewarded. The formula is the owner's (the Bible's "XP Rules"): a floor of about 5, or a flat bonus for finishing anything, is the owner's call.
+- **A member's timezone is not stored.** The web client sends it on every request; a caller with no browser (a personal access token, the MCP connector) gets UTC days, as before. Keep the last offset seen on the member. Also: a day is always 24 hours, so the two daylight-saving days are an hour off; and `applyMidnightRollover` in `lib/streak.ts` is never called (a streak pauses at the next completion, not at midnight).
+- **The editor has no time of day for a deadline.** The jot box does ("by fri 9pm"). A date picked in the editor is the end of that day, and changing the date of a quest timed by jot drops its time.
+- **Undo, what is left.** The Route re-plans after an Undo; Today's Next stop card does not until the next reroute. An Undo is refused when anything was completed after it (undo that first), and after ten minutes.
+- **Importing a list that adds steps to a quest already on the list** leaves the whole quest out, or (box unticked) makes a second copy. See "Importing never updates" below.
+- **Before other people use it:** there is no "export everything" or "delete my account"; axe should be rerun on every page (make `axe-core` a dev dependency so it can run without a CDN); the phone's New quest button still floats over content, against the UI rules; Mileage is a page of zeros for a new member.
 - **Overdue quests** surface via insights and Rescue; consider a one-tap "move all to tomorrow".
 - **Tracker one-line quick-add** (deferred from Phase 1): reuse the markdown line grammar, e.g. `EE intro > write one ugly paragraph @EE due:fri cas:c`.
 - **Google sign-in for calendars: not built, on purpose.** Quickstart connects Google Calendar by its secret iCal address. A "Sign in with Google" button needs the owner to create a Google Cloud project and OAuth client (and put its id and secret on Railway), a table for refresh tokens, and either Google's verification of the app (the calendar scope is a sensitive one) or "testing" mode, where the sign-in lapses every 7 days. For one person that is more work and less reliable than a link that never expires. Worth doing only if other people are going to use the app.
@@ -80,7 +93,8 @@ decision (see "Parked branches").
 | Branch | What is there | State |
 |---|---|---|
 | `scheduler-coverage` (worktree `.claude/worktrees/scheduler-coverage`) | Everything the scheduler gained since 2026-10-11, never deployed: fill the time, the gap, long breaks, the slider, dragging (`ui-refresh`), the crowded-week fixes (2026-10-15), and rotation, quests in one go and routines that repeat weekly or every few days (2026-10-19). Merged with `main` @ `08d40fb`. Has a migration. | Merged into `improve-loop` on 2026-11-11; deploy that branch, not this one. |
-| `improve-loop` (worktree `.claude/worktrees/improve-loop`) | The launch prep of 2026-11-07/08 (dialogs, labels, welcome guide, honest empty states, ownership and trophy fixes) plus all of `scheduler-coverage`, merged 2026-11-11. Has the migration above. | **Ready to deploy on the owner's word.** |
+| `improve-loop` (worktree `.claude/worktrees/improve-loop`) | The release candidate: the launch prep of 2026-11-07/08, all of `scheduler-coverage` (merged 2026-11-11), and the director-and-coders loop of 2026-11-11. Has the migration above. Local only. | **Ready to deploy on the owner's word.** Not pushed. |
+| `improve-loop-a` (worktree `.claude/worktrees/improve-loop-a`) | Three coder rounds made while the merge was running. | Merged into `improve-loop`; the worktree and branch can be removed. |
 | `replan-keeps-breaks` @ `b14e997` (worktree `agent-abaaa678aca7b13f9`) | Scheduler item 1: rests after kept blocks, breaks give way to a meetable deadline, passes repeat until stable. Branched from `9f8087a`. | Works and is measured (numbers in its commit message). **Needs the owner's call**: keep breaks in replans at about half a point of simulated deadlines, or leave replans as they are. Then fix `reason-false` and `tiny-block`, and merge the current branch into it. |
 | `worktree-agent-aaaf4994560cafbaa` (uncommitted) | Start of `suggestChronotype` in `insights.ts` plus lab changes | Early; based on `8e501f7`, so it needs a merge of the current branch first. |
 All other agent worktrees are merged and can be removed (`git worktree remove <path>`).
