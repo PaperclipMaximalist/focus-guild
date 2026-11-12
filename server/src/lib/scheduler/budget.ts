@@ -853,6 +853,16 @@ export function triage(
     kept.push(t);
     sum += t.remainingMin;
     const cap = capacityBefore(t.deadline);
+    // Past saving even with all the time before its deadline to itself: it
+    // goes, and takes nobody with it. Dropping the lower tier first, a 75-minute
+    // HIGH quest with 30 minutes left before it gave up the 10-minute email
+    // due before it, and then went anyway.
+    if (t.remainingMin > cap + NEAR_FIT_MIN) {
+      kept.pop();
+      sum -= t.remainingMin;
+      dropped.add(t.id);
+      continue;
+    }
     while (sum > cap + NEAR_FIT_MIN && kept.length) {
       let worst = 0;
       for (let i = 1; i < kept.length; i += 1) if (worse(kept[i]!, kept[worst]!)) worst = i;

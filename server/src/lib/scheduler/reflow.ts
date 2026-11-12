@@ -38,7 +38,7 @@
  *     in place of work today already held (see URGENT_WITHIN_DAYS).
  */
 
-import { buildDayInfo, dueWithinPlan, todayCap, triage } from './budget.js';
+import { buildDayInfo, dueWithinPlan, todayCap, todayEndInForce, triage } from './budget.js';
 import { restPolicy } from './config.js';
 import { packDays } from './pack.js';
 import { plan, suggestForShortfall } from './planner.js';
@@ -172,7 +172,12 @@ export function reflow(
     let b = raw;
     // Began before now: nobody can start it at its start any more.
     if (b.start < now) {
-      if (b.end - now < STRADDLE_KEEP_MIN * MS_PER_MIN) continue;
+      // ... unless what is ahead of it is all its quest has left: then it is
+      // the end of that sitting, not a scrap. A 10-minute email under way was
+      // dropped a minute in, the next block slid up over it, and the email
+      // went to the back of the evening.
+      const rest = (b.end - now) / MS_PER_MIN;
+      if (rest < STRADDLE_KEEP_MIN && !(rest >= 1 && (need.get(t.id) ?? 0) <= rest + 0.5)) continue;
       b = { ...b, start: now };
     }
     if (b.end > t.deadline) continue;
@@ -367,8 +372,13 @@ export function reflow(
     taken.add(id);
     return id;
   };
-  /** Lay `movable` out again, in order, in the free time `held` leaves (pack.ts). Breaks come back with it. */
-  const layOut = (movable: Block[], held: Block[]): Block[] => {
+  /**
+   * Lay `movable` out again, in order, in the free time `held` leaves (pack.ts). Breaks come back with it.
+   * `pull`: may the slider's today take blocks from the days after it? Not
+   * before the planner has seen the plan: see below.
+   */
+  const sliderToday = todayEndInForce(config, now);
+  const layOut = (movable: Block[], held: Block[], pull = true): Block[] => {
     const daysOf = buildDayInfo(config, now, held);
     const groups = daysOf.map((d) => ({
       blocks: movable.filter((b) => b.start >= d.workStart && b.start < d.workEnd),
@@ -378,17 +388,28 @@ export function reflow(
     const grouped = new Set(groups.flatMap((g) => g.blocks.map((b) => b.id)));
     const packed = packDays(daysOf, groups, taskMap, { ...config, todayCapMin: capTotal }, {
       capped: (d) => d === daysOf[0],
+      // (With the slider in force today's window opens at now: buildDayInfo.)
+      keepsOwn: (d) => !pull && sliderToday && d === daysOf[0] && d.workStart <= now,
       mint: (piece) => ({ ...piece, id: freshId() }),
       runBefore,
       now,
     });
     return [...movable.filter((b) => !grouped.has(b.id)), ...packed.flatMap((g) => g.blocks as Block[])];
   };
+  // While the slider sets today, today's blocks close up within today only.
+  // The time it gives is the member asking for that much today: the budget
+  // shares it out, work due tonight first, and tomorrow's blocks only fill
+  // what the planner leaves of it, in the final layout. Pulled in here, the
+  // next day's first block took it before anything due tonight was weighed:
+  // at 19:34, given 30 minutes, the member got a report due in two days and
+  // the email due at 21:00 was reported as not fitting at all. (Without the
+  // slider, a quest finished early still has the next block slide up into
+  // the time it gave back, as before.)
   /** The breaks between the kept blocks: the planner must not see them as free time. */
   let keptBreaks: Block[] = [];
   if (packs) {
     const underWay = kept.filter((b) => b.start <= now);
-    const laid = layOut(kept.filter((b) => b.start > now), [...fixedFuture, ...userLockedFuture, ...underWay]);
+    const laid = layOut(kept.filter((b) => b.start > now), [...fixedFuture, ...userLockedFuture, ...underWay], false);
     kept = [...underWay, ...laid.filter(isWork)];
     keptBreaks = laid.filter((b) => b.type === 'break');
   }

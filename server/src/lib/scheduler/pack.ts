@@ -57,6 +57,8 @@ type Work = Omit<Block, 'id'>;
 export interface PackOptions {
   /** Is this the day the check-in's cap applies to? Then it takes no work from later days. */
   capped?: (day: DayInfo) => boolean;
+  /** Does this day take no work from later days, whatever `fillDays` says? */
+  keepsOwn?: (day: DayInfo) => boolean;
   /** Called on every block this pass creates (a later piece of a cut block, a break), for a caller whose blocks carry ids. */
   mint?: (piece: Work) => Work;
   /** Minutes of quest work already behind `now` with no long pause in them. */
@@ -118,7 +120,7 @@ export function packDays(
 
   for (let i = 0; i < days.length; i += 1) {
     const day = days[i]!;
-    const takesLater = !!config.fillDays && !(config.todayCapMin !== undefined && options.capped?.(day));
+    const takesLater = !!config.fillDays && !(config.todayCapMin !== undefined && options.capped?.(day)) && !options.keepsOwn?.(day);
     const mayTake = (it: Item) => it.home <= i || takesLater;
     const held = day.immovableThisDay.filter((b) => b.type === 'work').sort((a, b) => a.start - b.start);
     // The quest of the day's last work block so far, for `rotate`.

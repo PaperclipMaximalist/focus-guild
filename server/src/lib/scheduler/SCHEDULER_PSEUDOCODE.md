@@ -151,6 +151,8 @@ todayCap = the check-in's minutes, only if the plan's first day IS today
 
 triage (Moore–Hodgson over tasks dueWithinPlan):
   walk deadlines in order, summing remainingMin
+  a task longer than all the capacity before its own deadline is dropped
+    by itself (it would go anyway; it must not take an earlier one with it)
   while the sum > capacity before this deadline, drop one kept task:
     lowest tier first (LOW < MED < HIGH; tier from urgencyMultiplier),
     then the most remainingMin / (0.5 + importance)
@@ -331,7 +333,8 @@ as `committedMin`. Replanning with nothing changed moves 0 blocks.
 A replan starts from a plan the day has already bent. Four rules for that:
 
 - **A block that began before `now`** keeps only the part still ahead
-  (`start = now`) when at least `STRADDLE_KEEP_MIN` (15) of it is left;
+  (`start = now`) when at least `STRADDLE_KEEP_MIN` (15) of it is left, or
+  when what is left of it is all its quest has left (the end of a sitting);
   otherwise it is dropped and its work replanned. The whole block used to
   stay and count in full, so its quest was planned short by the minutes gone.
 - **Over-commitment.** Walking a quest's blocks in time order (pinned ones

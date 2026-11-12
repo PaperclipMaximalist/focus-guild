@@ -152,7 +152,10 @@ pulled in while a day has room. The one exception to the order is a block
 that would miss its deadline by waiting its turn. `plan()` runs it after
 reconcile; a replan runs it twice, once on the blocks it keeps (so a hole a
 finished quest or a drag left is closed before the planner can fill it with
-something else) and once over the whole result.
+something else) and once over the whole result. While the slider sets today,
+the first pass takes nothing into today from later days: the time the member
+gave is the budget's to share out, work due tonight first, and only what the
+planner leaves of it is filled with the next day's blocks by the second pass.
 
 **Dragging** is `reorder_block` (`edits.ts`): the block takes its new
 neighbour's start, and the packing pass does the rest. It is not a pin.
