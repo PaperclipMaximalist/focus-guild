@@ -1,3 +1,19 @@
 # Migration files are hashed by Prisma to detect drift. Keep them LF on every
 # platform so a Windows checkout and a Linux deploy agree on the checksum.
 *.sql text eol=lf
+
+# The iOS project is written on Windows and built on a Mac: keep what Xcode,
+# fastlane and the CI shell read in LF.
+*.pbxproj text eol=lf
+*.plist text eol=lf
+*.storyboard text eol=lf
+*.swift text eol=lf
+*.xcprivacy text eol=lf
+*.xcscheme text eol=lf
+*.xcconfig text eol=lf
+*.entitlements text eol=lf
+*.yml text eol=lf
+*.sh text eol=lf
+Fastfile text eol=lf
+Appfile text eol=lf
+Gemfile text eol=lf
