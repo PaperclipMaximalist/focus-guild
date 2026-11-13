@@ -4,6 +4,10 @@
 // Auth has two modes, picked at runtime by what's injected from the React tree:
 //   - Real Clerk: `setAuthTokenGetter()` is called by <AuthBridge> with
 //     `useAuth().getToken`; every request sends `Authorization: Bearer <jwt>`.
+//   - The iOS app: native/auth.ts sets the getter to return the device token
+//     (from POST /devices/token, kept in the Keychain), so it is sent the
+//     same way. It also sets an unauthorized handler: a 401 on a request that
+//     carried that token means the device was signed out.
 //   - Dev fallback: no token getter set; requests send `X-Dev-Clerk-Id`
 //     header with the current dev/Clerk-user id. The server's auth.ts
 //     middleware understands both.
@@ -14,10 +18,21 @@ export const DEV_CLERK_ID = 'dev-member-001';
 // Defaults to the dev member; replaced by setCurrentClerkId() after sign-in.
 let _currentClerkId: string = DEV_CLERK_ID;
 let _tokenGetter: (() => Promise<string | null>) | null = null;
+let _onUnauthorized: ((sentToken: string) => void) | null = null;
 
-/** Set by <AuthBridge> with `useAuth().getToken`. Null in dev mode. */
+/** Set by <AuthBridge> with `useAuth().getToken`, or by native/auth.ts with the device token. Null in dev mode. */
 export function setAuthTokenGetter(fn: (() => Promise<string | null>) | null): void {
   _tokenGetter = fn;
+}
+
+/**
+ * Called with the bearer token a request carried when the server answered
+ * 401. Only the app sets one (native/auth.ts): a device token that gets 401
+ * was revoked, and the app goes back to its sign-in screen. The web leaves it
+ * unset; Clerk renews its own tokens.
+ */
+export function setUnauthorizedHandler(fn: ((sentToken: string) => void) | null): void {
+  _onUnauthorized = fn;
 }
 
 /** Set by <AuthBridge> with the signed-in Clerk user id. */
@@ -77,7 +92,12 @@ export class ConnectionError extends Error {
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+interface RequestOptions {
+  /** Send no identity at all: no bearer, no dev header (POST /devices/token, made before there is one). */
+  anonymous?: boolean;
+}
+
+async function request<T>(path: string, init?: RequestInit, opts: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...((init?.headers ?? {}) as Record<string, string>),
@@ -89,12 +109,15 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   // every request refused by the browser. A query value needs no permission.
   if (!/[?&]tz=/.test(path)) path += `${path.includes('?') ? '&' : '?'}tz=${tzOffset()}`;
 
-  if (_tokenGetter) {
-    // Real Clerk: send the JWT. The server's auth.ts extracts the clerkId
-    // from the verified token, so URL-path ids are advisory only.
+  let sentToken: string | null = null;
+  if (opts.anonymous) {
+    // No identity on purpose.
+  } else if (_tokenGetter) {
+    // Real Clerk (or the app's device token): send it. The server's auth.ts
+    // extracts the clerkId from the verified token, so URL-path ids are advisory only.
     try {
-      const token = await _tokenGetter();
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+      sentToken = await _tokenGetter();
+      if (sentToken) headers['Authorization'] = `Bearer ${sentToken}`;
     } catch {
       // token fetch failed — server will 401
     }
@@ -110,6 +133,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     // No answer at all: offline, or the server is down or waking up.
     throw new ConnectionError('Can’t reach the Guild right now. Check your connection, then try again.');
   }
+  // Told before the body is read, so a 401 that is not JSON counts too.
+  if (res.status === 401 && sentToken && _onUnauthorized) _onUnauthorized(sentToken);
   let body: ApiResponse<T>;
   try {
     body = (await res.json()) as ApiResponse<T>;
@@ -1135,4 +1160,43 @@ export const aiApi = {
   /** Notes in, a quest manifest out, written by the AI in use. */
   writeManifest: (notes: string, guide: string) =>
     request<{ text: string; via: string }>('/ai/manifest', { method: 'POST', body: JSON.stringify({ notes, guide }) }),
+};
+
+// ─── Devices (the iOS app's sign-in) ──────────────────────────────────────────
+// The website asks for a one-time code for a PKCE challenge (link); the app
+// trades code + verifier for a long-lived device token (token) and sends it
+// as its bearer from then on. Server: routes/devices.ts.
+
+export interface DeviceLinkCode {
+  code: string;
+  expiresInSec: number;
+}
+
+export interface DeviceToken {
+  /** `fgd_…`; the app's bearer token. */
+  token: string;
+  deviceId: string;
+  clerkId: string;
+}
+
+export interface Device {
+  id: string;
+  name: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  /** The device this request came from. */
+  current: boolean;
+}
+
+export const devicesApi = {
+  /** The website, signed in: a code for the app that sent this challenge. */
+  link: (challenge: string, name = 'iPhone') =>
+    request<DeviceLinkCode>('/devices/link', { method: 'POST', body: JSON.stringify({ challenge, name }) }),
+  /** The app, before it has any identity: code + verifier for a device token. Fails with INVALID_LINK. */
+  token: (code: string, verifier: string) =>
+    request<DeviceToken>('/devices/token', { method: 'POST', body: JSON.stringify({ code, verifier }) }, { anonymous: true }),
+  list: () => request<Device[]>('/devices'),
+  /** Sign out: revokes the token this request carries. */
+  revokeCurrent: () => request<{ revoked: true }>('/devices/current', { method: 'DELETE' }),
+  revoke: (id: string) => request<{ revoked: true }>(`/devices/${encodeURIComponent(id)}`, { method: 'DELETE' }),
 };

@@ -28,11 +28,13 @@ import {
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { ChevronDown, ChevronRight, RotateCcw, SettingsIcon, TriangleAlert, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, RotateCcw, SettingsIcon, TriangleAlert, Wrench } from 'lucide-react';
 import { useArmed } from '../lib/useArmed';
 import { isSceneEnabled, setSceneEnabled } from '../lib/scene';
 import { LinePicker } from '../lines/LinePicker';
 import { currentLine, subscribeLine } from '../lines/current';
+import { isNativeApp } from '../native/platform';
+import { useNativeAuth } from '../native/auth';
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -203,6 +205,8 @@ export default function Settings() {
             Try again
           </button>
         </div>
+        {/* Signing out must not depend on the settings loading. */}
+        {isNativeApp && <AccountSection />}
       </div>
     );
   }
@@ -348,6 +352,9 @@ export default function Settings() {
         <ChevronRight size={16} aria-hidden style={{ color: 'var(--color-muted)' }} />
       </Link>
 
+      {/* The iPhone app's account block (Sign out). The website's account lives in Clerk's menu. */}
+      {isNativeApp && <AccountSection />}
+
       {/* Action bar */}
       <div className="sticky bottom-20 z-40 flex items-center justify-between gap-2 rounded-md border px-4 py-2.5 shadow-xl"
         style={{
@@ -463,6 +470,43 @@ function Toggle({
         />
       </button>
     </div>
+  );
+}
+
+// ─── Account (the iPhone app only) ───────────────────────────────────────────
+// One block for everything about the account itself. Delete account and the
+// legal links join Sign out here.
+
+function AccountSection() {
+  const signOut = useNativeAuth((s) => s.signOut);
+  const { armed, fire } = useArmed();
+  const [leaving, setLeaving] = useState(false);
+  return (
+    <Section title="Account">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <span className="block text-sm" style={{ color: 'var(--color-text)' }}>Sign out</span>
+          <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+            Your quests stay in your account. Sign in again to pick up where you left off.
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            fire('signOut', () => {
+              setLeaving(true);
+              void signOut();
+            })
+          }
+          disabled={leaving}
+          aria-label={armed === 'signOut' ? 'Tap again to sign out of Focus Guild on this iPhone' : 'Sign out of Focus Guild on this iPhone'}
+          className="btn-quiet min-h-11 shrink-0 disabled:opacity-40"
+        >
+          <LogOut size={16} aria-hidden />
+          {leaving ? 'Signing out…' : armed === 'signOut' ? 'Tap again' : 'Sign out'}
+        </button>
+      </div>
+    </Section>
   );
 }
 

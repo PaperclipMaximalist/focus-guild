@@ -4,6 +4,8 @@ import { ClerkProvider } from '@clerk/clerk-react'
 import './index.css'
 import App from './App.tsx'
 import { initLine } from './lines/current'
+import { isNativeApp } from './native/platform'
+import { startNativeAuth } from './native/auth'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
@@ -11,7 +13,9 @@ const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | u
 // real provider (production / real-auth dev). When it's missing we render App
 // directly so the dev-fallback X-Dev-Clerk-Id flow keeps working — handy
 // during local development before keys are wired.
-const Root = PUBLISHABLE_KEY ? (
+// The iOS app never mounts Clerk, key or no key: it cannot work in the
+// WebView, and the app signs in with a device token instead (native/auth.ts).
+const Root = PUBLISHABLE_KEY && !isNativeApp ? (
   <ClerkProvider
     publishableKey={PUBLISHABLE_KEY}
     afterSignOutUrl="/"
@@ -32,6 +36,10 @@ const Root = PUBLISHABLE_KEY ? (
   <App />
 )
 
+// In the app: read the Keychain and listen for the sign-in link. App shows
+// "Opening the guild…" until the Keychain has answered.
+if (isNativeApp) void startNativeAuth()
+
 // The chosen line's colours are in place before anything is painted.
 initLine().finally(() => {
   createRoot(document.getElementById('root')!).render(<StrictMode>{Root}</StrictMode>)
@@ -39,7 +47,8 @@ initLine().finally(() => {
 
 // Service worker: offline shell + cached build assets (public/sw.js).
 // Production only — in dev it would serve stale modules and confuse HMR.
-if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+// Never in the app: a service worker cannot run on capacitor://.
+if (import.meta.env.PROD && !isNativeApp && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(() => {
       // No offline support then; the app works exactly as before.

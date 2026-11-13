@@ -1,10 +1,23 @@
-import { Suspense, lazy, useEffect, useRef } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { SignedIn, SignedOut, SignIn, useAuth, useUser } from '@clerk/clerk-react';
 import { PenLine, Route as RouteIcon, Trophy } from 'lucide-react';
 import { useUserStore } from './store/useUserStore';
 import { setAuthTokenGetter, setCurrentClerkId } from './lib/api';
+import { isNativeApp } from './native/platform';
+import { useNativeAuth } from './native/auth';
+import { NativeSignIn } from './native/NativeSignIn';
+import {
+  linkRequestFromLocation,
+  loadLinkRequest,
+  saveLinkRequest,
+  appLinkUrl,
+  wantsAppLinkPage,
+  APP_LINK_PATH,
+  type LinkRequest,
+} from './native/linkRequest';
+import AppLink from './pages/AppLink';
 import Today from './pages/Today';
 import CheckIn from './pages/CheckIn';
 import Quests from './pages/Quests';
@@ -41,6 +54,11 @@ import { Backdrop } from './lines/Dressing';
 const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
 
 export default function App() {
+  // The iOS app never loads Clerk (it cannot work in the WebView): it signs
+  // in through the website and a device token (native/auth.ts).
+  if (isNativeApp) return <NativeGate />;
+  // The website's half of that: /app-link, outside the normal shell.
+  if (wantsAppLinkPage()) return <AppLinkGate />;
   // When Clerk is configured, gate the entire app on sign-in state.
   if (CLERK_ENABLED) {
     return (
@@ -77,14 +95,63 @@ function AuthBridge({ children }: { children: React.ReactNode }) {
     if (clerkUser?.id) setCurrentClerkId(clerkUser.id);
   }, [clerkUser?.id]);
 
-  if (!authLoaded || !userLoaded) {
-    return (
-      <div className="flex min-h-screen items-center justify-center" role="status">
-        <div className="text-(--color-muted)">Opening the guild…</div>
-      </div>
-    );
-  }
+  if (!authLoaded || !userLoaded) return <OpeningGuild />;
   return <>{children}</>;
+}
+
+function OpeningGuild() {
+  return (
+    <div className="flex min-h-screen items-center justify-center" role="status">
+      <div className="text-(--color-muted)">Opening the guild…</div>
+    </div>
+  );
+}
+
+/** In the iOS app: the Keychain is being read, the sign-in screen, or the app. */
+function NativeGate() {
+  const status = useNativeAuth((s) => s.status);
+  if (status === 'loading') return <OpeningGuild />;
+  if (status === 'signedIn') return <AuthenticatedApp />;
+  return <NativeSignIn pitch={<Pitch />} />;
+}
+
+/**
+ * /app-link on the website. Signed out (with Clerk on), the usual sign-in,
+ * sent back here afterwards with the request intact, whether the member
+ * signed in or signed up. The request is also kept for the tab
+ * (native/linkRequest.ts), so landing on `/` instead still comes back here.
+ */
+function AppLinkGate() {
+  // Read once: the address may be rewritten below.
+  const [request] = useState<LinkRequest | null>(() =>
+    window.location.pathname === APP_LINK_PATH ? linkRequestFromLocation() : loadLinkRequest(),
+  );
+  useEffect(() => {
+    if (!request) return;
+    saveLinkRequest(request);
+    // Landed on `/` by Clerk: show the real address, so a reload stays here.
+    if (window.location.pathname !== APP_LINK_PATH) window.history.replaceState(null, '', appLinkUrl(request));
+  }, [request]);
+
+  if (!request || !CLERK_ENABLED) return <AppLink request={request} who={null} />;
+  const back = appLinkUrl(request);
+  return (
+    <>
+      <SignedIn>
+        <AuthBridge>
+          <AppLinkSignedIn request={request} />
+        </AuthBridge>
+      </SignedIn>
+      <SignedOut>
+        <SignInLanding redirectUrl={back} />
+      </SignedOut>
+    </>
+  );
+}
+
+function AppLinkSignedIn({ request }: { request: LinkRequest }) {
+  const { user } = useUser();
+  return <AppLink request={request} who={user?.primaryEmailAddress?.emailAddress ?? null} />;
 }
 
 /** What a stranger needs before signing in: what this is, in three lines. */
@@ -94,28 +161,37 @@ const PITCH = [
   { Icon: Trophy, text: 'Every finished quest earns XP, streaks and trophies.' },
 ];
 
-function SignInLanding() {
+/** The name, the line under it and the three-line pitch: the website's sign-in page and the app's say the same. */
+function Pitch() {
+  return (
+    <div className="mx-auto max-w-md lg:mx-0">
+      <h1 className="font-display text-4xl font-bold" style={{ color: 'var(--color-primary)' }}>
+        Focus Guild
+      </h1>
+      <p className="mt-2 text-lg">A to-do list that plays like a quest board, for brains that wander.</p>
+      <ul className="mt-5 space-y-3">
+        {PITCH.map(({ Icon, text }) => (
+          <li key={text} className="flex gap-3 text-sm text-(--color-muted)">
+            <Icon size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-(--color-primary)" />
+            <span>{text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/** `redirectUrl`: where Clerk sends the member after signing in or signing up (the /app-link page); its default otherwise. */
+function SignInLanding({ redirectUrl }: { redirectUrl?: string }) {
   useEffect(() => {
     document.title = 'Sign in · Focus Guild';
   }, []);
   return (
     <main className="mx-auto grid min-h-screen max-w-5xl items-center gap-8 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:gap-12">
-      <div className="mx-auto max-w-md lg:mx-0">
-        <h1 className="font-display text-4xl font-bold" style={{ color: 'var(--color-primary)' }}>
-          Focus Guild
-        </h1>
-        <p className="mt-2 text-lg">A to-do list that plays like a quest board, for brains that wander.</p>
-        <ul className="mt-5 space-y-3">
-          {PITCH.map(({ Icon, text }) => (
-            <li key={text} className="flex gap-3 text-sm text-(--color-muted)">
-              <Icon size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-(--color-primary)" />
-              <span>{text}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      <Pitch />
       <SignIn
         routing="hash"
+        {...(redirectUrl ? { forceRedirectUrl: redirectUrl, signUpForceRedirectUrl: redirectUrl } : {})}
         appearance={{
           elements: {
             rootBox: 'mx-auto',

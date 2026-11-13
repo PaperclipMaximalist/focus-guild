@@ -20,8 +20,10 @@ import { useMascotStore } from '../store/useMascotStore';
 import { useTimerStore } from '../store/useTimerStore';
 import { TimerChip } from './TimerChip';
 import { levelFromXP, progressToNextLevel } from '../lib/levels';
+import { isNativeApp } from '../native/platform';
 
-const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+// Not in the iOS app: Clerk is not mounted there, and its components throw without it.
+const CLERK_ENABLED = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) && !isNativeApp;
 
 export function Header() {
   const user = useUserStore((s) => s.user);
