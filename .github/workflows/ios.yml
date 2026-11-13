@@ -1,0 +1,443 @@
+# The iOS app (client/ios, Capacitor 8, Swift Package Manager).
+# The owner has no Mac, so every compile, archive and upload happens here.
+# docs/IOS_RELEASE.md is the plain-language guide to this file.
+#
+# Jobs
+#   build          every push to ios-app, pull requests touching the client, manual runs.
+#                  Builds for the simulator (unsigned), launches the app, screenshots it.
+#                  Needs no secrets.
+#   publish-shots  pushes to ios-app only: copies build's screenshots to the ci-shots branch.
+#   testflight     manual only ("Run workflow", run = testflight): archive, sign, upload.
+#   store-listing  manual only (run = store-listing-text): upload the listing text with
+#                  fastlane deliver. No binary, no review submission.
+#
+# Step names are written to be read from the public API without logs
+# (GET /repos/{owner}/{repo}/actions/runs/{id}/jobs lists each step's name and conclusion).
+
+name: iOS
+
+on:
+  push:
+    # ios-app while the app is being built; main once it is merged. Only pushes
+    # that touch the client (or this file) start a Mac build.
+    branches: [ios-app, main]
+    paths:
+      - 'client/**'
+      - '.github/workflows/ios.yml'
+    # A tag like ios-v1.0.0 sends that commit to TestFlight as version 1.0.0.
+    # GitHub only shows the "Run workflow" button for a workflow that is on the
+    # default branch, so until this file is on main the tag is the way to start
+    # the testflight job. (Path filters do not apply to tag pushes.)
+    tags: ['ios-v*']
+  pull_request:
+    paths:
+      - 'client/**'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+    inputs:
+      run:
+        description: 'What to run. The simulator build always runs.'
+        type: choice
+        options:
+          - simulator-build-only
+          - testflight
+          - store-listing-text
+        default: simulator-build-only
+      marketing_version:
+        description: 'Version shown in the App Store, like 1.0.0 (testflight and store-listing-text)'
+        type: string
+        default: '1.0.0'
+      what_to_test:
+        description: 'Optional TestFlight "What to Test" note (testflight only)'
+        type: string
+        default: ''
+
+# Read-only by default. Only publish-shots gets write access, for its one branch.
+permissions:
+  contents: read
+
+env:
+  BUNDLE_ID: com.focusguild.app
+  # Empty = newest stable Xcode 26+ on the image. Set e.g. '26.6' to pin one.
+  XCODE_VERSION: ''
+  NODE_VERSION: '22'
+
+jobs:
+  build:
+    name: Simulator build and launch
+    runs-on: macos-26
+    timeout-minutes: 45
+    concurrency:
+      group: ios-build-${{ github.ref }}
+      cancel-in-progress: true
+    outputs:
+      xcode: ${{ steps.xcode.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Select Xcode 26 or later
+        id: xcode
+        run: bash client/ios/ci/select-xcode.sh
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies (npm ci)
+        working-directory: client
+        run: npm ci
+
+      - name: Build the web bundle and sync it into the iOS project (npm run build:ios)
+        working-directory: client
+        run: npm run build:ios
+
+      - name: Resolve Swift packages
+        working-directory: client/ios/App
+        run: >-
+          bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/resolve-packages.log"
+          -resolvePackageDependencies
+          -project App.xcodeproj -scheme App
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
+
+      - name: Pick an iPhone simulator
+        run: bash client/ios/ci/pick-simulator.sh
+
+      - name: Compile the app for the simulator (unsigned)
+        working-directory: client/ios/App
+        run: >-
+          bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/xcodebuild-simulator.log"
+          build
+          -project App.xcodeproj -scheme App -configuration Debug
+          -destination "id=$SIM_UDID"
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Launch the app in the simulator and check it stays running for 20 s
+        run: >-
+          bash client/ios/ci/smoke-test.sh "$SIM_UDID"
+          "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          "$BUNDLE_ID" "$RUNNER_TEMP/shots"
+
+      - name: Upload screenshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-screenshots
+          path: ${{ runner.temp }}/shots/*.png
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-build-logs
+          path: |
+            ${{ runner.temp }}/logs/
+            ${{ runner.temp }}/shots/*.log
+            ${{ runner.temp }}/shots/*.ips
+          if-no-files-found: warn
+          retention-days: 30
+
+  # Why this exists: the people who review these runs cannot sign in to GitHub,
+  # and artifacts need a signed-in user to download. A branch can be read by an
+  # anonymous `git fetch`. So, on pushes to ios-app only, the screenshots are
+  # force-pushed as one orphan commit to the branch ci-shots (no history kept).
+  # Never on pull requests: a fork must not get a token that can write.
+  # The branch holds nothing else and can be deleted at any time; the next push recreates it.
+  publish-shots:
+    name: Publish screenshots to the ci-shots branch
+    needs: build
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/ios-app' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Download the screenshots from the build job
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ios-screenshots
+          path: shots
+
+      - name: Force-push the screenshots as one commit to ci-shots
+        if: ${{ steps.download.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          XCODE: ${{ needs.build.outputs.xcode }}
+          BUILD_RESULT: ${{ needs.build.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          pngs=(shots/*.png)
+          if [ ${#pngs[@]} -eq 0 ]; then
+            echo "No screenshots were produced; nothing to publish."
+            exit 0
+          fi
+          work="$(mktemp -d)"
+          cp "${pngs[@]}" "$work/"
+          cat > "$work/README.md" <<EOF
+          # ci-shots
+
+          Screenshots of the iOS app in the simulator, taken by the iOS workflow.
+          This branch is overwritten on every push to ios-app and can be deleted at any time.
+
+          - Source commit: ${SOURCE_SHA}
+          - Xcode: ${XCODE:-unknown}
+          - Build job result: ${BUILD_RESULT}
+          - Run: ${RUN_URL}
+          - Files: after-10s.png and after-20s.png (seconds after launch)
+          EOF
+          cd "$work"
+          git init -q -b ci-shots
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Simulator screenshots for ${SOURCE_SHA}"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" ci-shots:ci-shots
+          echo "Published to the ci-shots branch."
+
+  testflight:
+    name: Archive, sign and upload to TestFlight
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.run == 'testflight')
+      || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/ios-v')) }}
+    runs-on: macos-26
+    timeout-minutes: 90
+    concurrency:
+      group: ios-testflight
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      # From the form on a manual run, from the tag (ios-v1.0.0) on a tag push.
+      # The check step below turns it into MARKETING_VERSION.
+      VERSION_INPUT: ${{ github.event_name == 'push' && github.ref_name || inputs.marketing_version }}
+      WHAT_TO_TEST: ${{ inputs.what_to_test }}
+      # Unique and increasing with no file to edit: the run number, plus the
+      # attempt so a re-run never reuses a number Apple has already seen.
+      BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+    steps:
+      - name: Check the four App Store Connect secrets are set
+        run: |
+          missing=()
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 APPLE_TEAM_ID; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Missing secrets::Add these repository secrets (Settings > Secrets and variables > Actions), see docs/IOS_RELEASE.md: ${missing[*]}"
+            exit 1
+          fi
+          echo "All four secrets are present."
+
+      - name: Check the version number
+        run: |
+          MARKETING_VERSION="${VERSION_INPUT#ios-v}"
+          if ! [[ "$MARKETING_VERSION" =~ ^[0-9]+(\.[0-9]+){0,2}$ ]]; then
+            echo "::error title=Bad version::The version must look like 1.0.0 (up to three numbers; a tag must look like ios-v1.0.0), got '${VERSION_INPUT}'."
+            exit 1
+          fi
+          echo "MARKETING_VERSION=${MARKETING_VERSION}" >> "$GITHUB_ENV"
+          echo "Version ${MARKETING_VERSION}, build ${BUILD_NUMBER}"
+
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Select Xcode 26 or later
+        id: xcode
+        run: bash client/ios/ci/select-xcode.sh
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies (npm ci)
+        working-directory: client
+        run: npm ci
+
+      - name: Build the web bundle and sync it into the iOS project (npm run build:ios)
+        working-directory: client
+        run: npm run build:ios
+
+      - name: Write the App Store Connect key to a private file
+        run: |
+          umask 077
+          dir="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$dir"
+          key="$dir/AuthKey_${ASC_KEY_ID}.p8"
+          # Accept the .p8 file's text as is, or the same text base64-encoded.
+          if printf '%s' "$ASC_KEY_P8" | grep -q -- '-----BEGIN PRIVATE KEY-----'; then
+            printf '%s\n' "$ASC_KEY_P8" > "$key"
+          else
+            printf '%s' "$ASC_KEY_P8" | base64 --decode > "$key"
+          fi
+          if ! grep -q -- '-----BEGIN PRIVATE KEY-----' "$key"; then
+            echo "::error title=ASC_KEY_P8 is not a key::ASC_KEY_P8 must hold the whole text of the AuthKey_XXXXXXXXXX.p8 file, from -----BEGIN PRIVATE KEY----- to -----END PRIVATE KEY-----."
+            exit 1
+          fi
+          echo "ASC_KEY_PATH=$key" >> "$GITHUB_ENV"
+
+      - name: Archive the app (Release, unsigned; signing happens at export)
+        working-directory: client/ios/App
+        run: >-
+          bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/xcodebuild-archive.log"
+          archive
+          -project App.xcodeproj -scheme App -configuration Release
+          -destination "generic/platform=iOS"
+          -archivePath "$RUNNER_TEMP/App.xcarchive"
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
+          MARKETING_VERSION="$MARKETING_VERSION"
+          CURRENT_PROJECT_VERSION="$BUILD_NUMBER"
+          DEVELOPMENT_TEAM="$APPLE_TEAM_ID"
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGN_IDENTITY=""
+
+      - name: Check the archive carries the right version and build number
+        run: |
+          plist="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app/Info.plist"
+          got_version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
+          got_build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$plist")"
+          got_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
+          echo "Archive: ${got_id} ${got_version} (${got_build})"
+          if [ "$got_version" != "$MARKETING_VERSION" ] || [ "$got_build" != "$BUILD_NUMBER" ] || [ "$got_id" != "$BUNDLE_ID" ]; then
+            echo "::error title=Archive mismatch::Expected ${BUNDLE_ID} ${MARKETING_VERSION} (${BUILD_NUMBER})."
+            exit 1
+          fi
+          test -f "$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app/PrivacyInfo.xcprivacy" \
+            || { echo "::error title=No privacy manifest::PrivacyInfo.xcprivacy is missing from the app bundle."; exit 1; }
+
+      - name: Sign with Apple's cloud certificate and upload to App Store Connect
+        working-directory: client/ios/App
+        run: |
+          cp ExportOptions.plist "$RUNNER_TEMP/ExportOptions.plist"
+          plutil -replace teamID -string "$APPLE_TEAM_ID" "$RUNNER_TEMP/ExportOptions.plist"
+          bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/xcodebuild-export-upload.log" \
+            -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "::notice title=Uploaded::${BUNDLE_ID} ${MARKETING_VERSION} (${BUILD_NUMBER}) was sent to App Store Connect. It appears in TestFlight after Apple processes it (usually 5 to 30 minutes)."
+
+      - name: Set the TestFlight What to Test note (only if one was given)
+        if: ${{ inputs.what_to_test != '' }}
+        continue-on-error: true
+        run: ruby client/ios/ci/set-what-to-test.rb
+
+      - name: Delete the key file
+        if: ${{ always() }}
+        run: rm -rf "$HOME/.appstoreconnect" "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Upload logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-testflight-logs
+          path: |
+            ${{ runner.temp }}/logs/
+            ${{ runner.temp }}/export/*.log
+            ${{ runner.temp }}/export/*.plist
+          if-no-files-found: warn
+          retention-days: 30
+
+  store-listing:
+    name: Upload the store listing text (no binary, no review submission)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run == 'store-listing-text' }}
+    runs-on: macos-26
+    timeout-minutes: 30
+    concurrency:
+      group: ios-store-listing
+      cancel-in-progress: false
+    defaults:
+      run:
+        shell: bash
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      MARKETING_VERSION: ${{ inputs.marketing_version }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+      FASTLANE_DISABLE_COLORS: '1'
+    steps:
+      - name: Check the three App Store Connect secrets are set
+        run: |
+          missing=()
+          for name in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error title=Missing secrets::Add these repository secrets, see docs/IOS_RELEASE.md: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Write the App Store Connect key for fastlane
+        run: |
+          umask 077
+          dir="$RUNNER_TEMP/asc"
+          mkdir -p "$dir"
+          if printf '%s' "$ASC_KEY_P8" | grep -q -- '-----BEGIN PRIVATE KEY-----'; then
+            printf '%s\n' "$ASC_KEY_P8" > "$dir/key.p8"
+          else
+            printf '%s' "$ASC_KEY_P8" | base64 --decode > "$dir/key.p8"
+          fi
+          ruby -rjson -e 'File.write(ARGV[1], JSON.generate(key_id: ENV.fetch("ASC_KEY_ID"), issuer_id: ENV.fetch("ASC_ISSUER_ID"), key: File.read(ARGV[0]), in_house: false))' \
+            "$dir/key.p8" "$dir/api_key.json"
+          echo "ASC_API_KEY_JSON=$dir/api_key.json" >> "$GITHUB_ENV"
+
+      - name: Upload the listing text with fastlane deliver
+        working-directory: client/ios/App
+        run: |
+          screenshots=(--skip_screenshots true)
+          if [ -d fastlane/screenshots ]; then
+            screenshots=(--skip_screenshots false --screenshots_path "$PWD/fastlane/screenshots" --overwrite_screenshots true)
+          fi
+          fastlane --version
+          fastlane deliver \
+            --api_key_path "$ASC_API_KEY_JSON" \
+            --app_identifier "$BUNDLE_ID" \
+            --platform ios \
+            --app_version "$MARKETING_VERSION" \
+            --metadata_path "$PWD/fastlane/metadata" \
+            "${screenshots[@]}" \
+            --skip_binary_upload true \
+            --submit_for_review false \
+            --automatic_release false \
+            --run_precheck_before_submit false \
+            --force true
+
+      - name: Delete the key files
+        if: ${{ always() }}
+        run: rm -rf "$RUNNER_TEMP/asc"

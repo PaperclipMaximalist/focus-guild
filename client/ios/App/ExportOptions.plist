@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Read by `xcodebuild -exportArchive` in the testflight job (.github/workflows/ios.yml).
+	     The archive is built unsigned; this export signs it with Apple's cloud-managed
+	     distribution certificate and an App Store profile that Xcode creates through
+	     the App Store Connect API key, then uploads it. No certificate lives on the runner. -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>upload</string>
+	<key>signingStyle</key>
+	<string>automatic</string>
+	<!-- Replaced at run time from the APPLE_TEAM_ID secret (plutil -replace teamID). -->
+	<key>teamID</key>
+	<string>SET_BY_CI</string>
+	<key>uploadSymbols</key>
+	<true/>
+	<!-- The workflow sets the version and build number itself; Xcode must not change them. -->
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+	<key>testFlightInternalTestingOnly</key>
+	<false/>
+</dict>
+</plist>
