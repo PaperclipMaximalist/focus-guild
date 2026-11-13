@@ -1,0 +1,14 @@
+/* Fonts shipped in the bundle (no Google Fonts), so the page paints with its
+ * real faces offline. Exactly the faces index.html used to ask Google for. */
+@import "@fontsource-variable/atkinson-hyperlegible-next/wght.css";
+@import "@fontsource-variable/atkinson-hyperlegible-next/wght-italic.css";
+@import "@fontsource/b612-mono/latin-400.css";
+@import "@fontsource/b612-mono/latin-700.css";
+@import "@fontsource/saira-condensed/latin-500.css";
+@import "@fontsource/saira-condensed/latin-ext-500.css";
+@import "@fontsource/saira-condensed/latin-600.css";
+@import "@fontsource/saira-condensed/latin-ext-600.css";
+@import "@fontsource/saira-condensed/latin-700.css";
+@import "@fontsource/saira-condensed/latin-ext-700.css";
+@import "@fontsource-variable/cinzel/wght.css";
+@import "@fontsource-variable/oxanium/wght.css";

@@ -24,6 +24,6 @@
   --radius-xl: 3px;
   --radius-2xl: 4px;
   --radius-3xl: 6px;
-  --font-display: 'Cinzel', 'Saira Condensed', Georgia, serif;
-  --font-mono: 'Cinzel', 'B612 Mono', ui-monospace, monospace;
+  --font-display: 'Cinzel Variable', 'Cinzel', 'Saira Condensed', Georgia, serif;
+  --font-mono: 'Cinzel Variable', 'Cinzel', 'B612 Mono', ui-monospace, monospace;
 }

@@ -24,6 +24,6 @@
   --radius-xl: 12px;
   --radius-2xl: 14px;
   --radius-3xl: 18px;
-  --font-display: 'Oxanium', 'Saira Condensed', 'Segoe UI', sans-serif;
-  --font-mono: 'Oxanium', 'B612 Mono', ui-monospace, monospace;
+  --font-display: 'Oxanium Variable', 'Oxanium', 'Saira Condensed', 'Segoe UI', sans-serif;
+  --font-mono: 'Oxanium Variable', 'Oxanium', 'B612 Mono', ui-monospace, monospace;
 }
