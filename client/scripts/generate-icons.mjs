@@ -122,6 +122,65 @@ function icon(size, padding) {
   };
 }
 
+/** rgb(x, y) -> [r, g, b]; encodes a non-interlaced 8-bit RGB (colour type 2) PNG, no alpha. */
+function encodePngRgb(size, rgb) {
+  const raw = Buffer.alloc(size * (size * 3 + 1));
+  let p = 0;
+  for (let y = 0; y < size; y++) {
+    raw[p++] = 0; // filter: none
+    for (let x = 0; x < size; x++) {
+      const [r, g, b] = rgb(x, y);
+      raw[p++] = r;
+      raw[p++] = g;
+      raw[p++] = b;
+    }
+  }
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(size, 0);
+  ihdr.writeUInt32BE(size, 4);
+  ihdr[8] = 8; // bit depth
+  ihdr[9] = 2; // colour type: RGB
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', ihdr),
+    chunk('IDAT', deflateSync(raw, { level: 9 })),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+/**
+ * The mark on a flat ground, opaque, for iOS. Same geometry and colours as
+ * icon(), but supersampled n x n, with the gradient run over the shield's own
+ * height (so a small mark still shows the whole gold -> deep gold sweep).
+ */
+function iosMark(size, scale, bg, n) {
+  const half = size / 2;
+  const yTop = half + -0.86 * scale * half;
+  const yBot = half + 0.92 * scale * half;
+  const xMax = half + 0.78 * scale * half;
+  const xMin = half - 0.78 * scale * half;
+  return (x, y) => {
+    // Outside the mark's bounding box (with a margin) it is all ground.
+    if (y < yTop - 2 || y > yBot + 2 || x < xMin - 2 || x > xMax + 2) return bg;
+    let cov = 0;
+    let chev = 0;
+    for (let j = 0; j < n; j++) {
+      for (let i = 0; i < n; i++) {
+        const u = (x + (i + 0.5) / n - half) / half;
+        const v = (y + (j + 0.5) / n - half) / half;
+        const c = shieldCoverage(u, v, scale);
+        cov += c;
+        if (c && inChevron(u, v, scale)) chev += 1;
+      }
+    }
+    cov /= n * n;
+    chev /= n * n;
+    if (cov === 0) return bg;
+    const grad = mix(GOLD, GOLD_DEEP, Math.min(1, Math.max(0, (y - yTop) / (yBot - yTop))));
+    return mix(bg, mix(grad, bg, chev), cov);
+  };
+}
+
 mkdirSync(OUT, { recursive: true });
 // Plain icons keep a small margin; maskable needs ~20% safe padding because
 // Android crops it to whatever shape the launcher uses.
@@ -130,3 +189,25 @@ writePng(join(OUT, 'icon-512.png'), 512, icon(512, 0.12));
 writePng(join(OUT, 'icon-maskable-512.png'), 512, icon(512, 0.34));
 writePng(join(OUT, 'apple-touch-icon.png'), 180, icon(180, 0.14));
 console.log('wrote icon-192, icon-512, icon-maskable-512, apple-touch-icon into public/');
+
+// ---- iOS (Capacitor shell): app icon and launch image -------------------
+// Names and folders are the ones Capacitor's Contents.json files already name.
+const IOS_ASSETS = join(dirname(fileURLToPath(import.meta.url)), '..', 'ios', 'App', 'App', 'Assets.xcassets');
+const SPLASH_BG = [6, 8, 26]; // #06081A, the theme-color / first paint
+
+// App icon: 1024 square, no alpha, no rounded corners (iOS masks it). Shield
+// height is 0.89 * scale of the square, so scale 0.75 keeps it ~67% inside.
+const appIconDir = join(IOS_ASSETS, 'AppIcon.appiconset');
+mkdirSync(appIconDir, { recursive: true });
+writeFileSync(join(appIconDir, 'AppIcon-512@2x.png'), encodePngRgb(1024, iosMark(1024, 0.75, BG, 4)));
+
+// Launch image: #06081A with the mark about 360px wide (width = 0.78 * scale
+// of the square), the same file three times (1x, 2x, 3x slots).
+const SPLASH = 2732;
+const splashDir = join(IOS_ASSETS, 'Splash.imageset');
+mkdirSync(splashDir, { recursive: true });
+const splashPng = encodePngRgb(SPLASH, iosMark(SPLASH, 360 / (0.78 * SPLASH), SPLASH_BG, 4));
+for (const name of ['splash-2732x2732.png', 'splash-2732x2732-1.png', 'splash-2732x2732-2.png']) {
+  writeFileSync(join(splashDir, name), splashPng);
+}
+console.log('wrote AppIcon-512@2x and 3 launch images into ios/App/App/Assets.xcassets/');
