@@ -14,6 +14,7 @@ import { api } from '../lib/api';
 import { useTimerStore } from '../store/useTimerStore';
 import { Check, Minus, Pause, Play } from 'lucide-react';
 import { useArmed } from '../lib/useArmed';
+import { useNotificationsOff } from '../native/notify';
 
 interface Props {
   open: boolean;
@@ -34,6 +35,7 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
   const [, force] = useState(0);
   const [completing, setCompleting] = useState(false);
   const { armed, fire } = useArmed();
+  const notificationsOff = useNotificationsOff();
 
   // 1s tick to drive the countdown.
   useEffect(() => {
@@ -110,8 +112,11 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
         aria-label="Focus timer"
         tabIndex={-1}
         // justify-center-safe + overflow-y-auto: on a short window (200 % zoom) it scrolls instead of cutting off top and bottom.
-        className="fixed inset-0 z-[200] flex flex-col items-center justify-center-safe overflow-y-auto py-16 outline-none"
+        className="fixed inset-0 z-[200] flex flex-col items-center justify-center-safe overflow-y-auto outline-none"
         style={{
+          // 4rem as before, plus the iPhone's status bar and home indicator (the variables are 0 elsewhere).
+          paddingTop: 'calc(4rem + var(--safe-top, 0px))',
+          paddingBottom: 'calc(4rem + var(--safe-bottom, 0px))',
           background: 'var(--color-bg)',
           // Overrun is signalled by a border and the red clock, not a glow.
           boxShadow: overrun ? 'inset 0 0 0 3px var(--color-fire)' : 'none',
@@ -121,7 +126,8 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
         <button
           type="button"
           onClick={onClose}
-          className="icon-btn absolute top-5 right-5"
+          className="icon-btn absolute right-5"
+          style={{ top: 'calc(1.25rem + var(--safe-top, 0px))' }}
           title="Minimize"
           aria-label="Minimize the timer (it keeps running)"
         >
@@ -221,6 +227,11 @@ export function FocusTimer({ open, onClose, onComplete }: Props) {
         >
           Stop for now, keep progress
         </button>
+        {notificationsOff && (
+          <p className="mt-6 max-w-xs px-4 text-center text-xs" style={{ color: 'var(--color-muted)' }}>
+            Notifications are off, so the Guild can only tell you while the app is open.
+          </p>
+        )}
       </motion.div>
     </AnimatePresence>
   );

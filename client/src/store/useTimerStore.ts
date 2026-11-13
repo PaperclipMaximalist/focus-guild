@@ -12,6 +12,7 @@
  */
 
 import { create } from 'zustand';
+import { cancelTimerEnd, scheduleTimerEnd } from '../native/notify';
 
 interface ActiveSession {
   questId: string;
@@ -60,6 +61,22 @@ function saveToStorage(session: ActiveSession | null) {
   else localStorage.removeItem(STORAGE_KEY);
 }
 
+/** Milliseconds until the session ends, as of `now` (the pause clock if paused). */
+function msLeft(s: ActiveSession, now: number): number {
+  return s.startedAt + s.durationMin * 60_000 + s.pausedTotalMs - (s.pausedAt ?? now);
+}
+
+/** Tells the "time's up" notification when this session ends. A no-op on the website. */
+function scheduleEnd(s: ActiveSession, askPermission = true) {
+  const now = Date.now();
+  void scheduleTimerEnd({
+    questTitle: s.questTitle,
+    durationMin: s.durationMin,
+    endsAt: new Date(now + msLeft(s, now)),
+    askPermission,
+  });
+}
+
 export const useTimerStore = create<TimerState>((set, get) => ({
   active: loadFromStorage(),
   open: false,
@@ -79,6 +96,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     };
     saveToStorage(session);
     set({ active: session, open: true });
+    scheduleEnd(session);
   },
 
   pause: () => {
@@ -87,6 +105,7 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     const next = { ...s, pausedAt: Date.now() };
     saveToStorage(next);
     set({ active: next });
+    void cancelTimerEnd();
   },
 
   resume: () => {
@@ -100,11 +119,13 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     };
     saveToStorage(next);
     set({ active: next });
+    scheduleEnd(next);
   },
 
   stop: () => {
     saveToStorage(null);
     set({ active: null, open: false });
+    void cancelTimerEnd();
   },
 
   remainingMs: () => {
@@ -115,3 +136,11 @@ export const useTimerStore = create<TimerState>((set, get) => ({
     return expectedEnd - effectiveNow;
   },
 }));
+
+// A session restored from storage that is still running: make sure the notification is set for its end
+// (the same id, so scheduling again is harmless). One that ended while the app was closed schedules nothing.
+// Never shows the permission prompt here: that is asked when a timer is started.
+{
+  const restored = useTimerStore.getState().active;
+  if (restored && restored.pausedAt === null && msLeft(restored, Date.now()) > 0) scheduleEnd(restored, false);
+}

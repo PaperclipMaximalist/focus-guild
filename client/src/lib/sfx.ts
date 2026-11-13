@@ -11,6 +11,8 @@
  * UI toggles can reflect it without prop-drilling.
  */
 
+import { isNativeApp } from '../native/platform';
+
 const LS_KEY = 'fg:sfx-enabled';
 const LS_HAPTIC_KEY = 'fg:haptics-enabled';
 
@@ -107,8 +109,37 @@ function sequence(notes: Array<[number, number, number]>, type: OscillatorType =
 
 // ─── haptics ─────────────────────────────────────────────────────────────────
 
-function vibrate(pattern: number | number[]): void {
+/** The iPhone's patterns, used instead of navigator.vibrate inside the app. */
+type NativeBuzz = 'light' | 'medium' | 'success' | 'levelUp';
+
+// Loaded on first use, so the website never fetches the plugin.
+let hapticsPlugin: Promise<typeof import('@capacitor/haptics')> | null = null;
+
+function nativeBuzz(kind: NativeBuzz): void {
+  try {
+    hapticsPlugin ??= import('@capacitor/haptics');
+    void hapticsPlugin
+      .then(async ({ Haptics, ImpactStyle, NotificationType }) => {
+        if (kind === 'light') await Haptics.impact({ style: ImpactStyle.Light });
+        else if (kind === 'medium') await Haptics.impact({ style: ImpactStyle.Medium });
+        else if (kind === 'success') await Haptics.notification({ type: NotificationType.Success });
+        else {
+          await Haptics.impact({ style: ImpactStyle.Heavy });
+          await new Promise((r) => setTimeout(r, 140));
+          await Haptics.notification({ type: NotificationType.Success });
+        }
+      })
+      .catch(() => { /* plugin missing or not implemented: no buzz, no error */ });
+  } catch { /* ignore */ }
+}
+
+/** `pattern` is today's web buzz (unchanged); `native` is its closest iPhone haptic, used only in the app. */
+function vibrate(pattern: number | number[], native?: NativeBuzz): void {
   if (!hapticsEnabled) return;
+  if (isNativeApp && native) {
+    nativeBuzz(native);
+    return;
+  }
   try {
     navigator.vibrate?.(pattern);
   } catch { /* unsupported */ }
@@ -122,7 +153,7 @@ const C5 = 523.25, D5 = 587.33, E5 = 659.25, G5 = 783.99, A5 = 880, C6 = 1046.5,
 /** Quest completed — a bright rising two-note "ding". */
 export function sfxComplete(): void {
   sequence([[E5, 0, 0.12], [A5, 0.07, 0.18]], 'triangle', 0.28);
-  vibrate(18);
+  vibrate(18, 'success');
 }
 
 /** XP earned — a soft tick. Use for incremental gains. */
@@ -133,7 +164,7 @@ export function sfxXp(): void {
 /** Achievement unlocked — sparkly ascending arpeggio. */
 export function sfxAchievement(): void {
   sequence([[C5, 0, 0.1], [E5, 0.08, 0.1], [G5, 0.16, 0.1], [C6, 0.24, 0.22]], 'triangle', 0.24);
-  vibrate([12, 30, 12]);
+  vibrate([12, 30, 12], 'medium');
 }
 
 /** Level up — triumphant fanfare. */
@@ -145,7 +176,7 @@ export function sfxLevelUp(): void {
   );
   // soft harmony layer
   sequence([[C5, 0.3, 0.5], [G5, 0.5, 0.5]], 'sine', 0.1);
-  vibrate([20, 40, 20, 40, 60]);
+  vibrate([20, 40, 20, 40, 60], 'levelUp');
 }
 
 /** Wheel spin — a quick whoosh-ish descending blip cluster. */
@@ -156,13 +187,13 @@ export function sfxSpin(): void {
 /** Generic UI click / confirm. */
 export function sfxClick(): void {
   blip(A5, 0.04, 'sine', 0.12);
-  vibrate(8);
+  vibrate(8, 'light');
 }
 
 /** Timer started — calm low confirm. */
 export function sfxStart(): void {
   sequence([[D5, 0, 0.1], [A5, 0.06, 0.14]], 'sine', 0.2);
-  vibrate(12);
+  vibrate(12, 'light');
 }
 
 /**
@@ -187,5 +218,5 @@ export function sfxSqueak(): void {
   g.connect(masterGain);
   osc.start(t0);
   osc.stop(t0 + 0.22);
-  vibrate(10);
+  vibrate(10, 'light');
 }
