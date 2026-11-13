@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { computeMultiplier } from '../lib/streak.js';
+import { deleteAccount } from '../lib/deleteAccount.js';
 import type { User } from '../../generated/prisma/client.js';
 
 export const users = new Hono();
@@ -38,6 +39,31 @@ users.post('/', async (c) => {
   // effect runs before AuthBridge's), so it is not compared either.
   const user = c.get('user');
   return c.json({ success: true, data: publicUser(user) }, 201);
+});
+
+// DELETE /users/me — erase the member: all their data, then their sign-in.
+// No other DELETE route lives here, so "me" is never read as a clerkId.
+const DeleteMeSchema = z.object({ confirm: z.literal('DELETE') });
+
+users.delete('/me', async (c) => {
+  // A personal token lives in scripts and connectors; it must not be able to
+  // erase the account. The website and the app (a device token) may.
+  const kind = c.get('authKind');
+  if (kind !== 'clerk' && kind !== 'dev' && kind !== 'device') {
+    return c.json(
+      { success: false, error: { code: 'FORBIDDEN', message: 'Delete your account from the website or the app, signed in.' } },
+      403,
+    );
+  }
+  const parsed = DeleteMeSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) {
+    return c.json(
+      { success: false, error: { code: 'VALIDATION_ERROR', message: 'Type DELETE to confirm.' } },
+      400,
+    );
+  }
+  const user = c.get('user');
+  return c.json({ success: true, data: await deleteAccount(user) });
 });
 
 // GET /users/:clerkId/achievements — list of unlocked achievement slugs + details

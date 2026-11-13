@@ -48,6 +48,8 @@ model User {
   calendarSources CalendarSource[]
   externalEvents  ExternalEvent[]
   aiConnections   AiConnection[]
+  deviceSessions  DeviceSession[]
+  deviceLinks     DeviceLink[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -474,4 +476,42 @@ model AiConnection {
 
   @@unique([userId, provider])
   @@map("ai_connections")
+}
+
+/// A signed-in app on a phone. The app holds the token (`fgd_…`, shown once,
+/// kept in the Keychain); the server keeps only its SHA-256. Deleting the row
+/// signs that device out. See server/src/lib/deviceSessions.ts.
+model DeviceSession {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  /// The member's label for it, e.g. "iPhone".
+  name       String   @default("iPhone")
+  createdAt  DateTime @default(now())
+  /// Bumped at most about once an hour, not on every request.
+  lastUsedAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_sessions")
+}
+
+/// A one-time code the website hands the app after the member presses
+/// Connect. Lives two minutes, works once, and only with the verifier whose
+/// SHA-256 is `challenge` (PKCE). The code itself is stored only as a hash.
+model DeviceLink {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String    @unique
+  /// base64url(SHA-256(verifier)), no padding: 43 characters.
+  challenge String
+  name      String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("device_links")
 }

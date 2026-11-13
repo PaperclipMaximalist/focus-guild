@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { users } from './routes/users.js';
+import { devices } from './routes/devices.js';
 import { quests } from './routes/quests.js';
 import { checkin } from './routes/checkin.js';
 import { schedule } from './routes/schedule.js';
@@ -30,13 +31,21 @@ const clientUrls = (process.env['CLIENT_URL'] ?? 'http://localhost:5173')
   .map((s) => s.trim())
   .filter(Boolean);
 
+// The iOS app (Capacitor) serves the built client to its WebView from this
+// origin, on every phone, whatever CLIENT_URL says. Allowing it is safe:
+// CORS is not what protects this API. Every route needs a bearer token the
+// page has to hold itself, and nothing here authenticates with a cookie, so
+// a page that merely runs at this origin gains nothing it could not do with
+// curl.
+const APP_ORIGIN = 'capacitor://localhost';
+
 app.use(
   '*',
   cors({
     origin: (origin) => {
       // Allow no-Origin requests (curl, health checks) through.
       if (!origin) return origin;
-      return clientUrls.includes(origin) ? origin : null;
+      return clientUrls.includes(origin) || origin === APP_ORIGIN ? origin : null;
     },
     // X-Tz-Offset: the browser's getTimezoneOffset(), on every request, so
     // "today" is the member's day (lib/memberDay.ts).
@@ -57,10 +66,12 @@ app.route('/inbox', inbox);
 // Published plan feed; calendar apps can only pass a token in the URL.
 app.route('/calendar', calendarFeed);
 
-// Resolves the user (or 401s) for everything except /health and POST /users.
+// Resolves the user (or 401s) for everything except /health, the token routes
+// above and POST /devices/token (see requireUser).
 app.use('*', requireUser);
 
 app.route('/users', users);
+app.route('/devices', devices);
 app.route('/quests', quests);
 app.route('/checkin', checkin);
 app.route('/schedule', schedule);

@@ -19,15 +19,33 @@
 
 import type { Context, MiddlewareHandler } from 'hono';
 import { PAT_PREFIX, hashPersonalToken } from './tokens.js';
+import { DEVICE_PREFIX, findDeviceSession, lastUsedIsStale, touchDeviceSession } from './deviceSessions.js';
 import { verifyToken } from '@clerk/backend';
 import { db } from '../db/client.js';
 import type { User } from '../../generated/prisma/client.js';
 
+/**
+ * How the caller proved who they are. Some routes care: only a person signed
+ * in on the website may add a device, and a script's personal token may not
+ * erase the account.
+ *   clerk  a verified Clerk session (the website)
+ *   dev    the dev fallback, when Clerk is not configured; stands in for clerk
+ *   pat    a personal access token (fgpat_…)
+ *   device a device token from the app (fgd_…)
+ */
+export type AuthKind = 'clerk' | 'dev' | 'pat' | 'device';
+
 declare module 'hono' {
   interface ContextVariableMap {
     user: User;
+    authKind: AuthKind;
+    /** The device session making the call; null unless authKind is 'device'. */
+    deviceSessionId: string | null;
   }
 }
+
+/** A web sign-in: Clerk, or the dev fallback that stands in for it locally. */
+export const isWebSignIn = (kind: AuthKind | undefined) => kind === 'clerk' || kind === 'dev';
 
 const CLERK_SECRET_KEY = process.env['CLERK_SECRET_KEY'];
 const DEV_FALLBACK_CLERK_ID = 'dev-member-001';
@@ -78,7 +96,9 @@ async function resolveClerkId(c: Context): Promise<string | null> {
  * Middleware: resolve the user (creating them on first sight) and attach to
  * the context. Route handlers use `c.get('user')`.
  *
- * Skips routes that carry their own token (`/health`, `/inbox`, `/calendar/<token>.ics`).
+ * Skips routes that carry their own token (`/health`, `/inbox`, `/calendar/<token>.ics`),
+ * and `POST /devices/token`, where the app has no token yet: the one-time code
+ * and its PKCE verifier are its credentials.
  * `POST /users` used to be skipped too, which let anyone create a row for any
  * clerkId and read that member's whole record back; it now needs auth like
  * everything else (the upsert below is what creates a new member).
@@ -89,10 +109,37 @@ export const requireUser: MiddlewareHandler = async (c, next) => {
   if (path === '/health' || path === '/inbox' || path.startsWith('/calendar/')) {
     return next();
   }
+  if (path === '/devices/token' && c.req.method === 'POST') {
+    return next();
+  }
+
+  const auth = c.req.header('Authorization');
+
+  // A device token from the iOS app. Checked before Clerk in both modes: it is
+  // not a JWT, and in dev mode an unknown one must 401, not fall back to the
+  // dev member.
+  const deviceToken = auth?.startsWith(`Bearer ${DEVICE_PREFIX}`) ? auth.slice('Bearer '.length) : null;
+  if (deviceToken) {
+    const session = await findDeviceSession(deviceToken);
+    if (!session) {
+      return c.json(
+        { success: false, error: { code: 'UNAUTHORIZED', message: 'This device is signed out. Sign in again from the app.' } },
+        401,
+      );
+    }
+    const now = new Date();
+    if (lastUsedIsStale(session.lastUsedAt, now)) {
+      // "Last seen" is a nicety: a failed write must not fail the request.
+      await touchDeviceSession(session.id, now).catch((err) => console.error('[auth] lastUsedAt', err));
+    }
+    c.set('user', session.user);
+    c.set('authKind', 'device');
+    c.set('deviceSessionId', session.id);
+    return next();
+  }
 
   // A personal access token identifies the user directly — no Clerk involved.
   // Used by the MCP connector and any script the user points at the API.
-  const auth = c.req.header('Authorization');
   const pat = auth?.startsWith(`Bearer ${PAT_PREFIX}`) ? auth.slice('Bearer '.length) : null;
   if (pat) {
     const byToken = await db.user.findUnique({ where: { personalTokenHash: hashPersonalToken(pat) } });
@@ -103,6 +150,8 @@ export const requireUser: MiddlewareHandler = async (c, next) => {
       );
     }
     c.set('user', byToken);
+    c.set('authKind', 'pat');
+    c.set('deviceSessionId', null);
     return next();
   }
 
@@ -122,6 +171,8 @@ export const requireUser: MiddlewareHandler = async (c, next) => {
   });
 
   c.set('user', user);
+  c.set('authKind', clerkConfigured ? 'clerk' : 'dev');
+  c.set('deviceSessionId', null);
   await next();
 };
 
