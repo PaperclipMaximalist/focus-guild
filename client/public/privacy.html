@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy Policy · Focus Guild</title>
+  <meta name="description" content="What Focus Guild collects, why, who processes it, how long it is kept, and how to delete your account or get a copy of your data.">
+  <meta name="theme-color" content="#06081A">
+  <link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to the policy</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Focus Guild</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <h1>Privacy Policy</h1>
+    <p class="updated">Last updated 13 November 2026</p>
+
+    <p>Focus Guild is a quest-style to-do list and day planner. It is made and run by {{OPERATOR_NAME}}, an independent developer in Canada (“we”, “us”). This policy covers the Focus Guild website and the Focus Guild app for iPhone. Both use the same account and the same server.</p>
+
+    <section class="summary" aria-labelledby="short">
+      <h2 id="short">The short version</h2>
+      <ul>
+        <li>We keep your email address (through our sign-in provider), an account ID, and what you write in Focus Guild. We use them only to run the app for you.</li>
+        <li>No ads, no analytics, no tracking, no selling or renting of data. Focus Guild is free and has no purchases.</li>
+        <li>Nothing goes to an AI service unless you press a button that asks one, and we tell you below exactly what is sent.</li>
+        <li>You can delete your account and everything in it at any time. It happens straight away.</li>
+      </ul>
+    </section>
+
+    <nav class="toc" aria-labelledby="toc-title">
+      <h2 id="toc-title">Contents</h2>
+      <ol>
+        <li><a href="#collect">What we collect and why</a></li>
+        <li><a href="#device">What stays on your device</a></li>
+        <li><a href="#processors">Who processes data for us</a></li>
+        <li><a href="#ai">AI features</a></li>
+        <li><a href="#never">What we do not do</a></li>
+        <li><a href="#where">Where your data is stored</a></li>
+        <li><a href="#security">How we protect it</a></li>
+        <li><a href="#retention">How long we keep it</a></li>
+        <li><a href="#delete">Deleting your account</a></li>
+        <li><a href="#copy">Getting a copy of your data</a></li>
+        <li><a href="#rights">Your rights</a></li>
+        <li><a href="#children">Children</a></li>
+        <li><a href="#changes">Changes to this policy</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="collect">1. What we collect and why</h2>
+
+    <h3>Your account</h3>
+    <ul>
+      <li><strong>Email address and sign-in details.</strong> You sign in on the Focus Guild website. Accounts and sign-in are handled by Clerk, our sign-in provider, which keeps your email address and your sign-in details. Our own server does not store your email address; it receives an account ID from Clerk.</li>
+      <li><strong>Account ID.</strong> Each account has an ID that links your data to you.</li>
+    </ul>
+    <p>We use these only to sign you in and keep your data separate from everyone else’s. We do not send you marketing email.</p>
+
+    <h3>The content you create</h3>
+    <p>Focus Guild stores what you put into it, so that it is there on every device you sign in on:</p>
+    <ul>
+      <li>quests and their steps (titles, estimates, deadlines, priority, tags, how often a round repeats), and when you finish them;</li>
+      <li>your daily check-ins (an energy level from 1 to 5 and the time you have), and the plan the app builds for your day;</li>
+      <li>expeditions and their items, next steps, notes and reflections, your stash of ideas, and your decision log;</li>
+      <li>your journal and end-of-day reflections (with the mood rating you choose), hour logs, and your “permafile” (the note about yourself that the AI features read);</li>
+      <li>a running activity log of what happened in the app, such as “finished quest X” or “checked in: energy 3”. It also records the questions you ask the AI in Ask the Guild;</li>
+      <li>game progress (XP, level, streak, trophies) and your settings (working hours, planning preferences).</li>
+    </ul>
+    <p>We use this only to show it back to you and to plan your day. We do not read it, except when you ask us for help and give us permission, or when the law requires it. Focus Guild does not ask for health information, but anything you choose to write, such as a journal entry, is stored as you wrote it.</p>
+
+    <h3>Connections you add</h3>
+    <p>These are optional. Each is off until you set it up.</p>
+    <ul>
+      <li><strong>A calendar link.</strong> If you paste a private calendar link (from Google Calendar, Outlook, iCloud or another calendar), our server stores the link and fetches it about every 15 minutes. From each fetch we keep only timed, busy events from yesterday to 35 days ahead: their title, start and end. We do not keep locations, attendees or descriptions. Each fetch replaces the last one.</li>
+      <li><strong>The inbox token.</strong> If you turn on the inbox in Connections, we create a personal token. We store only a scrambled form of it (a hash). The same token makes a private link to your plan as a calendar feed. Anyone who has the token, or that feed link, can read your plan and can read and change your Focus Guild data through our API (they cannot delete your account). Keep it private, and use “Turn off” or “Make a new token” in Connections if it leaks.</li>
+      <li><strong>Your own AI key.</strong> If you connect an AI provider under Your AI, we store your API key encrypted, with its last four characters so you can recognise it, the model you chose, and when it was last used. See <a href="#ai">AI features</a>.</li>
+      <li><strong>Signed-in iPhones.</strong> When you connect the app, we store a scrambled form (a hash) of the app’s sign-in token, the name “iPhone”, when it was connected and roughly when it was last used (updated at most once an hour).</li>
+    </ul>
+
+    <h3>Technical data</h3>
+    <ul>
+      <li><strong>Server logs.</strong> Our server writes a line for each request: the time, the type of request, the address requested, the result and how long it took. It does not log your IP address, what you send or receive, or passwords. The address can include your account ID, and the private calendar feed link contains your inbox token, so when a calendar app fetches that link, the token appears in this log.</li>
+      <li><strong>Your time zone.</strong> The app sends your device’s time-zone offset with each request so that “today” means your day. We do not store it.</li>
+      <li><strong>What our hosts see.</strong> Like any website, the companies that host Focus Guild (listed below) receive your IP address and browser or device details when you connect, and may keep their own logs. Our code does not read or store your IP address.</li>
+    </ul>
+
+    <h2 id="device">2. What stays on your device</h2>
+    <p>Some things are kept only on your phone or in your browser, and never sent to us:</p>
+    <ul>
+      <li>your look, sound and haptics choices, and similar display preferences;</li>
+      <li>the focus timer that is running (which quest, and when it ends), so it survives the app being closed;</li>
+      <li>an unsent journal draft, and a copy of each end-of-day reflection (the reflection itself is also saved to your journal on our server);</li>
+      <li>in the iPhone app, your sign-in token, kept in the iPhone’s Keychain.</li>
+    </ul>
+    <p><strong>Notifications.</strong> The iPhone app asks to send notifications only so the focus timer can tell you when your time is up. That notification is scheduled on your phone and never goes through our server. Focus Guild does not send push notifications.</p>
+    <p><strong>Cookies.</strong> The website uses only the cookies Clerk needs to keep you signed in. The iPhone app does not load Clerk and sets no cookies of ours. Neither uses advertising or analytics cookies. The website keeps a copy of its own pages in your browser so it can open without a connection.</p>
+
+    <h2 id="processors">3. Who processes data for us</h2>
+    <p>We use a few companies to run Focus Guild. They handle your data on our behalf, to provide their service to us:</p>
+    <dl>
+      <dt>Clerk</dt>
+      <dd>Accounts and sign-in. Holds your email address and sign-in details. <a href="https://clerk.com/legal/privacy">Clerk’s privacy policy</a>.</dd>
+      <dt>Neon</dt>
+      <dd>Our database. Holds your account ID, your content and your connections. <a href="https://neon.com/privacy-policy">Neon’s privacy policy</a>.</dd>
+      <dt>Railway</dt>
+      <dd>Runs our server, which every request passes through, and keeps its logs. <a href="https://railway.com/legal/privacy">Railway’s privacy policy</a>.</dd>
+      <dt>Vercel</dt>
+      <dd>Hosts the website and these pages. It serves files and does not receive your Focus Guild data. <a href="https://vercel.com/legal/privacy-policy">Vercel’s privacy policy</a>.</dd>
+    </dl>
+    <p>Two kinds of company receive data only because you set something up:</p>
+    <ul>
+      <li><strong>Your calendar provider</strong> (for example Google, Microsoft or Apple) receives a request from our server for the link you gave us. We send nothing else.</li>
+      <li><strong>An AI provider</strong> receives text only when you use an AI feature. See the next section.</li>
+    </ul>
+    <p>Apple distributes the iPhone app. Apple’s own privacy policy covers what the App Store collects.</p>
+
+    <h2 id="ai">4. AI features</h2>
+    <p>Focus Guild has three optional AI features. None of them runs on its own: text is sent only when you press the button that asks.</p>
+    <dl>
+      <dt>Break down (on a quest)</dt>
+      <dd>Sends that quest’s title, its time estimate, its mental-load and impact scores, its deadline date and its category, with our instructions to suggest steps. Nothing else.</dd>
+      <dt>Ask the Guild (Settings, Advanced, Records and AI)</dt>
+      <dd>Sends your question with your current permafile, your unfinished expedition items (title, next step, area, due date and their other fields, but not their notes or reflections), and your activity log for the last 14 days. That log includes your journal entries and mood ratings, check-ins, finished quests, ideas and decisions you added, and earlier questions. It goes with our standing instructions to the AI.</dd>
+      <dt>Write a quest list (Quests, Import)</dt>
+      <dd>Sends the notes you type or paste into that box, with our instructions on the list format and today’s date.</dd>
+    </dl>
+
+    <h3>Who receives it</h3>
+    <ul>
+      <li><strong>If you connected your own key</strong> under Settings, Advanced, Your AI, our server sends the text to the provider you chose (for example Anthropic for Claude, OpenAI for ChatGPT, Google for Gemini, xAI, Mistral AI, DeepSeek, OpenRouter, or another address you entered), using your key. The provider bills your account.</li>
+      <!-- OWNER: the next item matches the code in either configuration. If ANTHROPIC_API_KEY is never set on the server, it can be replaced with: "If you have not connected a key, the AI buttons do not work and nothing is sent anywhere." See docs/PRIVACY_DATA_MAP.md, section 4. -->
+      <li><strong>If you have not connected a key,</strong> one of two things happens. If we have set up Focus Guild’s own Claude key, the same text goes to Anthropic under our account. If we have not, the AI buttons tell you to connect one, and nothing is sent. The Your AI page shows which applies: it names the AI in use, and adds “the server’s own key” when it is ours.</li>
+    </ul>
+    <p>Once text reaches an AI provider, that provider’s own terms and privacy policy apply to it, including whether it keeps the text and for how long. Please read them before you connect a key. For Claude, see <a href="https://www.anthropic.com/legal/privacy">Anthropic’s privacy policy</a>; for ChatGPT, <a href="https://openai.com/policies/privacy-policy">OpenAI’s privacy policy</a>; for Gemini, <a href="https://policies.google.com/privacy">Google’s privacy policy</a>. The other providers publish their own.</p>
+    <p>We keep the AI’s answer only if you save it (for example by accepting suggested steps). Your API key is sent only to the provider it belongs to. Connecting a key is checked by asking the provider for its list of models, which sends no data of yours. You can remove a key at any time under Your AI; you can also revoke it with the provider.</p>
+
+    <h2 id="never">5. What we do not do</h2>
+    <ul>
+      <li>We do not show ads.</li>
+      <li>We do not sell, rent or trade your data, or share it for anyone’s advertising.</li>
+      <li>We do not track you across other apps or websites, and we do not use your data to build a profile of you.</li>
+      <li>We use no analytics, advertising, crash-reporting or tracking tools in the app or on the website.</li>
+      <li>We do not use your content to train AI models, and we do not send it to an AI service unless you ask, as described above.</li>
+      <li>There is no public profile, feed or messaging. Nothing you write is visible to other members.</li>
+    </ul>
+
+    <h2 id="where">6. Where your data is stored</h2>
+    <!-- OWNER: confirm. The database region comes from the database host name (AWS us-east-1). Railway's and Clerk's regions are not in the code. -->
+    <p>Your data is stored in our providers’ data centres, mainly in the United States. Our database is hosted in the eastern United States. This means your data is stored outside Canada and may be accessed by authorities there under United States law. If you use an AI feature, the provider you chose may process the text in other countries.</p>
+
+    <h2 id="security">7. How we protect it</h2>
+    <ul>
+      <li>All connections to Focus Guild use HTTPS.</li>
+      <li>Your AI keys are encrypted before they are stored, and are never sent back to the app or the website.</li>
+      <li>Sign-in tokens for the iPhone app and the inbox token are stored only as hashes, so they cannot be read back from our database.</li>
+      <li>Calendar links are stored as you gave them, because our server needs them to fetch your calendar. Anyone with such a link can read that calendar, so treat it like a password.</li>
+      <li>Only you can see your data. We look at it only to help you when you ask, or when the law requires it.</li>
+    </ul>
+    <p>No system is perfectly secure. If a breach affects your data, we will tell you and the authorities as the law requires.</p>
+
+    <h2 id="retention">8. How long we keep it</h2>
+    <ul>
+      <li><strong>Your account and content:</strong> until you delete them. Deleting a quest, journal entry or other item removes it. The activity log and the decision log are kept as a history and cannot be cleared entry by entry (except journal entries), so a line such as “finished quest X” stays after the quest itself is deleted. All of it goes when you delete your account.</li>
+      <li><strong>Calendar events:</strong> replaced with each fetch, about every 15 minutes, and removed when you disconnect the calendar.</li>
+      <li><strong>iPhone sign-ins:</strong> until you sign out in the app or delete your account.</li>
+      <li><strong>One-time sign-in codes:</strong> they work for two minutes and are cleared soon after.</li>
+      <!-- OWNER: fill in the log retention once known (Railway's plan setting). -->
+      <li><strong>Server logs:</strong> kept by Railway for a limited period set by its service, then deleted.</li>
+    </ul>
+
+    <h2 id="delete">9. Deleting your account</h2>
+    <p>In the iPhone app, go to <strong>Settings, Account, Delete account</strong>. If you use only the website, email us from the address on your account and we will delete it for you.</p>
+    <p>Deleting your account is immediate and cannot be undone. It removes your account and everything in it from our database at once: quests, journal, check-ins, expeditions, your permafile and activity log, calendar connections and their events, AI keys, the inbox token, and every signed-in iPhone. We then ask Clerk to delete your sign-in, including your email address.</p>
+    <!-- OWNER: confirm Neon's restore-history window for the project and, if wanted, state it here. -->
+    <p>Our database provider keeps a short recovery history of the database for a limited time, so deleted data can remain in that history until it rolls over. It is not used to run the app. AI providers you sent text to keep it according to their own policies.</p>
+
+    <h2 id="copy">10. Getting a copy of your data</h2>
+    <p>You can copy these as text in the app or on the website, and on the website you can also save them as files:</p>
+    <ul>
+      <li><strong>Your unfinished quests and their steps,</strong> as a text list you can import again: Settings, Advanced, Quickstart, “Take your quests out”.</li>
+      <li><strong>Your expeditions,</strong> including finished and dropped items, notes, reflections, decisions and ideas, as Markdown: on the Expeditions page, the export and import button, then Archive.</li>
+      <li><strong>Your activity log</strong> (which includes your journal) for the last 7, 30 or 90 days, in one document with your permafile and unfinished expeditions: Settings, Advanced, Records and AI, Bundle.</li>
+    </ul>
+    <p>If you want a copy of anything these do not cover, such as finished quests, check-ins or older journal entries, email us and we will send you a copy of everything we hold about you.</p>
+
+    <h2 id="rights">11. Your rights</h2>
+    <p>You can ask to see the personal information we hold about you, to have it corrected, and to have it deleted, and you can withdraw your consent to optional features at any time by turning them off. Most of this you can do yourself in the app; for anything else, email us and we will answer within 30 days. Focus Guild is run from Canada, where the Personal Information Protection and Electronic Documents Act (PIPEDA) applies. If you are not satisfied with our answer, you can complain to the <a href="https://www.priv.gc.ca/">Office of the Privacy Commissioner of Canada</a>. People in the European Union, the United Kingdom, California and some other places have similar rights under their own laws, including the right to complain to their local data protection authority. We will honour those rights whichever applies to you.</p>
+
+    <h2 id="children">12. Children</h2>
+    <p>Focus Guild is not directed to children under 13, and we do not knowingly collect personal information from them. If we learn that an account belongs to a child under 13, we will delete the account and its data. If you believe a child under 13 has an account, please email us.</p>
+
+    <h2 id="changes">13. Changes to this policy</h2>
+    <p>If we change this policy, we will update the date at the top. If a change affects how your data is used in a way that matters, we will tell you in the app or by email before it takes effect. Earlier versions are available on request.</p>
+
+    <h2 id="contact">14. Contact</h2>
+    <p>Questions or requests about your privacy: <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a>. Focus Guild is run by {{OPERATOR_NAME}}, Canada. You can also reach us through the <a href="/support.html">support page</a>.</p>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <ul>
+        <li><a href="/privacy.html" aria-current="page">Privacy Policy</a></li>
+        <li><a href="/terms.html">Terms of Use</a></li>
+        <li><a href="/support.html">Support</a></li>
+      </ul>
+      <p>Focus Guild</p>
+    </div>
+  </footer>
+</body>
+</html>

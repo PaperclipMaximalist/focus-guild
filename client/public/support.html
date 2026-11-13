@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Support · Focus Guild</title>
+  <meta name="description" content="Help with Focus Guild: signing in on iPhone, signing out, deleting your account, notifications, calendars, AI features, exporting your data, and how to contact us.">
+  <meta name="theme-color" content="#06081A">
+  <link rel="stylesheet" href="/legal.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to support</a>
+
+  <header class="site-header">
+    <div class="wrap">
+      <a class="brand" href="/">Focus Guild</a>
+    </div>
+  </header>
+
+  <main id="main" class="wrap">
+    <h1>Support</h1>
+    <p class="updated">Last updated 13 November 2026</p>
+
+    <h2 id="contact">Get help</h2>
+    <p>Email <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a>. Focus Guild is made by one person, {{OPERATOR_NAME}}, so replies come from the developer, usually within a few days.</p>
+    <p>It helps to include:</p>
+    <ul>
+      <li>whether you are using the iPhone app or the website, and your iPhone model and iOS version (Settings, General, About);</li>
+      <li>what you did, what you expected, and what happened instead, with the exact words of any message;</li>
+      <li>a screenshot, if you can take one;</li>
+      <li>if the question is about your account, write from the email address you sign in with.</li>
+    </ul>
+    <p>Please never send us your password, an AI provider’s API key, your inbox token or a calendar link. We will never ask for them.</p>
+
+    <nav class="toc" aria-labelledby="toc-title">
+      <h2 id="toc-title">Common questions</h2>
+      <ol>
+        <li><a href="#sign-in">Signing in on iPhone</a></li>
+        <li><a href="#sign-out">Signing out, and a lost phone</a></li>
+        <li><a href="#delete">Deleting your account</a></li>
+        <li><a href="#notifications">Why the app asks for notifications</a></li>
+        <li><a href="#calendar">Connecting a calendar</a></li>
+        <li><a href="#ai">AI features and your key</a></li>
+        <li><a href="#export">Getting your data out</a></li>
+        <li><a href="#offline">“Can’t reach the Guild”</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="sign-in">Signing in on iPhone</h2>
+    <ol>
+      <li>Open Focus Guild and press <strong>Sign in</strong>. New here? The same button creates your account.</li>
+      <li>A browser sheet opens on the Focus Guild website. Sign in there, or sign up.</li>
+      <li>The page asks whether the app on your iPhone may sign in as you. If you just pressed Sign in, press <strong>Connect this iPhone</strong>.</li>
+      <li>The sheet closes and the app opens, signed in. You stay signed in until you sign out.</li>
+    </ol>
+    <p>If it does not finish, close the sheet and press Sign in again. Each sign-in link works once and only for two minutes, so an old one will say it has expired. If the app still does not open, press <strong>Open Focus Guild</strong> on the page.</p>
+
+    <h2 id="sign-out">Signing out, and a lost phone</h2>
+    <p>In the app, go to <strong>Settings, Account, Sign out</strong>, and tap again to confirm. This signs that iPhone out on our server too. Your quests stay in your account.</p>
+    <p>If you lose a phone that is signed in, or cannot reach it, email us and we will sign it out for you. There is not yet a list of signed-in devices on the website. Turning off the inbox token does not sign out phones.</p>
+
+    <h2 id="delete">Deleting your account</h2>
+    <p>In the app, go to <strong>Settings, Account, Delete account</strong>. This deletes your account and everything in it straight away: quests, journal, expeditions, connections, AI keys and signed-in devices. It cannot be undone, so export anything you want to keep first.</p>
+    <p>If you use only the website, email us from the address you sign in with and we will delete the account for you. More detail is in the <a href="/privacy.html#delete">Privacy Policy</a>.</p>
+
+    <h2 id="notifications">Why the app asks for notifications</h2>
+    <p>Only for the focus timer. When you start a timer for the first time, the app asks whether it may tell you when the time is up, so you hear it even with the phone in your pocket. The notification is set up on your phone; Focus Guild sends no push notifications and no marketing.</p>
+    <p>If you said no, the timer still works while the app is open, and the timer screen says notifications are off. To change your mind, open the iPhone’s Settings, then Notifications, then Focus Guild.</p>
+
+    <h2 id="calendar">Connecting a calendar</h2>
+    <p>Focus Guild reads your calendar through its private link (often called the secret iCal or ICS address) and plans your day around your meetings. It only reads; it never changes your calendar.</p>
+    <ol>
+      <li>Find your calendar’s private link. In Google Calendar, on a computer: Settings, choose the calendar, Integrate calendar, then copy <strong>Secret address in iCal format</strong>. In Outlook on the web: Settings, Calendar, Shared calendars, Publish a calendar, then copy the ICS link. In iCloud: share the calendar as a Public Calendar and copy its link.</li>
+      <li>In Focus Guild, go to <strong>Settings, Advanced, Connections</strong>. Give the calendar a name, paste the link and press <strong>Connect calendar</strong>. For Google Calendar, <strong>Settings, Advanced, Quickstart</strong> walks you through it.</li>
+    </ol>
+    <p>Timed events then appear on your Route as fixed stops. All-day events and events marked as free are ignored. Calendars refresh about every 15 minutes, and you can refresh one at any time. Remove a calendar with its delete button in Connections.</p>
+    <p>Treat the link like a password: anyone who has it can read that calendar. Some school and work accounts switch these links off.</p>
+
+    <h2 id="ai">AI features and your key</h2>
+    <p>Focus Guild can use an AI to break a quest into steps (<strong>Break down</strong> on a quest), to answer questions about your recent days (<strong>Ask the Guild</strong>, in Settings, Advanced, Records and AI), and to turn your notes into a quest list (<strong>Quests, Import</strong>). Everything else works without an AI.</p>
+    <ul>
+      <li><strong>Connecting.</strong> Go to <strong>Settings, Advanced, Your AI</strong>, choose a provider (Claude, ChatGPT, Gemini and others), and paste an API key from that provider. The provider bills your account for what you use. Note that a chat subscription, such as ChatGPT Plus or a Claude plan, does not include API use.</li>
+      <li><strong>What is sent.</strong> Only when you press one of the buttons above, and only what that feature needs. The <a href="/privacy.html#ai">Privacy Policy</a> lists exactly what each one sends.</li>
+      <li><strong>Removing a key.</strong> In Your AI, open the provider and press <strong>Remove</strong>, then tap again to confirm. The key is deleted from Focus Guild. To be sure it can never be used again, also revoke it on the provider’s website.</li>
+      <li><strong>If it fails.</strong> Press <strong>Ask it something</strong> in Your AI to test the key. Most problems are a key copied incompletely, an account with no credit, or a model the provider no longer offers; Your AI shows the provider’s message.</li>
+    </ul>
+
+    <h2 id="export">Getting your data out</h2>
+    <p>Each of these copies your data as text, ready to paste into a note or a file. On the website you can also save it as a file.</p>
+    <ul>
+      <li><strong>Quests:</strong> Settings, Advanced, Quickstart, “Take your quests out”. Every unfinished quest with its steps, as text you can import again.</li>
+      <li><strong>Expeditions:</strong> on the Expeditions page, the export and import button. Choose Archive for everything, including finished items, notes and reflections.</li>
+      <li><strong>Journal and activity:</strong> Settings, Advanced, Records and AI, then Bundle. It puts your activity log (journal included) for the last 7, 30 or 90 days in one document with your permafile and unfinished expeditions.</li>
+    </ul>
+    <p>For anything these do not cover, email us and we will send you a copy of your data.</p>
+
+    <h2 id="offline">“Can’t reach the Guild”</h2>
+    <p>This screen means the app could not reach our server. Your quests are safe; they are stored on the server, not lost.</p>
+    <ol>
+      <li>Check that your phone is online, for example by opening a website.</li>
+      <li>Press <strong>Try again</strong>. The server can take a few seconds to wake up after a quiet spell.</li>
+      <li>If you were signed out with a message saying so, press Sign in again.</li>
+      <li>If it keeps happening for more than a few minutes, email us with the time it happened and the small text under the button.</li>
+    </ol>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <ul>
+        <li><a href="/privacy.html">Privacy Policy</a></li>
+        <li><a href="/terms.html">Terms of Use</a></li>
+        <li><a href="/support.html" aria-current="page">Support</a></li>
+      </ul>
+      <p>Focus Guild</p>
+    </div>
+  </footer>
+</body>
+</html>

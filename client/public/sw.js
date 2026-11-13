@@ -43,6 +43,10 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return; // API and fonts: untouched
 
   if (request.mode === 'navigate') {
+    // The standalone pages (privacy, terms, support) are not the app. They go
+    // straight to the network and are never stored as the shell, or the
+    // offline app would open on the privacy policy.
+    if (url.pathname.endsWith('.html')) return;
     event.respondWith(
       fetch(request)
         .then((res) => {
