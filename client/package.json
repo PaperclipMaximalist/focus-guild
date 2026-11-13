@@ -12,7 +12,8 @@
     "test": "vitest run",
     "preview": "vite preview",
     "line:check": "node scripts/check-line.mjs",
-    "line:shoot": "node scripts/shoot-line.mjs"
+    "line:shoot": "node scripts/shoot-line.mjs",
+    "store:shots": "node scripts/shoot-store.mjs"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.2",

@@ -1,0 +1,362 @@
+{
+ "note": "Layered over api.json by client/scripts/shoot-store.mjs: Expeditions data and a fuller trophy shelf.",
+ "responses": {
+  "GET /tracker": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": {
+     "config": {
+      "activeCap": 5,
+      "statusLabels": {
+       "TODO": "Someday",
+       "ACTIVE": "Underway",
+       "BLOCKED": "Stuck",
+       "DONE": "Arrived",
+       "DROPPED": "Dropped"
+      },
+      "codePrefixes": [
+       "EX"
+      ],
+      "requiredFields": {
+       "nextActionForActive": true,
+       "domain": true,
+       "dueDate": false
+      },
+      "reviewCadenceDays": 7,
+      "reviewPrompts": [],
+      "showHours": false
+     },
+     "domains": [
+      {
+       "id": "d1",
+       "name": "Thesis",
+       "color": "#60a5fa",
+       "sortOrder": 0
+      },
+      {
+       "id": "d2",
+       "name": "Studio",
+       "color": "#f472b6",
+       "sortOrder": 1
+      },
+      {
+       "id": "d3",
+       "name": "Home",
+       "color": "#34d399",
+       "sortOrder": 2
+      },
+      {
+       "id": "d4",
+       "name": "Health",
+       "color": "#fbbf24",
+       "sortOrder": 3
+      }
+     ],
+     "items": [
+      {
+       "id": "t1",
+       "code": "EX-01",
+       "domainId": "d1",
+       "title": "Finish the thesis draft",
+       "status": "ACTIVE",
+       "nextAction": "Write the methods section, first two paragraphs",
+       "notes": null,
+       "dueDate": "2026-11-15T08:00:00.000Z",
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": null,
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Thesis"
+       },
+       "reflections": []
+      },
+      {
+       "id": "t2",
+       "code": "EX-02",
+       "domainId": "d2",
+       "title": "Spring poster series",
+       "status": "ACTIVE",
+       "nextAction": "Sketch three poster ideas on paper",
+       "notes": null,
+       "dueDate": "2026-10-30T07:00:00.000Z",
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": null,
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Studio"
+       },
+       "reflections": []
+      },
+      {
+       "id": "t3",
+       "code": "EX-03",
+       "domainId": "d3",
+       "title": "Move to the new flat",
+       "status": "ACTIVE",
+       "nextAction": "Email the landlord about the lease end date",
+       "notes": null,
+       "dueDate": "2026-11-01T07:00:00.000Z",
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": null,
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Home"
+       },
+       "reflections": []
+      },
+      {
+       "id": "t4",
+       "code": "EX-04",
+       "domainId": "d4",
+       "title": "Run a 10k in the spring",
+       "status": "ACTIVE",
+       "nextAction": "Lay out the running shoes by the door",
+       "notes": null,
+       "dueDate": "2027-04-20T07:00:00.000Z",
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": null,
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Health"
+       },
+       "reflections": []
+      },
+      {
+       "id": "t5",
+       "code": "EX-05",
+       "domainId": "d1",
+       "title": "Conference abstract",
+       "status": "TODO",
+       "nextAction": "Reread the call for papers",
+       "notes": null,
+       "dueDate": "2026-12-01T08:00:00.000Z",
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": null,
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Thesis"
+       },
+       "reflections": []
+      },
+      {
+       "id": "t6",
+       "code": "EX-06",
+       "domainId": "d2",
+       "title": "Portfolio site refresh",
+       "status": "TODO",
+       "nextAction": "List the six projects to show",
+       "notes": null,
+       "dueDate": null,
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": null,
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Studio"
+       },
+       "reflections": []
+      },
+      {
+       "id": "t7",
+       "code": "EX-07",
+       "domainId": "d3",
+       "title": "Sort out the tax paperwork",
+       "status": "BLOCKED",
+       "nextAction": "Wait for the form from the employer",
+       "notes": null,
+       "dueDate": "2026-11-20T08:00:00.000Z",
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": null,
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Home"
+       },
+       "reflections": []
+      },
+      {
+       "id": "t8",
+       "code": "EX-08",
+       "domainId": "d4",
+       "title": "Book the dentist",
+       "status": "DONE",
+       "nextAction": "Call on Monday morning",
+       "notes": null,
+       "dueDate": null,
+       "questId": null,
+       "casStrands": [],
+       "learningOutcomes": [],
+       "isCourseworkLinked": false,
+       "casStartDate": null,
+       "casEndDate": null,
+       "isCasProject": false,
+       "hours": null,
+       "completedAt": "2026-10-06T17:00:00.000Z",
+       "droppedAt": null,
+       "createdAt": "2026-08-20T16:00:00.000Z",
+       "updatedAt": "2026-10-08T16:00:00.000Z",
+       "domain": {
+        "name": "Health"
+       },
+       "reflections": []
+      }
+     ],
+     "parkingLot": [
+      {
+       "id": "p1",
+       "text": "Learn to make sourdough",
+       "promotedToCode": null,
+       "createdAt": "2026-08-20T16:00:00.000Z"
+      }
+     ],
+     "decisions": [],
+     "interviews": [],
+     "linkedQuests": [],
+     "activeUsed": 4
+    }
+   }
+  },
+  "GET /users/dev-member-001/achievements": {
+   "status": 200,
+   "body": {
+    "success": true,
+    "data": [
+     {
+      "slug": "first-blood",
+      "title": "First Steps",
+      "icon": "",
+      "description": "",
+      "xpReward": 25,
+      "unlockedAt": "2026-07-22T01:00:00.000Z"
+     },
+     {
+      "slug": "dedicated",
+      "title": "Dedicated",
+      "icon": "",
+      "description": "",
+      "xpReward": 50,
+      "unlockedAt": "2026-08-30T01:00:00.000Z"
+     },
+     {
+      "slug": "flow-state",
+      "title": "Flow State",
+      "icon": "",
+      "description": "",
+      "xpReward": 75,
+      "unlockedAt": "2026-09-28T01:00:00.000Z"
+     },
+     {
+      "slug": "week-warrior",
+      "title": "Week Warrior",
+      "icon": "",
+      "description": "",
+      "xpReward": 100,
+      "unlockedAt": "2026-10-05T01:00:00.000Z"
+     },
+     {
+      "slug": "brain-drain",
+      "title": "Brain Drain",
+      "icon": "",
+      "description": "",
+      "xpReward": 75,
+      "unlockedAt": "2026-09-02T01:00:00.000Z"
+     },
+     {
+      "slug": "marathon",
+      "title": "Marathon",
+      "icon": "",
+      "description": "",
+      "xpReward": 120,
+      "unlockedAt": "2026-09-14T01:00:00.000Z"
+     },
+     {
+      "slug": "night-owl",
+      "title": "Night Owl",
+      "icon": "",
+      "description": "",
+      "xpReward": 60,
+      "unlockedAt": "2026-09-20T01:00:00.000Z"
+     },
+     {
+      "slug": "early-bird",
+      "title": "Early Bird",
+      "icon": "",
+      "description": "",
+      "xpReward": 100,
+      "unlockedAt": "2026-10-02T01:00:00.000Z"
+     },
+     {
+      "slug": "rescue-ranger",
+      "title": "Rescue Ranger",
+      "icon": "",
+      "description": "",
+      "xpReward": 125,
+      "unlockedAt": "2026-10-07T01:00:00.000Z"
+     }
+    ]
+   }
+  }
+ }
+}
