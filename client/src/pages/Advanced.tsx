@@ -41,7 +41,7 @@ export default function Advanced() {
   return (
     <div className="page flex flex-col gap-5">
       <header>
-        <Link to="/settings" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
+        <Link to="/settings" className="back-link mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
           <ArrowLeft size={14} aria-hidden /> Settings
         </Link>
         <h1 className="page-title">Advanced</h1>

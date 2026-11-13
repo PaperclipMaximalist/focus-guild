@@ -777,7 +777,7 @@ function SelectedDrawer({
       transition={{ type: 'spring', stiffness: 380, damping: 36 }}
       // On a phone: a sheet above the tab bar. On a wide screen: a card centred in
       // the page, clear of the sidebar, no wider than it needs to be.
-      className="fixed inset-x-3 bottom-20 z-40 rounded-lg shadow-xl shadow-black/50 outline-none lg:bottom-6 lg:left-60 lg:right-0 lg:mx-auto lg:max-w-xl"
+      className="fixed inset-x-3 bottom-20 z-40 rounded-lg shadow-xl shadow-black/50 outline-none lg:bottom-6 lg:left-60 lg:right-0 lg:mx-auto lg:max-w-xl native:max-lg:bottom-[calc(5rem+var(--safe-bottom))]"
       style={{
         background: 'var(--color-surface2)',
         border: '1px solid var(--color-border)',

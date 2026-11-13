@@ -1,6 +1,10 @@
 @import "tailwindcss";
 @import "./fonts.css";
 
+/* `native:` utilities apply only inside the iOS app, where native/shell.ts puts
+   `native` on <html>. The website never has the class, so it never sees them. */
+@custom-variant native (&:where(.native, .native *));
+
 /* ── Departures ──────────────────────────────────────────────────────────────
  * The day as a station board on a wet night, a little way into the future and
  * a long way from here. Every quest is a departure with a time and a status;
@@ -69,6 +73,16 @@
 /* One easing curve for everything that moves: quick to start, soft to land. */
 :root { --ease: cubic-bezier(0.22, 1, 0.36, 1); }
 
+/* The phone's unsafe edges: the status bar or notch, the home indicator, and
+   the sides. Everything reads these, never env() directly, so the dev seam
+   (?inset=47,34, native/insets.ts) can stand in for a real iPhone. */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
@@ -98,8 +112,10 @@ html { background: var(--color-bg); }
    them (WCAG 2.4.11). At 200 % zoom on a laptop they would hide whole rows.
    It goes on #root because #root is the page's scroller: the rule below gives
    it a fixed height and overflow-x: hidden, so its overflow-y becomes auto. */
-#root { scroll-padding-top: 4rem; scroll-padding-bottom: calc(4.75rem + env(safe-area-inset-bottom)); }
+#root { scroll-padding-top: 4rem; scroll-padding-bottom: calc(4.75rem + var(--safe-bottom)); }
 @media (min-width: 64rem) { #root { scroll-padding-top: 0.5rem; scroll-padding-bottom: 0.5rem; } }
+/* In the app the top bar also covers the status bar. */
+@media not (min-width: 64rem) { .native #root { scroll-padding-top: calc(4rem + var(--safe-top)); } }
 
 html, body, #root {
   height: 100%;
@@ -339,6 +355,43 @@ code { font-family: var(--font-mono); font-size: 0.92em; }
   transform: translateY(-200%);
 }
 .skip-link:focus-visible { transform: none; outline-color: var(--color-text); }
+
+/* ── In the iOS app ──────────────────────────────────────────────────────
+   html.native is set by native/shell.ts before the first paint. None of this
+   reaches the website. */
+
+/* #root is the scroller, so its own bounce is the one that shows: without
+   this the whole page, top bar and all, rubber-bands like a web page.
+   (Capacitor already turns the WebView's outer bounce off.) Sheets and lists
+   that scroll inside keep overscroll-behavior: contain. */
+.native, .native body, .native #root { overscroll-behavior: none; }
+
+/* No double-tap zoom anywhere (touch-action narrows down the tree), and no
+   grey flash on whatever is tapped, not only on real controls. */
+.native { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+
+/* The app's chrome is not text to select or to long-press for a callout.
+   Everything else stays selectable: what the member wrote, and any sentence. */
+.native :where(button, a, nav, label, summary, h1, h2, h3, [role="button"], [role="tab"], .section-label, .status, .app-topbar, .app-tabbar) {
+  -webkit-user-select: none;
+  user-select: none;
+}
+.native :where(a, button, img, svg, [role="button"]) { -webkit-touch-callout: none; }
+/* A field inside a label (or any of the above) must still take a caret. */
+.native :where(input, textarea, [contenteditable="true"]) { -webkit-user-select: text; user-select: text; }
+
+/* While the keyboard is up the tab bar would sit on top of it and cover the
+   field; the floating add buttons likewise. They come back when it goes. */
+.native.keyboard-up :where(.app-tabbar, .app-fab) { display: none; }
+
+/* Shown below the status bar when a keyboard reaches it. While hidden it stays
+   where the website puts it: moved down by the inset it would no longer be
+   pushed fully off the top of the screen. */
+.native .skip-link:focus-visible { top: calc(0.75rem + var(--safe-top)); }
+
+/* A back link drawn as a small line of text, tapped as 44px or more. */
+.native .back-link { position: relative; }
+.native .back-link::after { content: ''; position: absolute; inset: -12px -8px; }
 
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--color-bg); }

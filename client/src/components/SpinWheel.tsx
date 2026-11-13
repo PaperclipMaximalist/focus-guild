@@ -77,7 +77,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={close}
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-5"
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-5 native:pt-[calc(1.25rem+var(--safe-top))] native:pb-[calc(1.25rem+var(--safe-bottom))]"
         >
           <motion.div
             initial={{ scale: 0.9, y: 12 }}
@@ -89,7 +89,7 @@ export function SpinWheel({ open, onClose, onAccept }: Props) {
             aria-modal="true"
             aria-labelledby="spin-title"
             tabIndex={-1}
-            className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border p-6 text-center outline-none"
+            className="max-h-[calc(100dvh-2rem)] native:max-h-[calc(100dvh-2.5rem-var(--safe-top)-var(--safe-bottom))] w-full max-w-md overflow-y-auto overscroll-contain rounded-2xl border p-6 text-center outline-none"
             style={{
               background: 'var(--color-surface2)',
               borderColor: 'var(--color-border)',

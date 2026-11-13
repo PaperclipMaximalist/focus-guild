@@ -405,7 +405,8 @@ export function QuestModal({ open, onClose, editing }: Props) {
             role="dialog"
             aria-modal="true"
             aria-label={editing ? 'Edit quest' : 'New quest'}
-            className="outline-none max-h-[92vh] w-full max-w-[560px] overflow-y-auto overscroll-contain scroll-pb-20 rounded-t-2xl bg-(--color-surface) px-5 pt-4 sm:rounded-2xl sm:px-6 sm:pt-5"
+            // In the app the WebView shrinks above the keyboard; the cap keeps the sheet's top under the status bar.
+            className="outline-none max-h-[92vh] native:max-h-[min(92vh,calc(100dvh-var(--safe-top)-0.75rem))] w-full max-w-[560px] overflow-y-auto overscroll-contain scroll-pb-20 rounded-t-2xl bg-(--color-surface) px-5 pt-4 sm:rounded-2xl sm:px-6 sm:pt-5"
           >
             <div className="mb-4 flex items-center gap-2">
               <h2 className="flex-1 text-lg font-bold">{editing ? 'Edit quest' : 'New quest'}</h2>
@@ -1122,7 +1123,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
 
             {/* Always in reach, however long the form above gets. */}
             {/* Sticky, so Add is always in reach; the box's scroll-pb-20 keeps a field Tab lands on above it. */}
-            <div className="sticky bottom-0 -mx-5 mt-5 flex justify-end gap-2 border-t border-(--color-border) bg-(--color-surface) px-5 py-3 sm:-mx-6 sm:px-6">
+            <div className="sticky bottom-0 -mx-5 mt-5 flex justify-end gap-2 border-t border-(--color-border) bg-(--color-surface) px-5 py-3 sm:-mx-6 sm:px-6 native:pb-[calc(0.75rem+var(--safe-bottom))]">
               <button type="button" onClick={onClose} className="btn-quiet min-h-10">
                 Cancel
               </button>

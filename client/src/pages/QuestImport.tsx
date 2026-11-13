@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { aiApi, manifestApi } from '../lib/api';
+import { isNativeApp } from '../native/platform';
 import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manifestBody, manifestGuide, parseManifest, type ManifestQuest } from '../lib/manifest';
 import { findDuplicate, titleKey } from '../lib/duplicates';
 import { sfxClick } from '../lib/sfx';
@@ -110,7 +111,7 @@ export default function QuestImport() {
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
-      pushToast({ title: 'Could not copy', sub: 'The browser blocked the clipboard', icon: TriangleAlert, variant: 'error' });
+      pushToast({ title: 'Could not copy', sub: isNativeApp ? 'The clipboard is not available' : 'The browser blocked the clipboard', icon: TriangleAlert, variant: 'error' });
     }
   };
 
@@ -200,7 +201,7 @@ export default function QuestImport() {
   return (
     <div className="page flex flex-col gap-4">
       <header>
-        <Link to="/quests" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
+        <Link to="/quests" className="back-link mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
           <ArrowLeft size={14} aria-hidden /> Quests
         </Link>
         <h1 className="page-title">Import quests</h1>

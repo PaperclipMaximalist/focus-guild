@@ -5,7 +5,9 @@ import './index.css'
 import App from './App.tsx'
 import { initLine } from './lines/current'
 import { isNativeApp } from './native/platform'
-import { startNativeAuth } from './native/auth'
+import { forgetSessionOnFirstLaunch, startNativeAuth } from './native/auth'
+import { startShell } from './native/shell'
+import { applyDevInsets } from './native/insets'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
@@ -36,9 +38,18 @@ const Root = PUBLISHABLE_KEY && !isNativeApp ? (
   <App />
 )
 
-// In the app: read the Keychain and listen for the sign-in link. App shows
-// "Opening the guild…" until the Keychain has answered.
-if (isNativeApp) void startNativeAuth()
+// Development only: ?inset=47,34 draws the page as a notched iPhone would.
+if (import.meta.env.DEV) applyDevInsets()
+
+if (isNativeApp) {
+  // The app's shell first (html.native, status bar, launch screen, keyboard,
+  // links), so the first paint is already the app's.
+  startShell()
+  // Then sign-in, in this order: a fresh install forgets any session the
+  // Keychain kept from a deleted one, and only then is the Keychain read.
+  // App shows "Opening the guild…" until it has answered.
+  void forgetSessionOnFirstLaunch().then(startNativeAuth)
+}
 
 // The chosen line's colours are in place before anything is painted.
 initLine().finally(() => {

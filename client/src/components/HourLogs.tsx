@@ -302,7 +302,7 @@ function HourLogSheet({
             exit={{ y: 24, opacity: 0 }}
             transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-(--color-surface2) p-5 outline-none pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:rounded-2xl"
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-t-2xl bg-(--color-surface2) p-5 outline-none pb-[calc(1.25rem+var(--safe-bottom))] sm:rounded-2xl native:max-h-[min(90vh,calc(100dvh-var(--safe-top)-0.75rem))]"
           >
             <div className="mb-4 flex items-start gap-3">
               <div className="min-w-0 flex-1">

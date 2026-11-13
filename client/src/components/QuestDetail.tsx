@@ -214,7 +214,7 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 60, opacity: 0 }}
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border p-5 max-h-[90vh] overflow-y-auto outline-none"
+            className="w-full max-w-lg rounded-t-2xl sm:rounded-2xl border p-5 max-h-[90vh] overflow-y-auto outline-none native:max-h-[min(90vh,calc(100dvh-var(--safe-top)-0.75rem))] native:pb-[calc(1.25rem+var(--safe-bottom))]"
             style={{
               background: 'var(--color-surface2)',
               borderColor: 'var(--color-border)',

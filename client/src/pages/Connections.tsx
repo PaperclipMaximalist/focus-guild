@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL, api, type CalendarSourceInfo, type IntegrationsState } from '../lib/api';
+import { isNativeApp } from '../native/platform';
 import { sfxClick } from '../lib/sfx';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
@@ -404,7 +405,8 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
           to the address to label it in the Logbook. The HTTP action may need a premium licence; a school licence often
           includes it.
         </HelpItem>
-        <HelpItem title="iPhone Shortcuts / Android">
+        {/* The app may not name other platforms (App Review); the website keeps both. */}
+        <HelpItem title={isNativeApp ? 'iPhone Shortcuts' : 'iPhone Shortcuts / Android'}>
           Shortcut: Ask for Input → Get Contents of URL (POST, JSON body <code>text</code> = the input, header
           Authorization = Bearer + token). Add it to your home screen or share sheet.
         </HelpItem>

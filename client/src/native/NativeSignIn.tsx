@@ -23,7 +23,7 @@ export function NativeSignIn({ pitch }: { pitch: React.ReactNode }) {
   const waiting = status === 'linking';
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-8 px-4 pt-[calc(env(safe-area-inset-top)+2rem)] pb-[calc(env(safe-area-inset-bottom)+2rem)]">
+    <main className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-8 px-4 pt-[calc(var(--safe-top)+2rem)] pb-[calc(var(--safe-bottom)+2rem)]">
       {pitch}
       <div className="flex flex-col gap-3">
         {waiting ? (

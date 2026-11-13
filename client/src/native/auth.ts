@@ -154,6 +154,30 @@ async function clearSession(): Promise<void> {
   );
 }
 
+// localStorage, which iOS deletes with the app (the Keychain it does not).
+const INSTALLED_KEY = 'focusGuild.installed';
+
+/**
+ * First launch after an install: the Keychain outlives deleting the app, so a
+ * reinstalled app would start signed in with a token from before. With no
+ * marker in localStorage, this is a fresh install: forget the Keychain's
+ * session, then set the marker. main.tsx runs it before startNativeAuth().
+ */
+export async function forgetSessionOnFirstLaunch(): Promise<void> {
+  try {
+    if (localStorage.getItem(INSTALLED_KEY)) return;
+  } catch {
+    // No localStorage to tell by: never wipe a session on a guess.
+    return;
+  }
+  await clearSession();
+  try {
+    localStorage.setItem(INSTALLED_KEY, '1');
+  } catch {
+    // Read above, so this is not expected; the next launch would only clear again.
+  }
+}
+
 // ─── Wiring into lib/api.ts ───────────────────────────────────────────────────
 
 function applySession(clerkId: string): void {

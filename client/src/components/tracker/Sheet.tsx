@@ -52,7 +52,7 @@ export function Sheet({ open, onClose, title, footer, children }: Props) {
             aria-modal="true"
             aria-labelledby={titleId}
             tabIndex={-1}
-            className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border outline-none sm:mb-6 sm:rounded-2xl"
+            className="flex max-h-[88vh] w-full max-w-lg flex-col overflow-hidden rounded-t-2xl border outline-none sm:mb-6 sm:rounded-2xl native:max-h-[min(88vh,calc(100dvh-var(--safe-top)-0.75rem))]"
             style={{ background: 'var(--color-surface)', borderColor: 'var(--color-border)' }}
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -76,12 +76,13 @@ export function Sheet({ open, onClose, title, footer, children }: Props) {
               </button>
             </header>
 
-            <div className="flex-1 overflow-y-auto px-4 py-4">{children}</div>
+            {/* With no footer the body is what meets the home indicator. */}
+            <div className={`flex-1 overflow-y-auto px-4 py-4${footer ? '' : ' native:pb-[calc(1rem+var(--safe-bottom))]'}`}>{children}</div>
 
             {footer && (
               <footer
                 // Clear the home indicator on notched phones.
-                className="shrink-0 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                className="shrink-0 border-t px-4 pt-3 pb-[max(0.75rem,var(--safe-bottom))]"
                 style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface)' }}
               >
                 {footer}

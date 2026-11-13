@@ -64,7 +64,7 @@ export function MascotDock() {
   if (!enabled || HIDDEN_ROUTES.has(pathname)) return null;
 
   return (
-    <div className="pointer-events-none fixed left-2 top-0.5 z-50 flex items-start gap-1 lg:bottom-3 lg:left-3 lg:top-auto lg:items-end">
+    <div className="pointer-events-none fixed left-2 top-0.5 z-50 flex items-start gap-1 lg:bottom-3 lg:left-3 lg:top-auto lg:items-end native:max-lg:top-[calc(var(--safe-top)+0.125rem)]">
       <button
         type="button"
         onClick={() => {

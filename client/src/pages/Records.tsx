@@ -26,6 +26,7 @@ import {
   type GuildReply,
   type PermafileState,
 } from '../lib/api';
+import { isNativeApp } from '../native/platform';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { sfxClick } from '../lib/sfx';
 import { useToastStore } from '../components/Toasts';
@@ -75,7 +76,7 @@ export default function Records() {
   return (
     <div className="page flex flex-col gap-5">
       <header>
-        <Link to="/chronicle" className="mb-2 inline-flex items-center gap-1 text-[13px] font-semibold text-(--color-muted) hover:text-(--color-text)">
+        <Link to="/chronicle" className="back-link mb-2 inline-flex items-center gap-1 text-[13px] font-semibold text-(--color-muted) hover:text-(--color-text)">
           <ChevronLeft size={14} aria-hidden /> Journal
         </Link>
         <h1 className="page-title">Records</h1>
@@ -555,16 +556,19 @@ function BundleTab() {
         >
           <Clipboard size={16} aria-hidden /> Copy bundle
         </button>
-        <button
-          type="button"
-          onClick={() => bundle && downloadText(bundle.markdown, `focus-guild-bundle-${dayKey(new Date().toISOString())}.md`)}
-          disabled={!bundle}
-          aria-label="Download bundle"
-          className="grid w-12 place-items-center rounded-xl border disabled:opacity-40"
-          style={card}
-        >
-          <Download size={18} aria-hidden />
-        </button>
+        {/* The app's WebView cannot save a file; Copy is the way out there. */}
+        {!isNativeApp && (
+          <button
+            type="button"
+            onClick={() => bundle && downloadText(bundle.markdown, `focus-guild-bundle-${dayKey(new Date().toISOString())}.md`)}
+            disabled={!bundle}
+            aria-label="Download bundle"
+            className="grid w-12 place-items-center rounded-xl border disabled:opacity-40"
+            style={card}
+          >
+            <Download size={18} aria-hidden />
+          </button>
+        )}
       </div>
 
       {bundle && (

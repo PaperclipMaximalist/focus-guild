@@ -507,7 +507,7 @@ export default function Tracker() {
           type="button"
           onClick={openNew}
           aria-label="New item"
-          className="fixed bottom-20 right-4 z-30 grid h-14 w-14 place-items-center rounded-lg text-2xl font-bold transition-transform active:scale-95"
+          className="app-fab fixed bottom-20 native:max-lg:bottom-[calc(5rem+var(--safe-bottom))] right-4 z-30 grid h-14 w-14 place-items-center rounded-lg text-2xl font-bold transition-transform active:scale-95"
           style={{ background: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           +

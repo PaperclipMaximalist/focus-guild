@@ -333,7 +333,7 @@ export default function Quests() {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 30, opacity: 0 }}
-            className="fixed bottom-20 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-xl border px-3 py-2 shadow-xl shadow-black/50 lg:bottom-6 lg:left-[calc(50%+7.5rem)]"
+            className="fixed bottom-20 left-1/2 z-40 flex -translate-x-1/2 flex-wrap items-center gap-2 rounded-xl border px-3 py-2 shadow-xl shadow-black/50 lg:bottom-6 lg:left-[calc(50%+7.5rem)] native:max-lg:bottom-[calc(5rem+var(--safe-bottom))]"
             style={{
               background: 'var(--color-surface2)',
               borderColor: 'var(--color-border-strong)',

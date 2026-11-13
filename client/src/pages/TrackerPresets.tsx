@@ -24,13 +24,14 @@ import {
   type TrackerDomain,
   type TrackerOverrides,
 } from '../lib/api';
+import { isNativeApp } from '../native/platform';
 import { trackerErrorToast } from '../lib/tracker';
 import { PRESET_PACKS, type PresetPack } from '../lib/trackerPacks';
 import { sfxClick } from '../lib/sfx';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
-import { ArrowDown, ArrowLeft, ArrowUp, Check, Download, Inbox, Package, SettingsIcon, TriangleAlert, Undo2, Upload, X } from 'lucide-react';
+import { ArrowDown, ArrowLeft, ArrowUp, Check, Copy, Download, Inbox, Package, SettingsIcon, TriangleAlert, Undo2, Upload, X } from 'lucide-react';
 
 // The eight validated dark-surface hues, in their tested order. A domain's
 // colour always appears next to its name, so colour is never the only cue.
@@ -142,7 +143,17 @@ export default function TrackerPresets() {
   };
 
   /** Presets travel as their own JSON file, separate from the item markdown. */
-  const exportPresets = () => {
+  const exportPresets = async () => {
+    // The app's WebView cannot save a file: there the set goes to the clipboard instead.
+    if (isNativeApp) {
+      try {
+        await navigator.clipboard.writeText(JSON.stringify(cleaned, null, 2));
+        pushToast({ title: 'Presets copied', sub: 'As JSON, ready to paste', icon: Check, variant: 'xp' });
+      } catch {
+        pushToast({ title: 'Could not copy', sub: 'The clipboard is not available', icon: TriangleAlert, variant: 'error' });
+      }
+      return;
+    }
     const blob = new Blob([JSON.stringify(cleaned, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -533,11 +544,15 @@ export default function TrackerPresets() {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={exportPresets}
+            onClick={() => void exportPresets()}
             className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
             style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
           >
-            <span className="inline-flex items-center gap-1.5"><Download size={14} aria-hidden /> Export JSON</span>
+            {isNativeApp ? (
+              <span className="inline-flex items-center gap-1.5"><Copy size={14} aria-hidden /> Copy JSON</span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5"><Download size={14} aria-hidden /> Export JSON</span>
+            )}
           </button>
           <button
             type="button"
@@ -567,7 +582,7 @@ export default function TrackerPresets() {
         className={`flex items-center gap-2 rounded-xl border p-2 ${
           // Only float over the content when there's something to save; a
           // sticky "All saved" bar just covers the fields beneath it.
-          dirty ? 'sticky bottom-20' : ''
+          dirty ? 'sticky bottom-20 native:max-lg:bottom-[calc(5rem+var(--safe-bottom))]' : ''
         }`}
         style={{
           borderColor: dirty ? 'color-mix(in srgb, var(--color-primary) 55%, transparent)' : 'var(--color-border)',

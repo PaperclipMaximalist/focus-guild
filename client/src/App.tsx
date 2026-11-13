@@ -217,7 +217,8 @@ function AuthenticatedApp() {
   if (!user) {
     return (
       // The shape of the page that is about to appear, so nothing jumps when it does.
-      <div className="page" aria-busy="true" aria-label="Loading">
+      // No top bar yet, so in the app it keeps clear of the status bar itself.
+      <div className="page native:pt-[calc(1.25rem+var(--safe-top))]" aria-busy="true" aria-label="Loading">
         <div className="skeleton h-4 w-32" />
         <div className="skeleton mt-2 h-9 w-48" />
         <div className="skeleton mt-6 h-24" />
@@ -250,8 +251,8 @@ function AuthenticatedApp() {
           {/* The Logbook's old tabs: activity log, permafile, Ask, AI bundle. */}
           <Route path="/advanced/records" element={<TrackerRoute><Records /></TrackerRoute>} />
           <Route path="/connections" element={<TrackerRoute><Connections /></TrackerRoute>} />
-          {/* Android share-sheet target; see share_target in the manifest. */}
-          <Route path="/share" element={<TrackerRoute><Share /></TrackerRoute>} />
+          {/* The installed web app's share target (share_target in the manifest); the iOS app has no use for it. */}
+          {!isNativeApp && <Route path="/share" element={<TrackerRoute><Share /></TrackerRoute>} />}
           <Route path="/quests/import" element={<TrackerRoute><QuestImport /></TrackerRoute>} />
           <Route path="/advanced" element={<TrackerRoute><Advanced /></TrackerRoute>} />
           <Route path="/advanced/quickstart" element={<TrackerRoute><Quickstart /></TrackerRoute>} />
@@ -259,7 +260,8 @@ function AuthenticatedApp() {
         </Routes>
         </main>
         <ToastContainer />
-        <KeyboardShortcuts />
+        {/* A phone has no keyboard to take shortcuts from: no ? button, no help sheet. */}
+        {!isNativeApp && <KeyboardShortcuts />}
         <CommandPalette />
         <Backdrop />
         <MascotDock />
@@ -340,7 +342,15 @@ function Shell({ children }: { children: React.ReactNode }) {
     document.getElementById('main')?.focus({ preventScroll: true });
   }, [pathname]);
   return (
-    <div className={nav ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60' : 'min-h-screen'}>
+    // In the app the tab bar is taller by the home indicator, and /checkin
+    // (no bars at all) keeps clear of the status bar and the home indicator itself.
+    <div
+      className={
+        nav
+          ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60 native:max-lg:pb-[calc(4rem+var(--safe-bottom))]'
+          : 'min-h-screen native:pt-(--safe-top) native:pb-(--safe-bottom)'
+      }
+    >
       <a
         href="#main"
         className="skip-link"

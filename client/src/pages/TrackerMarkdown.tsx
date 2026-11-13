@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { ExportTier, ImportDiff } from '../lib/api';
 import { api } from '../lib/api';
+import { isNativeApp } from '../native/platform';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
@@ -250,16 +251,19 @@ export default function TrackerMarkdown() {
               >
                 <span className="inline-flex items-center gap-1.5"><Clipboard size={14} aria-hidden /> Copy</span>
               </button>
-              <button
-                type="button"
-                onClick={() =>
-                  download(result.markdown, `focus-guild-${result.label.replace(/\s+/g, '-')}.md`)
-                }
-                className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
-                style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
-              >
-                <span className="inline-flex items-center gap-1.5"><Download size={14} aria-hidden /> Download</span>
-              </button>
+              {/* The app's WebView cannot save a file; Copy (and the text above) is the way out there. */}
+              {!isNativeApp && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    download(result.markdown, `focus-guild-${result.label.replace(/\s+/g, '-')}.md`)
+                  }
+                  className="flex-1 rounded-lg py-2.5 text-sm font-semibold"
+                  style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--color-text)' }}
+                >
+                  <span className="inline-flex items-center gap-1.5"><Download size={14} aria-hidden /> Download</span>
+                </button>
+              )}
             </div>
           </div>
         )}

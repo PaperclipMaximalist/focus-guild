@@ -25,7 +25,7 @@ export function LevelUpSplash({ newLevel, onDismiss }: Props) {
           aria-modal="true"
           aria-label={`Level up: level ${level.level}, ${level.title}`}
           tabIndex={-1}
-          className="fixed inset-0 z-[600] flex flex-col items-center justify-center-safe overflow-y-auto bg-black/85 p-6 outline-none"
+          className="fixed inset-0 z-[600] flex flex-col items-center justify-center-safe overflow-y-auto bg-black/85 p-6 outline-none native:pt-[calc(1.5rem+var(--safe-top))] native:pb-[calc(1.5rem+var(--safe-bottom))]"
         >
           <motion.div
             initial={{ scale: 0.4, opacity: 0 }}

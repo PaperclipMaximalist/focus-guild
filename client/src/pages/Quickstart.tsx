@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL, api, manifestApi, type CalendarSourceInfo, type IntegrationsState } from '../lib/api';
+import { isNativeApp } from '../native/platform';
 import { GOOGLE_SETTINGS_URL, addToGoogleUrl, checkFeedLink, isGoogleSource } from '../lib/googleCalendar';
 import { MANIFEST_EXAMPLE, MANIFEST_FONT, manifestGuide, toManifest } from '../lib/manifest';
 import { sfxClick } from '../lib/sfx';
@@ -66,7 +67,7 @@ function useCopied() {
       setCopied(key);
       window.setTimeout(() => setCopied((k) => (k === key ? null : k)), 2000);
     } catch {
-      pushToast({ title: 'Could not copy', sub: 'The browser blocked the clipboard. Select the text and copy it by hand', icon: TriangleAlert, variant: 'error' });
+      pushToast({ title: 'Could not copy', sub: isNativeApp ? 'The clipboard is not available. Select the text and copy it by hand' : 'The browser blocked the clipboard. Select the text and copy it by hand', icon: TriangleAlert, variant: 'error' });
     }
   };
   return { copied, copy };
@@ -99,7 +100,7 @@ export default function Quickstart() {
   return (
     <div className="page flex flex-col gap-8">
       <header>
-        <Link to="/advanced" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
+        <Link to="/advanced" className="back-link mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
           <ArrowLeft size={14} aria-hidden /> Advanced
         </Link>
         <h1 className="page-title">Quickstart</h1>
@@ -459,9 +460,12 @@ function QuestsInBulk() {
             {copied === 'export' ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
             {copied === 'export' ? 'Copied' : 'Copy'}
           </button>
-          <button type="button" onClick={() => exportQuests('download')} disabled={exporting !== null} className="btn-quiet disabled:opacity-40">
-            <Download size={14} aria-hidden /> Save as file
-          </button>
+          {/* The app's WebView cannot save a file; Copy is the way out there. */}
+          {!isNativeApp && (
+            <button type="button" onClick={() => exportQuests('download')} disabled={exporting !== null} className="btn-quiet disabled:opacity-40">
+              <Download size={14} aria-hidden /> Save as file
+            </button>
+          )}
         </div>
       </div>
     </>

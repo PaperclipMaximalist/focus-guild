@@ -63,7 +63,7 @@ export function ToastContainer() {
   const dismiss = useToastStore((s) => s.dismiss);
 
   return (
-    <div aria-live="polite" className="pointer-events-none fixed bottom-20 right-4 z-[500] flex flex-col items-end gap-2 lg:bottom-6 lg:right-6">
+    <div aria-live="polite" className="pointer-events-none fixed bottom-20 right-4 z-[500] flex flex-col items-end gap-2 lg:bottom-6 lg:right-6 native:max-lg:bottom-[calc(5rem+var(--safe-bottom))]">
       <AnimatePresence>
         {toasts.map((t) => (
           <motion.div
