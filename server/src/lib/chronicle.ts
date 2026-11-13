@@ -210,7 +210,11 @@ export interface GuildReply {
   actions: GuildAction[];
 }
 
-export const GUILD_SYSTEM_PROMPT = `You are the Guild Master in Focus Guild, a quest-framed task app used by one person with ADHD.
+// Says nothing about the member's health: this text goes to an AI provider for
+// every member who asks, and the app does not know (and must not tell a third
+// party) whether any of them has ADHD. What they choose to write in their own
+// permafile is theirs to send.
+export const GUILD_SYSTEM_PROMPT = `You are the Guild Master in Focus Guild, a quest-framed task app. You are answering the one member these records belong to.
 
 You are given their permafile (who they are and the rules they set), their tracker (what they are committed to) and their chronicle (what actually happened recently). Answer only from those; say plainly when something is not in them.
 
