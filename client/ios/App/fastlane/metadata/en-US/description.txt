@@ -1,0 +1,33 @@
+Focus Guild is a to-do list that plays like a quest board, built for brains that wander.
+
+JOT IT DOWN
+Type a quest in one line: "Write report 2h by fri". No forms, no folders. Add a deadline, an estimate and steps when you want them.
+
+A ROUTE FOR THE DAY
+Tell the Guild how much energy you have, and it puts your quests in order by deadline, effort and the hours you really have. Short on time? Move the slider and the route is rebuilt around it.
+
+ONE THING AT A TIME
+Start a focus timer on any quest. The app tells you when the time is up, even with the phone in your pocket.
+
+XP, STREAKS AND TROPHIES
+Every finished quest earns XP. Keep a streak, climb the ranks, fill the Trophy Room. A tick made by mistake can be undone.
+
+ROUNDS AND EXPEDITIONS
+Rounds are the things you do every day or on set days of the week. Expeditions hold the long projects, each with its next step.
+
+STRAGGLERS
+Quests that slipped past their date wait in one place, where each can be finished, pushed a few days or dropped.
+
+SEVEN LOOKS
+Night Line, Star Guild, Spire Guild and four more. Each is a complete look, and all of them are dark.
+
+YOUR OWN AI, IF YOU WANT IT
+Connect your own Claude, ChatGPT, Gemini or other AI key and the Guild can break a big quest into steps. Nothing is sent to an AI service unless you ask for it.
+
+ALSO
+- A journal for the day's notes
+- Hour logs for work you count in hours
+- Your calendar's events in the route, read-only, by private link
+- Delete your account and everything in it from Settings, at any time
+
+Focus Guild is a planning tool. It is not a medical product and makes no health claims.

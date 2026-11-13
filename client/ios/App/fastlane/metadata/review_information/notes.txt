@@ -1,0 +1,17 @@
+Signing in
+Focus Guild needs an account. Press "Sign in" on the first screen: a browser sheet opens on our website, where you sign in with the demo account given above (email and password), then press "Connect this iPhone". The sheet closes and the app is signed in. New members create their account on the same sheet. The account system is our own (email); no third-party or social sign-in is offered in the app.
+
+Deleting the account
+Settings > Account > Delete account removes the account and all of its data from our servers at once (guideline 5.1.1(v)). Please do not delete the demo account, or tell us and we will restore it.
+
+AI features
+Optional and off by default. A member can connect their own API key for an AI provider under Advanced > Your AI. "Break down" on a quest then sends that quest's title and notes to the provider they chose; the app asks before the first time and names the provider (guideline 5.1.2(i)). Without a connected key nothing is sent anywhere.
+
+Notifications
+Used only for the focus timer: one local notification when the time is up. Permission is asked the first time a timer is started. No push notifications, no marketing.
+
+Purchases
+None. The app is free and has no in-app purchases, subscriptions or ads.
+
+Content
+Everything in the app is the member's own, private to their account. There is no public feed, messaging or sharing between members.
