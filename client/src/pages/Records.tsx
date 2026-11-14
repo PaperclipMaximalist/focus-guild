@@ -3,7 +3,7 @@
  *
  *   Log        the activity log, newest day first: every line the app kept
  *   Permafile  the slow-changing truth, versioned so every edit is reversible
- *   Ask        a question put to Claude over all of it
+ *   Ask        a question put to the AI in use over all of it (it asks first: lib/aiConsent.ts)
  *   AI bundle  permafile + tracker + log as one paste-able document
  *
  * These were the four tabs of the Logbook. They are plumbing: useful to an
@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
   WEEKLY_REVIEW_QUESTION,
+  aiFeatures,
   api,
   type ActivityEntry,
   type GuildAction,
@@ -27,6 +28,7 @@ import {
   type PermafileState,
 } from '../lib/api';
 import { isNativeApp } from '../native/platform';
+import { isConsentDeclined } from '../lib/aiConsent';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { sfxClick } from '../lib/sfx';
 import { useToastStore } from '../components/Toasts';
@@ -351,9 +353,12 @@ function AskTab() {
     setError(null);
     setReply(null);
     try {
-      setReply(await api.chronicle.ask(text));
+      // Asks first, the first time for this AI (lib/aiConsent.ts).
+      setReply(await aiFeatures.askGuild(text));
       sfxClick();
     } catch (err) {
+      // Not now: nothing was sent, and nothing needs saying.
+      if (isConsentDeclined(err)) return;
       setError(String(err).replace(/^ApiRequestError:\s*/, '').replace(/^Error:\s*/, ''));
     } finally {
       setBusy(false);
@@ -363,8 +368,8 @@ function AskTab() {
   return (
     <section className="flex flex-col gap-3">
       <p className="text-xs leading-snug" style={muted}>
-        Asks Claude about your own permafile, tracker and recent log. It answers only from those, and anything it
-        wants changed comes back as a button you tap.
+        Asks your AI about your own permafile, unfinished expeditions and the last 14 days of your log. It answers
+        only from those, and anything it wants changed comes back as a button you tap.
       </p>
 
       <div className="flex gap-2">

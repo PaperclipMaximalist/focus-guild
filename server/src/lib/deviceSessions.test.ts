@@ -60,6 +60,16 @@ vi.mock('../db/client.js', () => ({
         for (const s of hit) s.lastUsedAt = data.lastUsedAt;
         return { count: hit.length };
       },
+      findUnique: async ({ where }: { where: { tokenHash: string } }) => {
+        const s = store.sessions.find((x) => x.tokenHash === where.tokenHash);
+        return s ? { ...s, user: { id: s.userId } } : null;
+      },
+      deleteMany: async ({ where }: { where: { id?: string; lastUsedAt: { lte: Date } } }) => {
+        const gone = (s: Session) => (where.id === undefined || s.id === where.id) && matchesDate(s.lastUsedAt, where.lastUsedAt);
+        const before = store.sessions.length;
+        store.sessions = store.sessions.filter((s) => !gone(s));
+        return { count: before - store.sessions.length };
+      },
     },
   },
 }));
@@ -71,7 +81,10 @@ const {
   challengeFor,
   createLink,
   exchangeCode,
+  findLiveDeviceSession,
   lastUsedIsStale,
+  sessionIsIdle,
+  SESSION_IDLE_DAYS,
   linkIsLive,
   newDeviceToken,
   newLinkCode,
@@ -205,6 +218,57 @@ describe('exchangeCode', () => {
   it('refuses an unknown code', async () => {
     await createLink('u1', RFC_CHALLENGE, 'iPhone', now);
     expect(await exchangeCode(newLinkCode(), RFC_VERIFIER, now)).toBeNull();
+  });
+});
+
+describe('sign-ins that end by themselves', () => {
+  const DAY = 24 * 60 * 60_000;
+  const HOUR = 60 * 60_000;
+  const now = new Date('2026-11-13T10:00:00Z');
+  const ago = (ms: number) => new Date(now.getTime() - ms);
+  const session = (id: string, lastUsedAt: Date, tokenHash = `h-${id}`): Session => ({
+    id, userId: 'u1', tokenHash, name: 'iPhone', createdAt: ago(400 * DAY), lastUsedAt,
+  });
+
+  it('end after 180 days and the hour lastUsedAt can lag, not a moment before', () => {
+    expect(SESSION_IDLE_DAYS).toBe(180);
+    const limit = SESSION_IDLE_DAYS * DAY + HOUR;
+    expect(sessionIsIdle(ago(limit - 1), now)).toBe(false);
+    expect(sessionIsIdle(ago(limit), now)).toBe(true);
+    expect(sessionIsIdle(ago(limit + 1), now)).toBe(true);
+    // Last used 179 days and 23 hours ago by lastUsedAt: could really be under 180 days.
+    expect(sessionIsIdle(ago(180 * DAY), now)).toBe(false);
+    expect(sessionIsIdle(now, now)).toBe(false);
+    // A clock that says the future (a skewed write) is not idle.
+    expect(sessionIsIdle(new Date(now.getTime() + DAY), now)).toBe(false);
+  });
+
+  it('an idle session is refused like an unknown token, and deleted', async () => {
+    const token = newDeviceToken();
+    store.sessions.push(session('d1', ago(181 * DAY), sha256Hex(token)));
+    expect(await findLiveDeviceSession(token, now)).toBeNull();
+    expect(store.sessions).toHaveLength(0);
+    // And it stays gone.
+    expect(await findLiveDeviceSession(token, now)).toBeNull();
+  });
+
+  it('a session used within 180 days still works and is kept', async () => {
+    const token = newDeviceToken();
+    store.sessions.push(session('d1', ago(179 * DAY), sha256Hex(token)));
+    expect(await findLiveDeviceSession(token, now)).toMatchObject({ id: 'd1', user: { id: 'u1' } });
+    expect(store.sessions).toHaveLength(1);
+  });
+
+  it('an unknown token finds nothing and deletes nothing', async () => {
+    store.sessions.push(session('d1', ago(200 * DAY)));
+    expect(await findLiveDeviceSession(newDeviceToken(), now)).toBeNull();
+    expect(store.sessions).toHaveLength(1);
+  });
+
+  it('are swept with the dead link codes when a new code is made', async () => {
+    store.sessions.push(session('old', ago(181 * DAY)), session('edge', ago(180 * DAY)), session('fresh', ago(HOUR)));
+    await createLink('u2', RFC_CHALLENGE, 'iPhone', now);
+    expect(store.sessions.map((s) => s.id)).toEqual(['edge', 'fresh']);
   });
 });
 

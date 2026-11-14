@@ -1,11 +1,14 @@
 Signing in
-Focus Guild needs an account. Press "Sign in" on the first screen: a browser sheet opens on our website, where you sign in with the demo account given above (email and password), then press "Connect this iPhone". The sheet closes and the app is signed in. New members create their account on the same sheet. The account system is our own (email); no third-party or social sign-in is offered in the app.
+Focus Guild needs an account. Accounts are created and signed in to on our website, where sign-in is handled by our sign-in provider. The app itself shows no sign-in form and offers no social sign-in buttons: press "Sign in" on the first screen, a browser sheet opens on our website, sign in there with the demo account given above (email and password), then press "Connect this iPhone". The sheet closes and the app is signed in.
 
 Deleting the account
-Settings > Account > Delete account removes the account and all of its data from our servers at once (guideline 5.1.1(v)). Please do not delete the demo account, or tell us and we will restore it.
+Settings > Account > Delete account (type DELETE to confirm) removes the account and all of its data from our servers at once (guideline 5.1.1(v)). The same screen is on our website. Please do not delete the demo account; if you need to, tell us and we will set it up again.
+
+Signed-in devices
+Settings > Account lists every signed-in iPhone, in the app and on our website, and can sign any of them out. A sign-in unused for 180 days ends by itself.
 
 AI features
-Optional and off by default. A member can connect their own API key for an AI provider under Advanced > Your AI. "Break down" on a quest then sends that quest's title and notes to the provider they chose; the app asks before the first time and names the provider (guideline 5.1.2(i)). Without a connected key nothing is sent anywhere.
+Three optional features send the member's text to an AI provider, only when the member presses their button: "Break down" on a quest (that quest's title, time estimate, effort and impact scores, deadline and category); "Ask the Guild" under Settings > Advanced > Records and AI > Ask (the question, the member's own profile note, their unfinished projects and the last 14 days of their activity log); and "Write the list" under Quests > Import (the notes they typed). The request uses the AI key the member connected under Settings > Advanced > Your AI; if none is connected and our server has its own Anthropic key, it uses that; otherwise nothing is sent and the app asks the member to connect one. Either way, before the first request of each feature the app names the provider, says what will be sent and asks; nothing is sent until the member presses Send (guideline 5.1.2(i)).
 
 Notifications
 Used only for the focus timer: one local notification when the time is up. Permission is asked the first time a timer is started. No push notifications, no marketing.

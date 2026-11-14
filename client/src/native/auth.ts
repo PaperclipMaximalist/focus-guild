@@ -28,6 +28,7 @@ import { newPkce } from './pkce';
 import {
   ApiRequestError,
   ConnectionError,
+  api,
   devicesApi,
   setAuthTokenGetter,
   setCurrentClerkId,
@@ -67,7 +68,11 @@ export const MESSAGES = {
   noCode: 'The website didn’t send a sign-in code. Press Sign in to try again.',
   failed: 'Sign-in didn’t finish. Press Sign in to try again.',
   revoked: 'You were signed out. Sign in again to pick up where you left off.',
+  deleted: 'Your account and everything in it was deleted.',
 } as const;
+
+/** A sentence for the sign-in screen that reports what happened rather than a sign-in that failed. */
+export const isNotice = (text: string | null): boolean => text === MESSAGES.revoked || text === MESSAGES.deleted;
 
 // ─── The pending sign-in: verifier and state, between the sheet and the link ──
 
@@ -188,24 +193,60 @@ function applySession(clerkId: string): void {
 /** Set once leaving has begun (sign out, or a revoked token), so it happens once. */
 let leaving = false;
 
+/**
+ * True while Delete account is on its way. The server deletes the device
+ * session with the account, so a request already in flight can come back 401;
+ * that is the deletion working, not "signed out elsewhere".
+ */
+let deletingAccount = false;
+
 /** Back to the start with every in-memory store empty. */
 function reloadToRoot(): void {
   window.location.replace('/');
 }
 
+/** Keep a sentence for the sign-in screen across the reload. */
+function leaveNotice(text: string): void {
+  try {
+    sessionStorage.setItem(NOTICE_KEY, text);
+  } catch {
+    // The reload then shows the sign-in screen without it.
+  }
+}
+
 function onUnauthorized(sentToken: string): void {
-  if (leaving || useNativeAuth.getState().token !== sentToken) return;
+  if (leaving || deletingAccount || useNativeAuth.getState().token !== sentToken) return;
   leaving = true;
   useNativeAuth.setState({ status: 'signedOut', token: null, clerkId: null, error: MESSAGES.revoked });
   setAuthTokenGetter(null);
   void clearSession().then(() => {
-    try {
-      sessionStorage.setItem(NOTICE_KEY, MESSAGES.revoked);
-    } catch {
-      // The screen still says it until the reload.
-    }
+    // The screen still says it until the reload, whether or not this is kept.
+    leaveNotice(MESSAGES.revoked);
     reloadToRoot();
   });
+}
+
+/**
+ * Delete account, from the app: erase the account on the server, then forget
+ * this iPhone's session and reload to the sign-in screen, which says the
+ * account was deleted. If the server refuses or cannot be reached, nothing
+ * changes here and the error is thrown for the dialog to show.
+ */
+export async function deleteAccountFromApp(): Promise<void> {
+  if (leaving || deletingAccount) return;
+  deletingAccount = true;
+  try {
+    await api.users.deleteMe();
+  } catch (err) {
+    deletingAccount = false;
+    throw err;
+  }
+  leaving = true;
+  setAuthTokenGetter(null);
+  clearPending();
+  await clearSession();
+  leaveNotice(MESSAGES.deleted);
+  reloadToRoot();
 }
 
 function takeNotice(): string | null {

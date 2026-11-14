@@ -5,6 +5,7 @@ import { SignedIn, SignedOut, SignIn, useAuth, useUser } from '@clerk/clerk-reac
 import { PenLine, Route as RouteIcon, Trophy } from 'lucide-react';
 import { useUserStore } from './store/useUserStore';
 import { setAuthTokenGetter, setCurrentClerkId } from './lib/api';
+import { clearDeletedNotice, readDeletedNotice } from './lib/accountDeletion';
 import { isNativeApp } from './native/platform';
 import { useNativeAuth } from './native/auth';
 import { NativeSignIn } from './native/NativeSignIn';
@@ -40,6 +41,7 @@ const Advanced = lazy(() => import('./pages/Advanced'));
 const Quickstart = lazy(() => import('./pages/Quickstart'));
 const AiConnections = lazy(() => import('./pages/AiConnections'));
 import { ToastContainer } from './components/Toasts';
+import { AiConsentHost } from './components/AiConsentHost';
 import { BottomNav } from './components/BottomNav';
 import { Header } from './components/Header';
 import { LevelUpSplash } from './components/LevelUpSplash';
@@ -183,12 +185,22 @@ function Pitch() {
 
 /** `redirectUrl`: where Clerk sends the member after signing in or signing up (the /app-link page); its default otherwise. */
 function SignInLanding({ redirectUrl }: { redirectUrl?: string }) {
+  // Said once, when Delete account is what brought the member back here.
+  const [notice] = useState(readDeletedNotice);
   useEffect(() => {
     document.title = 'Sign in · Focus Guild';
+    clearDeletedNotice();
   }, []);
   return (
     <main className="mx-auto grid min-h-screen max-w-5xl items-center gap-8 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:gap-12">
-      <Pitch />
+      <div>
+        {notice && (
+          <p role="status" className="mx-auto mb-5 max-w-md text-sm lg:mx-0">
+            {notice}
+          </p>
+        )}
+        <Pitch />
+      </div>
       <SignIn
         routing="hash"
         {...(redirectUrl ? { forceRedirectUrl: redirectUrl, signUpForceRedirectUrl: redirectUrl } : {})}
@@ -259,6 +271,8 @@ function AuthenticatedApp() {
           <Route path="/advanced/ai" element={<TrackerRoute><AiConnections /></TrackerRoute>} />
         </Routes>
         </main>
+        {/* Asks before the member's text goes to an AI provider (lib/aiConsent.ts). After main, so it sits above a quest's sheet. */}
+        <AiConsentHost />
         <ToastContainer />
         {/* A phone has no keyboard to take shortcuts from: no ? button, no help sheet. */}
         {!isNativeApp && <KeyboardShortcuts />}

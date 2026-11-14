@@ -28,8 +28,8 @@
       <ul>
         <li>We keep your email address (through our sign-in provider), an account ID, and what you write in Focus Guild. We use them only to run the app for you.</li>
         <li>No ads, no analytics, no tracking, no selling or renting of data. Focus Guild is free and has no purchases.</li>
-        <li>Nothing goes to an AI service unless you press a button that asks one, and we tell you below exactly what is sent.</li>
-        <li>You can delete your account and everything in it at any time. It happens straight away.</li>
+        <li>Nothing goes to an AI service unless you press a button that asks one. The first time you use each AI feature, the app names the provider and asks before sending. We tell you below exactly what is sent.</li>
+        <li>You can delete your account and everything in it at any time, in Settings on the website or in the app. It happens straight away.</li>
       </ul>
     </section>
 
@@ -80,7 +80,7 @@
       <li><strong>A calendar link.</strong> If you paste a private calendar link (from Google Calendar, Outlook, iCloud or another calendar), our server stores the link and fetches it about every 15 minutes. From each fetch we keep only timed, busy events from yesterday to 35 days ahead: their title, start and end. We do not keep locations, attendees or descriptions. Each fetch replaces the last one.</li>
       <li><strong>The inbox token.</strong> If you turn on the inbox in Connections, we create a personal token. We store only a scrambled form of it (a hash). The same token makes a private link to your plan as a calendar feed. Anyone who has the token, or that feed link, can read your plan and can read and change your Focus Guild data through our API (they cannot delete your account). Keep it private, and use “Turn off” or “Make a new token” in Connections if it leaks.</li>
       <li><strong>Your own AI key.</strong> If you connect an AI provider under Your AI, we store your API key encrypted, with its last four characters so you can recognise it, the model you chose, and when it was last used. See <a href="#ai">AI features</a>.</li>
-      <li><strong>Signed-in iPhones.</strong> When you connect the app, we store a scrambled form (a hash) of the app’s sign-in token, the name “iPhone”, when it was connected and roughly when it was last used (updated at most once an hour).</li>
+      <li><strong>Signed-in iPhones.</strong> When you connect the app, we store a scrambled form (a hash) of the app’s sign-in token, the name “iPhone”, when it was connected and roughly when it was last used (updated at most once an hour). You can see this list, and sign any iPhone out, in Settings, Account, on the website or in the app. A sign-in that goes unused for 180 days ends by itself.</li>
     </ul>
 
     <h3>Technical data</h3>
@@ -122,6 +122,7 @@
 
     <h2 id="ai">4. AI features</h2>
     <p>Focus Guild has three optional AI features. None of them runs on its own: text is sent only when you press the button that asks.</p>
+    <p><strong>We ask first.</strong> The first time you use each feature on a device, Focus Guild names the provider that would receive your text, says what that feature sends, and asks. Nothing is sent until you choose to send it; if you choose “Not now”, nothing is sent and it asks again next time. If a different provider would answer (for example after you connect your own key), it asks again. Under Your AI, “Ask me again before sending” makes it ask again for every feature on that device.</p>
     <dl>
       <dt>Break down (on a quest)</dt>
       <dd>Sends that quest’s title, its time estimate, its mental-load and impact scores, its deadline date and its category, with our instructions to suggest steps. Nothing else.</dd>
@@ -135,7 +136,7 @@
     <ul>
       <li><strong>If you connected your own key</strong> under Settings, Advanced, Your AI, our server sends the text to the provider you chose (for example Anthropic for Claude, OpenAI for ChatGPT, Google for Gemini, xAI, Mistral AI, DeepSeek, OpenRouter, or another address you entered), using your key. The provider bills your account.</li>
       <!-- OWNER: the next item matches the code in either configuration. If ANTHROPIC_API_KEY is never set on the server, it can be replaced with: "If you have not connected a key, the AI buttons do not work and nothing is sent anywhere." See docs/PRIVACY_DATA_MAP.md, section 4. -->
-      <li><strong>If you have not connected a key,</strong> one of two things happens. If we have set up Focus Guild’s own Claude key, the same text goes to Anthropic under our account. If we have not, the AI buttons tell you to connect one, and nothing is sent. The Your AI page shows which applies: it names the AI in use, and adds “the server’s own key” when it is ours.</li>
+      <li><strong>If you have not connected a key,</strong> one of two things happens. If we have set up Focus Guild’s own Claude key, the same text goes to Anthropic under our account. If we have not, the AI buttons tell you to connect one, and nothing is sent. The Your AI page shows which applies: it names the AI in use, and adds “the server’s own key” when it is ours. Either way, the app asks before the first request of each kind, as described above.</li>
     </ul>
     <p>Once text reaches an AI provider, that provider’s own terms and privacy policy apply to it, including whether it keeps the text and for how long. Please read them before you connect a key. For Claude, see <a href="https://www.anthropic.com/legal/privacy">Anthropic’s privacy policy</a>; for ChatGPT, <a href="https://openai.com/policies/privacy-policy">OpenAI’s privacy policy</a>; for Gemini, <a href="https://policies.google.com/privacy">Google’s privacy policy</a>. The other providers publish their own.</p>
     <p>We keep the AI’s answer only if you save it (for example by accepting suggested steps). Your API key is sent only to the provider it belongs to. Connecting a key is checked by asking the provider for its list of models, which sends no data of yours. You can remove a key at any time under Your AI; you can also revoke it with the provider.</p>
@@ -168,14 +169,14 @@
     <ul>
       <li><strong>Your account and content:</strong> until you delete them. Deleting a quest, journal entry or other item removes it. The activity log and the decision log are kept as a history and cannot be cleared entry by entry (except journal entries), so a line such as “finished quest X” stays after the quest itself is deleted. All of it goes when you delete your account.</li>
       <li><strong>Calendar events:</strong> replaced with each fetch, about every 15 minutes, and removed when you disconnect the calendar.</li>
-      <li><strong>iPhone sign-ins:</strong> until you sign out in the app or delete your account.</li>
+      <li><strong>iPhone sign-ins:</strong> until you sign out in the app, sign that iPhone out in Settings, Account (on the website or in the app), or delete your account. A sign-in unused for 180 days ends by itself.</li>
       <li><strong>One-time sign-in codes:</strong> they work for two minutes and are cleared soon after.</li>
       <!-- OWNER: fill in the log retention once known (Railway's plan setting). -->
       <li><strong>Server logs:</strong> kept by Railway for a limited period set by its service, then deleted.</li>
     </ul>
 
     <h2 id="delete">9. Deleting your account</h2>
-    <p>In the iPhone app, go to <strong>Settings, Account, Delete account</strong>. If you use only the website, email us from the address on your account and we will delete it for you.</p>
+    <p>On the website or in the iPhone app, go to <strong>Settings, Account, Delete account</strong>, and type DELETE to confirm. If you cannot sign in, email us from the address on your account and we will delete it for you.</p>
     <p>Deleting your account is immediate and cannot be undone. It removes your account and everything in it from our database at once: quests, journal, check-ins, expeditions, your permafile and activity log, calendar connections and their events, AI keys, the inbox token, and every signed-in iPhone. We then ask Clerk to delete your sign-in, including your email address.</p>
     <!-- OWNER: confirm Neon's restore-history window for the project and, if wanted, state it here. -->
     <p>Our database provider keeps a short recovery history of the database for a limited time, so deleted data can remain in that history until it rolls over. It is not used to run the app. AI providers you sent text to keep it according to their own policies.</p>

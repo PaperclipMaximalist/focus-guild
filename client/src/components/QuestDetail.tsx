@@ -11,7 +11,8 @@
 
 import { useEffect, useId, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { api, type Quest, type XPEventDTO } from '../lib/api';
+import { aiFeatures, api, type Quest, type XPEventDTO } from '../lib/api';
+import { isConsentDeclined } from '../lib/aiConsent';
 import { useQuestStore } from '../store/useQuestStore';
 import { useTimerStore } from '../store/useTimerStore';
 import { sfxStart } from '../lib/sfx';
@@ -88,9 +89,12 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
     setAiError(null);
     setAiSuggestions([]);
     try {
-      const { suggestions } = await api.quests.decompose(quest.id);
+      // Asks first, the first time for this AI (lib/aiConsent.ts).
+      const { suggestions } = await aiFeatures.breakDown(quest.id);
       setAiSuggestions(suggestions.map((s) => ({ ...s, keep: true })));
     } catch (e) {
+      // Not now: nothing was sent, and nothing needs saying.
+      if (isConsentDeclined(e)) return;
       const msg = String(e);
       if (msg.includes('AI_NOT_CONFIGURED')) {
         setAiError('No AI is connected. Connect one in Settings, under Advanced, then Your AI.');

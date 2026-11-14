@@ -14,7 +14,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { aiApi, manifestApi } from '../lib/api';
+import { aiApi, aiFeatures, manifestApi } from '../lib/api';
+import { isConsentDeclined } from '../lib/aiConsent';
 import { isNativeApp } from '../native/platform';
 import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manifestBody, manifestGuide, parseManifest, type ManifestQuest } from '../lib/manifest';
 import { findDuplicate, titleKey } from '../lib/duplicates';
@@ -86,7 +87,8 @@ export default function QuestImport() {
     setWriting(true);
     setWrote(null);
     try {
-      const res = await aiApi.writeManifest(notes.trim(), manifestGuide());
+      // Asks first, the first time for this AI (lib/aiConsent.ts).
+      const res = await aiFeatures.writeQuestList(notes.trim(), manifestGuide());
       const body = manifestBody(res.text);
       // Added under whatever is already in the box, never over it.
       setText((t) => (t.trim() ? `${t.replace(/\s+$/, '')}\n\n${body}` : body));
@@ -94,6 +96,8 @@ export default function QuestImport() {
       setShowAi(false);
       sfxClick();
     } catch (err) {
+      // Not now: nothing was sent, and nothing needs saying.
+      if (isConsentDeclined(err)) return;
       pushToast({
         title: 'The AI did not write a list',
         sub: String(err).replace(/^\w*Error:\s*/, '').replace(/^[A-Z_]+:\s*/, ''),
@@ -240,8 +244,8 @@ export default function QuestImport() {
                   {writing ? 'Writing…' : 'Write the list'}
                 </button>
                 <p className="min-w-0 flex-1 basis-56 text-[13px] leading-snug text-(--color-muted)">
-                  Your notes go to that AI and nowhere else. What comes back lands in the box below for you to check;
-                  nothing is created yet.
+                  Your notes go to that AI and nowhere else; the first time, the Guild asks before sending. What comes
+                  back lands in the box below for you to check; nothing is created yet.
                 </p>
               </div>
             </div>

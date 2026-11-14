@@ -19,7 +19,7 @@
 
 import type { Context, MiddlewareHandler } from 'hono';
 import { PAT_PREFIX, hashPersonalToken } from './tokens.js';
-import { DEVICE_PREFIX, findDeviceSession, lastUsedIsStale, touchDeviceSession } from './deviceSessions.js';
+import { DEVICE_PREFIX, findLiveDeviceSession, lastUsedIsStale, touchDeviceSession } from './deviceSessions.js';
 import { verifyToken } from '@clerk/backend';
 import { db } from '../db/client.js';
 import type { User } from '../../generated/prisma/client.js';
@@ -117,17 +117,18 @@ export const requireUser: MiddlewareHandler = async (c, next) => {
 
   // A device token from the iOS app. Checked before Clerk in both modes: it is
   // not a JWT, and in dev mode an unknown one must 401, not fall back to the
-  // dev member.
+  // dev member. A sign-in unused for 180 days is over, and answers exactly
+  // like an unknown token (lib/deviceSessions.ts, SESSION_IDLE_DAYS).
   const deviceToken = auth?.startsWith(`Bearer ${DEVICE_PREFIX}`) ? auth.slice('Bearer '.length) : null;
   if (deviceToken) {
-    const session = await findDeviceSession(deviceToken);
+    const now = new Date();
+    const session = await findLiveDeviceSession(deviceToken, now);
     if (!session) {
       return c.json(
         { success: false, error: { code: 'UNAUTHORIZED', message: 'This device is signed out. Sign in again from the app.' } },
         401,
       );
     }
-    const now = new Date();
     if (lastUsedIsStale(session.lastUsedAt, now)) {
       // "Last seen" is a nicety: a failed write must not fail the request.
       await touchDeviceSession(session.id, now).catch((err) => console.error('[auth] lastUsedAt', err));

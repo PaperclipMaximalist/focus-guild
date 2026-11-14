@@ -28,13 +28,22 @@ import {
 } from '../lib/sfx';
 import { isRankThemeEnabled, setRankThemeEnabled, subscribeTheme } from '../lib/theme';
 import { useMascotStore } from '../store/useMascotStore';
-import { ChevronDown, ChevronRight, LogOut, RotateCcw, SettingsIcon, TriangleAlert, Wrench } from 'lucide-react';
+import { ChevronDown, ChevronRight, LogOut, RotateCcw, SettingsIcon, Trash2, TriangleAlert, Wrench } from 'lucide-react';
+import { useClerk } from '@clerk/clerk-react';
 import { useArmed } from '../lib/useArmed';
 import { isSceneEnabled, setSceneEnabled } from '../lib/scene';
 import { LinePicker } from '../lines/LinePicker';
 import { currentLine, subscribeLine } from '../lines/current';
 import { isNativeApp } from '../native/platform';
-import { useNativeAuth } from '../native/auth';
+import { deleteAccountFromApp, useNativeAuth } from '../native/auth';
+import { SignedInIPhones } from '../components/SignedInIPhones';
+import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
+import { deleteAccountFromWebsite } from '../lib/accountDeletion';
+import { LEGAL_PAGES, legalHref } from '../lib/legalLinks';
+
+// Clerk is mounted only on the website, and only with a key (main.tsx). Its
+// hooks throw without it, so they run only in a component used when this is true.
+const CLERK_ON = Boolean(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY) && !isNativeApp;
 
 const WEIGHT_INFO: Record<keyof ScoreWeights, { label: string; help: string }> = {
   energy: {
@@ -205,8 +214,8 @@ export default function Settings() {
             Try again
           </button>
         </div>
-        {/* Signing out must not depend on the settings loading. */}
-        {isNativeApp && <AccountSection />}
+        {/* Signing out and deleting the account must not depend on the settings loading. */}
+        <AccountSection />
       </div>
     );
   }
@@ -352,11 +361,11 @@ export default function Settings() {
         <ChevronRight size={16} aria-hidden style={{ color: 'var(--color-muted)' }} />
       </Link>
 
-      {/* The iPhone app's account block (Sign out). The website's account lives in Clerk's menu. */}
-      {isNativeApp && <AccountSection />}
+      {/* Signed-in iPhones, Sign out (app), the public pages and Delete account, on the website and in the app. */}
+      <AccountSection />
 
-      {/* Action bar */}
-      <div className="sticky bottom-20 z-40 flex items-center justify-between gap-2 rounded-md border px-4 py-2.5 shadow-xl"
+      {/* Action bar. In the app the tab bar is taller by the home indicator. */}
+      <div className="sticky bottom-20 native:max-lg:bottom-[calc(5rem+var(--safe-bottom))] z-40 flex items-center justify-between gap-2 rounded-md border px-4 py-2.5 shadow-xl"
         style={{
           background: 'var(--color-surface)',
           borderColor: hasChanges ? 'color-mix(in srgb, var(--color-gold) 50%, transparent)' : 'var(--color-border)',
@@ -473,40 +482,107 @@ function Toggle({
   );
 }
 
-// ─── Account (the iPhone app only) ───────────────────────────────────────────
-// One block for everything about the account itself. Delete account and the
-// legal links join Sign out here.
+// ─── Account (the website and the app) ───────────────────────────────────────
+// One block for everything about the account itself, in this order: the
+// signed-in iPhones, Sign out (the app only), the public pages, and Delete
+// account last, set apart. On the website the email and Clerk's own sign-out
+// stay in Clerk's menu.
 
 function AccountSection() {
+  return (
+    <Section title="Account">
+      <SignedInIPhones />
+      {isNativeApp && <SignOutRow />}
+      <LegalLinks />
+      <div className="border-t pt-3" style={{ borderColor: 'var(--color-border)' }}>
+        {CLERK_ON ? <DeleteAccountWithClerk /> : <DeleteAccountRow remove={isNativeApp ? deleteAccountFromApp : () => deleteAccountFromWebsite(null)} />}
+      </div>
+    </Section>
+  );
+}
+
+/** Privacy policy, Terms, Support: the site's own pages on the website, the website's copies (in the browser sheet) in the app. */
+function LegalLinks() {
+  return (
+    <nav aria-label="Focus Guild’s public pages">
+      <ul className="flex flex-wrap gap-x-4">
+        {LEGAL_PAGES.map(({ page, label }) => (
+          <li key={page}>
+            <a
+              href={legalHref(page)}
+              className="inline-flex min-h-11 items-center text-sm underline underline-offset-2"
+              style={{ color: 'var(--color-text)' }}
+            >
+              {label}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  );
+}
+
+/** The website with Clerk on: after the server has erased the account, sign out of Clerk too. */
+function DeleteAccountWithClerk() {
+  const { signOut } = useClerk();
+  return <DeleteAccountRow remove={() => deleteAccountFromWebsite(() => signOut())} />;
+}
+
+function DeleteAccountRow({ remove }: { remove: () => Promise<void> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <span className="block text-sm" style={{ color: 'var(--color-text)' }}>Delete account</span>
+        <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+          Your account and everything in it, at once. This cannot be undone.
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-haspopup="dialog"
+        aria-label="Delete your Focus Guild account"
+        className="btn-quiet min-h-11 shrink-0"
+        style={{ color: 'var(--color-fire)' }}
+      >
+        <Trash2 size={16} aria-hidden />
+        Delete account
+      </button>
+      <DeleteAccountDialog open={open} onClose={() => setOpen(false)} remove={remove} />
+    </div>
+  );
+}
+
+/** The app's own Sign out: revokes this iPhone, forgets the Keychain and reloads. */
+function SignOutRow() {
   const signOut = useNativeAuth((s) => s.signOut);
   const { armed, fire } = useArmed();
   const [leaving, setLeaving] = useState(false);
   return (
-    <Section title="Account">
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <span className="block text-sm" style={{ color: 'var(--color-text)' }}>Sign out</span>
-          <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
-            Your quests stay in your account. Sign in again to pick up where you left off.
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() =>
-            fire('signOut', () => {
-              setLeaving(true);
-              void signOut();
-            })
-          }
-          disabled={leaving}
-          aria-label={armed === 'signOut' ? 'Tap again to sign out of Focus Guild on this iPhone' : 'Sign out of Focus Guild on this iPhone'}
-          className="btn-quiet min-h-11 shrink-0 disabled:opacity-40"
-        >
-          <LogOut size={16} aria-hidden />
-          {leaving ? 'Signing out…' : armed === 'signOut' ? 'Tap again' : 'Sign out'}
-        </button>
+    <div className="flex items-center justify-between gap-3">
+      <div className="min-w-0">
+        <span className="block text-sm" style={{ color: 'var(--color-text)' }}>Sign out</span>
+        <span className="block text-xs" style={{ color: 'var(--color-muted)' }}>
+          Your quests stay in your account. Sign in again to pick up where you left off.
+        </span>
       </div>
-    </Section>
+      <button
+        type="button"
+        onClick={() =>
+          fire('signOut', () => {
+            setLeaving(true);
+            void signOut();
+          })
+        }
+        disabled={leaving}
+        aria-label={armed === 'signOut' ? 'Tap again to sign out of Focus Guild on this iPhone' : 'Sign out of Focus Guild on this iPhone'}
+        className="btn-quiet min-h-11 shrink-0 disabled:opacity-40"
+      >
+        <LogOut size={16} aria-hidden />
+        {leaving ? 'Signing out…' : armed === 'signOut' ? 'Tap again' : 'Sign out'}
+      </button>
+    </div>
   );
 }
 

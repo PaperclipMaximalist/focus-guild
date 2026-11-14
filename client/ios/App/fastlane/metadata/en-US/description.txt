@@ -22,7 +22,7 @@ SEVEN LOOKS
 Night Line, Star Guild, Spire Guild and four more. Each is a complete look, and all of them are dark.
 
 YOUR OWN AI, IF YOU WANT IT
-Connect your own Claude, ChatGPT, Gemini or other AI key and the Guild can break a big quest into steps. Nothing is sent to an AI service unless you ask for it.
+Connect your own Claude, ChatGPT, Gemini or other AI key and the Guild can break a big quest into steps. Nothing is sent to an AI service unless you ask for it, and the first time the app names the provider and asks.
 
 ALSO
 - A journal for the day's notes

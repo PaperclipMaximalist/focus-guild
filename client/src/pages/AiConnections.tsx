@@ -25,7 +25,8 @@ import { MANIFEST_FONT } from '../lib/manifest';
 import { sfxClick } from '../lib/sfx';
 import { useArmed } from '../lib/useArmed';
 import { useToastStore } from '../components/Toasts';
-import { ArrowLeft, Bot, ChevronDown, ExternalLink, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, Bot, ChevronDown, ExternalLink, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
+import { ASK_DAYS, forgetConsents } from '../lib/aiConsent';
 
 const said = (err: unknown) => String(err).replace(/^\w*Error:\s*/, '').replace(/^[A-Z_]+:\s*/, '');
 
@@ -64,7 +65,7 @@ export default function AiConnections() {
   return (
     <div className="page flex flex-col gap-5">
       <header>
-        <Link to="/advanced" className="mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
+        <Link to="/advanced" className="back-link mb-3 inline-flex items-center gap-1.5 text-[13px] text-(--color-muted) hover:text-(--color-text)">
           <ArrowLeft size={14} aria-hidden /> Advanced
         </Link>
         <h1 className="page-title">Your AI</h1>
@@ -119,12 +120,37 @@ export default function AiConnections() {
               cent, Ask the Guild a little more because it reads your recent history.
             </p>
             <p>
-              What is sent: the quest you are breaking down, or your notes, or (for Ask the Guild) your permafile,
-              tracker and recent journal. Nothing is sent until you press the button that asks.
+              What is sent: the quest you are breaking down, or your notes, or (for Ask the Guild) your question,
+              permafile, unfinished expedition items and the last {ASK_DAYS} days of your activity log. Nothing is sent
+              until you press the button that asks, and the first time for each button the Guild names who will
+              receive it and asks.
             </p>
           </div>
+
+          <AskAgain />
         </>
       )}
+    </div>
+  );
+}
+
+/** Forget every "Send" this device remembers, so each AI button asks again before its next request. */
+function AskAgain() {
+  const pushToast = useToastStore((s) => s.push);
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <button
+        type="button"
+        onClick={() => {
+          forgetConsents();
+          pushToast({ title: 'The Guild will ask again', sub: 'Before the next request from each AI button, on this device', icon: ShieldCheck, variant: 'xp' });
+        }}
+        aria-label="Ask me again before sending anything to an AI"
+        className="btn-quiet min-h-11"
+      >
+        <ShieldCheck size={16} aria-hidden />
+        Ask me again before sending
+      </button>
     </div>
   );
 }
@@ -219,6 +245,9 @@ function Connect({
   return (
     <div className="flex flex-col gap-3 text-sm">
       <p className="leading-relaxed text-(--color-muted)">{p.note}</p>
+      <p className="leading-relaxed text-(--color-muted)">
+        The Guild sends a request to this provider only when you press an AI button, and asks the first time for each one.
+      </p>
       {p.keyUrl && (
         <a href={p.keyUrl} target="_blank" rel="noopener noreferrer" className="btn-quiet self-start">
           Get a key from {p.company} <ExternalLink size={14} aria-hidden />

@@ -15,7 +15,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { isWebSignIn } from '../lib/auth.js';
-import { CHALLENGE_RE, INVALID_LINK, VERIFIER_RE, createLink, exchangeCode } from '../lib/deviceSessions.js';
+import { CHALLENGE_RE, INVALID_LINK, VERIFIER_RE, createLink, exchangeCode, idleCutoff } from '../lib/deviceSessions.js';
 
 export const devices = new Hono();
 
@@ -60,8 +60,10 @@ devices.post('/token', async (c) => {
 
 devices.get('/', async (c) => {
   const current = c.get('deviceSessionId');
+  // A sign-in unused for 180 days is over (lib/deviceSessions.ts) even before
+  // the next sweep removes its row, so it is not listed as signed in.
   const rows = await db.deviceSession.findMany({
-    where: { userId: c.get('user').id },
+    where: { userId: c.get('user').id, lastUsedAt: { gt: idleCutoff(new Date()) } },
     select: { id: true, name: true, createdAt: true, lastUsedAt: true },
     orderBy: { createdAt: 'desc' },
   });

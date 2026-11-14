@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react';
 import { LogIn } from 'lucide-react';
-import { useNativeAuth } from './auth';
+import { isNotice, useNativeAuth } from './auth';
 
 export function NativeSignIn({ pitch }: { pitch: React.ReactNode }) {
   const status = useNativeAuth((s) => s.status);
@@ -56,11 +56,17 @@ export function NativeSignIn({ pitch }: { pitch: React.ReactNode }) {
             <p className="text-center text-sm text-(--color-muted)">New here? The same button creates your account.</p>
           </>
         )}
-        {error && (
-          <p role="alert" className="text-sm" style={{ color: 'var(--color-fire)' }}>
-            {error}
-          </p>
-        )}
+        {/* "You were signed out" and "your account was deleted" are news, not failures: said plainly, not as an alarm. */}
+        {error &&
+          (isNotice(error) ? (
+            <p role="status" className="text-sm">
+              {error}
+            </p>
+          ) : (
+            <p role="alert" className="text-sm" style={{ color: 'var(--color-fire)' }}>
+              {error}
+            </p>
+          ))}
       </div>
     </main>
   );

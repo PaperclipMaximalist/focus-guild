@@ -25,6 +25,27 @@ export const LINK_TTL_SEC = 120;
 /** lastUsedAt is for "last seen" in the device list, not an audit log: writing it on every request would double the queries. */
 export const LAST_USED_EVERY_MS = 60 * 60 * 1000;
 
+/**
+ * A device sign-in that has not been used for this many days is over: the
+ * token answers 401 like an unknown one, and the row is deleted. A phone that
+ * was lost, sold or had the app deleted does not stay signed in for ever.
+ */
+export const SESSION_IDLE_DAYS = 180;
+
+/**
+ * How old lastUsedAt must be for the session to be over. lastUsedAt is
+ * written at most hourly, so the real last use can be up to an hour later
+ * than it says; the extra hour makes "180 days without use" true, never 179
+ * days and 23 hours.
+ */
+export const SESSION_IDLE_MS = SESSION_IDLE_DAYS * 24 * 60 * 60 * 1000 + LAST_USED_EVERY_MS;
+
+/** Sessions last used at or before this moment are over. */
+export const idleCutoff = (now: Date) => new Date(now.getTime() - SESSION_IDLE_MS);
+
+/** True when a session last used at `lastUsedAt` has gone unused too long by `now`. */
+export const sessionIsIdle = (lastUsedAt: Date, now: Date) => lastUsedAt.getTime() <= idleCutoff(now).getTime();
+
 /** The one answer to every failed exchange, so a caller cannot learn which check failed. */
 export const INVALID_LINK = {
   code: 'INVALID_LINK',
@@ -70,11 +91,12 @@ export const lastUsedIsStale = (lastUsedAt: Date, now: Date) => now.getTime() - 
 
 /**
  * A new one-time code for the signed-in member. Also clears out codes that
- * can no longer be spent (anyone's), so the table stays a handful of rows
- * without a cron.
+ * can no longer be spent and device sign-ins that have gone unused too long
+ * (anyone's), so both tables stay small without a cron.
  */
 export async function createLink(userId: string, challenge: string, name: string, now = new Date()) {
   await db.deviceLink.deleteMany({ where: { OR: [{ expiresAt: { lte: now } }, { usedAt: { not: null } }] } });
+  await db.deviceSession.deleteMany({ where: { lastUsedAt: { lte: idleCutoff(now) } } });
   const code = newLinkCode();
   await db.deviceLink.create({
     data: {
@@ -126,6 +148,23 @@ export async function exchangeCode(code: string, verifier: string, now = new Dat
 /** The session behind a device token, with its member; null if there is none. */
 export async function findDeviceSession(token: string) {
   return db.deviceSession.findUnique({ where: { tokenHash: sha256Hex(token) }, include: { user: true } });
+}
+
+/**
+ * The session behind a device token if it is still signed in. A session that
+ * has gone unused for SESSION_IDLE_DAYS is deleted here and answered as if it
+ * had never existed, so requireUser sends the same 401 as for an unknown token.
+ */
+export async function findLiveDeviceSession(token: string, now = new Date()) {
+  const session = await findDeviceSession(token);
+  if (!session) return null;
+  if (!sessionIsIdle(session.lastUsedAt, now)) return session;
+  // Conditional on still being idle; a failed delete still refuses the token,
+  // and the next sweep in createLink takes the row.
+  await db.deviceSession
+    .deleteMany({ where: { id: session.id, lastUsedAt: { lte: idleCutoff(now) } } })
+    .catch((err: unknown) => console.error('[auth] idle device session', err));
+  return null;
 }
 
 /**

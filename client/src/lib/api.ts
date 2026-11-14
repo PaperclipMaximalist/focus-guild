@@ -365,6 +365,16 @@ export const api = {
       request<AchievementSummary[]>(`/users/${clerkId}/achievements`),
     xpEvents: (clerkId = getCurrentClerkId()) =>
       request<XPEventDTO[]>(`/users/${clerkId}/xp-events`),
+    /**
+     * Erase the account: every row, then the sign-in. `identityRemoved` is
+     * false when the server has no Clerk (local dev) or Clerk's delete failed;
+     * the data is gone either way.
+     */
+    deleteMe: () =>
+      request<{ deleted: true; identityRemoved: boolean }>('/users/me', {
+        method: 'DELETE',
+        body: JSON.stringify({ confirm: 'DELETE' }),
+      }),
   },
   quests: {
     list: (clerkId = getCurrentClerkId()) =>
@@ -406,11 +416,7 @@ export const api = {
       request<{ loggedMinutes: number; totalXP: number }>(`/quests/${id}/hours/${entryId}`, { method: 'DELETE' }),
     xpEvents: (id: string) =>
       request<XPEventDTO[]>(`/quests/${id}/xp-events`),
-    decompose: (id: string) =>
-      request<{ suggestions: Array<{ title: string; estimatedMinutes: number; rationale: string }> }>(
-        `/quests/${id}/decompose`,
-        { method: 'POST', body: '{}' },
-      ),
+    // Break down (POST /quests/:id/decompose) is aiFeatures.breakDown: it asks first.
     /** Bulk import; the server writes them in one transaction. */
     import: (
       quests: Array<{
@@ -674,11 +680,7 @@ export const api = {
       request<{ changed: boolean; id?: string }>('/chronicle/permafile', { method: 'PUT', body: JSON.stringify({ body }) }),
     restorePermafile: (id: string) =>
       request<{ id: string }>(`/chronicle/permafile/restore/${id}`, { method: 'POST', body: '{}' }),
-    ask: (question: string, days = 14) =>
-      request<GuildReply>('/chronicle/ask', {
-        method: 'POST',
-        body: JSON.stringify({ question, days, tz: new Date().getTimezoneOffset() }),
-      }),
+    // Ask the Guild (POST /chronicle/ask) is aiFeatures.askGuild: it asks first.
     bundle: (days = 7) =>
       request<{ markdown: string; chars: number; entries: number }>(
         `/chronicle/bundle?days=${days}&tz=${new Date().getTimezoneOffset()}`,
@@ -1088,6 +1090,7 @@ export interface ImportApplyResult {
 
 import type { ManifestQuest } from './manifest';
 import type { RepeatRule } from './repeat';
+import { ASK_DAYS, answererFrom, withAiConsent } from './aiConsent';
 
 export interface ManifestCounts {
   quests: number;
@@ -1157,9 +1160,38 @@ export const aiApi = {
     request<AiState>(`/ai/connections/${provider}`, { method: 'PATCH', body: JSON.stringify(change) }),
   remove: (provider: string) => request<AiState>(`/ai/connections/${provider}`, { method: 'DELETE' }),
   test: (provider: string) => request<AiTestResult>(`/ai/connections/${provider}/test`, { method: 'POST', body: '{}' }),
-  /** Notes in, a quest manifest out, written by the AI in use. */
-  writeManifest: (notes: string, guide: string) =>
-    request<{ text: string; via: string }>('/ai/manifest', { method: 'POST', body: JSON.stringify({ notes, guide }) }),
+  // The list writer (POST /ai/manifest) is aiFeatures.writeQuestList: it asks first.
+};
+
+// ─── The AI features: the member's text to a third-party AI ───────────────────
+// Each one passes the consent gate (lib/aiConsent.ts) before its request is
+// made. The requests are written only here, inside the gate, and nothing
+// else in this file reaches those three routes (aiConsent.test.ts checks).
+
+export type BreakDownResult = { suggestions: Array<{ title: string; estimatedMinutes: number; rationale: string }> };
+
+/** Who would answer, read fresh each time: the member may have changed their AI since. */
+const currentAnswerer = async () => answererFrom(await request<AiState>('/ai'));
+
+export const aiFeatures = {
+  /** Steps for a quest, suggested by the AI in use. Throws AiConsentDeclined on Not now. */
+  breakDown: (questId: string) =>
+    withAiConsent('breakDown', currentAnswerer, () =>
+      request<BreakDownResult>(`/quests/${encodeURIComponent(questId)}/decompose`, { method: 'POST', body: '{}' }),
+    ),
+  /** Ask the Guild, over the last ASK_DAYS days (the prompt says how many). Throws AiConsentDeclined on Not now. */
+  askGuild: (question: string) =>
+    withAiConsent('askGuild', currentAnswerer, () =>
+      request<GuildReply>('/chronicle/ask', {
+        method: 'POST',
+        body: JSON.stringify({ question, days: ASK_DAYS, tz: new Date().getTimezoneOffset() }),
+      }),
+    ),
+  /** Notes in, a quest manifest out, written by the AI in use. Throws AiConsentDeclined on Not now. */
+  writeQuestList: (notes: string, guide: string) =>
+    withAiConsent('questList', currentAnswerer, () =>
+      request<{ text: string; via: string }>('/ai/manifest', { method: 'POST', body: JSON.stringify({ notes, guide }) }),
+    ),
 };
 
 // ─── Devices (the iOS app's sign-in) ──────────────────────────────────────────
