@@ -12,11 +12,11 @@ carried October's scheduler work (fill the time, breaks, the slider, dragging,
 rotation, quests in one go, rounds that repeat weekly), the launch prep of
 2026-11-07/08, and the director-and-coders loop of 2026-11-11 (last row of the
 table below), with one migration (`20261019000000_one_sitting_and_repeat`,
-additive). Nothing built is waiting to go out; one piece of work waits on a
-decision (see "Parked branches").
+additive). The only thing built and not yet out is the iPhone app (next
+paragraph); one other piece of work waits on a decision (see "Parked branches").
 
 **Status 2026-11-13, the iPhone app:** branch `ios-app` (worktree `.claude/worktrees/ios-app`,
-from `improve-loop`, pushed, not merged) turns the client into an iPhone app. Built and
+on top of today's `main`, pushed, not merged) turns the client into an iPhone app. Built and
 checked as far as a Windows machine and a Mac runner allow; what is left is the
 owner's (Apple account, deploy, the public pages' placeholders, Clerk). The gates and
 the steps: `docs/IOS_APP_STORE.md`. It adds one more migration

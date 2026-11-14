@@ -1,6 +1,6 @@
 # Focus Guild for iPhone: the road to the App Store
 
-Branch `ios-app` (from `improve-loop`). This page is the checklist the
+Branch `ios-app`, on top of `main` as deployed on 2026-11-13 (a merge to `main` is a fast-forward). This page is the checklist the
 conversion is run against: each gate is something that can be checked, with
 how it was checked. The loop ends when every gate is **verified**, or when
 what is left can only be done by the owner (the last section).
