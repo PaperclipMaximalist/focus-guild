@@ -1,102 +1,12 @@
 import './env.js';
 import { serve } from '@hono/node-server';
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
-import { logger } from 'hono/logger';
-import { users } from './routes/users.js';
-import { devices } from './routes/devices.js';
-import { quests } from './routes/quests.js';
-import { checkin } from './routes/checkin.js';
-import { schedule } from './routes/schedule.js';
-import { settings } from './routes/settings.js';
-import { tracker } from './routes/tracker.js';
-import { chronicle } from './routes/chronicle.js';
-import { integrations } from './routes/integrations.js';
-import { manifest } from './routes/manifest.js';
-import { ai } from './routes/ai.js';
-import { inbox } from './routes/inbox.js';
-import { calendarFeed } from './routes/calendarFeed.js';
+import { app } from './app.js';
 import { startCalendarSyncLoop } from './lib/calendar/sync.js';
-import { requireUser } from './lib/auth.js';
 
-const app = new Hono();
-
-app.use('*', logger());
-
-// Allowed CORS origins. Set CLIENT_URL to a comma-separated list of
-// origins in production (e.g. "https://focus-guild.vercel.app,https://www.example.com").
-// Dev fallback always permits Vite at :5173.
-const clientUrls = (process.env['CLIENT_URL'] ?? 'http://localhost:5173')
-  .split(',')
-  .map((s) => s.trim())
-  .filter(Boolean);
-
-// The iOS app (Capacitor) serves the built client to its WebView from this
-// origin, on every phone, whatever CLIENT_URL says. Allowing it is safe:
-// CORS is not what protects this API. Every route needs a bearer token the
-// page has to hold itself, and nothing here authenticates with a cookie, so
-// a page that merely runs at this origin gains nothing it could not do with
-// curl.
-const APP_ORIGIN = 'capacitor://localhost';
-
-app.use(
-  '*',
-  cors({
-    origin: (origin) => {
-      // Allow no-Origin requests (curl, health checks) through.
-      if (!origin) return origin;
-      return clientUrls.includes(origin) || origin === APP_ORIGIN ? origin : null;
-    },
-    // X-Tz-Offset: the browser's getTimezoneOffset(), on every request, so
-    // "today" is the member's day (lib/memberDay.ts).
-    allowHeaders: ['Content-Type', 'Authorization', 'X-Dev-Clerk-Id', 'X-Tz-Offset'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    credentials: true,
-  }),
-);
-
-// `commit` is the build that is answering (Railway sets the variable on every
-// deploy), so a deploy can be checked from outside: every other route 401s
-// before it says anything.
-const commit = process.env.RAILWAY_GIT_COMMIT_SHA?.slice(0, 7) ?? null;
-app.get('/health', (c) => c.json({ status: 'ok', commit }));
-
-// Token-authenticated capture endpoint; skipped by requireUser.
-app.route('/inbox', inbox);
-// Published plan feed; calendar apps can only pass a token in the URL.
-app.route('/calendar', calendarFeed);
-
-// Resolves the user (or 401s) for everything except /health, the token routes
-// above and POST /devices/token (see requireUser).
-app.use('*', requireUser);
-
-app.route('/users', users);
-app.route('/devices', devices);
-app.route('/quests', quests);
-app.route('/checkin', checkin);
-app.route('/schedule', schedule);
-app.route('/settings', settings);
-app.route('/tracker', tracker);
-app.route('/chronicle', chronicle);
-app.route('/integrations', integrations);
-app.route('/manifest', manifest);
-app.route('/ai', ai);
+// The app itself is built in app.ts. env.js stays the first import here, so
+// the .env files are read before any module looks at process.env.
 
 startCalendarSyncLoop();
-
-// 404 catch-all
-app.notFound((c) =>
-  c.json({ success: false, error: { code: 'NOT_FOUND', message: 'Route not found' } }, 404),
-);
-
-// Unhandled error handler
-app.onError((err, c) => {
-  console.error(err);
-  return c.json(
-    { success: false, error: { code: 'INTERNAL_ERROR', message: 'An unexpected error occurred' } },
-    500,
-  );
-});
 
 const port = Number(process.env['PORT']) || 3000;
 serve({ fetch: app.fetch, port }, () => {

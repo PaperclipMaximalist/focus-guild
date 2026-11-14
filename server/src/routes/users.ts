@@ -8,9 +8,16 @@ import type { User } from '../../generated/prisma/client.js';
 export const users = new Hono();
 
 // GET /users/:clerkId — :clerkId param ignored; middleware resolves the user
-/** The member's record without what only the server should hold (a token hash, a calendar token). */
+/** The member's record without what only the server should hold (token hashes, a calendar token). */
 function publicUser(user: User) {
-  const { personalTokenHash: _hash, googleCalendarToken: _calendar, ...rest } = user;
+  const {
+    personalTokenHash: _hash,
+    calendarFeedTokenHash: _feedHash,
+    // Connections reads this from GET /integrations; it has no place on the member's record.
+    oldFeedLinkSeenAt: _oldLink,
+    googleCalendarToken: _calendar,
+    ...rest
+  } = user;
   return rest;
 }
 
