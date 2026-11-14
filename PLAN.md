@@ -13,6 +13,13 @@ director-and-coders loop of 2026-11-11 (last row of the table below). It has one
 migration (`20261019000000_one_sitting_and_repeat`) and waits on the owner's
 word. One other piece of work waits on a decision (see "Parked branches").
 
+**Status 2026-11-13, the iPhone app:** branch `ios-app` (worktree `.claude/worktrees/ios-app`,
+from `improve-loop`, pushed, not merged) turns the client into an iPhone app. Built and
+checked as far as a Windows machine and a Mac runner allow; what is left is the
+owner's (Apple account, deploy, the public pages' placeholders, Clerk). The gates and
+the steps: `docs/IOS_APP_STORE.md`. It adds one more migration
+(`20261113000000_device_sessions`).
+
 ---
 
 ## Done (September 2026)
@@ -105,6 +112,8 @@ All other agent worktrees are merged and can be removed (`git worktree remove <p
 - Create a Neon **dev branch** and point `server/.env.local` at it. Local testing currently writes to the production database, and auto mode blocks schema changes there.
 - Switch Clerk to production keys (the sign-in shows "Development mode").
 - On a phone: install the PWA, share into it, connect a school calendar, subscribe to the plan feed.
+- **The iPhone app** (the eight steps in `docs/IOS_APP_STORE.md`): join the Apple Developer Program and add the four secrets; fill in the operator name, contact address and province on the three public pages and read them; check Clerk's sign-in methods (Sign in with Apple if any social sign-in is on); deploy `ios-app`; run the TestFlight job; go through the phone checklist; submit.
+- Give the calendar feed its own read-only token. Today the feed link carries the personal access token, which opens the whole API, and the request log prints it on every fetch (found 2026-11-13, older than the iPhone work).
 
 ---
 
