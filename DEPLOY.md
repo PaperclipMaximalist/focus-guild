@@ -132,7 +132,16 @@ Each push to `main` triggers both Railway and Vercel to redeploy. Railway's `/he
 - Client: fetch the Vercel page, find the `assets/index-*.js` name, and grep that bundle for a string new in the release.
 - Server: `GET /health` answers `{ "status": "ok", "commit": "<7 chars>" }`, the commit Railway built (`RAILWAY_GIT_COMMIT_SHA`; `null` when run locally). Compare it with `git rev-parse --short main`. With a migration, the new rows in `_prisma_migrations` (via the Neon HTTP driver) confirm it too.
 
-**What's live and needs no setup:** the PWA (`client/public/manifest.webmanifest`, `sw.js`), token-authed `/inbox` and `/calendar/<token>.ics` (skipped by `requireUser`), and the 15-minute calendar sync loop in the server process.
+**What's live and needs no setup:** the PWA (`client/public/manifest.webmanifest`, `sw.js`), token-authed `/inbox` (personal token) and `/calendar/<token>.ics` (the feed's own token), both skipped by `requireUser`, and the 15-minute calendar sync loop in the server process.
+
+**The calendar feed token** (branch `calendar-feed-token`, built 2026-11-14; delete this note once done). Until this ships, a plan feed link carries the member's personal access token, which opens the whole API. What changes on deploy, and what to do:
+
+- Migration `20261113120000_calendar_feed_token` adds two nullable columns to `users` (`calendarFeedTokenHash`, unique; `oldFeedLinkSeenAt`). Additive and idempotent. As with any schema change, a local server on this branch errors against the shared database until the deploy has applied it.
+- **Every existing plan feed link stops working the moment the server restarts** (404, no grace period: each fetch of an old link sends a full key to the account through a calendar company and the host). Calendars that subscribed to one go quiet. A member whose calendar still asks sees a notice in Connections and Quickstart saying what to do.
+- Deploy server and client together. A new client on an old server cannot make the link (404 on `/integrations/feed-token`); an old client on the new server makes links that no longer work.
+- Afterwards, for your own account: make a new plan link (Connections → Plan feed, or Quickstart) and add it to your calendar; remove the old Focus Guild calendar there, so it stops sending the old link; then make a new personal token (Connections → Inbox) and give it to the inbox automations and the Claude connector. The old token has been printed in Railway's logs on every calendar fetch, so it should not stay valid.
+- Railway keeps its own HTTP log of every request's path, apart from the server's (masked) log. Check how long it is kept, and whether it shows the query string (the inbox's `?token=`). The feed token in it can only read the plan.
+- Check: `GET /calendar/<your old link's token>.ics` answers 404; the new link answers a calendar; `curl -H "Authorization: Bearer <feed token>" <api>/quests` answers 401; the Railway log shows `/calendar/[redacted].ics`.
 
 ---
 

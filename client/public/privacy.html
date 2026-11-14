@@ -19,7 +19,7 @@
 
   <main id="main" class="wrap">
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated 13 November 2026</p>
+    <p class="updated">Last updated 14 November 2026</p>
 
     <p>Focus Guild is a quest-style to-do list and day planner. It is made and run by {{OPERATOR_NAME}}, an independent developer in Canada (“we”, “us”). This policy covers the Focus Guild website and the Focus Guild app for iPhone. Both use the same account and the same server.</p>
 
@@ -78,16 +78,17 @@
     <p>These are optional. Each is off until you set it up.</p>
     <ul>
       <li><strong>A calendar link.</strong> If you paste a private calendar link (from Google Calendar, Outlook, iCloud or another calendar), our server stores the link and fetches it about every 15 minutes. From each fetch we keep only timed, busy events from yesterday to 35 days ahead: their title, start and end. We do not keep locations, attendees or descriptions. Each fetch replaces the last one.</li>
-      <li><strong>The inbox token.</strong> If you turn on the inbox in Connections, we create a personal token. We store only a scrambled form of it (a hash). The same token makes a private link to your plan as a calendar feed. Anyone who has the token, or that feed link, can read your plan and can read and change your Focus Guild data through our API (they cannot delete your account). Keep it private, and use “Turn off” or “Make a new token” in Connections if it leaks.</li>
+      <li><strong>The personal token.</strong> If you turn on the inbox in Connections, we create a personal token. We store only a scrambled form of it (a hash). The inbox, your own scripts and the Claude Desktop connector use it. Anyone who has it can read and change your Focus Guild data through our API (they cannot delete your account or sign in a new phone). Keep it private, and use “Turn off” or “Make a new token” in Connections if it leaks.</li>
+      <li><strong>The plan feed link.</strong> If you make a plan feed link in Connections or Quickstart, we create a separate token that is part of that link, and store only a hash of it. The link shows your plan as a calendar, from 7 days back to 60 days ahead: when each block is, your quest titles and the names of your calendar events. Anyone who has the link can read that and nothing else. It cannot change anything, and it is not a key to the rest of your account. A calendar app you give the link to fetches it from our server, so that app’s provider receives your plan. Use “Make a new link” or “Turn off” if it leaks. Older feed links, which contained the personal token, no longer work; if a calendar still asks for one, we note the date so the app can tell you to replace it, and clear the note when you make a new personal token.</li>
       <li><strong>Your own AI key.</strong> If you connect an AI provider under Your AI, we store your API key encrypted, with its last four characters so you can recognise it, the model you chose, and when it was last used. See <a href="#ai">AI features</a>.</li>
       <li><strong>Signed-in iPhones.</strong> When you connect the app, we store a scrambled form (a hash) of the app’s sign-in token, the name “iPhone”, when it was connected and roughly when it was last used (updated at most once an hour). You can see this list, and sign any iPhone out, in Settings, Account, on the website or in the app. A sign-in that goes unused for 180 days ends by itself.</li>
     </ul>
 
     <h3>Technical data</h3>
     <ul>
-      <li><strong>Server logs.</strong> Our server writes a line for each request: the time, the type of request, the address requested, the result and how long it took. It does not log your IP address, what you send or receive, or passwords. The address can include your account ID, and the private calendar feed link contains your inbox token, so when a calendar app fetches that link, the token appears in this log.</li>
+      <li><strong>Server logs.</strong> Our server writes a line for each request: the time, the type of request, the address requested, the result and how long it took. It does not log your IP address, what you send or receive, or passwords. The address can include your account ID. Two addresses can carry a secret: the plan feed link, and the inbox address when a tool puts your personal token in it. Our server replaces the secret with “[redacted]” before it writes the line.</li>
       <li><strong>Your time zone.</strong> The app sends your device’s time-zone offset with each request so that “today” means your day. We do not store it.</li>
-      <li><strong>What our hosts see.</strong> Like any website, the companies that host Focus Guild (listed below) receive your IP address and browser or device details when you connect, and may keep their own logs. Our code does not read or store your IP address.</li>
+      <li><strong>What our hosts see.</strong> Like any website, the companies that host Focus Guild (listed below) receive your IP address and browser or device details when you connect, and may keep their own logs. Those logs can include the full address requested, so a plan feed link, or a personal token placed in the inbox address, can appear in them. Our code does not read or store your IP address.</li>
     </ul>
 
     <h2 id="device">2. What stays on your device</h2>
@@ -115,7 +116,7 @@
     </dl>
     <p>Two kinds of company receive data only because you set something up:</p>
     <ul>
-      <li><strong>Your calendar provider</strong> (for example Google, Microsoft or Apple) receives a request from our server for the link you gave us. We send nothing else.</li>
+      <li><strong>Your calendar provider</strong> (for example Google, Microsoft or Apple) receives a request from our server for the link you gave us. We send nothing else. If you give a calendar app your plan feed link, its provider fetches that link and receives your plan.</li>
       <li><strong>An AI provider</strong> receives text only when you use an AI feature. See the next section.</li>
     </ul>
     <p>Apple distributes the iPhone app. Apple’s own privacy policy covers what the App Store collects.</p>
@@ -159,7 +160,8 @@
     <ul>
       <li>All connections to Focus Guild use HTTPS.</li>
       <li>Your AI keys are encrypted before they are stored, and are never sent back to the app or the website.</li>
-      <li>Sign-in tokens for the iPhone app and the inbox token are stored only as hashes, so they cannot be read back from our database.</li>
+      <li>Sign-in tokens for the iPhone app, the personal token and the plan feed link’s token are stored only as hashes, so they cannot be read back from our database.</li>
+      <li>The plan feed link has its own token, which can only read your plan. A link you paste into a calendar app is therefore not a key to your account.</li>
       <li>Calendar links are stored as you gave them, because our server needs them to fetch your calendar. Anyone with such a link can read that calendar, so treat it like a password.</li>
       <li>Only you can see your data. We look at it only to help you when you ask, or when the law requires it.</li>
     </ul>
@@ -177,7 +179,7 @@
 
     <h2 id="delete">9. Deleting your account</h2>
     <p>On the website or in the iPhone app, go to <strong>Settings, Account, Delete account</strong>, and type DELETE to confirm. If you cannot sign in, email us from the address on your account and we will delete it for you.</p>
-    <p>Deleting your account is immediate and cannot be undone. It removes your account and everything in it from our database at once: quests, journal, check-ins, expeditions, your permafile and activity log, calendar connections and their events, AI keys, the inbox token, and every signed-in iPhone. We then ask Clerk to delete your sign-in, including your email address.</p>
+    <p>Deleting your account is immediate and cannot be undone. It removes your account and everything in it from our database at once: quests, journal, check-ins, expeditions, your permafile and activity log, calendar connections and their events, AI keys, the personal token, the plan feed link, and every signed-in iPhone. We then ask Clerk to delete your sign-in, including your email address.</p>
     <!-- OWNER: confirm Neon's restore-history window for the project and, if wanted, state it here. -->
     <p>Our database provider keeps a short recovery history of the database for a limited time, so deleted data can remain in that history until it rolls over. It is not used to run the app. AI providers you sent text to keep it according to their own policies.</p>
 
