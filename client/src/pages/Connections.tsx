@@ -1,24 +1,33 @@
 /**
- * Connections: calendars the planner works around, and the inbox.
+ * Connections: calendars the planner works around, the plan feed, and the inbox.
  *
  * Calendars are ICS subscriptions, no Google or Microsoft sign-in needed. Busy
  * events become fixed blocks on the Guild Feed, so nothing is planned over a
  * lesson or a Teams meeting.
  *
- * The inbox is one URL plus a personal token. Anything that can make a web
+ * The plan feed is the other direction: a private link that shows the plan in
+ * a calendar app. Its token can read the plan and nothing else, because the
+ * link ends up inside other companies' calendars.
+ *
+ * The inbox is one URL plus the personal token. Anything that can make a web
  * request (Power Automate on a Teams mention, a phone shortcut, Zapier) can
- * drop a line into the Parking Lot. The token is shown once; the server keeps
- * only its hash.
+ * drop a line into the Parking Lot. That token opens the whole account, so it
+ * is made, shown and replaced apart from the feed link, and each section says
+ * what its own secret can do. Both are shown once; the server keeps only
+ * their hashes.
  */
 
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { API_URL, api, type CalendarSourceInfo, type IntegrationsState } from '../lib/api';
 import { isNativeApp } from '../native/platform';
+import { planFeedUrl } from '../lib/planFeed';
 import { sfxClick } from '../lib/sfx';
+import { useArmed } from '../lib/useArmed';
+import { OldFeedLinkNotice } from '../components/OldFeedLinkNotice';
 import { useToastStore } from '../components/Toasts';
 import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
-import { ArrowLeft, CalendarDays, ChevronDown, ChevronRight, Clipboard, Inbox, Plug, RefreshCw, Trash2, TriangleAlert } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CalendarDays, ChevronDown, ChevronRight, Clipboard, Inbox, Plug, RefreshCw, Trash2, TriangleAlert } from 'lucide-react';
 
 const muted = { color: 'var(--color-muted)' };
 const card = { borderColor: 'var(--color-border)', background: 'var(--color-surface)' };
@@ -83,7 +92,7 @@ export default function Connections() {
 
       {!state && !error && (
         <div className="flex flex-col gap-3" aria-busy="true">
-          {[0, 1].map((i) => (
+          {[0, 1, 2].map((i) => (
             <div key={i} className="h-40 animate-pulse rounded-(--radius-card)" style={{ background: 'var(--color-surface)' }} />
           ))}
         </div>
@@ -92,6 +101,7 @@ export default function Connections() {
       {state && (
         <>
           <CalendarsSection calendars={state.calendars} onChange={load} fail={fail} />
+          <PlanFeedSection enabled={state.feedEnabled} oldLinkSeenAt={state.oldFeedLinkSeenAt} onChange={load} fail={fail} />
           <InboxSection enabled={state.tokenEnabled} onChange={load} fail={fail} />
         </>
       )}
@@ -291,15 +301,10 @@ function HelpItem({ title, children }: { title: string; children: React.ReactNod
   );
 }
 
-// ─── Inbox ────────────────────────────────────────────────────────────────────
-
-function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange: () => void; fail: Fail }) {
+/** Copy to the clipboard and say so; the page's two secrets share it. */
+function useCopy() {
   const pushToast = useToastStore((s) => s.push);
-  const [token, setToken] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const endpoint = `${API_URL}/inbox`;
-
-  const copy = async (text: string, what: string) => {
+  return async (text: string, what: string) => {
     try {
       await navigator.clipboard.writeText(text);
       sfxClick();
@@ -308,6 +313,133 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
       pushToast({ title: 'Clipboard blocked', sub: 'Select the text and copy it manually', icon: TriangleAlert, variant: 'error' });
     }
   };
+}
+
+// ─── Plan feed ────────────────────────────────────────────────────────────────
+
+/**
+ * The plan as a calendar in another app. The link has a token of its own that
+ * can only read the plan; it is not the personal token below, and replacing
+ * either leaves the other working.
+ */
+function PlanFeedSection({ enabled, oldLinkSeenAt, onChange, fail }: { enabled: boolean; oldLinkSeenAt: string | null; onChange: () => void; fail: Fail }) {
+  const pushToast = useToastStore((s) => s.push);
+  const copy = useCopy();
+  const { armed, fire } = useArmed();
+  const [token, setToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const link = token ? planFeedUrl(API_URL, token) : null;
+
+  const make = async () => {
+    setBusy(true);
+    try {
+      const res = await api.integrations.createFeedToken();
+      setToken(res.token);
+      onChange();
+    } catch (err) {
+      fail('Could not make the link')(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const turnOff = async () => {
+    setBusy(true);
+    try {
+      await api.integrations.revokeFeedToken();
+      setToken(null);
+      onChange();
+      pushToast({ title: 'Plan feed turned off', sub: 'The link no longer shows your plan', icon: CalendarClock, variant: 'xp' });
+    } catch (err) {
+      fail('Could not turn it off')(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div>
+        <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide" style={muted}>
+          <CalendarClock size={15} aria-hidden /> Plan feed
+        </h2>
+        <p className="mt-1 text-xs leading-snug" style={muted}>
+          A private link that shows your plan as a calendar in Google Calendar, Outlook or your phone. Anyone who has
+          the link can read your plan: when each block is, your quest titles and the names of your calendar events.
+          It cannot change anything and it opens nothing else in your Guild. It is separate from your personal token.
+        </p>
+      </div>
+
+      <OldFeedLinkNotice seenAt={oldLinkSeenAt} onConnections />
+
+      <div className="flex flex-col gap-3 rounded-(--radius-card) border p-3" style={card}>
+        <p className="text-sm">
+          Status:{' '}
+          <b style={{ color: enabled ? 'var(--color-green)' : 'var(--color-muted)' }}>{enabled ? 'On' : 'Off'}</b>
+        </p>
+
+        {link && (
+          <div className="flex flex-col gap-2 rounded-lg border p-2.5" style={{ borderColor: 'var(--color-gold)' }}>
+            <p className="text-xs font-semibold" style={{ color: 'var(--color-gold)' }}>
+              Copy the link now. It won't be shown again.
+            </p>
+            <CopyRow label="Plan feed" value={link} onCopy={() => copy(link, 'Plan feed link')} />
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => (enabled ? fire('new-link', make) : make())}
+            disabled={busy}
+            className="flex-1 rounded-lg py-2.5 text-sm font-bold disabled:opacity-40"
+            style={primaryBtn}
+          >
+            {!enabled ? 'Make the link' : armed === 'new-link' ? 'Tap again to replace it' : 'Make a new link'}
+          </button>
+          {enabled && (
+            <button
+              type="button"
+              onClick={() => fire('feed-off', turnOff)}
+              disabled={busy}
+              className="rounded-lg px-4 text-sm font-semibold disabled:opacity-40"
+              style={{ background: 'rgba(255,255,255,0.06)' }}
+            >
+              {armed === 'feed-off' ? 'Tap again to turn off' : 'Turn off'}
+            </button>
+          )}
+        </div>
+        {enabled && !token && (
+          <p className="text-xs" style={muted}>
+            Lost the link? Make a new one. The old link stops at once, so give the new one to your calendar. Your
+            inbox and personal token keep working.
+          </p>
+        )}
+      </div>
+
+      <div className="flex flex-col gap-3 rounded-(--radius-card) border p-3 text-xs leading-relaxed" style={card}>
+        <HelpItem title="See your plan in your own calendar">
+          Subscribe to the link from Google Calendar (Other calendars, then From URL), Outlook (Add calendar, then
+          Subscribe from web) or iPhone (Settings, Calendar, Accounts, Add Subscribed Calendar). Your quest blocks
+          then appear alongside everything else, with that app's reminders. It is one-way: editing an event there
+          changes nothing in the Guild. Google refreshes subscribed feeds slowly, often only every few hours.
+        </HelpItem>
+        <HelpItem title="If the link gets out">
+          Make a new link. The old one stops showing your plan straight away, and nothing else needs changing.
+        </HelpItem>
+      </div>
+    </section>
+  );
+}
+
+// ─── Inbox ────────────────────────────────────────────────────────────────────
+
+function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange: () => void; fail: Fail }) {
+  const pushToast = useToastStore((s) => s.push);
+  const copy = useCopy();
+  const [token, setToken] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const endpoint = `${API_URL}/inbox`;
 
   const create = async () => {
     setBusy(true);
@@ -348,8 +480,13 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
         </h2>
         <p className="mt-1 text-xs leading-snug" style={muted}>
           A private address other apps can send items to. They land in your Stash, not your active list, so
-          capturing something never commits you to it. The same token publishes your plan as a calendar feed and
-          lets the Claude Desktop connector read your Guild.
+          capturing something never commits you to it. It works with your personal token, and so does the Claude
+          Desktop connector.
+        </p>
+        <p className="mt-1.5 text-xs leading-snug" style={muted}>
+          The personal token is a key to your whole Guild. Whoever has it can read and change everything in your
+          account, except deleting it or signing in a new phone. Give it only to tools you run yourself, and keep
+          it out of links. It does not make your plan feed link, and a new token does not change that link.
         </p>
       </div>
 
@@ -366,11 +503,6 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
             </p>
             <CopyRow label="Address" value={endpoint} onCopy={() => copy(endpoint, 'Address')} />
             <CopyRow label="Token" value={token} onCopy={() => copy(token, 'Token')} />
-            <CopyRow
-              label="Plan feed"
-              value={`${API_URL}/calendar/${token}.ics`}
-              onCopy={() => copy(`${API_URL}/calendar/${token}.ics`, 'Plan feed link')}
-            />
             <details className="text-xs">
               <summary className="cursor-pointer font-semibold">Test it from a terminal</summary>
               <pre className="mt-2 overflow-x-auto whitespace-pre rounded-md p-2 font-mono text-[11px]" style={{ background: 'rgba(0,0,0,0.3)' }}>
@@ -392,7 +524,8 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
         </div>
         {enabled && !token && (
           <p className="text-xs" style={muted}>
-            Lost the token? Make a new one. The old one stops working immediately.
+            Lost the token? Make a new one. The old one stops working immediately, in the inbox and the
+            connector. Your plan feed link keeps working.
           </p>
         )}
       </div>
@@ -409,13 +542,6 @@ function InboxSection({ enabled, onChange, fail }: { enabled: boolean; onChange:
         <HelpItem title={isNativeApp ? 'iPhone Shortcuts' : 'iPhone Shortcuts / Android'}>
           Shortcut: Ask for Input → Get Contents of URL (POST, JSON body <code>text</code> = the input, header
           Authorization = Bearer + token). Add it to your home screen or share sheet.
-        </HelpItem>
-        <HelpItem title="See your plan in your own calendar">
-          Subscribe to the <b>plan feed</b> link above from Google Calendar (Other calendars → From URL), Outlook
-          (Add calendar → Subscribe from web) or iPhone (Settings → Calendar → Accounts → Add Subscribed Calendar).
-          Your quest blocks then appear alongside everything else, with that app's reminders. It is one-way: editing
-          an event there changes nothing in the Guild. Google refreshes subscribed feeds slowly, often only every few
-          hours.
         </HelpItem>
         <HelpItem title="Anything else">
           Zapier, Make, IFTTT or a script: POST <code>{'{"text": "…"}'}</code> or plain text to the address with the token.
