@@ -1,0 +1,23 @@
+# The screens the demo build is walked through, in this order, once per look.
+# Read by client/ios/ci/walk-screens.sh (the simulator, on CI) and by
+# client/scripts/shoot-demo.mjs (headless Chrome, on any machine).
+# Columns separated by one tab: a file name stem, the app's path, and an
+# optional third column "timer" (the focus timer's screen, a session running).
+# Lines starting with # and empty lines are skipped.
+01-today	/
+02-route	/feed
+03-quests	/quests
+04-stragglers	/rescue
+05-fuel-check	/checkin
+06-mileage	/stats
+07-trophies	/trophies
+08-expeditions	/tracker
+09-journal	/chronicle
+10-settings	/settings
+11-advanced	/advanced
+12-connections	/connections
+13-quickstart	/advanced/quickstart
+14-your-ai	/advanced/ai
+15-records	/advanced/records
+16-import	/quests/import
+17-timer	/	timer

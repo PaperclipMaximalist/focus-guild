@@ -5,8 +5,12 @@
 # Jobs
 #   build          every push to ios-app, pull requests touching the client, manual runs.
 #                  Builds for the simulator (unsigned), launches the app, screenshots it.
+#                  Then it swaps in the demo web bundle (no recompile) and walks every
+#                  screen in each of the seven looks (client/ios/ci/walk-screens.sh),
+#                  at the sample data's time zone. That walk never fails the job.
 #                  Needs no secrets.
-#   publish-shots  pushes to ios-app only: copies build's screenshots to the ci-shots branch.
+#   publish-shots  pushes to ios-app only: copies build's screenshots (the small JPEGs, the
+#                  store PNGs, the walk summary and console) to the ci-shots branch.
 #   testflight     manual only ("Run workflow", run = testflight): archive, sign, upload.
 #   store-listing  manual only (run = store-listing-text): upload the listing text with
 #                  fastlane deliver. No binary, no review submission.
@@ -66,7 +70,7 @@ jobs:
   build:
     name: Simulator build and launch
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 75
     concurrency:
       group: ios-build-${{ github.ref }}
       cancel-in-progress: true
@@ -106,6 +110,12 @@ jobs:
           -project App.xcodeproj -scheme App
           -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
 
+      # Before the simulator boots: it takes the host's zone when it starts. The
+      # sample data's clock is an evening in Vancouver, and the screen walk
+      # further down shows times in the device's zone.
+      - name: Set the Mac's time zone to the sample data's (America/Vancouver)
+        run: sudo systemsetup -settimezone America/Vancouver || true
+
       - name: Pick an iPhone simulator
         run: bash client/ios/ci/pick-simulator.sh
 
@@ -126,12 +136,41 @@ jobs:
           "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
           "$BUNDLE_ID" "$RUNNER_TEMP/shots"
 
+      - name: Build the demo web bundle (npm run build:demo)
+        working-directory: client
+        run: npm run build:demo
+
+      - name: Put the demo bundle into the built app (no recompile)
+        working-directory: client
+        run: |
+          app="$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          npx cap copy ios
+          # No --delete: whatever the compile put there besides the web bundle
+          # stays. Files of the plain bundle that are left over are never asked for.
+          rsync -a ios/App/App/public/ "$app/public/"
+          if [ ! -f "$app/public/demo-route.json" ]; then
+            echo "::error title=Not a demo build::$app/public/demo-route.json is missing after the copy."
+            exit 1
+          fi
+
+      - name: Walk every screen in each of the seven looks and screenshot it
+        continue-on-error: true
+        timeout-minutes: 40
+        run: >-
+          bash client/ios/ci/walk-screens.sh "$SIM_UDID"
+          "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+          "$BUNDLE_ID" "$RUNNER_TEMP/shots"
+
       - name: Upload screenshots
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v5
         with:
           name: ios-screenshots
-          path: ${{ runner.temp }}/shots/*.png
+          path: |
+            ${{ runner.temp }}/shots/**/*.png
+            ${{ runner.temp }}/shots/**/*.jpg
+            ${{ runner.temp }}/shots/**/*.txt
+            ${{ runner.temp }}/shots/**/*.log
           if-no-files-found: warn
           retention-days: 30
 
@@ -184,14 +223,22 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          shopt -s nullglob
-          pngs=(shots/*.png)
-          if [ ${#pngs[@]} -eq 0 ]; then
+          shopt -s nullglob globstar
+          pics=(shots/**/*.png shots/**/*.jpg)
+          if [ ${#pics[@]} -eq 0 ]; then
             echo "No screenshots were produced; nothing to publish."
             exit 0
           fi
           work="$(mktemp -d)"
-          cp "${pngs[@]}" "$work/"
+          # Everything except screens-png/ (full-size PNGs of every screen: too big for a branch).
+          # The artifact keeps its folder layout, so the paths below are relative to shots/.
+          for f in shots/*.png shots/walk-summary.txt shots/demo-console.log; do
+            [ -f "$f" ] || continue
+            cp "$f" "$work/"
+          done
+          for d in screens store; do
+            if [ -d "shots/$d" ]; then cp -R "shots/$d" "$work/$d"; fi
+          done
           cat > "$work/README.md" <<EOF
           # ci-shots
 
@@ -202,8 +249,26 @@ jobs:
           - Xcode: ${XCODE:-unknown}
           - Build job result: ${BUILD_RESULT}
           - Run: ${RUN_URL}
-          - Files: after-10s.png and after-20s.png (seconds after launch)
+
+          What is here:
+
+          - after-10s.png, after-20s.png: the plain build, seconds after launch.
+          - screens/<look>/<screen>.jpg: every screen of the demo build in each of the seven looks (small JPEGs for review).
+          - store/: full-size PNGs for the App Store listing (01_today ... 07_timer).
+          - walk-summary.txt: how the walk went, one line per screen (also below).
+          - demo-console.log: the app's console during the walk.
+          - The full-size PNGs of every screen (screens-png/) are only in the run's artifact.
           EOF
+          if [ -f shots/walk-summary.txt ]; then
+            {
+              echo
+              echo "Walk summary:"
+              echo
+              printf '%s\n' '```'
+              cat shots/walk-summary.txt
+              printf '%s\n' '```'
+            } >> "$work/README.md"
+          fi
           cd "$work"
           git init -q -b ci-shots
           git config user.name "github-actions[bot]"

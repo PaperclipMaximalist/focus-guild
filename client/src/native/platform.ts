@@ -29,8 +29,13 @@ function devForced(): boolean {
   }
 }
 
-/** True inside the iOS app; false in every browser, including the installed web app. */
-export const isNativeApp: boolean = Capacitor.isNativePlatform() || devForced();
+/**
+ * True inside the iOS app; false in every browser, including the installed web
+ * app. The demo build (VITE_DEMO=1) is the app wherever it runs, so it can be
+ * checked in a desktop browser too.
+ */
+export const isNativeApp: boolean =
+  import.meta.env.VITE_DEMO === '1' || Capacitor.isNativePlatform() || devForced();
 
 /** The website's address: where the app sends people to sign in, and where the public pages (privacy, terms, support) live. */
 export const WEB_URL: string = (import.meta.env.VITE_WEB_URL as string | undefined) || window.location.origin;

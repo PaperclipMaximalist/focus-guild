@@ -1,0 +1,1993 @@
+{
+  "responses": {
+    "GET /users/dev-member-001": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "id": "sample-user",
+          "clerkId": "dev-member-001",
+          "level": 7,
+          "totalXP": 2310,
+          "currentStreak": 12,
+          "multiplier": 1.4,
+          "spinCount": 0,
+          "schedulerSettings": null,
+          "trackerSettings": null,
+          "trackerCodeHighWater": null,
+          "createdAt": "2026-07-11T16:00:00.000Z",
+          "updatedAt": "2026-10-10T00:55:00.000Z"
+        }
+      }
+    },
+    "GET /quests/completed": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": [
+          {
+            "id": "q18",
+            "userId": "sample-user",
+            "title": "Push the build to staging",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-10T00:55:00.000Z",
+            "createdAt": "2026-10-03T16:00:00.000Z",
+            "updatedAt": "2026-10-08T16:00:00.000Z"
+          },
+          {
+            "id": "q17",
+            "userId": "sample-user",
+            "title": "Water the plants",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-09T23:10:00.000Z",
+            "createdAt": "2026-10-03T16:00:00.000Z",
+            "updatedAt": "2026-10-08T16:00:00.000Z"
+          },
+          {
+            "id": "q16",
+            "userId": "sample-user",
+            "title": "Outline the methods section",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-09T21:40:00.000Z",
+            "createdAt": "2026-10-03T16:00:00.000Z",
+            "updatedAt": "2026-10-08T16:00:00.000Z"
+          },
+          {
+            "id": "q15",
+            "userId": "sample-user",
+            "title": "Book the train tickets",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-09T20:05:00.000Z",
+            "createdAt": "2026-10-03T16:00:00.000Z",
+            "updatedAt": "2026-10-08T16:00:00.000Z"
+          },
+          {
+            "id": "c1",
+            "userId": "sample-user",
+            "title": "Email the supervisor the survey plan",
+            "estimatedMinutes": 15,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "comms",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-09T01:30:00.000Z",
+            "createdAt": "2026-10-05T17:00:00.000Z",
+            "updatedAt": "2026-10-09T01:30:00.000Z"
+          },
+          {
+            "id": "c2",
+            "userId": "sample-user",
+            "title": "Clean the data from wave two",
+            "estimatedMinutes": 60,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-08T23:30:00.000Z",
+            "createdAt": "2026-10-05T17:00:00.000Z",
+            "updatedAt": "2026-10-08T23:30:00.000Z"
+          },
+          {
+            "id": "c3",
+            "userId": "sample-user",
+            "title": "Prepare slides for lab meeting",
+            "estimatedMinutes": 75,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-07T21:30:00.000Z",
+            "createdAt": "2026-10-04T17:00:00.000Z",
+            "updatedAt": "2026-10-07T21:30:00.000Z"
+          },
+          {
+            "id": "c4",
+            "userId": "sample-user",
+            "title": "Pick up the prescription",
+            "estimatedMinutes": 20,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "errand",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-07T18:30:00.000Z",
+            "createdAt": "2026-10-04T17:00:00.000Z",
+            "updatedAt": "2026-10-07T18:30:00.000Z"
+          },
+          {
+            "id": "c5",
+            "userId": "sample-user",
+            "title": "Return library books",
+            "estimatedMinutes": 20,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "errand",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-06T21:30:00.000Z",
+            "createdAt": "2026-10-03T17:00:00.000Z",
+            "updatedAt": "2026-10-06T21:30:00.000Z"
+          },
+          {
+            "id": "c7",
+            "userId": "sample-user",
+            "title": "Pay the phone bill",
+            "estimatedMinutes": 10,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "admin",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-05T23:30:00.000Z",
+            "createdAt": "2026-10-02T17:00:00.000Z",
+            "updatedAt": "2026-10-05T23:30:00.000Z"
+          },
+          {
+            "id": "c6",
+            "userId": "sample-user",
+            "title": "Write the literature review summary",
+            "estimatedMinutes": 90,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-05T18:30:00.000Z",
+            "createdAt": "2026-10-02T17:00:00.000Z",
+            "updatedAt": "2026-10-05T18:30:00.000Z"
+          },
+          {
+            "id": "c8",
+            "userId": "sample-user",
+            "title": "Submit the ethics form",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "admin",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-04T21:30:00.000Z",
+            "createdAt": "2026-10-01T17:00:00.000Z",
+            "updatedAt": "2026-10-04T21:30:00.000Z"
+          },
+          {
+            "id": "c10",
+            "userId": "sample-user",
+            "title": "Laundry and fold it",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "chores",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-04T02:30:00.000Z",
+            "createdAt": "2026-09-30T17:00:00.000Z",
+            "updatedAt": "2026-10-04T02:30:00.000Z"
+          },
+          {
+            "id": "c9",
+            "userId": "sample-user",
+            "title": "Code the open survey answers",
+            "estimatedMinutes": 60,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-03T22:30:00.000Z",
+            "createdAt": "2026-09-30T17:00:00.000Z",
+            "updatedAt": "2026-10-03T22:30:00.000Z"
+          },
+          {
+            "id": "c11",
+            "userId": "sample-user",
+            "title": "Print the consent forms",
+            "estimatedMinutes": 15,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "errand",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-02T20:30:00.000Z",
+            "createdAt": "2026-09-29T17:00:00.000Z",
+            "updatedAt": "2026-10-02T20:30:00.000Z"
+          },
+          {
+            "id": "c13",
+            "userId": "sample-user",
+            "title": "Book a study room for Thursday",
+            "estimatedMinutes": 10,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "admin",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-02T00:30:00.000Z",
+            "createdAt": "2026-09-28T17:00:00.000Z",
+            "updatedAt": "2026-10-02T00:30:00.000Z"
+          },
+          {
+            "id": "c12",
+            "userId": "sample-user",
+            "title": "Read the Kim and Ortiz paper",
+            "estimatedMinutes": 45,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-10-01T17:30:00.000Z",
+            "createdAt": "2026-09-28T17:00:00.000Z",
+            "updatedAt": "2026-10-01T17:30:00.000Z"
+          },
+          {
+            "id": "c14",
+            "userId": "sample-user",
+            "title": "Draft the survey reminder email",
+            "estimatedMinutes": 20,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "comms",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-30T22:30:00.000Z",
+            "createdAt": "2026-09-27T17:00:00.000Z",
+            "updatedAt": "2026-09-30T22:30:00.000Z"
+          },
+          {
+            "id": "c15",
+            "userId": "sample-user",
+            "title": "Grocery run",
+            "estimatedMinutes": 40,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "errand",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-29T19:30:00.000Z",
+            "createdAt": "2026-09-26T17:00:00.000Z",
+            "updatedAt": "2026-09-29T19:30:00.000Z"
+          },
+          {
+            "id": "c17",
+            "userId": "sample-user",
+            "title": "Reply to group project chat",
+            "estimatedMinutes": 10,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "comms",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-29T01:30:00.000Z",
+            "createdAt": "2026-09-25T17:00:00.000Z",
+            "updatedAt": "2026-09-29T01:30:00.000Z"
+          },
+          {
+            "id": "c16",
+            "userId": "sample-user",
+            "title": "Make the figure for the pilot results",
+            "estimatedMinutes": 60,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "creative",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-28T21:30:00.000Z",
+            "createdAt": "2026-09-25T17:00:00.000Z",
+            "updatedAt": "2026-09-28T21:30:00.000Z"
+          },
+          {
+            "id": "c18",
+            "userId": "sample-user",
+            "title": "Set up the reference manager",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "admin",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-27T18:30:00.000Z",
+            "createdAt": "2026-09-24T17:00:00.000Z",
+            "updatedAt": "2026-09-27T18:30:00.000Z"
+          },
+          {
+            "id": "c19",
+            "userId": "sample-user",
+            "title": "Finish problem set 4",
+            "estimatedMinutes": 90,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-26T22:30:00.000Z",
+            "createdAt": "2026-09-23T17:00:00.000Z",
+            "updatedAt": "2026-09-26T22:30:00.000Z"
+          },
+          {
+            "id": "c20",
+            "userId": "sample-user",
+            "title": "Revise the research question",
+            "estimatedMinutes": 45,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-24T21:30:00.000Z",
+            "createdAt": "2026-09-21T17:00:00.000Z",
+            "updatedAt": "2026-09-24T21:30:00.000Z"
+          },
+          {
+            "id": "c21",
+            "userId": "sample-user",
+            "title": "Renew the bus pass",
+            "estimatedMinutes": 10,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "admin",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-22T17:30:00.000Z",
+            "createdAt": "2026-09-19T17:00:00.000Z",
+            "updatedAt": "2026-09-22T17:30:00.000Z"
+          },
+          {
+            "id": "c22",
+            "userId": "sample-user",
+            "title": "Write the pilot study summary",
+            "estimatedMinutes": 75,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-20T23:30:00.000Z",
+            "createdAt": "2026-09-17T17:00:00.000Z",
+            "updatedAt": "2026-09-20T23:30:00.000Z"
+          },
+          {
+            "id": "c23",
+            "userId": "sample-user",
+            "title": "Clean out the desk drawer",
+            "estimatedMinutes": 20,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "chores",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-17T20:30:00.000Z",
+            "createdAt": "2026-09-14T17:00:00.000Z",
+            "updatedAt": "2026-09-17T20:30:00.000Z"
+          },
+          {
+            "id": "c24",
+            "userId": "sample-user",
+            "title": "Finish problem set 3",
+            "estimatedMinutes": 90,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-15T22:30:00.000Z",
+            "createdAt": "2026-09-12T17:00:00.000Z",
+            "updatedAt": "2026-09-15T22:30:00.000Z"
+          },
+          {
+            "id": "c25",
+            "userId": "sample-user",
+            "title": "Meet the stats tutor",
+            "estimatedMinutes": 45,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "comms",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-13T18:30:00.000Z",
+            "createdAt": "2026-09-10T17:00:00.000Z",
+            "updatedAt": "2026-09-13T18:30:00.000Z"
+          },
+          {
+            "id": "c26",
+            "userId": "sample-user",
+            "title": "Draft the ethics application",
+            "estimatedMinutes": 120,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-10T21:30:00.000Z",
+            "createdAt": "2026-09-07T17:00:00.000Z",
+            "updatedAt": "2026-09-10T21:30:00.000Z"
+          },
+          {
+            "id": "c27",
+            "userId": "sample-user",
+            "title": "Order the poster paper",
+            "estimatedMinutes": 15,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "errand",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-06T23:30:00.000Z",
+            "createdAt": "2026-09-03T17:00:00.000Z",
+            "updatedAt": "2026-09-06T23:30:00.000Z"
+          },
+          {
+            "id": "c28",
+            "userId": "sample-user",
+            "title": "Finish problem set 2",
+            "estimatedMinutes": 90,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-09-03T19:30:00.000Z",
+            "createdAt": "2026-08-31T17:00:00.000Z",
+            "updatedAt": "2026-09-03T19:30:00.000Z"
+          },
+          {
+            "id": "c29",
+            "userId": "sample-user",
+            "title": "Read the methods chapter of the handbook",
+            "estimatedMinutes": 60,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-08-30T22:30:00.000Z",
+            "createdAt": "2026-08-27T17:00:00.000Z",
+            "updatedAt": "2026-08-30T22:30:00.000Z"
+          },
+          {
+            "id": "c30",
+            "userId": "sample-user",
+            "title": "Sort out the course registration",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "admin",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-08-26T20:30:00.000Z",
+            "createdAt": "2026-08-23T17:00:00.000Z",
+            "updatedAt": "2026-08-26T20:30:00.000Z"
+          },
+          {
+            "id": "c31",
+            "userId": "sample-user",
+            "title": "Finish problem set 1",
+            "estimatedMinutes": 90,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-08-20T21:30:00.000Z",
+            "createdAt": "2026-08-17T17:00:00.000Z",
+            "updatedAt": "2026-08-20T21:30:00.000Z"
+          },
+          {
+            "id": "c32",
+            "userId": "sample-user",
+            "title": "Pick a thesis supervisor",
+            "estimatedMinutes": 30,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "comms",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-08-13T18:30:00.000Z",
+            "createdAt": "2026-08-10T17:00:00.000Z",
+            "updatedAt": "2026-08-13T18:30:00.000Z"
+          },
+          {
+            "id": "c33",
+            "userId": "sample-user",
+            "title": "Write the thesis proposal outline",
+            "estimatedMinutes": 60,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-08-06T23:30:00.000Z",
+            "createdAt": "2026-08-03T17:00:00.000Z",
+            "updatedAt": "2026-08-06T23:30:00.000Z"
+          },
+          {
+            "id": "c34",
+            "userId": "sample-user",
+            "title": "Set up the study planner",
+            "estimatedMinutes": 20,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "admin",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-07-30T19:30:00.000Z",
+            "createdAt": "2026-07-27T17:00:00.000Z",
+            "updatedAt": "2026-07-30T19:30:00.000Z"
+          },
+          {
+            "id": "c35",
+            "userId": "sample-user",
+            "title": "Read the honours handbook",
+            "estimatedMinutes": 45,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "deep_work",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-07-23T22:30:00.000Z",
+            "createdAt": "2026-07-20T17:00:00.000Z",
+            "updatedAt": "2026-07-23T22:30:00.000Z"
+          },
+          {
+            "id": "c36",
+            "userId": "sample-user",
+            "title": "First quest: tidy the desk",
+            "estimatedMinutes": 15,
+            "mentalLoad": 5,
+            "impact": 6,
+            "deadline": null,
+            "status": "COMPLETE",
+            "parentQuestId": null,
+            "tags": [],
+            "tediousness": null,
+            "category": "chores",
+            "preferredHour": null,
+            "minChunkMin": null,
+            "maxChunkMin": null,
+            "setupCost": null,
+            "urgencyMult": 1,
+            "isRecurring": false,
+            "priorityTier": "MED",
+            "actualMinutes": null,
+            "completedAt": "2026-07-16T21:30:00.000Z",
+            "createdAt": "2026-07-13T17:00:00.000Z",
+            "updatedAt": "2026-07-16T21:30:00.000Z"
+          }
+        ]
+      }
+    },
+    "GET /users/dev-member-001/xp-events": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": [
+          {
+            "id": "xp73",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-07-12T22:00:00.000Z"
+          },
+          {
+            "id": "xp74",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-07-19T22:00:00.000Z"
+          },
+          {
+            "id": "xp1",
+            "amount": 25,
+            "reason": "achievement:first-blood",
+            "createdAt": "2026-07-22T01:00:00.000Z"
+          },
+          {
+            "id": "xp75",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-07-26T22:00:00.000Z"
+          },
+          {
+            "id": "xp76",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-08-02T22:00:00.000Z"
+          },
+          {
+            "id": "xp77",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-08-09T22:00:00.000Z"
+          },
+          {
+            "id": "xp78",
+            "amount": 8,
+            "reason": "quest_complete",
+            "createdAt": "2026-08-16T22:00:00.000Z"
+          },
+          {
+            "id": "xp79",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-08-23T22:00:00.000Z"
+          },
+          {
+            "id": "xp2",
+            "amount": 50,
+            "reason": "achievement:dedicated",
+            "createdAt": "2026-08-30T01:00:00.000Z"
+          },
+          {
+            "id": "xp80",
+            "amount": 8,
+            "reason": "quest_complete",
+            "createdAt": "2026-08-30T22:00:00.000Z"
+          },
+          {
+            "id": "xp3",
+            "amount": 75,
+            "reason": "achievement:brain-drain",
+            "createdAt": "2026-09-02T01:00:00.000Z"
+          },
+          {
+            "id": "xp81",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-06T22:00:00.000Z"
+          },
+          {
+            "id": "xp82",
+            "amount": 8,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-13T22:00:00.000Z"
+          },
+          {
+            "id": "xp4",
+            "amount": 120,
+            "reason": "achievement:marathon",
+            "createdAt": "2026-09-14T01:00:00.000Z"
+          },
+          {
+            "id": "xp5",
+            "amount": 60,
+            "reason": "achievement:night-owl",
+            "createdAt": "2026-09-20T01:00:00.000Z"
+          },
+          {
+            "id": "xp83",
+            "amount": 7,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-20T22:00:00.000Z"
+          },
+          {
+            "id": "xp12",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-26T15:10:00.000Z"
+          },
+          {
+            "id": "xp13",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-26T16:10:00.000Z"
+          },
+          {
+            "id": "xp10",
+            "amount": 30,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-26T21:20:00.000Z"
+          },
+          {
+            "id": "xp11",
+            "amount": 45,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-26T23:20:00.000Z"
+          },
+          {
+            "id": "xp15",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-27T15:10:00.000Z"
+          },
+          {
+            "id": "xp16",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-27T16:10:00.000Z"
+          },
+          {
+            "id": "xp17",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-27T17:10:00.000Z"
+          },
+          {
+            "id": "xp14",
+            "amount": 60,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-27T21:20:00.000Z"
+          },
+          {
+            "id": "xp6",
+            "amount": 75,
+            "reason": "achievement:flow-state",
+            "createdAt": "2026-09-28T01:00:00.000Z"
+          },
+          {
+            "id": "xp21",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-28T15:10:00.000Z"
+          },
+          {
+            "id": "xp22",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-28T16:10:00.000Z"
+          },
+          {
+            "id": "xp18",
+            "amount": 25,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-28T21:20:00.000Z"
+          },
+          {
+            "id": "xp19",
+            "amount": 40,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-28T23:20:00.000Z"
+          },
+          {
+            "id": "xp20",
+            "amount": 35,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-29T01:20:00.000Z"
+          },
+          {
+            "id": "xp23",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-29T15:10:00.000Z"
+          },
+          {
+            "id": "xp26",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-30T15:10:00.000Z"
+          },
+          {
+            "id": "xp27",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-30T16:10:00.000Z"
+          },
+          {
+            "id": "xp28",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-09-30T17:10:00.000Z"
+          },
+          {
+            "id": "xp24",
+            "amount": 50,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-30T21:20:00.000Z"
+          },
+          {
+            "id": "xp25",
+            "amount": 30,
+            "reason": "quest_complete",
+            "createdAt": "2026-09-30T23:20:00.000Z"
+          },
+          {
+            "id": "xp31",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-01T15:10:00.000Z"
+          },
+          {
+            "id": "xp32",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-01T16:10:00.000Z"
+          },
+          {
+            "id": "xp33",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-01T17:10:00.000Z"
+          },
+          {
+            "id": "xp29",
+            "amount": 70,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-01T21:20:00.000Z"
+          },
+          {
+            "id": "xp30",
+            "amount": 20,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-01T23:20:00.000Z"
+          },
+          {
+            "id": "xp7",
+            "amount": 100,
+            "reason": "achievement:early-bird",
+            "createdAt": "2026-10-02T01:00:00.000Z"
+          },
+          {
+            "id": "xp35",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-02T15:10:00.000Z"
+          },
+          {
+            "id": "xp36",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-02T16:10:00.000Z"
+          },
+          {
+            "id": "xp34",
+            "amount": 45,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-02T21:20:00.000Z"
+          },
+          {
+            "id": "xp40",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-03T15:10:00.000Z"
+          },
+          {
+            "id": "xp41",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-03T16:10:00.000Z"
+          },
+          {
+            "id": "xp42",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-03T17:10:00.000Z"
+          },
+          {
+            "id": "xp37",
+            "amount": 55,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-03T21:20:00.000Z"
+          },
+          {
+            "id": "xp38",
+            "amount": 35,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-03T23:20:00.000Z"
+          },
+          {
+            "id": "xp39",
+            "amount": 25,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-04T01:20:00.000Z"
+          },
+          {
+            "id": "xp43",
+            "amount": 15,
+            "reason": "hours_logged",
+            "createdAt": "2026-10-04T03:30:00.000Z"
+          },
+          {
+            "id": "xp45",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-04T15:10:00.000Z"
+          },
+          {
+            "id": "xp44",
+            "amount": 40,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-04T21:20:00.000Z"
+          },
+          {
+            "id": "xp8",
+            "amount": 100,
+            "reason": "achievement:week-warrior",
+            "createdAt": "2026-10-05T01:00:00.000Z"
+          },
+          {
+            "id": "xp48",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-05T15:10:00.000Z"
+          },
+          {
+            "id": "xp49",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-05T16:10:00.000Z"
+          },
+          {
+            "id": "xp50",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-05T17:10:00.000Z"
+          },
+          {
+            "id": "xp46",
+            "amount": 65,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-05T21:20:00.000Z"
+          },
+          {
+            "id": "xp47",
+            "amount": 30,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-05T23:20:00.000Z"
+          },
+          {
+            "id": "xp53",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-06T15:10:00.000Z"
+          },
+          {
+            "id": "xp54",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-06T16:10:00.000Z"
+          },
+          {
+            "id": "xp51",
+            "amount": 35,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-06T21:20:00.000Z"
+          },
+          {
+            "id": "xp52",
+            "amount": 50,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-06T23:20:00.000Z"
+          },
+          {
+            "id": "xp9",
+            "amount": 125,
+            "reason": "achievement:rescue-ranger",
+            "createdAt": "2026-10-07T01:00:00.000Z"
+          },
+          {
+            "id": "xp57",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-07T15:10:00.000Z"
+          },
+          {
+            "id": "xp58",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-07T16:10:00.000Z"
+          },
+          {
+            "id": "xp59",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-07T17:10:00.000Z"
+          },
+          {
+            "id": "xp55",
+            "amount": 80,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-07T21:20:00.000Z"
+          },
+          {
+            "id": "xp56",
+            "amount": 25,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-07T23:20:00.000Z"
+          },
+          {
+            "id": "xp63",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-08T15:10:00.000Z"
+          },
+          {
+            "id": "xp64",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-08T16:10:00.000Z"
+          },
+          {
+            "id": "xp65",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-08T17:10:00.000Z"
+          },
+          {
+            "id": "xp60",
+            "amount": 45,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-08T21:20:00.000Z"
+          },
+          {
+            "id": "xp61",
+            "amount": 40,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-08T23:20:00.000Z"
+          },
+          {
+            "id": "xp62",
+            "amount": 30,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-09T01:20:00.000Z"
+          },
+          {
+            "id": "xp70",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-09T15:10:00.000Z"
+          },
+          {
+            "id": "xp71",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-09T16:10:00.000Z"
+          },
+          {
+            "id": "xp72",
+            "amount": 10,
+            "reason": "recurring_complete",
+            "createdAt": "2026-10-09T17:10:00.000Z"
+          },
+          {
+            "id": "xp66",
+            "amount": 20,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-09T20:05:00.000Z"
+          },
+          {
+            "id": "xp67",
+            "amount": 60,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-09T21:40:00.000Z"
+          },
+          {
+            "id": "xp68",
+            "amount": 15,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-09T23:10:00.000Z"
+          },
+          {
+            "id": "xp69",
+            "amount": 45,
+            "reason": "quest_complete",
+            "createdAt": "2026-10-10T00:55:00.000Z"
+          }
+        ]
+      }
+    },
+    "GET /chronicle/journal": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "entries": [
+            {
+              "id": "j1",
+              "at": "2026-10-10T01:50:00.000Z",
+              "kind": "note",
+              "text": "Methods outline is finally done. The draft feels less scary now that it has headings.",
+              "rating": 4,
+              "minutes": null,
+              "questId": null,
+              "questTitle": null
+            },
+            {
+              "id": "j2",
+              "at": "2026-10-09T19:15:00.000Z",
+              "kind": "hours",
+              "text": "Scales, then the first page of the nocturne. Left hand still lags.",
+              "rating": null,
+              "minutes": 40,
+              "questId": "h1",
+              "questTitle": "Piano practice"
+            },
+            {
+              "id": "j3",
+              "at": "2026-10-09T04:30:00.000Z",
+              "kind": "note",
+              "text": "Stats reading took twice as long as I planned. Chapter 6 is dense. Splitting it in two tomorrow.",
+              "rating": 3,
+              "minutes": null,
+              "questId": null,
+              "questTitle": null
+            },
+            {
+              "id": "j4",
+              "at": "2026-10-08T00:05:00.000Z",
+              "kind": "note",
+              "text": "Good lab meeting. Got the go-ahead to drop the third survey wave, which frees up a whole week.",
+              "rating": null,
+              "minutes": null,
+              "questId": null,
+              "questTitle": null
+            },
+            {
+              "id": "j5",
+              "at": "2026-10-07T05:10:00.000Z",
+              "kind": "note",
+              "text": "Low energy day. Did the small stuff and let the poster wait. That was the right call.",
+              "rating": 2,
+              "minutes": null,
+              "questId": null,
+              "questTitle": null
+            },
+            {
+              "id": "j6",
+              "at": "2026-10-06T02:40:00.000Z",
+              "kind": "note",
+              "text": "Two focus blocks before lunch, no phone. Best morning in a while.",
+              "rating": 5,
+              "minutes": null,
+              "questId": null,
+              "questTitle": null
+            },
+            {
+              "id": "j7",
+              "at": "2026-10-04T23:25:00.000Z",
+              "kind": "note",
+              "text": "Note to self: the landlord wants an answer by Friday. Do not let it slide again.",
+              "rating": null,
+              "minutes": null,
+              "questId": null,
+              "questTitle": null
+            },
+            {
+              "id": "j8",
+              "at": "2026-10-04T03:00:00.000Z",
+              "kind": "note",
+              "text": "Hike planning can wait until the thesis chapter is in. Parked it.",
+              "rating": 4,
+              "minutes": null,
+              "questId": null,
+              "questTitle": null
+            }
+          ],
+          "hasMore": false
+        }
+      }
+    },
+    "GET /chronicle/log": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": [
+          {
+            "id": "a1",
+            "at": "2026-10-10T01:50:00.000Z",
+            "kind": "journal",
+            "line": "Journal (mood 4/5): Methods outline is finally done. The draft feels less scary now that it has headings.",
+            "subjectId": null
+          },
+          {
+            "id": "a2",
+            "at": "2026-10-10T00:55:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Push the build to staging\" (+45 XP, streak 12)",
+            "subjectId": null
+          },
+          {
+            "id": "a3",
+            "at": "2026-10-09T23:10:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Water the plants\" (+15 XP, streak 12)",
+            "subjectId": null
+          },
+          {
+            "id": "a4",
+            "at": "2026-10-09T21:40:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Outline the methods section\" in 55 min (+60 XP, streak 12)",
+            "subjectId": null
+          },
+          {
+            "id": "a5",
+            "at": "2026-10-09T20:05:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Book the train tickets\" (+20 XP, streak 12)",
+            "subjectId": null
+          },
+          {
+            "id": "a6",
+            "at": "2026-10-09T19:15:00.000Z",
+            "kind": "quest.hours",
+            "line": "Logged 40m on \"Piano practice\": Scales, then the first page of the nocturne. Left hand still lags.",
+            "subjectId": null
+          },
+          {
+            "id": "a7",
+            "at": "2026-10-09T17:10:00.000Z",
+            "kind": "quest.daily",
+            "line": "Did daily quest \"Twenty minutes of Spanish\" (+10 XP)",
+            "subjectId": null
+          },
+          {
+            "id": "a8",
+            "at": "2026-10-09T16:10:00.000Z",
+            "kind": "quest.daily",
+            "line": "Did daily quest \"Clear the inbox to zero\" (+10 XP)",
+            "subjectId": null
+          },
+          {
+            "id": "a9",
+            "at": "2026-10-09T16:05:00.000Z",
+            "kind": "checkin",
+            "line": "Checked in: energy 4, 300 min available",
+            "subjectId": null
+          },
+          {
+            "id": "a10",
+            "at": "2026-10-09T15:10:00.000Z",
+            "kind": "quest.daily",
+            "line": "Did daily quest \"Stretch for ten minutes\" (+10 XP)",
+            "subjectId": null
+          },
+          {
+            "id": "a11",
+            "at": "2026-10-09T04:30:00.000Z",
+            "kind": "journal",
+            "line": "Journal (mood 3/5): Stats reading took twice as long as I planned. Chapter 6 is dense. Splitting it in two tomorrow.",
+            "subjectId": null
+          },
+          {
+            "id": "a12",
+            "at": "2026-10-09T01:20:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Email the supervisor the survey plan\" (+30 XP, streak 11)",
+            "subjectId": null
+          },
+          {
+            "id": "a13",
+            "at": "2026-10-08T23:20:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Clean the data from wave two\" in 70 min (+40 XP, streak 11)",
+            "subjectId": null
+          },
+          {
+            "id": "a14",
+            "at": "2026-10-08T21:00:00.000Z",
+            "kind": "quest.created",
+            "line": "Added quest \"Read chapter 6 of the statistics text\" (60 min)",
+            "subjectId": null
+          },
+          {
+            "id": "a15",
+            "at": "2026-10-08T16:00:00.000Z",
+            "kind": "checkin",
+            "line": "Checked in: energy 3, 240 min available",
+            "subjectId": null
+          },
+          {
+            "id": "a16",
+            "at": "2026-10-08T00:05:00.000Z",
+            "kind": "journal",
+            "line": "Journal: Good lab meeting. Got the go-ahead to drop the third survey wave, which frees up a whole week.",
+            "subjectId": null
+          },
+          {
+            "id": "a17",
+            "at": "2026-10-07T23:40:00.000Z",
+            "kind": "decision",
+            "line": "Decided: Drop the third survey wave; two waves are enough for the thesis.",
+            "subjectId": null
+          },
+          {
+            "id": "a18",
+            "at": "2026-10-07T21:20:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Prepare slides for lab meeting\" (+80 XP, streak 10)",
+            "subjectId": null
+          },
+          {
+            "id": "a19",
+            "at": "2026-10-07T05:10:00.000Z",
+            "kind": "journal",
+            "line": "Journal (mood 2/5): Low energy day. Did the small stuff and let the poster wait. That was the right call.",
+            "subjectId": null
+          },
+          {
+            "id": "a20",
+            "at": "2026-10-06T22:00:00.000Z",
+            "kind": "quest.not_today",
+            "line": "Deferred quest \"Sketch three poster ideas\" to tomorrow",
+            "subjectId": null
+          },
+          {
+            "id": "a21",
+            "at": "2026-10-06T21:20:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Return library books\" (+35 XP, streak 9)",
+            "subjectId": null
+          },
+          {
+            "id": "a22",
+            "at": "2026-10-06T02:40:00.000Z",
+            "kind": "journal",
+            "line": "Journal (mood 5/5): Two focus blocks before lunch, no phone. Best morning in a while.",
+            "subjectId": null
+          },
+          {
+            "id": "a23",
+            "at": "2026-10-05T18:50:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Write the literature review summary\" in 95 min (+65 XP, streak 8)",
+            "subjectId": null
+          },
+          {
+            "id": "a24",
+            "at": "2026-10-04T23:25:00.000Z",
+            "kind": "journal",
+            "line": "Journal: Note to self: the landlord wants an answer by Friday. Do not let it slide again.",
+            "subjectId": null
+          },
+          {
+            "id": "a25",
+            "at": "2026-10-04T21:20:00.000Z",
+            "kind": "quest.completed",
+            "line": "Completed quest \"Submit the ethics form\" (+40 XP, streak 7)",
+            "subjectId": null
+          },
+          {
+            "id": "a26",
+            "at": "2026-10-04T17:00:00.000Z",
+            "kind": "calendar.added",
+            "line": "Connected calendar \"School timetable\"",
+            "subjectId": null
+          },
+          {
+            "id": "a27",
+            "at": "2026-10-04T03:00:00.000Z",
+            "kind": "parking.added",
+            "line": "Parked an idea: Plan the weekend hike once the chapter is in",
+            "subjectId": null
+          }
+        ]
+      }
+    },
+    "GET /chronicle/permafile": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "body": "# Permafile\n\nThe slow-changing truth about me. An AI reads this before anything else.\n\n## Who I am\n- Year / program: final year, psychology, writing an honours thesis\n- How my ADHD shows up: time blindness, and starting is the hard part, not finishing\n- When I work best: mornings before lunch, phone in the other room\n\n## This season\n- What this term is about: get the thesis draft in by mid November\n- What a good week looks like: three deep blocks on the thesis, the small stuff done on time\n\n## Standing commitments\n- Lab meeting Wednesdays at 2\n- Piano lesson Saturdays\n\n## Rules for me\n- Three fronts at most. Let go rather than carry.\n- Every active item has a physical first step.\n\n## Rules for the AI\n- No guilt, no lectures. Plain and kind.\n- Suggest at most three actions, each with a physical first step.\n- Ask before assuming something is dropped.\n",
+          "isTemplate": false,
+          "versions": [
+            {
+              "id": "pf2",
+              "source": "edit",
+              "createdAt": "2026-10-04T18:00:00.000Z",
+              "chars": 861
+            },
+            {
+              "id": "pf1",
+              "source": "edit",
+              "createdAt": "2026-09-07T19:30:00.000Z",
+              "chars": 741
+            }
+          ]
+        }
+      }
+    },
+    "GET /chronicle/bundle": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "markdown": "# Focus Guild context bundle\n\nGenerated 2026-10-10T02:40:00.000Z. Three sections: my permafile (who I am and the rules), my tracker (what I am committed to), and my chronicle for the last 7 days (what actually happened). Read all three before answering. Follow the \"Rules for the AI\" in the permafile.\n\n## 1. Permafile\n\n### Permafile\n\nThe slow-changing truth about me. An AI reads this before anything else.\n\n#### Who I am\n- Year / program: final year, psychology, writing an honours thesis\n- How my ADHD shows up: time blindness, and starting is the hard part, not finishing\n- When I work best: mornings before lunch, phone in the other room\n\n#### This season\n- What this term is about: get the thesis draft in by mid November\n- What a good week looks like: three deep blocks on the thesis, the small stuff done on time\n\n#### Standing commitments\n- Lab meeting Wednesdays at 2\n- Piano lesson Saturdays\n\n#### Rules for me\n- Three fronts at most. Let go rather than carry.\n- Every active item has a physical first step.\n\n#### Rules for the AI\n- No guilt, no lectures. Plain and kind.\n- Suggest at most three actions, each with a physical first step.\n- Ask before assuming something is dropped.\n\n## 2. Tracker\n\n### Thesis\n- EX-01 Finish the thesis draft (Underway). Next: Write the methods section, first two paragraphs\n\n### Studio\n- EX-02 Spring poster series (Underway). Next: Sketch three poster ideas on paper\n\n## 3. Chronicle (last 7 days)\n\n- 2026-10-10 01:50 Journal (mood 4/5): Methods outline is finally done. The draft feels less scary now that it has headings.\n- 2026-10-10 00:55 Completed quest \"Push the build to staging\" (+45 XP, streak 12)\n- 2026-10-09 23:10 Completed quest \"Water the plants\" (+15 XP, streak 12)\n- 2026-10-09 21:40 Completed quest \"Outline the methods section\" in 55 min (+60 XP, streak 12)\n- 2026-10-09 20:05 Completed quest \"Book the train tickets\" (+20 XP, streak 12)\n- 2026-10-09 19:15 Logged 40m on \"Piano practice\": Scales, then the first page of the nocturne. Left hand still lags.\n- 2026-10-09 17:10 Did daily quest \"Twenty minutes of Spanish\" (+10 XP)\n- 2026-10-09 16:10 Did daily quest \"Clear the inbox to zero\" (+10 XP)\n- 2026-10-09 16:05 Checked in: energy 4, 300 min available\n- 2026-10-09 15:10 Did daily quest \"Stretch for ten minutes\" (+10 XP)\n- 2026-10-09 04:30 Journal (mood 3/5): Stats reading took twice as long as I planned. Chapter 6 is dense. Splitting it in two tomorrow.\n- 2026-10-09 01:20 Completed quest \"Email the supervisor the survey plan\" (+30 XP, streak 11)\n- 2026-10-08 23:20 Completed quest \"Clean the data from wave two\" in 70 min (+40 XP, streak 11)\n- 2026-10-08 21:00 Added quest \"Read chapter 6 of the statistics text\" (60 min)\n- 2026-10-08 16:00 Checked in: energy 3, 240 min available\n- 2026-10-08 00:05 Journal: Good lab meeting. Got the go-ahead to drop the third survey wave, which frees up a whole week.\n- 2026-10-07 23:40 Decided: Drop the third survey wave; two waves are enough for the thesis.\n- 2026-10-07 21:20 Completed quest \"Prepare slides for lab meeting\" (+80 XP, streak 10)\n- 2026-10-07 05:10 Journal (mood 2/5): Low energy day. Did the small stuff and let the poster wait. That was the right call.\n- 2026-10-06 22:00 Deferred quest \"Sketch three poster ideas\" to tomorrow\n- 2026-10-06 21:20 Completed quest \"Return library books\" (+35 XP, streak 9)\n- 2026-10-06 02:40 Journal (mood 5/5): Two focus blocks before lunch, no phone. Best morning in a while.\n- 2026-10-05 18:50 Completed quest \"Write the literature review summary\" in 95 min (+65 XP, streak 8)\n- 2026-10-04 23:25 Journal: Note to self: the landlord wants an answer by Friday. Do not let it slide again.\n- 2026-10-04 21:20 Completed quest \"Submit the ethics form\" (+40 XP, streak 7)\n- 2026-10-04 17:00 Connected calendar \"School timetable\"\n- 2026-10-04 03:00 Parked an idea: Plan the weekend hike once the chapter is in\n",
+          "chars": 3867,
+          "entries": 27
+        }
+      }
+    },
+    "GET /integrations": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "calendars": [
+            {
+              "id": "cal1",
+              "name": "School timetable",
+              "host": "calendar.google.com/…ic.ics",
+              "lastSyncAt": "2026-10-10T02:15:00.000Z",
+              "lastError": null,
+              "eventCount": 14
+            }
+          ],
+          "tokenEnabled": true,
+          "feedEnabled": true,
+          "oldFeedLinkSeenAt": null
+        }
+      }
+    },
+    "GET /ai": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": {
+          "providers": [
+            {
+              "id": "anthropic",
+              "name": "Claude",
+              "company": "Anthropic",
+              "tagline": "Anthropic",
+              "keyUrl": "https://console.anthropic.com/settings/keys",
+              "note": "A Claude Pro or Max plan does not include API use; the API has its own billing.",
+              "needsBaseUrl": false
+            },
+            {
+              "id": "openai",
+              "name": "ChatGPT",
+              "company": "OpenAI",
+              "tagline": "OpenAI",
+              "keyUrl": "https://platform.openai.com/api-keys",
+              "note": "A ChatGPT Plus plan does not include API use; the API has its own billing.",
+              "needsBaseUrl": false
+            },
+            {
+              "id": "google",
+              "name": "Gemini",
+              "company": "Google",
+              "tagline": "Google",
+              "keyUrl": "https://aistudio.google.com/apikey",
+              "note": "A key from Google AI Studio. It has a free tier.",
+              "needsBaseUrl": false
+            },
+            {
+              "id": "xai",
+              "name": "Grok",
+              "company": "xAI",
+              "tagline": "xAI",
+              "keyUrl": "https://console.x.ai",
+              "note": "A key from the xAI console.",
+              "needsBaseUrl": false
+            },
+            {
+              "id": "mistral",
+              "name": "Mistral",
+              "company": "Mistral AI",
+              "tagline": "Mistral Large and the rest of La Plateforme",
+              "keyUrl": "https://console.mistral.ai/api-keys",
+              "note": "A key from La Plateforme.",
+              "needsBaseUrl": false
+            },
+            {
+              "id": "deepseek",
+              "name": "DeepSeek",
+              "company": "DeepSeek",
+              "tagline": "DeepSeek chat and reasoner",
+              "keyUrl": "https://platform.deepseek.com/api_keys",
+              "note": "A key from the DeepSeek platform.",
+              "needsBaseUrl": false
+            },
+            {
+              "id": "openrouter",
+              "name": "OpenRouter",
+              "company": "OpenRouter",
+              "tagline": "One key for many makers’ models",
+              "keyUrl": "https://openrouter.ai/keys",
+              "note": "One key for models from many makers, billed in one place.",
+              "needsBaseUrl": false
+            },
+            {
+              "id": "custom",
+              "name": "Another provider",
+              "company": "the provider",
+              "tagline": "Any service that speaks the OpenAI API",
+              "keyUrl": "",
+              "note": "Anything that speaks the OpenAI chat API: give its address and a key.",
+              "needsBaseUrl": true
+            }
+          ],
+          "connections": [
+            {
+              "provider": "anthropic",
+              "model": "claude-opus-5-5",
+              "keyHint": "q7Rk",
+              "baseUrl": null,
+              "inUse": true,
+              "lastUsedAt": "2026-10-09T04:40:00.000Z",
+              "lastError": null,
+              "createdAt": "2026-09-18T17:30:00.000Z"
+            }
+          ],
+          "builtIn": null,
+          "inUse": "Claude · claude-opus-5-5"
+        }
+      }
+    },
+    "GET /devices": {
+      "status": 200,
+      "body": {
+        "success": true,
+        "data": [
+          {
+            "id": "dev1",
+            "name": "iPhone",
+            "createdAt": "2026-09-12T18:00:00.000Z",
+            "lastUsedAt": "2026-10-10T02:38:00.000Z",
+            "current": true
+          }
+        ]
+      }
+    }
+  }
+}

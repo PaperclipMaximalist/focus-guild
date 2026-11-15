@@ -1,3 +1,5 @@
+// First, before any other module runs: the demo build's clock and sample data (a no-op elsewhere).
+import './demo/boot'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/clerk-react'
@@ -8,6 +10,7 @@ import { isNativeApp } from './native/platform'
 import { forgetSessionOnFirstLaunch, startNativeAuth } from './native/auth'
 import { startShell } from './native/shell'
 import { applyDevInsets } from './native/insets'
+import { startDemoAuth, startDemoDriver } from './demo'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined
 
@@ -48,12 +51,16 @@ if (isNativeApp) {
   // Then sign-in, in this order: a fresh install forgets any session the
   // Keychain kept from a deleted one, and only then is the Keychain read.
   // App shows "Opening the guild…" until it has answered.
-  void forgetSessionOnFirstLaunch().then(startNativeAuth)
+  // The demo build is signed in as the sample member instead, Keychain untouched.
+  if (import.meta.env.VITE_DEMO === '1') startDemoAuth()
+  else void forgetSessionOnFirstLaunch().then(startNativeAuth)
 }
 
 // The chosen line's colours are in place before anything is painted.
 initLine().finally(() => {
   createRoot(document.getElementById('root')!).render(<StrictMode>{Root}</StrictMode>)
+  // The demo build listens for the next screen to show (/demo-route.json).
+  if (import.meta.env.VITE_DEMO === '1') void startDemoDriver()
 })
 
 // Service worker: offline shell + cached build assets (public/sw.js).
