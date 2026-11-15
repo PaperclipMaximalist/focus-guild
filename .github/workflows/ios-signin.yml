@@ -1,0 +1,233 @@
+# The iPhone app's sign-in, seen working: one real sign-in in the simulator.
+#
+# On one Mac runner: a throwaway database (ci/throwaway), the API in dev auth
+# on it, and a production build of the website in dev auth, all on 127.0.0.1.
+# The app is built with client/.env.ios-ci (API and website on 127.0.0.1) and
+# Maestro presses Sign in, Connect this iPhone in the browser sheet, and checks
+# the app comes back signed in and stays signed in after a relaunch. The
+# server's side is checked too: one device listed, and the code and token
+# requests in its log.
+#
+# Jobs
+#   signin          does all of that; client/ios/ci/signin/run.sh holds the logic.
+#   publish-signin  pushes to ios-app only: force-pushes the evidence (screenshots,
+#                   logs, summary) as one orphan commit to the branch ci-signin,
+#                   which anyone can read without a GitHub login.
+#
+# Step names are written to be read from the public API without logs
+# (GET /repos/{owner}/{repo}/actions/runs/{id}/jobs). Needs no secrets.
+
+name: iOS sign-in
+
+on:
+  push:
+    branches: [ios-app]
+    paths:
+      - 'client/**'
+      - 'server/**'
+      - 'ci/**'
+      - '.github/workflows/ios-signin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BUNDLE_ID: com.focusguild.app
+  # Empty = newest stable Xcode 26+ on the image (client/ios/ci/select-xcode.sh).
+  XCODE_VERSION: ''
+  NODE_VERSION: '22'
+  # Pinned; see client/ios/ci/signin/run.sh install-maestro.
+  MAESTRO_VERSION: '2.12.1'
+  # The ports client/.env.ios-ci bakes into the app.
+  DB_PORT: '54329'
+  API_PORT: '3000'
+  WEB_PORT: '5173'
+
+jobs:
+  signin:
+    name: Sign in on the simulator against a local server
+    runs-on: macos-26
+    timeout-minutes: 75
+    concurrency:
+      group: ios-signin-${{ github.ref }}
+      cancel-in-progress: true
+    outputs:
+      xcode: ${{ steps.xcode.outputs.version }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      WORK: ${{ runner.temp }}/signin
+      EVIDENCE: ${{ runner.temp }}/signin/evidence
+      WEB_DIST: ${{ runner.temp }}/signin/website
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Select Xcode 26 or later
+        id: xcode
+        run: bash client/ios/ci/select-xcode.sh
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            server/package-lock.json
+            ci/throwaway/package-lock.json
+
+      - name: Set up Java 17 for Maestro
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Maestro 2.12.1 (pinned, checksum checked)
+        run: bash client/ios/ci/signin/run.sh install-maestro
+
+      - name: Install server dependencies (npm ci, generates the Prisma client)
+        working-directory: server
+        run: npm ci
+
+      - name: Install the throwaway database kit (npm ci in ci/throwaway)
+        working-directory: ci/throwaway
+        run: npm ci
+
+      - name: Install client dependencies (npm ci)
+        working-directory: client
+        run: npm ci
+
+      - name: Build the website in dev auth into its own folder (not client/dist)
+        run: bash client/ios/ci/signin/run.sh build-website
+
+      - name: Start the throwaway database, the API and the website on 127.0.0.1
+        run: bash client/ios/ci/signin/run.sh start-services
+
+      - name: Build the app with the CI-only addresses (npm run build:ios:ci)
+        working-directory: client
+        run: npm run build:ios:ci
+
+      - name: CI only, never committed - allow plain HTTP to 127.0.0.1 in the app's Info.plist
+        run: >-
+          /usr/libexec/PlistBuddy
+          -c "Add :NSAppTransportSecurity dict"
+          -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true"
+          client/ios/App/App/Info.plist
+
+      - name: Resolve Swift packages
+        working-directory: client/ios/App
+        run: >-
+          bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/resolve-packages.log"
+          -resolvePackageDependencies
+          -project App.xcodeproj -scheme App
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
+
+      - name: Pick an iPhone simulator
+        run: bash client/ios/ci/pick-simulator.sh
+
+      - name: Compile the app for the simulator (unsigned)
+        working-directory: client/ios/App
+        run: >-
+          bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/xcodebuild-simulator.log"
+          build
+          -project App.xcodeproj -scheme App -configuration Debug
+          -destination "id=$SIM_UDID"
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
+          CODE_SIGNING_ALLOWED=NO
+
+      - name: Boot the simulator and install the app
+        run: >-
+          bash client/ios/ci/signin/run.sh boot-and-install "$SIM_UDID"
+          "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
+
+      - name: Drive one real sign-in with Maestro (Sign in, Connect, signed in, relaunch)
+        id: flow
+        timeout-minutes: 25
+        run: bash client/ios/ci/signin/run.sh run-flow "$SIM_UDID"
+
+      - name: Check the server saw the sign-in (one device, code and token requests)
+        if: ${{ !cancelled() }}
+        run: bash client/ios/ci/signin/run.sh check-server
+
+      - name: Collect screenshots and logs for the ci-signin branch
+        if: ${{ !cancelled() }}
+        env:
+          XCODE: ${{ steps.xcode.outputs.version }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: bash client/ios/ci/signin/run.sh collect "${SIM_UDID:-}"
+
+      - name: Upload the evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-signin-evidence
+          path: ${{ runner.temp }}/signin/evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Upload the xcodebuild logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-signin-build-logs
+          path: ${{ runner.temp }}/logs/
+          if-no-files-found: ignore
+          retention-days: 30
+
+      - name: Stop the website, the API and the database
+        if: ${{ always() }}
+        run: bash client/ios/ci/signin/run.sh stop-services
+
+  # The reviewers of these runs cannot sign in to GitHub, and artifacts need a
+  # signed-in user to download; a branch can be read by an anonymous `git fetch`.
+  # So, on pushes to ios-app only, the evidence is force-pushed as one orphan
+  # commit to ci-signin (no history kept), also when the sign-in failed.
+  # Never on pull requests (this workflow does not run on them): a fork must not
+  # get a token that can write. Same pattern as publish-shots in ios.yml.
+  publish-signin:
+    name: Publish the sign-in evidence to the ci-signin branch
+    needs: signin
+    if: ${{ !cancelled() && github.event_name == 'push' && github.ref == 'refs/heads/ios-app' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Download the evidence from the sign-in job
+        id: download
+        continue-on-error: true
+        uses: actions/download-artifact@v5
+        with:
+          name: ios-signin-evidence
+          path: evidence
+
+      - name: Force-push the evidence as one commit to ci-signin
+        if: ${{ steps.download.outcome == 'success' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SOURCE_SHA: ${{ github.sha }}
+          SIGNIN_RESULT: ${{ needs.signin.result }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(ls -A evidence 2>/dev/null)" ]; then
+            echo "The sign-in job produced no evidence; nothing to publish."
+            exit 0
+          fi
+          # The job's overall result, next to run.sh's own README.
+          echo "Sign-in job result: ${SIGNIN_RESULT}" >> evidence/signin-summary.txt
+          cd evidence
+          git init -q -b ci-signin
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "iOS sign-in evidence for ${SOURCE_SHA} (job ${SIGNIN_RESULT})"
+          git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" ci-signin:ci-signin
+          echo "::notice title=Published::Sign-in evidence for ${SOURCE_SHA} is on the ci-signin branch (job ${SIGNIN_RESULT})."
