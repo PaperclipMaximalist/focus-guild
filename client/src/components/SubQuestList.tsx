@@ -25,7 +25,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { MAX_QUEST_DEPTH, api, type Quest, type QuestNode, type QuestRollup } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 import { useArmed } from '../lib/useArmed';
 import { formatMinutes } from '../lib/formatters';
 import { Check, ChevronDown, ChevronRight, CornerDownRight, Plus, Star, TriangleAlert, X } from 'lucide-react';
@@ -60,16 +60,18 @@ export function SubQuestList({ quest, onChanged, reloadKey = 0 }: Props) {
   const [ticked, setTicked] = useState<Set<string>>(new Set());
   const [gone, setGone] = useState<Set<string>>(new Set());
 
-  const load = useCallback(async () => {
-    try {
-      const fetched = await api.quests.subquests(quest.id);
-      setTree(fetched.subQuests);
-      setRollup(fetched.rollup);
-      setFailed(false);
-    } catch {
-      setFailed(true);
-    }
-  }, [quest.id]);
+  const load = useCallback(
+    () =>
+      api.quests.subquests(quest.id).then(
+        (fetched) => {
+          setTree(fetched.subQuests);
+          setRollup(fetched.rollup);
+          setFailed(false);
+        },
+        () => setFailed(true),
+      ),
+    [quest.id],
+  );
 
   useEffect(() => {
     void load();

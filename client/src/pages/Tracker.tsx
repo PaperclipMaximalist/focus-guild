@@ -14,7 +14,7 @@
  * property of an item having strands, not of the view being active.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { CAS_STRANDS, type TrackerItem } from '../lib/api';
@@ -63,7 +63,8 @@ export default function Tracker() {
     }
   });
   const [showTerminal, setShowTerminal] = useState(false);
-  const [jumpTarget, setJumpTarget] = useState<string | null>(null);
+  /** The card to scroll to once the next commit has drawn it; a ref, since nothing renders it. */
+  const jumpTarget = useRef<string | null>(null);
 
   useEffect(() => {
     load();
@@ -87,9 +88,11 @@ export default function Tracker() {
         { id: 'log', label: 'Decisions' },
       ];
 
-  useEffect(() => {
+  const [prevCasMode, setPrevCasMode] = useState(casMode);
+  if (prevCasMode !== casMode) {
+    setPrevCasMode(casMode);
     if (!tabs.some((t) => t.id === tab)) setTab('items');
-  }, [casMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const lensItems = useMemo(
     () => (casMode ? items.filter((i) => i.casStrands.length > 0) : items),
@@ -162,22 +165,24 @@ export default function Tracker() {
     if (item.status === 'DONE' || item.status === 'DROPPED') setShowTerminal(true);
     const keys = [item.domainId ?? 'unsorted', ...item.casStrands];
     setCollapsed((prev) => new Set([...prev].filter((k) => !keys.includes(k))));
-    setJumpTarget(item.code);
+    jumpTarget.current = item.code;
   };
 
   // Scroll only after React has committed the reopened group — a timer
   // guessing at render timing finds no card and silently does nothing.
   useEffect(() => {
-    if (!jumpTarget) return;
-    const el = document.getElementById(`item-${jumpTarget}`);
-    setJumpTarget(null);
+    // jumpTo always hands setCollapsed a new Set, so this runs after every jump.
+    const code = jumpTarget.current;
+    if (!code) return;
+    const el = document.getElementById(`item-${code}`);
+    jumpTarget.current = null;
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.animate(
       [{ outline: '2px solid color-mix(in srgb, var(--color-fire) 90%, transparent)' }, { outline: '2px solid color-mix(in srgb, var(--color-fire) 0%, transparent)' }],
       { duration: 1400, easing: 'ease-out' },
     );
-  }, [jumpTarget, collapsed, showTerminal, tab]);
+  }, [collapsed, showTerminal, tab]);
 
   const openNew = () => {
     setEditing(null);

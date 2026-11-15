@@ -12,7 +12,7 @@
 import { useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 import { parseQuickAdd, questFields } from '../lib/quickAdd';
 import { sfxClick } from '../lib/sfx';
 import { findDuplicate } from '../lib/duplicates';

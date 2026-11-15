@@ -15,11 +15,21 @@ import { useState } from 'react';
 import type { TrackerConfigShape } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
 import { sfxComplete } from '../../lib/sfx';
-import { useToastStore } from '../Toasts';
+import { useToastStore } from '../toastStore';
 import { ChevronDown, ChevronRight, Compass } from 'lucide-react';
 
 interface Props {
   config: TrackerConfigShape;
+}
+
+/**
+ * Whole days since the last review. Reads the clock whenever the banner
+ * draws, so a tracker left open across the due day shows it on its next draw.
+ */
+function daysSinceReview(lastReviewedAt: string | null): number | null {
+  return lastReviewedAt === null
+    ? null
+    : Math.floor((Date.now() - new Date(lastReviewedAt).getTime()) / 86_400_000);
 }
 
 export function ReviewBanner({ config }: Props) {
@@ -27,10 +37,7 @@ export function ReviewBanner({ config }: Props) {
   const [expanded, setExpanded] = useState(false);
   const pushToast = useToastStore((s) => s.push);
 
-  const daysSince =
-    lastReviewedAt === null
-      ? null
-      : Math.floor((Date.now() - new Date(lastReviewedAt).getTime()) / 86_400_000);
+  const daysSince = daysSinceReview(lastReviewedAt);
 
   const due = daysSince === null || daysSince >= config.reviewCadenceDays;
   if (!due || config.reviewPrompts.length === 0) return null;

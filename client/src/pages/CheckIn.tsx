@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCheckInStore } from '../store/useCheckInStore';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, ChevronLeft, TriangleAlert, Zap } from 'lucide-react';
 
 // A battery that fills with the level: readable without colour or faces.
@@ -26,12 +26,15 @@ export default function CheckIn() {
     load();
   }, [load]);
 
-  useEffect(() => {
+  // Start from today's answers once they are known (set while rendering).
+  const [prevToday, setPrevToday] = useState<typeof today>(null);
+  if (prevToday !== today) {
+    setPrevToday(today);
     if (today) {
       setEnergy(today.energyLevel);
       setHours(Math.round(today.availableMinutes / 60));
     }
-  }, [today]);
+  }
 
   const save = async () => {
     setSaving(true);

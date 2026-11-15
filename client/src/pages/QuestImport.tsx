@@ -21,7 +21,7 @@ import { MANIFEST_EXAMPLE, MANIFEST_FONT, MANIFEST_PARAMETERS, MAX_IMPORT, manif
 import { findDuplicate, titleKey } from '../lib/duplicates';
 import { sfxClick } from '../lib/sfx';
 import { useQuestStore } from '../store/useQuestStore';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { ArrowLeft, Bot, Check, ChevronDown, Copy, CornerDownRight, ListPlus, TriangleAlert } from 'lucide-react';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;

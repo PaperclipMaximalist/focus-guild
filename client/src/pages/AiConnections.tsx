@@ -24,7 +24,7 @@ import { aiApi, type AiConnection, type AiProvider, type AiState, type AiTestRes
 import { MANIFEST_FONT } from '../lib/manifest';
 import { sfxClick } from '../lib/sfx';
 import { useArmed } from '../lib/useArmed';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { ArrowLeft, Bot, ChevronDown, ExternalLink, ShieldCheck, Trash2, TriangleAlert } from 'lucide-react';
 import { ASK_DAYS, forgetConsents } from '../lib/aiConsent';
 

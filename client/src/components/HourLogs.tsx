@@ -24,7 +24,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api, type HourLog, type Quest, type TimeEntry } from '../lib/api';
 import { useUserStore } from '../store/useUserStore';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 import { useArmed } from '../lib/useArmed';
 import { formatMinutes } from '../lib/formatters';
 import { dayLabel, localDayKey, parseDuration } from '../lib/hours';
@@ -45,14 +45,14 @@ export function HourLogs({ onEdit }: { onEdit: (quest: Quest) => void }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      setLogs(await api.quests.hourLogs());
-    } catch {
-      // Leave what is showing; the next change or visit reads it again.
-      setLogs((prev) => prev ?? []);
-    }
-  }, []);
+  const load = useCallback(
+    () =>
+      api.quests.hourLogs().then(setLogs, () => {
+        // Leave what is showing; the next change or visit reads it again.
+        setLogs((prev) => prev ?? []);
+      }),
+    [],
+  );
 
   useEffect(() => {
     void load();
@@ -196,13 +196,22 @@ function HourLogSheet({
   const id = log?.id ?? null;
   const boxRef = useDialog(!!log, onClose);
 
+  // A different log opened: start the sheet blank (set while rendering, so the
+  // old log's entries never show under the new title).
+  const [prevId, setPrevId] = useState(id);
+  if (prevId !== id) {
+    setPrevId(id);
+    if (id) {
+      setLength('');
+      setNote('');
+      setWhen('today');
+      setEarlier('');
+      setEntries(null);
+    }
+  }
+
   useEffect(() => {
     if (!id) return;
-    setLength('');
-    setNote('');
-    setWhen('today');
-    setEarlier('');
-    setEntries(null);
     api.quests
       .hours(id)
       .then((d) => setEntries(d.entries))

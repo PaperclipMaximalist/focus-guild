@@ -1,13 +1,6 @@
-import { useEffect, useState } from 'react';
-import { isSfxEnabled, setSfxEnabled, subscribeSfx } from '../lib/sfx';
+import { setSfxEnabled } from '../lib/sfx';
+import { useSfxEnabled } from './useSfxEnabled';
 import { Volume2, VolumeX } from 'lucide-react';
-
-/** React hook that mirrors the sfx-enabled flag and re-renders on change. */
-export function useSfxEnabled(): boolean {
-  const [on, setOn] = useState(isSfxEnabled());
-  useEffect(() => subscribeSfx(() => setOn(isSfxEnabled())), []);
-  return on;
-}
 
 /** Small speaker toggle for the Header. */
 export function SoundToggle() {

@@ -41,6 +41,8 @@ export default function Stats() {
   const { completed, loadCompleted } = useQuestStore();
   const { unlocked, load: loadAchievements } = useAchievementsStore();
   const [xpEvents, setXpEvents] = useState<XPEventDTO[] | null>(null);
+  // When the page was opened: the start of the 30-day window below.
+  const [openedAt] = useState(() => Date.now());
 
   useEffect(() => {
     refresh();
@@ -84,7 +86,7 @@ export default function Stats() {
 
   // ── Category breakdown (last 30 days of completions) ────────────────────
   const categoryBreakdown = useMemo(() => {
-    const cutoff = Date.now() - 30 * 86_400_000;
+    const cutoff = openedAt - 30 * 86_400_000;
     const m = new Map<string, number>();
     completed.forEach((q) => {
       if (!q.completedAt) return;
@@ -101,7 +103,7 @@ export default function Stats() {
         pct: total > 0 ? (count / total) * 100 : 0,
       }));
     return { rows, total };
-  }, [completed]);
+  }, [completed, openedAt]);
 
   // ── Last 7 days completion bar ───────────────────────────────────────────
   const last7Days = useMemo(() => {
@@ -176,14 +178,18 @@ export default function Stats() {
             const isToday = i === last7Days.days.length - 1;
             const h = (count / last7Days.max) * 100;
             return (
-              <div key={i} className="flex flex-col items-center justify-end gap-1 flex-1">
+              // h-full: the column is as tall as the chart, so the bar's share
+              // below is a share of something. (Left at its own height, every
+              // bar fell back to the 4px minimum whatever its count.)
+              <div key={i} className="flex h-full flex-1 flex-col items-center justify-end gap-1">
                 <span className="text-[11px] font-bold" style={{ color: 'var(--color-text)' }}>
                   {count > 0 ? count : ''}
                 </span>
                 <div
                   className="w-full rounded-t-md transition-[height]"
                   style={{
-                    height: `${Math.max(4, h)}%`,
+                    // A share of the column less its two lines of text and their gaps.
+                    height: `calc((100% - 2.75rem) * ${Math.max(4, h) / 100})`,
                     background: count === 0
                       ? 'rgba(255,255,255,0.06)'
                       : isToday

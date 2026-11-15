@@ -17,7 +17,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { useTimerStore } from '../store/useTimerStore';
 import { sfxStart } from '../lib/sfx';
 import { useCompleteQuest } from '../lib/useCompleteQuest';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 import { formatDeadline, formatDeadlineExact, formatMinutes } from '../lib/formatters';
 import { SubQuestList } from './SubQuestList';
 import { useDialog } from '../lib/useDialog';
@@ -64,16 +64,22 @@ export function QuestDetail({ open, quest, onClose, onEdit, onComplete }: Props)
     Array<{ title: string; estimatedMinutes: number; rationale: string; keep: boolean }>
   >([]);
 
-  // Load the XP history on open; the steps load themselves.
+  // Load the XP history on open; the steps load themselves. "Loading…" is set
+  // while rendering, keyed on which quest is open, so a reopen shows it again.
+  const openId = open && quest ? quest.id : null;
+  const [prevOpenId, setPrevOpenId] = useState<string | null>(null);
+  if (prevOpenId !== openId) {
+    setPrevOpenId(openId);
+    if (openId) setLoading(true);
+  }
   useEffect(() => {
-    if (!open || !quest) return;
-    setLoading(true);
+    if (!openId) return;
     api.quests
-      .xpEvents(quest.id)
+      .xpEvents(openId)
       .then(setXpEvents)
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [open, quest?.id]);
+  }, [openId]);
 
   if (!quest) return null;
 

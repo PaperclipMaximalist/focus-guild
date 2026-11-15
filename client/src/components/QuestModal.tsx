@@ -226,7 +226,9 @@ export function QuestModal({ open, onClose, editing }: Props) {
     .filter(Boolean)
     .join(' · ');
 
-  useEffect(() => {
+  // Fill the form when it opens, or when the quest it edits changes. Done while
+  // rendering, so the first frame of the sheet already shows the right quest.
+  const resetForm = () => {
     if (!open) return;
     setTitleMissing(false);
     if (editing) {
@@ -294,7 +296,12 @@ export function QuestModal({ open, onClose, editing }: Props) {
       setShowAdvanced(false);
       setShowMore(false);
     }
-  }, [open, editing]);
+  };
+  const [formFor, setFormFor] = useState<{ open: boolean; editing: typeof editing }>({ open: false, editing: null });
+  if (formFor.open !== open || formFor.editing !== editing) {
+    setFormFor({ open, editing });
+    resetForm();
+  }
 
   // What the "Part of" menu offers. For a quest being edited, the server
   // leaves out the quest itself and anywhere its own steps would not fit.

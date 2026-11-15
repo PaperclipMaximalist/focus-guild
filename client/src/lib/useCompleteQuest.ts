@@ -3,7 +3,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { useLevelUpStore } from '../store/useLevelUpStore';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { ApiRequestError, type CompleteQuestResult } from './api';
 import { duckReact } from '../store/useMascotStore';
 import { achievementIcon } from './achievementCatalog';

@@ -31,8 +31,8 @@ import { isNativeApp } from '../native/platform';
 import { isConsentDeclined } from '../lib/aiConsent';
 import { useTrackerStore } from '../store/useTrackerStore';
 import { sfxClick } from '../lib/sfx';
-import { useToastStore } from '../components/Toasts';
-import { fieldClass, fieldStyle } from '../components/tracker/Sheet';
+import { useToastStore } from '../components/toastStore';
+import { fieldClass, fieldStyle } from '../components/tracker/sheetStyles';
 import { Check, ChevronLeft, Clipboard, Download, History, RotateCcw, Save, Send, Sparkles, TriangleAlert } from 'lucide-react';
 
 type Tab = 'log' | 'permafile' | 'ask' | 'bundle';
@@ -122,14 +122,20 @@ function LogTab() {
   const [entries, setEntries] = useState<ActivityEntry[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  // A new range clears the last error (set while rendering, as the range changes).
+  const [prevDays, setPrevDays] = useState(days);
+  if (prevDays !== days) {
+    setPrevDays(days);
     setError(null);
-    try {
-      setEntries(await api.chronicle.log(days));
-    } catch (err) {
-      setError(String(err));
-    }
-  }, [days]);
+  }
+
+  const load = useCallback(
+    () =>
+      api.chronicle.log(days).then(setEntries, (err) => {
+        setError(String(err));
+      }),
+    [days],
+  );
 
   useEffect(() => {
     load();
@@ -199,15 +205,19 @@ function PermafileTab() {
   const [busy, setBusy] = useState(false);
   const [showVersions, setShowVersions] = useState(false);
 
-  const load = useCallback(async () => {
-    try {
-      const data = await api.chronicle.permafile();
-      setState(data);
-      setDraft(data.body);
-    } catch (err) {
-      pushToast({ title: 'Could not load the permafile', sub: String(err), icon: TriangleAlert, variant: 'error' });
-    }
-  }, [pushToast]);
+  const load = useCallback(
+    () =>
+      api.chronicle.permafile().then(
+        (data) => {
+          setState(data);
+          setDraft(data.body);
+        },
+        (err) => {
+          pushToast({ title: 'Could not load the permafile', sub: String(err), icon: TriangleAlert, variant: 'error' });
+        },
+      ),
+    [pushToast],
+  );
 
   useEffect(() => {
     load();
@@ -518,10 +528,16 @@ function BundleTab() {
   const [bundle, setBundle] = useState<{ markdown: string; chars: number; entries: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let live = true;
+  // A new range starts blank (set while rendering, as the range changes).
+  const [prevDays, setPrevDays] = useState(days);
+  if (prevDays !== days) {
+    setPrevDays(days);
     setBundle(null);
     setError(null);
+  }
+
+  useEffect(() => {
+    let live = true;
     api.chronicle
       .bundle(days)
       .then((b) => live && setBundle(b))

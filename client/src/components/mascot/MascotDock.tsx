@@ -18,7 +18,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { Duck } from './Duck';
 import { useMascotStore } from '../../store/useMascotStore';
-import { useToastStore } from '../Toasts';
+import { useToastStore } from '../toastStore';
 import { useUserStore } from '../../store/useUserStore';
 import { greetingFor } from '../../lib/mascotLines';
 import { sfxSqueak } from '../../lib/sfx';

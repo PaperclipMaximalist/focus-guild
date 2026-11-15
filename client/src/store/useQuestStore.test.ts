@@ -20,7 +20,7 @@ vi.mock('../lib/api', () => ({
 }));
 
 import { api, type Quest } from '../lib/api';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { useQuestStore } from './useQuestStore';
 
 const quest = (id: string) => ({ id, title: `Quest ${id}` }) as Quest;

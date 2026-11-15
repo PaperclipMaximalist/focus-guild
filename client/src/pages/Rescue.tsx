@@ -10,13 +10,13 @@
  *   - Extend all overdue by 7 days ("rescue everyone")
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { duckReact } from '../store/useMascotStore';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api, type Quest } from '../lib/api';
 import { useQuestStore } from '../store/useQuestStore';
 import { useUserStore } from '../store/useUserStore';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { useCompleteQuest } from '../lib/useCompleteQuest';
 import { formatDeadline, formatMinutes } from '../lib/formatters';
 import { useArmed } from '../lib/useArmed';
@@ -33,36 +33,33 @@ export default function Rescue() {
   const { user } = useUserStore();
   const pushToast = useToastStore((s) => s.push);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      const list = await api.quests.rescue();
-      setRescue(list);
-    } finally {
+  // `loading` starts true; a reload sets it again itself, before calling this.
+  const load = () =>
+    api.quests.rescue().then(setRescue).finally(() => {
       setLoading(false);
-    }
-  };
+    });
 
   useEffect(() => {
     load();
     // A completion taken back (Undo) puts a straggler on this list again.
-    const onUndo = () => { void load(); };
+    const onUndo = () => { setLoading(true); void load(); };
     window.addEventListener('fg:quest-uncompleted', onUndo);
     return () => window.removeEventListener('fg:quest-uncompleted', onUndo);
   }, []);
 
   // The duck notices the pile once it loads, and cheers when it's gone —
   // but only if there was a pile this visit, not on an already-empty page.
-  const [hadOverdue, setHadOverdue] = useState(false);
+  // A ref, not state: nothing on screen shows it.
+  const hadOverdue = useRef(false);
   useEffect(() => {
     if (loading) return;
-    if (rescue.length > 0 && !hadOverdue) {
-      setHadOverdue(true);
+    if (rescue.length > 0 && !hadOverdue.current) {
+      hadOverdue.current = true;
       duckReact('overdue', rescue.length);
-    } else if (rescue.length === 0 && hadOverdue) {
+    } else if (rescue.length === 0 && hadOverdue.current) {
       duckReact('rescueClear');
     }
-  }, [loading, rescue.length, hadOverdue]);
+  }, [loading, rescue.length]);
 
   const handleExtend = async (id: string, days: number) => {
     setBusyId(id);

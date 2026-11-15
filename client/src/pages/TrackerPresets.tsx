@@ -29,8 +29,9 @@ import { trackerErrorToast } from '../lib/tracker';
 import { PRESET_PACKS, type PresetPack } from '../lib/trackerPacks';
 import { sfxClick } from '../lib/sfx';
 import { useTrackerStore } from '../store/useTrackerStore';
-import { useToastStore } from '../components/Toasts';
-import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
+import { useToastStore } from '../components/toastStore';
+import { Label } from '../components/tracker/Sheet';
+import { fieldClass, fieldStyle } from '../components/tracker/sheetStyles';
 import { ArrowDown, ArrowLeft, ArrowUp, Check, Copy, Download, Inbox, Package, SettingsIcon, TriangleAlert, Undo2, Upload, X } from 'lucide-react';
 
 // The eight validated dark-surface hues, in their tested order. A domain's
@@ -61,13 +62,12 @@ export default function TrackerPresets() {
     if (!loaded) load();
   }, [loaded, load]);
 
-  // Seed the draft once config arrives; edits stay local until Save.
-  useEffect(() => {
-    if (config && !draft) {
-      setDraft(structuredClone(config));
-      setPrefixText(config.codePrefixes.join(', '));
-    }
-  }, [config, draft]);
+  // Seed the draft once config arrives; edits stay local until Save. Set while
+  // rendering: it runs once per seeding, since the draft is no longer empty after.
+  if (config && !draft) {
+    setDraft(structuredClone(config));
+    setPrefixText(config.codePrefixes.join(', '));
+  }
 
   const itemCounts = useMemo(() => {
     const m = new Map<string, number>();
@@ -633,7 +633,11 @@ function DomainRow({
   const [name, setName] = useState(domain.name);
   const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => setName(domain.name), [domain.name]);
+  const [prevName, setPrevName] = useState(domain.name);
+  if (prevName !== domain.name) {
+    setPrevName(domain.name);
+    setName(domain.name);
+  }
 
   // Arm-then-fire rather than a dialog; disarm on its own if left alone.
   useEffect(() => {

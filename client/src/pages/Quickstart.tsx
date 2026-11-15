@@ -27,7 +27,7 @@ import { MANIFEST_EXAMPLE, MANIFEST_FONT, manifestGuide, toManifest } from '../l
 import { sfxClick } from '../lib/sfx';
 import { useArmed } from '../lib/useArmed';
 import { OldFeedLinkNotice } from '../components/OldFeedLinkNotice';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import {
   ArrowLeft, ArrowRight, CalendarDays, Check, Copy, Download, ExternalLink, ListPlus, RefreshCw, Trash2, TriangleAlert,
 } from 'lucide-react';

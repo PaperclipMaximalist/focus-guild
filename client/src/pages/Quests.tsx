@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useQuestStore } from '../store/useQuestStore';
 import { useCompleteQuest } from '../lib/useCompleteQuest';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { QuestCard } from '../components/QuestCard';
 import { QuestModal } from '../components/QuestModal';
 import { QuestDetail } from '../components/QuestDetail';
@@ -104,14 +104,17 @@ export default function Quests() {
   }, [quests, search, activeTags, sort]);
 
   // Keep `selected` pruned to currently-visible ids
-  useEffect(() => {
+  // (set while rendering, whenever the visible list changes)
+  const [prevVisible, setPrevVisible] = useState(visible);
+  if (prevVisible !== visible) {
+    setPrevVisible(visible);
     const visibleIds = new Set(visible.map((q) => q.id));
     setSelected((prev) => {
       const next = new Set<string>();
       prev.forEach((id) => visibleIds.has(id) && next.add(id));
       return next.size === prev.size ? prev : next;
     });
-  }, [visible]);
+  }
 
   const toggleTag = (t: string) => {
     setActiveTags((prev) => {

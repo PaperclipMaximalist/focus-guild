@@ -88,6 +88,7 @@ export default function Today() {
     window.addEventListener('spin-wheel:open', onSpin);
     // Sent here by New quest from a page without the editor.
     if (takePendingNewQuest()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- takePendingNewQuest() consumes a one-shot flag, a side effect that belongs at commit, not in a render React may repeat or throw away.
       setEditing(null);
       setModalOpen(true);
     }

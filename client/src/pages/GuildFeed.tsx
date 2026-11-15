@@ -898,8 +898,8 @@ export default function GuildFeed() {
     };
   }, [replan]);
 
-  const [now, setNow] = useState(Date.now());
-  const [selectedDay, setSelectedDay] = useState<number>(startOfDayMs(Date.now()));
+  const [now, setNow] = useState(() => Date.now());
+  const [selectedDay, setSelectedDay] = useState<number>(() => startOfDayMs(Date.now()));
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [explanation, setExplanation] = useState<string | null>(null);
@@ -1061,12 +1061,12 @@ export default function GuildFeed() {
     [draggingId, schedule, applyEdit],
   );
 
+  // No plan, no trace (set while rendering, so it clears in the same paint).
+  if (schedule.length === 0 && energyTrace.length > 0) setEnergyTrace([]);
+
   // Refresh the energy trace whenever the schedule changes.
   useEffect(() => {
-    if (schedule.length === 0) {
-      setEnergyTrace([]);
-      return;
-    }
+    if (schedule.length === 0) return;
     api.schedule.energy().then((r) => setEnergyTrace(r.trace)).catch(() => setEnergyTrace([]));
   }, [schedule.length, generatedAt]);
 
@@ -1090,9 +1090,12 @@ export default function GuildFeed() {
     }
   }, [selectedBlock, selectedQuest, schedule]);
 
-  useEffect(() => {
+  // Another block picked (or none): its explanation goes with it.
+  const [prevSelectedBlockId, setPrevSelectedBlockId] = useState(selectedBlockId);
+  if (prevSelectedBlockId !== selectedBlockId) {
+    setPrevSelectedBlockId(selectedBlockId);
     setExplanation(null);
-  }, [selectedBlockId]);
+  }
 
   return (
     <div>

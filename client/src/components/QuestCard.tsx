@@ -61,6 +61,15 @@ const RING: Record<ReturnType<typeof priorityTier>, string> = {
 
 const LOAD_LABEL = ['', 'Easy', 'Easy', 'Mild', 'Mild', 'Medium', 'Medium', 'Hard', 'Hard', 'Brutal', 'Brutal'];
 
+/**
+ * Due within a day. Reads the clock when the row draws, the same moment
+ * formatDeadline and questStatus read it, so the red and the words agree.
+ */
+function dueWithinADay(deadline: string | null | undefined): boolean {
+  const msLeft = deadline ? new Date(deadline).getTime() - Date.now() : Infinity;
+  return msLeft < 24 * 3600 * 1000;
+}
+
 export function QuestCard({
   quest,
   onComplete,
@@ -88,8 +97,7 @@ export function QuestCard({
 
   const deadline = formatDeadline(quest.deadline);
   const hasDeadline = deadline && deadline !== 'no deadline';
-  const msLeft = quest.deadline ? new Date(quest.deadline).getTime() - Date.now() : Infinity;
-  const urgent = msLeft < 24 * 3600 * 1000;
+  const urgent = dueWithinADay(quest.deadline);
 
   return (
     <motion.div

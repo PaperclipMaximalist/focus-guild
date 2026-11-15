@@ -10,8 +10,8 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { DecisionLogEntry } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
-import { useToastStore } from '../Toasts';
-import { fieldClass, fieldStyle } from './Sheet';
+import { useToastStore } from '../toastStore';
+import { fieldClass, fieldStyle } from './sheetStyles';
 import { sfxClick } from '../../lib/sfx';
 import { TriangleAlert } from 'lucide-react';
 

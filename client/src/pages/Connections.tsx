@@ -25,8 +25,9 @@ import { planFeedUrl } from '../lib/planFeed';
 import { sfxClick } from '../lib/sfx';
 import { useArmed } from '../lib/useArmed';
 import { OldFeedLinkNotice } from '../components/OldFeedLinkNotice';
-import { useToastStore } from '../components/Toasts';
-import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
+import { useToastStore } from '../components/toastStore';
+import { Label } from '../components/tracker/Sheet';
+import { fieldClass, fieldStyle } from '../components/tracker/sheetStyles';
 import { ArrowLeft, CalendarClock, CalendarDays, ChevronDown, ChevronRight, Clipboard, Inbox, Plug, RefreshCw, Trash2, TriangleAlert } from 'lucide-react';
 
 const muted = { color: 'var(--color-muted)' };
@@ -47,14 +48,17 @@ export default function Connections() {
   const [state, setState] = useState<IntegrationsState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      setState(await api.integrations.get());
-      setError(null);
-    } catch (err) {
-      setError(String(err));
-    }
-  }, []);
+  const load = useCallback(
+    () =>
+      api.integrations.get().then(
+        (next) => {
+          setState(next);
+          setError(null);
+        },
+        (err) => setError(String(err)),
+      ),
+    [],
+  );
 
   useEffect(() => {
     load();

@@ -8,7 +8,7 @@ import { achievementIcon } from '../lib/achievementCatalog';
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { api, type Quest, type UnlockedAchievement } from '../lib/api';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 import { useAchievementsStore } from '../store/useAchievementsStore';
 import { sfxSpin, sfxAchievement } from '../lib/sfx';
 import { Check, Dices, Target } from 'lucide-react';

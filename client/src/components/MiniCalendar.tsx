@@ -18,7 +18,7 @@
  * Pass `minDate` if you want to disable everything before a specific date.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { startOfDay, sameDay, WEEKDAY_LETTERS } from '../lib/date';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -51,13 +51,13 @@ export function MiniCalendar({ value, onChange, markers = [], minDate, intensity
   const [anchor, setAnchor] = useState<Date>(value ?? today);
 
   // When the externally-controlled value jumps to a different month, follow it.
-  useEffect(() => {
-    if (!value) return;
-    if (value.getMonth() !== anchor.getMonth() || value.getFullYear() !== anchor.getFullYear()) {
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
+    if (value && (value.getMonth() !== anchor.getMonth() || value.getFullYear() !== anchor.getFullYear())) {
       setAnchor(value);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }
 
   const { weeks, monthLabel } = useMemo(() => {
     const year = anchor.getFullYear();

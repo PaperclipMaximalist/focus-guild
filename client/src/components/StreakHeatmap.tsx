@@ -45,12 +45,12 @@ export function StreakHeatmap({ completions, weeks = 12 }: Props) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const end = new Date(today);
-    end.setDate(end.getDate() + (6 - end.getDay())); // upcoming/﻿this Saturday
+    end.setDate(end.getDate() + (6 - end.getDay())); // upcoming/this Saturday
     const start = new Date(end);
     start.setDate(start.getDate() - (weeks * 7 - 1));
 
     const cols: Array<Array<{ date: Date; count: number; inFuture: boolean }>> = [];
-    let cursor = new Date(start);
+    const cursor = new Date(start);
     let max = 0;
     let totalCount = 0;
     let best = 0;

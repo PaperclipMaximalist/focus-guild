@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import { sfxClick } from '../lib/sfx';
-import { fieldClass, fieldStyle } from '../components/tracker/Sheet';
+import { fieldClass, fieldStyle } from '../components/tracker/sheetStyles';
 import { Check, Inbox, TriangleAlert } from 'lucide-react';
 
 const muted = { color: 'var(--color-muted)' };
@@ -52,7 +52,6 @@ export default function Share() {
     if (sent.current || !shared) return;
     sent.current = true;
     save(shared);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shared]);
 
   return (

@@ -14,8 +14,9 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { LEARNING_OUTCOMES, type TrackerItem } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
-import { useToastStore } from '../Toasts';
-import { Sheet, Label, fieldClass, fieldStyle } from './Sheet';
+import { useToastStore } from '../toastStore';
+import { Sheet, Label } from './Sheet';
+import { fieldClass, fieldStyle } from './sheetStyles';
 import { sfxXp } from '../../lib/sfx';
 import { ExternalLink, TriangleAlert } from 'lucide-react';
 

@@ -12,9 +12,9 @@
 import { useEffect, useState } from 'react';
 import type { CasInterview } from '../../lib/api';
 import { useTrackerStore } from '../../store/useTrackerStore';
-import { useToastStore } from '../Toasts';
+import { useToastStore } from '../toastStore';
 import { fromDateInput, toDateInput } from '../../lib/tracker';
-import { fieldClass, fieldStyle } from './Sheet';
+import { fieldClass, fieldStyle } from './sheetStyles';
 import { Check, TriangleAlert } from 'lucide-react';
 
 const TITLES: Record<number, { name: string; when: string }> = {
@@ -31,9 +31,11 @@ function InterviewCard({ interview }: { interview: CasInterview }) {
   const meta = TITLES[interview.ordinal] ?? { name: `Interview ${interview.ordinal}`, when: '' };
 
   // Re-sync if the row changes underneath (e.g. a CAS refresh).
-  useEffect(() => {
+  const [prevNotes, setPrevNotes] = useState(interview.notes);
+  if (prevNotes !== interview.notes) {
+    setPrevNotes(interview.notes);
     setNotes(interview.notes ?? '');
-  }, [interview.notes]);
+  }
 
   const save = async (fields: { date?: string | null; notes?: string | null }) => {
     try {

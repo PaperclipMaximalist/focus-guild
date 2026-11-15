@@ -44,7 +44,7 @@ export function UpNextCard({ hideWhenEmpty }: Props) {
   const startTimer = useTimerStore((s) => s.start);
   const timerActive = useTimerStore((s) => s.active);
   const showTimer = useTimerStore((s) => s.show);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
     // Fetch (never generate) — Today should reflect the plan, not create one.

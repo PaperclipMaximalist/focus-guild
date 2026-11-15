@@ -9,7 +9,7 @@
  * create only — the number after it is still the server's to hand out.
  */
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
 import {
   CAS_STRANDS,
   LEARNING_OUTCOMES,
@@ -24,8 +24,9 @@ import { STRAND_COLOR, STRAND_LABEL, fromDateInput, toDateInput, trackerErrorToa
 import { sfxClick } from '../../lib/sfx';
 import { ITEM_TEMPLATES, type ItemTemplate } from '../../lib/trackerPacks';
 import { useTrackerStore } from '../../store/useTrackerStore';
-import { useToastStore } from '../Toasts';
-import { Sheet, Label, fieldClass, fieldStyle } from './Sheet';
+import { useToastStore } from '../toastStore';
+import { Sheet, Label } from './Sheet';
+import { fieldClass, fieldStyle } from './sheetStyles';
 import { ChevronDown, ChevronRight, MapIcon } from 'lucide-react';
 
 interface Props {
@@ -78,7 +79,8 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
   const dueRef = useRef<HTMLInputElement>(null);
 
   // Reset the form each time the sheet opens, from the item being edited.
-  useEffect(() => {
+  // Done while rendering, so the first frame of the sheet already shows it.
+  const resetForm = () => {
     if (!open) return;
     setTitle(editing?.title ?? '');
     setNextAction(editing?.nextAction ?? '');
@@ -97,8 +99,18 @@ export function TrackerItemSheet({ open, onClose, editing, config, domains, defa
     setIsProject(editing?.isCasProject ?? false);
     setHours(editing?.hours != null ? String(editing.hours) : '');
     setCasOpen(Boolean(defaultCas) || (editing?.casStrands.length ?? 0) > 0);
-    // `domains` deliberately omitted: it only seeds the default on open.
-  }, [open, editing, config.codePrefixes, defaultCas]);
+    // `domains` deliberately not watched below: it only seeds the default on open.
+  };
+  const [formFor, setFormFor] = useState({ open: false, editing, codePrefixes: config.codePrefixes, defaultCas });
+  if (
+    formFor.open !== open ||
+    formFor.editing !== editing ||
+    formFor.codePrefixes !== config.codePrefixes ||
+    formFor.defaultCas !== defaultCas
+  ) {
+    setFormFor({ open, editing, codePrefixes: config.codePrefixes, defaultCas });
+    resetForm();
+  }
 
   /** Prefill from a template, keeping whatever the user already typed in a field it doesn't set. */
   const applyTemplate = (t: ItemTemplate) => {

@@ -24,7 +24,7 @@ import { STRAND_COLOR, formatDue, trackerErrorToast } from '../../lib/tracker';
 import { sfxClick, sfxComplete, sfxStart } from '../../lib/sfx';
 import { hasCourseworkConflict, useTrackerStore } from '../../store/useTrackerStore';
 import { duckReact } from '../../store/useMascotStore';
-import { useToastStore } from '../Toasts';
+import { useToastStore } from '../toastStore';
 import { CalendarPlus, CircleCheck, Footprints, Leaf, PenLine, TriangleAlert, Zap } from 'lucide-react';
 
 interface Props {

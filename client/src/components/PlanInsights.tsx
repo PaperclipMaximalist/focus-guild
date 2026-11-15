@@ -10,7 +10,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, type PlanInsights as Insights } from '../lib/api';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 import { Clock, Hourglass, LifeBuoy, Lightbulb, X } from 'lucide-react';
 
 const DISMISS_KEY = 'fg.feed.hoursSuggestionDismissed';

@@ -107,14 +107,20 @@ export function CommandPalette() {
 
   // Reset on open. Focus comes from the input's autoFocus, as it mounts: a
   // timer here dropped whatever was typed straight after Ctrl+K.
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
     if (open) {
       setQuery('');
       setActive(0);
     }
-  }, [open]);
+  }
 
-  useEffect(() => { setActive(0); }, [query]);
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setActive(0);
+  }
 
   const listId = useId();
   const optionId = (i: number) => `${listId}-option-${i}`;

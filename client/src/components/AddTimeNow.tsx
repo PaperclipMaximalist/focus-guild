@@ -11,7 +11,7 @@ import { useRef, useState, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { useScheduleStore } from '../store/useScheduleStore';
 import { useQuestStore } from '../store/useQuestStore';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 
 const CHOICES = [
   { minutes: 30, label: '30 min', name: 'Add 30 minutes now' },

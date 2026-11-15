@@ -26,7 +26,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { api, type JournalItem } from '../lib/api';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { formatMinutes } from '../lib/formatters';
 import { dayLabel, localDayKey } from '../lib/hours';
 import { sfxClick } from '../lib/sfx';
@@ -79,16 +79,18 @@ export default function Journal() {
   const [editing, setEditing] = useState<{ id: string; text: string } | null>(null);
   const box = useRef<HTMLTextAreaElement | null>(null);
 
-  const load = useCallback(async () => {
-    setFailed(false);
-    try {
-      const page = await api.chronicle.journalPage();
-      setEntries(page.entries);
-      setHasMore(page.hasMore);
-    } catch {
-      setFailed(true);
-    }
-  }, []);
+  // Try again clears `failed` itself, in its click.
+  const load = useCallback(
+    () =>
+      api.chronicle.journalPage().then(
+        (page) => {
+          setEntries(page.entries);
+          setHasMore(page.hasMore);
+        },
+        () => setFailed(true),
+      ),
+    [],
+  );
 
   useEffect(() => {
     void load();
@@ -246,7 +248,7 @@ export default function Journal() {
       {failed && (
         <p role="alert" className="text-[14px] text-(--color-muted)">
           The journal didn't load.{' '}
-          <button type="button" onClick={() => void load()} className="font-semibold text-(--color-text) underline underline-offset-2">
+          <button type="button" onClick={() => { setFailed(false); void load(); }} className="font-semibold text-(--color-text) underline underline-offset-2">
             Try again
           </button>
         </p>

@@ -14,7 +14,7 @@ import { LogOut, Smartphone, TriangleAlert } from 'lucide-react';
 import { ApiRequestError, devicesApi, type Device } from '../lib/api';
 import { connectedLabel, lastUsedLabel } from '../lib/deviceTimes';
 import { useArmed } from '../lib/useArmed';
-import { useToastStore } from './Toasts';
+import { useToastStore } from './toastStore';
 import { isNativeApp } from '../native/platform';
 
 const said = (err: unknown) => String(err).replace(/^\w*Error:\s*/, '').replace(/^[A-Z_]+:\s*/, '');

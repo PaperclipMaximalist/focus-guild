@@ -21,7 +21,7 @@ import {
   type ScoreWeights,
   type WorkingHours,
 } from '../lib/api';
-import { useToastStore } from '../components/Toasts';
+import { useToastStore } from '../components/toastStore';
 import { InfoTip } from '../components/InfoTip';
 import {
   isSfxEnabled, setSfxEnabled, isHapticsEnabled, setHapticsEnabled, subscribeSfx, sfxClick,

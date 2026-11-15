@@ -18,8 +18,9 @@ import type { ExportTier, ImportDiff } from '../lib/api';
 import { api } from '../lib/api';
 import { isNativeApp } from '../native/platform';
 import { useTrackerStore } from '../store/useTrackerStore';
-import { useToastStore } from '../components/Toasts';
-import { fieldClass, fieldStyle, Label } from '../components/tracker/Sheet';
+import { useToastStore } from '../components/toastStore';
+import { Label } from '../components/tracker/Sheet';
+import { fieldClass, fieldStyle } from '../components/tracker/sheetStyles';
 import { sfxClick, sfxComplete } from '../lib/sfx';
 import { ArrowLeft, Clipboard, Download, Inbox, TriangleAlert, Upload } from 'lucide-react';
 
