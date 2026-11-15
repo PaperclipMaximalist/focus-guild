@@ -1220,6 +1220,12 @@ export const aiFeatures = {
 export interface DeviceLinkCode {
   code: string;
   expiresInSec: number;
+  /**
+   * How to hand the code to the app: its `focusguild://` scheme, or the
+   * Universal Link on the API's host. An older server does not send it;
+   * absent means `scheme`.
+   */
+  via?: 'universal' | 'scheme';
 }
 
 export interface DeviceToken {

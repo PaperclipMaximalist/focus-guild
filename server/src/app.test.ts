@@ -99,6 +99,7 @@ vi.mock('./db/client.js', () => ({
 }));
 
 delete process.env['CLERK_SECRET_KEY'];
+delete process.env['APPLE_TEAM_ID'];
 vi.spyOn(console, 'warn').mockImplementation(() => {});
 const logged: string[] = [];
 vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
@@ -229,7 +230,16 @@ describe('a feed token used as a key to the API', () => {
       const res = await call(r.method, r.path, { bearer: feed, ...(r.method === 'GET' ? {} : { body: {} }) });
       // /health says only that the server is up, to anyone. POST /devices/token
       // takes a one-time code and no bearer at all; an empty body is a bad code.
-      const expected = r.name === 'GET /health' ? 200 : r.name === 'POST /devices/token' ? 400 : 401;
+      // The two Universal Link paths are public and hold nothing; with no team
+      // ID set the association file is not there (appLinkReturn.test.ts).
+      const expected =
+        r.name === 'GET /health' || r.name === 'GET /app-link/return'
+          ? 200
+          : r.name === 'POST /devices/token'
+            ? 400
+            : r.name === 'GET /.well-known/apple-app-site-association'
+              ? 404
+              : 401;
       if (res.status !== expected) wrong.push(`${r.name} answered ${res.status}`);
       if (expected === 401 && res.json?.error?.code !== 'UNAUTHORIZED') wrong.push(`${r.name} did not say UNAUTHORIZED`);
     }

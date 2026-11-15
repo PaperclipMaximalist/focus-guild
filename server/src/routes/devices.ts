@@ -2,7 +2,7 @@
  * Signed-in devices: the iOS app's sign-in, and the list a member can sign
  * devices out from.
  *
- *   POST   /devices/link     { challenge, name? } → { code, expiresInSec }  web sign-in only
+ *   POST   /devices/link     { challenge, name? } → { code, expiresInSec, via }  web sign-in only
  *   POST   /devices/token    { code, verifier }   → { token, deviceId, clerkId }  no auth: the code is the credential
  *   GET    /devices                               → the member's devices, newest first
  *   DELETE /devices/current                       → the calling device signs itself out
@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { db } from '../db/client.js';
 import { isWebSignIn } from '../lib/auth.js';
 import { CHALLENGE_RE, INVALID_LINK, VERIFIER_RE, createLink, exchangeCode, idleCutoff } from '../lib/deviceSessions.js';
+import { returnVia } from '../lib/universalLink.js';
 
 export const devices = new Hono();
 
@@ -41,7 +42,9 @@ devices.post('/link', async (c) => {
     );
   }
   const data = await createLink(c.get('user').id, parsed.data.challenge, parsed.data.name ?? 'iPhone');
-  return c.json({ success: true, data }, 201);
+  // How the website hands the code back: the app's scheme, or the Universal
+  // Link on this host once it is switched on (lib/universalLink.ts).
+  return c.json({ success: true, data: { ...data, via: returnVia() } }, 201);
 });
 
 const TokenSchema = z.object({

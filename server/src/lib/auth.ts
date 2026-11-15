@@ -20,6 +20,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import { FEED_PREFIX, PAT_PREFIX, hashPersonalToken } from './tokens.js';
 import { DEVICE_PREFIX, findLiveDeviceSession, lastUsedIsStale, touchDeviceSession } from './deviceSessions.js';
+import { AASA_PATH, APP_LINK_RETURN_PATH } from './universalLink.js';
 import { verifyToken } from '@clerk/backend';
 import { db } from '../db/client.js';
 import type { User } from '../../generated/prisma/client.js';
@@ -99,7 +100,8 @@ async function resolveClerkId(c: Context): Promise<string | null> {
  * Skips `/health` and the routes that check a token of their own (`/inbox`
  * takes the personal token, `/calendar/<token>.ics` only the feed token), and
  * `POST /devices/token`, where the app has no token yet: the one-time code
- * and its PKCE verifier are its credentials.
+ * and its PKCE verifier are its credentials. Also `GET` of the two public
+ * Universal Link paths, which hold nothing (routes/appLinkReturn.ts).
  * `POST /users` used to be skipped too, which let anyone create a row for any
  * clerkId and read that member's whole record back; it now needs auth like
  * everything else (the upsert below is what creates a new member).
@@ -111,6 +113,13 @@ export const requireUser: MiddlewareHandler = async (c, next) => {
     return next();
   }
   if (path === '/devices/token' && c.req.method === 'POST') {
+    return next();
+  }
+  // The iOS app's Universal Link (routes/appLinkReturn.ts): iOS and Apple's
+  // CDN fetch the association file with no credentials, and the return page
+  // is what a browser shows when the link did not open the app. Exactly these
+  // two paths, GET only.
+  if ((path === AASA_PATH || path === APP_LINK_RETURN_PATH) && c.req.method === 'GET') {
     return next();
   }
 

@@ -6,9 +6,15 @@
  * that challenge and the page hands it to the app at focusguild://link.
  *
  * The press is required on purpose: a link someone was tricked into opening
- * must not connect a device by itself. And the only place this page ever
- * sends anyone is the app's own scheme: no redirect target is read from the
- * query string.
+ * must not connect a device by itself. And the only places this page ever
+ * sends anyone are the app's own scheme or, when the server says the
+ * Universal Link is on (`via: 'universal'`), the app-link return address on
+ * the API's host. Both are built here from the code and the state; no
+ * redirect target is read from the query string.
+ *
+ * iOS opens the app for a universal link only when the member taps a real
+ * link, not when a script navigates, so in that case the page does not move
+ * by itself: it shows the Open Focus Guild link and asks for the press.
  *
  * Rendered outside the normal shell (App.tsx decides by the path); the
  * signing-in around it is App.tsx's too.
@@ -16,11 +22,12 @@
 
 import { useEffect, useState } from 'react';
 import { ExternalLink, Smartphone } from 'lucide-react';
-import { ApiRequestError, devicesApi } from '../lib/api';
+import { API_URL, ApiRequestError, devicesApi } from '../lib/api';
 import { APP_SCHEME } from '../native/platform';
-import { clearLinkRequest, type LinkRequest } from '../native/linkRequest';
+import { appLinkReturnUrl, clearLinkRequest, type LinkRequest } from '../native/linkRequest';
 
-type Phase = { kind: 'ready' } | { kind: 'connecting' } | { kind: 'opening'; url: string };
+/** `tap`: the hand-off is a universal link, which only a real press opens. */
+type Phase = { kind: 'ready' } | { kind: 'connecting' } | { kind: 'opening'; url: string; tap: boolean };
 
 export default function AppLink({ request, who }: { request: LinkRequest | null; who: string | null }) {
   const [phase, setPhase] = useState<Phase>({ kind: 'ready' });
@@ -35,12 +42,16 @@ export default function AppLink({ request, who }: { request: LinkRequest | null;
     setError(null);
     setPhase({ kind: 'connecting' });
     try {
-      const { code } = await devicesApi.link(request.challenge, 'iPhone');
-      const url = `${APP_SCHEME}://link?${new URLSearchParams({ code, state: request.state })}`;
+      const { code, via } = await devicesApi.link(request.challenge, 'iPhone');
+      // Absent (an older server) means the scheme, as before.
+      const tap = via === 'universal';
+      const url = tap
+        ? appLinkReturnUrl(API_URL, code, request.state)
+        : `${APP_SCHEME}://link?${new URLSearchParams({ code, state: request.state })}`;
       clearLinkRequest();
       if (import.meta.env.DEV) console.info(`[app-link] hand-off: ${url}`);
-      setPhase({ kind: 'opening', url });
-      window.location.href = url;
+      setPhase({ kind: 'opening', url, tap });
+      if (!tap) window.location.href = url;
     } catch (err) {
       setError(err instanceof ApiRequestError ? err.detail : String(err));
       setPhase({ kind: 'ready' });
@@ -70,7 +81,7 @@ export default function AppLink({ request, who }: { request: LinkRequest | null;
         ) : phase.kind === 'opening' ? (
           <>
             <p role="status" className="mt-2 text-sm">
-              Opening Focus Guild…
+              {phase.tap ? 'Press Open Focus Guild to finish signing in.' : 'Opening Focus Guild…'}
             </p>
             <a href={phase.url} className="btn-primary mt-5 w-full">
               <ExternalLink size={18} aria-hidden />

@@ -6,7 +6,9 @@
  *      <WEB_URL>/app-link?challenge=…&state=… in the in-app browser sheet.
  *   2. The member signs in on the website as usual and presses Connect; the
  *      website gets a one-time code (POST /devices/link) and sends the browser
- *      to focusguild://link?code=…&state=…
+ *      to focusguild://link?code=…&state=… (or, once the server switches the
+ *      Universal Link on, shows a link to <API_URL>/app-link/return?code=…
+ *      &state=…, which iOS opens only in this app; docs/UNIVERSAL_LINKS.md)
  *   3. iOS hands that URL to the app (appUrlOpen). handleOpenUrl() checks the
  *      state, closes the sheet and trades code + verifier for a device token
  *      (POST /devices/token).
@@ -26,6 +28,7 @@ import { SecureStoragePlugin } from 'capacitor-secure-storage-plugin';
 import { APP_SCHEME, WEB_URL } from './platform';
 import { newPkce } from './pkce';
 import {
+  API_URL,
   ApiRequestError,
   ConnectionError,
   api,
@@ -34,7 +37,7 @@ import {
   setCurrentClerkId,
   setUnauthorizedHandler,
 } from '../lib/api';
-import { APP_LINK_PATH, LINK_MAX_AGE_MS } from './linkRequest';
+import { APP_LINK_PATH, APP_LINK_RETURN_PATH, LINK_MAX_AGE_MS } from './linkRequest';
 
 export type AuthStatus = 'loading' | 'signedOut' | 'linking' | 'signedIn';
 
@@ -64,7 +67,6 @@ const NOTICE_KEY = 'focusGuild.authNotice';
 export const MESSAGES = {
   openFailed: 'The sign-in page didn’t open. Check your connection, then press Sign in again.',
   expired: 'That sign-in took too long or was already used. Press Sign in to try again.',
-  mismatch: 'That sign-in didn’t come from this app. Press Sign in to try again.',
   noCode: 'The website didn’t send a sign-in code. Press Sign in to try again.',
   failed: 'Sign-in didn’t finish. Press Sign in to try again.',
   revoked: 'You were signed out. Sign in again to pick up where you left off.',
@@ -122,13 +124,6 @@ function clearPending(): void {
   } catch {
     // Nothing kept.
   }
-}
-
-/** The pending sign-in, used up: a link is answered once. */
-function takePending(): Pending | null {
-  const p = loadPending();
-  clearPending();
-  return p;
 }
 
 // ─── Keychain ─────────────────────────────────────────────────────────────────
@@ -261,8 +256,38 @@ function takeNotice(): string | null {
 
 // ─── The link URL ─────────────────────────────────────────────────────────────
 
-/** `focusguild://link?code=…&state=…` → its code and state; null for any other URL. */
+/**
+ * The Universal Link form, `<API_URL>/app-link/return?code=…&state=…`, which
+ * iOS hands only to this app once the server has it switched on. Exactly the
+ * API's host and port, exactly that path (one trailing slash allowed), https
+ * or the API's own scheme (so local development over http can be tried); no
+ * user-info, which could make a lookalike read as the right host. Null for
+ * anything else.
+ */
+function parseUniversalLink(url: string): { code: string | null; state: string | null } | null {
+  let u: URL;
+  let api: URL;
+  try {
+    u = new URL(url);
+    api = new URL(API_URL);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== 'https:' && u.protocol !== api.protocol) return null;
+  // URL lower-cases the host and drops a default port, so this compares host
+  // and port as an origin would, whatever case the link arrived in.
+  if (u.host !== api.host || u.username !== '' || u.password !== '') return null;
+  if (u.pathname !== APP_LINK_RETURN_PATH && u.pathname !== `${APP_LINK_RETURN_PATH}/`) return null;
+  // u.search excludes the fragment, which is ignored.
+  return { code: u.searchParams.get('code'), state: u.searchParams.get('state') };
+}
+
+/**
+ * `focusguild://link?code=…&state=…`, or the Universal Link form above → its
+ * code and state; null for any other URL.
+ */
 export function parseAppLink(url: string): { code: string | null; state: string | null } | null {
+  if (/^https?:/i.test(url)) return parseUniversalLink(url);
   const prefix = `${APP_SCHEME}://link`;
   if (url.slice(0, prefix.length).toLowerCase() !== prefix) return null;
   let rest = url.slice(prefix.length);
@@ -321,16 +346,20 @@ export const useNativeAuth = create<NativeAuthState>((set, get) => ({
     if (!link || url === lastUrl) return;
     lastUrl = url;
     if (get().exchanging) return;
-    const pending = takePending();
-    // The browser has done its part, whatever happens next.
+    const pending = loadPending();
+    // A link that does not answer the sign-in in progress changes nothing: any
+    // app on the phone can open focusguild:// with whatever it likes, and must
+    // not be able to end someone's sign-in by doing so. The sheet stays open
+    // and the real answer, when it comes, is still taken.
+    if (pending && link.state !== pending.state) return;
+    // From here the link is the answer (or there was nothing to answer): the
+    // pending sign-in is used up, since a link is answered once, and the
+    // browser has done its part.
+    clearPending();
     void Browser.close().catch(() => undefined);
     if (!pending) {
       // Signed in already: a stray or repeated link changes nothing.
       if (get().status !== 'signedIn') set({ status: 'signedOut', error: MESSAGES.expired });
-      return;
-    }
-    if (link.state !== pending.state) {
-      set({ status: 'signedOut', error: MESSAGES.mismatch });
       return;
     }
     if (!link.code) {

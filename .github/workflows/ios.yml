@@ -366,8 +366,16 @@ jobs:
           fi
           echo "ASC_KEY_PATH=$key" >> "$GITHUB_ENV"
 
+      # UNIVERSAL_LINKS_ARG is empty unless the repository variable
+      # IOS_UNIVERSAL_LINKS is "on" (docs/UNIVERSAL_LINKS.md, step 5). It names
+      # the entitlements file with the associated domain. Never tried: this job
+      # has not run yet, and an archive built unsigned may not carry the
+      # entitlement through to the export's signing. Leave it off for the
+      # first upload.
       - name: Archive the app (Release, unsigned; signing happens at export)
         working-directory: client/ios/App
+        env:
+          UNIVERSAL_LINKS_ARG: ${{ vars.IOS_UNIVERSAL_LINKS == 'on' && 'CODE_SIGN_ENTITLEMENTS=App/App.entitlements' || '' }}
         run: >-
           bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/xcodebuild-archive.log"
           archive
@@ -382,6 +390,7 @@ jobs:
           CODE_SIGNING_ALLOWED=NO
           CODE_SIGNING_REQUIRED=NO
           CODE_SIGN_IDENTITY=""
+          $UNIVERSAL_LINKS_ARG
 
       - name: Check the archive carries the right version and build number
         run: |

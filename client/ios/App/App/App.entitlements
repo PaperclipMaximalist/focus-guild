@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  NOT USED BY THE BUILD YET, on purpose. Nothing in project.pbxproj points at
+  this file, so the app builds and signs exactly as before. The Universal Link
+  sign-in (docs/UNIVERSAL_LINKS.md) is switched on in the app by building with
+  CODE_SIGN_ENTITLEMENTS=App/App.entitlements, which CI passes only when asked.
+
+  The associated domain is the API's host, which serves
+  /.well-known/apple-app-site-association once APPLE_TEAM_ID is set there.
+  Signing with it needs the Associated Domains capability on the App ID.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:focus-guild-production.up.railway.app</string>
+	</array>
+</dict>
+</plist>

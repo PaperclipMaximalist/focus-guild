@@ -22,6 +22,7 @@ import { manifest } from './routes/manifest.js';
 import { ai } from './routes/ai.js';
 import { inbox } from './routes/inbox.js';
 import { calendarFeed } from './routes/calendarFeed.js';
+import { appLinkReturn } from './routes/appLinkReturn.js';
 import { requireUser } from './lib/auth.js';
 import { requestLog } from './lib/requestLog.js';
 
@@ -74,9 +75,12 @@ app.route('/inbox', inbox);
 // Published plan feed; calendar apps can only pass a token in the URL, and it
 // takes the feed's own token, never the personal one.
 app.route('/calendar', calendarFeed);
+// The iOS app's Universal Link: the association file iOS fetches and the page
+// shown when the link did not open the app. Public, and holds nothing.
+app.route('/', appLinkReturn);
 
 // Resolves the user (or 401s) for everything except /health, the token routes
-// above and POST /devices/token (see requireUser).
+// and the app-link return above, and POST /devices/token (see requireUser).
 app.use('*', requireUser);
 
 app.route('/users', users);

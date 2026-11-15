@@ -133,7 +133,8 @@ describe('POST /devices/link', () => {
   it('gives a signed-in member a two-minute code', async () => {
     const r = await call('POST', '/devices/link', { as: 'alex', body: { challenge: CHALLENGE, name: '  Alex’s iPhone  ' } });
     expect(r.status).toBe(201);
-    expect(r.json.data).toEqual({ code: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/), expiresInSec: 120 });
+    // `via` says how the website hands the code to the app: the scheme, until the Universal Link is switched on.
+    expect(r.json.data).toEqual({ code: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/), expiresInSec: 120, via: 'scheme' });
     expect(store.links[0]).toMatchObject({ name: 'Alex’s iPhone', userId: 'u-alex', codeHash: sha256Hex(r.json.data.code) });
   });
 

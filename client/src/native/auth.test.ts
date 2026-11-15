@@ -121,6 +121,106 @@ describe('parseAppLink', () => {
   });
 });
 
+describe('parseAppLink, the Universal Link form', () => {
+  // API_URL comes from the real lib/api.ts (VITE_API_URL, or its localhost
+  // default in a test run); every case is built from it.
+  async function setup() {
+    const { auth, api } = await load();
+    const base = new URL(api.API_URL);
+    const host = base.host; // host[:port], as URL writes it
+    return { parse: auth.parseAppLink, base, host };
+  }
+  const ok = { code: 'c', state: 's' };
+
+  it('accepts the return address on the API host, over https or the API’s own scheme', async () => {
+    const { parse, base, host } = await setup();
+    expect(parse(`https://${host}/app-link/return?code=c&state=s`)).toEqual(ok);
+    expect(parse(`${base.protocol}//${host}/app-link/return?code=c&state=s`)).toEqual(ok);
+    // One trailing slash, a fragment, other keys, and either order are fine.
+    expect(parse(`https://${host}/app-link/return/?code=c&state=s`)).toEqual(ok);
+    expect(parse(`https://${host}/app-link/return?state=s&x=1&code=c#frag`)).toEqual(ok);
+    expect(parse(`https://${host}/app-link/return?code=c&state=s#state=evil`)).toEqual(ok);
+    // The host is compared as an origin would: case does not matter.
+    expect(parse(`HTTPS://${host.toUpperCase()}/app-link/return?code=c&state=s`)).toEqual(ok);
+    // Missing values come back as null, for handleOpenUrl to refuse with its own message.
+    expect(parse(`https://${host}/app-link/return`)).toEqual({ code: null, state: null });
+  });
+
+  it('refuses every other address', async () => {
+    const { parse, base, host } = await setup();
+    const hostname = base.hostname;
+    const refused = [
+      // Same path, another host or port.
+      'https://evil.test/app-link/return?code=c&state=s',
+      `https://${hostname}.evil.test/app-link/return?code=c&state=s`,
+      `https://evil.${hostname}/app-link/return?code=c&state=s`,
+      `https://${hostname}:1/app-link/return?code=c&state=s`,
+      // User-info tricks.
+      `https://${host}@evil.test/app-link/return?code=c&state=s`,
+      `https://user@${host}/app-link/return?code=c&state=s`,
+      `https://user:pw@${host}/app-link/return?code=c&state=s`,
+      // Other paths on the right host.
+      `https://${host}/app-link/return/x?code=c&state=s`,
+      `https://${host}/app-link/return//?code=c&state=s`,
+      `https://${host}/app-link/returnx?code=c&state=s`,
+      `https://${host}/app-link?code=c&state=s`,
+      `https://${host}/APP-LINK/RETURN?code=c&state=s`,
+      `https://${host}/x/app-link/return?code=c&state=s`,
+      `https://${host}/?code=c&state=s`,
+      // Other schemes.
+      `ftp://${host}/app-link/return?code=c&state=s`,
+      `focusguild://${host}/app-link/return?code=c&state=s`,
+      'not a url',
+    ];
+    if (base.protocol === 'https:') refused.push(`http://${host}/app-link/return?code=c&state=s`);
+    for (const url of refused) expect(parse(url), url).toBeNull();
+  });
+
+  it('refuses a lookalike of a production-style API host', async () => {
+    // The API host in a test run may be localhost; check the dotted case too.
+    vi.stubEnv('VITE_API_URL', 'https://api.example.com');
+    try {
+      const { parse } = await setup();
+      expect(parse('https://api.example.com/app-link/return?code=c&state=s')).toEqual(ok);
+      expect(parse('https://API.Example.COM:443/app-link/return?code=c&state=s')).toEqual(ok);
+      for (const url of [
+        'https://api.example.com.evil.test/app-link/return?code=c&state=s',
+        'https://evilapi.example.com/app-link/return?code=c&state=s',
+        'https://api.example.co/app-link/return?code=c&state=s',
+        'https://api.example.com:8443/app-link/return?code=c&state=s',
+        'https://api.example.com@evil/app-link/return?code=c&state=s',
+        'http://api.example.com/app-link/return?code=c&state=s',
+      ]) {
+        expect(parse(url), url).toBeNull();
+      }
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('signs in through the universal form like the scheme', async () => {
+    const { auth, api, s } = await load();
+    await auth.startNativeAuth();
+    const { state } = await startSignIn(auth);
+    const host = new URL(api.API_URL).host;
+    h.listeners.appUrlOpen({ url: `https://${host}/app-link/return?code=UCODE&state=${state}` });
+    await flush();
+    await flush();
+    expect(calls.find((c) => c.url.includes('/devices/token'))!.body).toMatchObject({ code: 'UCODE' });
+    expect(s().status).toBe('signedIn');
+  });
+
+  it('ignores the same path on another host, leaving the sign-in pending', async () => {
+    const { auth, s } = await load();
+    await auth.startNativeAuth();
+    const { state } = await startSignIn(auth);
+    await s().handleOpenUrl(`https://evil.test/app-link/return?code=CODE&state=${state}`);
+    expect(calls.some((c) => c.url.includes('/devices/token'))).toBe(false);
+    expect(s().status).toBe('linking');
+    expect(h.browserClose).not.toHaveBeenCalled();
+  });
+});
+
 describe('starting up', () => {
   it('is signed out with an empty Keychain', async () => {
     const { auth, s } = await load();
@@ -184,14 +284,21 @@ describe('signing in', () => {
     expect(api.getCurrentClerkId()).toBe('user_1');
   });
 
-  it('refuses a link whose state does not match', async () => {
+  it('ignores a link whose state does not match, and still takes the real answer afterwards', async () => {
     const { auth, s } = await load();
     await auth.startNativeAuth();
-    await startSignIn(auth);
+    const { state } = await startSignIn(auth);
+    // Any app can open focusguild:// with anything; it must not end this sign-in.
     await s().handleOpenUrl('focusguild://link?code=CODE&state=somebody-elses-state');
-    expect(s().status).toBe('signedOut');
-    expect(s().error).toBe(auth.MESSAGES.mismatch);
+    expect(s().status).toBe('linking');
+    expect(s().error).toBeNull();
+    expect(h.browserClose).not.toHaveBeenCalled();
     expect(calls.some((c) => c.url.includes('/devices/token'))).toBe(false);
+
+    await s().handleOpenUrl(`focusguild://link?code=CODE&state=${state}`);
+    expect(s().status).toBe('signedIn');
+    expect(h.browserClose).toHaveBeenCalled();
+    expect(calls.filter((c) => c.url.includes('/devices/token'))).toHaveLength(1);
   });
 
   it('refuses a link when no sign-in was started', async () => {

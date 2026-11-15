@@ -5,12 +5,29 @@
  * /app-link the shell can still show the Connect page.
  *
  * Only the challenge and state are kept, never a URL: where the page sends
- * the member afterwards is always the app's own scheme, built here.
+ * the member afterwards is always built here: the app's own scheme, or the
+ * app-link return address on the API's host (appLinkReturnUrl).
  */
 
 import { isValidChallenge, isValidState } from './pkce';
 
 export const APP_LINK_PATH = '/app-link';
+
+/**
+ * The Universal Link path on the API's host (server lib/universalLink.ts).
+ * iOS hands an https address on that host only to the Focus Guild app.
+ */
+export const APP_LINK_RETURN_PATH = '/app-link/return';
+
+/**
+ * `<apiUrl>/app-link/return?code=…&state=…`: the hand-off address when the
+ * server says the Universal Link is on. Built from the API's configured
+ * address, never from anything in the page's query string.
+ */
+export function appLinkReturnUrl(apiUrl: string, code: string, state: string): string {
+  const base = apiUrl.replace(/\/+$/, '');
+  return `${base}${APP_LINK_RETURN_PATH}?${new URLSearchParams({ code, state })}`;
+}
 
 /** How long a started sign-in stays good, on both sides. */
 export const LINK_MAX_AGE_MS = 10 * 60 * 1000;

@@ -14,12 +14,15 @@
  * What is hidden:
  *   - everything after /calendar/, whatever it is;
  *   - the value of any `token` query parameter, on any path;
+ *   - every query value on /app-link/return (the iOS app's sign-in code and
+ *     state), keys kept, recognised from the routed path like the feed;
  *   - anything shaped like one of our tokens (fgpat_, fgcal_, fgd_) wherever
  *     else it turns up, for the caller who pastes one into the wrong place.
  * Headers and bodies were never printed and still are not.
  */
 
 import type { MiddlewareHandler } from 'hono';
+import { APP_LINK_RETURN_PATH } from './universalLink.js';
 
 const REDACTED = '[redacted]';
 
@@ -27,6 +30,8 @@ const REDACTED = '[redacted]';
 const OWN_TOKEN = /fg(pat|cal|d)_[A-Za-z0-9_-]+/g;
 
 const FEED_PATH = '/calendar/';
+/** lib/universalLink.ts APP_LINK_RETURN_PATH; lower case, as the path is compared. */
+const APP_LINK_RETURN = APP_LINK_RETURN_PATH.toLowerCase();
 
 function decoded(part: string): string {
   try {
@@ -51,6 +56,9 @@ export function maskTarget(target: string, routedPath?: string): string {
 
   const path = (routedPath ?? decoded(rawPath)).toLowerCase();
   const shownPath = path.startsWith(FEED_PATH) ? `${FEED_PATH}${REDACTED}${path.endsWith('.ics') ? '.ics' : ''}` : rawPath;
+  // Every value on the app-link return, whatever its key: the sign-in code and
+  // state ride there (and a caller may spell the keys any way it likes).
+  const hideAllValues = path === APP_LINK_RETURN || path === `${APP_LINK_RETURN}/`;
 
   const shownQuery =
     rawQuery === null
@@ -62,7 +70,7 @@ export function maskTarget(target: string, routedPath?: string): string {
             if (eq === -1) return pair;
             const key = pair.slice(0, eq);
             // The key is compared decoded: Hono reads ?%74oken= as `token` too.
-            return decoded(key).toLowerCase() === 'token' ? `${key}=${REDACTED}` : pair;
+            return hideAllValues || decoded(key).toLowerCase() === 'token' ? `${key}=${REDACTED}` : pair;
           })
           .join('&')}`;
 

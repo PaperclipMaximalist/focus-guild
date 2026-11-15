@@ -50,6 +50,21 @@ describe('maskTarget', () => {
     expect(maskTarget('/feed/fgcal_SECRET-with_all-chars.ics')).toBe('/feed/fgcal_[redacted].ics');
   });
 
+  it('hides every query value on the app-link return, keeping the keys', () => {
+    expect(maskTarget('/app-link/return?code=abc&state=def')).toBe('/app-link/return?code=[redacted]&state=[redacted]');
+    expect(maskTarget('/app-link/return/?code=abc')).toBe('/app-link/return/?code=[redacted]');
+    expect(maskTarget('/app-link/return?state=def&code=abc&x=1')).toBe('/app-link/return?state=[redacted]&code=[redacted]&x=[redacted]');
+    expect(maskTarget('/app-link/%72eturn?code=abc')).toBe('/app-link/%72eturn?code=[redacted]');
+    // The router's own reading of the path wins over ours.
+    expect(maskTarget('/app-link/%72eturn?code=abc', '/app-link/return')).toBe('/app-link/%72eturn?code=[redacted]');
+    expect(maskTarget('/app-link/return')).toBe('/app-link/return');
+  });
+
+  it('leaves the query alone on neighbouring paths', () => {
+    expect(maskTarget('/app-link/other?code=abc')).toBe('/app-link/other?code=abc');
+    expect(maskTarget('/app-link/return/x?code=abc')).toBe('/app-link/return/x?code=abc');
+  });
+
   it('leaves ordinary addresses as they came', () => {
     for (const target of ['/health', '/quests?tz=480&clerkId=user_123', '/schedule/today', '/calendar', '/inbox?source=teams', '/inbox?token']) {
       expect(maskTarget(target)).toBe(target);
@@ -92,6 +107,17 @@ describe('requestLog', () => {
     expect(res.status).toBe(200); // Hono decodes the path before matching, so this is the feed.
     expect(lines[0]).toBe('<-- GET /calendar/[redacted].ics');
     expect(lines.join('\n')).not.toContain('SECRET');
+  });
+
+  it('prints neither the code nor the state from an app-link return', async () => {
+    const { app, lines } = build();
+    app.get('/app-link/return', (c) => c.html('<p>ok</p>'));
+    await app.request('/app-link/return?code=abc&state=def');
+    expect(lines).toEqual([
+      '<-- GET /app-link/return?code=[redacted]&state=[redacted]',
+      expect.stringMatching(/^--> GET \/app-link\/return\?code=\[redacted\]&state=\[redacted\] 200 \d+ms$/),
+    ]);
+    expect(lines.join('\n')).not.toMatch(/abc|def/);
   });
 
   it('logs everything else as it came, with the status of a miss', async () => {
