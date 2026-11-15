@@ -6,7 +6,9 @@
  *      settings; the steps are spelled out here and the link is checked the
  *      moment it is pasted (`lib/googleCalendar.ts`), because that settings
  *      page shows several addresses that look alike. The other direction, the
- *      plan shown inside Google Calendar, is one more link.
+ *      plan shown inside Google Calendar, is one more link, with a token of
+ *      its own that can only read the plan (not the personal token the inbox
+ *      uses, which opens the whole account).
  *   2. Quests in bulk. Nobody wants to type forty quests one at a time. A
  *      manifest (`lib/manifest.ts`) is a plain list a person or an AI can
  *      write; this page hands out the guide to give the AI, links to the
@@ -20,9 +22,11 @@ import { Link } from 'react-router-dom';
 import { API_URL, api, manifestApi, type CalendarSourceInfo, type IntegrationsState } from '../lib/api';
 import { isNativeApp } from '../native/platform';
 import { GOOGLE_SETTINGS_URL, addToGoogleUrl, checkFeedLink, isGoogleSource } from '../lib/googleCalendar';
+import { planFeedUrl } from '../lib/planFeed';
 import { MANIFEST_EXAMPLE, MANIFEST_FONT, manifestGuide, toManifest } from '../lib/manifest';
 import { sfxClick } from '../lib/sfx';
 import { useArmed } from '../lib/useArmed';
+import { OldFeedLinkNotice } from '../components/OldFeedLinkNotice';
 import { useToastStore } from '../components/Toasts';
 import {
   ArrowLeft, ArrowRight, CalendarDays, Check, Copy, Download, ExternalLink, ListPlus, RefreshCw, Trash2, TriangleAlert,
@@ -302,24 +306,29 @@ function GoogleCalendar({ state, onChange }: { state: IntegrationsState; onChang
         {others === 0 && <> Outlook and iCloud calendars connect on <Link to="/connections" className="underline underline-offset-2">Connections</Link>.</>}
       </p>
 
-      <PlanInGoogle enabled={state.tokenEnabled} onChange={onChange} />
+      <PlanInGoogle enabled={state.feedEnabled} oldLinkSeenAt={state.oldFeedLinkSeenAt} onChange={onChange} />
     </>
   );
 }
 
-/** The other direction: the Guild's plan, shown as a calendar inside Google Calendar. */
-function PlanInGoogle({ enabled, onChange }: { enabled: boolean; onChange: () => Promise<void> | void }) {
+/**
+ * The other direction: the Guild's plan, shown as a calendar inside Google
+ * Calendar. The link is the plan feed's own (Connections shows the same one):
+ * it can read the plan and nothing else, and making or replacing it leaves the
+ * inbox and the personal token alone.
+ */
+function PlanInGoogle({ enabled, oldLinkSeenAt, onChange }: { enabled: boolean; oldLinkSeenAt: string | null; onChange: () => Promise<void> | void }) {
   const pushToast = useToastStore((s) => s.push);
   const { armed, fire } = useArmed();
   const { copied, copy } = useCopied();
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const feed = token ? `${API_URL}/calendar/${token}.ics` : null;
+  const feed = token ? planFeedUrl(API_URL, token) : null;
 
   const make = async () => {
     setBusy(true);
     try {
-      const res = await api.integrations.createToken();
+      const res = await api.integrations.createFeedToken();
       setToken(res.token);
       await onChange();
     } catch (err) {
@@ -330,48 +339,57 @@ function PlanInGoogle({ enabled, onChange }: { enabled: boolean; onChange: () =>
   };
 
   return (
-    <div className="panel flex flex-col gap-3 px-4 py-3.5">
-      <div>
-        <h3 className="text-[15px] font-semibold">Your plan in Google Calendar</h3>
-        <p className="mt-0.5 text-[13px] leading-snug text-(--color-muted)">
-          The other direction: your planned blocks appear in Google Calendar beside everything else, with its
-          reminders. It is one-way, so moving a block there changes nothing here, and Google looks for changes only
-          every few hours.
-        </p>
-      </div>
+    <>
+      {/* Above the panel, not inside it: a box within a box is one frame too many. */}
+      <OldFeedLinkNotice seenAt={oldLinkSeenAt} />
+      <div className="panel flex flex-col gap-3 px-4 py-3.5">
+        <div>
+          <h3 className="text-[15px] font-semibold">Your plan in Google Calendar</h3>
+          <p className="mt-0.5 text-[13px] leading-snug text-(--color-muted)">
+            The other direction: your planned blocks appear in Google Calendar beside everything else, with its
+            reminders. It is one-way, so moving a block there changes nothing here, and Google looks for changes only
+            every few hours.
+          </p>
+          <p className="mt-1.5 text-[13px] leading-snug text-(--color-muted)">
+            The link can only read your plan. Anyone who has it sees when each block is, your quest titles and the
+            names of your calendar events, and can change nothing.
+          </p>
+        </div>
 
-      {feed ? (
-        <>
-          <div className="flex flex-wrap items-center gap-2">
-            <a href={addToGoogleUrl(feed)} target="_blank" rel="noopener noreferrer" className="btn-strong">
-              Add to Google Calendar <ExternalLink size={14} aria-hidden />
-            </a>
-            <button type="button" onClick={() => copy('feed', feed)} className="btn-quiet">
-              {copied === 'feed' ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
-              {copied === 'feed' ? 'Copied' : 'Copy the link'}
+        {feed ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <a href={addToGoogleUrl(feed)} target="_blank" rel="noopener noreferrer" className="btn-strong">
+                Add to Google Calendar <ExternalLink size={14} aria-hidden />
+              </a>
+              <button type="button" onClick={() => copy('feed', feed)} className="btn-quiet">
+                {copied === 'feed' ? <Check size={14} aria-hidden /> : <Copy size={14} aria-hidden />}
+                {copied === 'feed' ? 'Copied' : 'Copy the link'}
+              </button>
+            </div>
+            <p className="text-[13px] leading-snug" style={{ color: 'var(--color-gold)' }}>
+              The link is shown this once. If Google does not offer to add it, copy the link and use Other calendars,
+              then From URL.
+            </p>
+          </>
+        ) : enabled ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="min-w-0 flex-1 basis-60 text-[13px] leading-snug text-(--color-muted)">
+              A link to your plan already exists, and it was shown only when it was made. A new one replaces it:
+              a calendar using the old link stops until it is given the new one. Your inbox and personal token are
+              not affected.
+            </p>
+            <button type="button" onClick={() => fire('new-link', make)} disabled={busy} className="btn-quiet disabled:opacity-40">
+              {armed === 'new-link' ? 'Tap again to replace it' : 'Make a new link'}
             </button>
           </div>
-          <p className="text-[13px] leading-snug" style={{ color: 'var(--color-gold)' }}>
-            The link is shown this once. If Google does not offer to add it, copy the link and use Other calendars,
-            then From URL.
-          </p>
-        </>
-      ) : enabled ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <p className="min-w-0 flex-1 basis-60 text-[13px] leading-snug text-(--color-muted)">
-            A link to your plan already exists, and it was shown only when it was made. A new one replaces it:
-            anything using the old one (a calendar, the inbox, the Claude connector) stops until it is given the new one.
-          </p>
-          <button type="button" onClick={() => fire('new-link', make)} disabled={busy} className="btn-quiet disabled:opacity-40">
-            {armed === 'new-link' ? 'Tap again to replace it' : 'Make a new link'}
+        ) : (
+          <button type="button" onClick={make} disabled={busy} className="btn-quiet self-start disabled:opacity-40">
+            {busy ? 'Making the link…' : 'Make the link'}
           </button>
-        </div>
-      ) : (
-        <button type="button" onClick={make} disabled={busy} className="btn-quiet self-start disabled:opacity-40">
-          {busy ? 'Making the link…' : 'Make the link'}
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+    </>
   );
 }
 

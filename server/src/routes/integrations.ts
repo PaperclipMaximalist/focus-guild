@@ -1,14 +1,18 @@
 /**
- * Connections: ICS calendar feeds and the personal inbox token.
+ * Connections: ICS calendar feeds, the personal access token and the plan
+ * feed's own token.
  *
- *   GET    /integrations                      sources + inbox status
+ *   GET    /integrations                      sources + which tokens exist
  *   POST   /integrations/calendars            { name, url } → add + first sync
  *   POST   /integrations/calendars/:id/sync   sync now
  *   DELETE /integrations/calendars/:id
- *   POST   /integrations/token                create or rotate; shown once
- *   DELETE /integrations/token                revoke
+ *   POST   /integrations/token                personal token: create or replace; shown once
+ *   DELETE /integrations/token                personal token: turn off
+ *   POST   /integrations/feed-token           plan feed link: create or replace; shown once
+ *   DELETE /integrations/feed-token           plan feed link: turn off
  *
- * The public, token-authenticated `POST /inbox` lives in routes/inbox.ts.
+ * The public, token-authenticated `POST /inbox` lives in routes/inbox.ts and
+ * the published feed in routes/calendarFeed.ts.
  */
 
 import { Hono } from 'hono';
@@ -17,7 +21,7 @@ import { db } from '../db/client.js';
 import { logActivity } from '../lib/activity.js';
 import { normaliseFeedUrl } from '../lib/calendar/ics.js';
 import { syncSource } from '../lib/calendar/sync.js';
-import { hashPersonalToken, newPersonalToken } from '../lib/tokens.js';
+import { hashFeedToken, hashPersonalToken, newFeedToken, newPersonalToken } from '../lib/tokens.js';
 
 export const integrations = new Hono();
 
@@ -43,7 +47,14 @@ integrations.get('/', async (c) => {
   const sources = await db.calendarSource.findMany({ where: { userId: user.id }, orderBy: { createdAt: 'asc' } });
   return c.json({
     success: true,
-    data: { calendars: sources.map(publicSource), tokenEnabled: Boolean(user.personalTokenHash) },
+    data: {
+      calendars: sources.map(publicSource),
+      tokenEnabled: Boolean(user.personalTokenHash),
+      feedEnabled: Boolean(user.calendarFeedTokenHash),
+      // Set while a calendar somewhere still asks with a link from before the
+      // feed had its own token; the pages use it to say what to do about it.
+      oldFeedLinkSeenAt: user.oldFeedLinkSeenAt,
+    },
   });
 });
 
@@ -91,16 +102,43 @@ integrations.delete('/calendars/:id', async (c) => {
  * One personal access token per user. It authenticates the inbox endpoint,
  * the REST API (Authorization: Bearer) and the MCP connector, so creating a
  * new one replaces the old everywhere.
+ *
+ * Replacing it or turning it off also clears oldFeedLinkSeenAt: an old feed
+ * link held this token, and once the token is gone that link is worthless,
+ * which is all the notice asked for.
  */
 integrations.post('/token', async (c) => {
   const user = c.get('user');
   const token = newPersonalToken();
-  await db.user.update({ where: { id: user.id }, data: { personalTokenHash: hashPersonalToken(token) } });
+  await db.user.update({
+    where: { id: user.id },
+    data: { personalTokenHash: hashPersonalToken(token), oldFeedLinkSeenAt: null },
+  });
   return c.json({ success: true, data: { token } });
 });
 
 integrations.delete('/token', async (c) => {
   const user = c.get('user');
-  await db.user.update({ where: { id: user.id }, data: { personalTokenHash: null } });
+  await db.user.update({ where: { id: user.id }, data: { personalTokenHash: null, oldFeedLinkSeenAt: null } });
+  return c.json({ success: true, data: { revoked: true } });
+});
+
+/**
+ * One plan feed link per user, and its token is separate from the personal
+ * one on purpose: the link is handed to a calendar app, so it can read the
+ * plan (routes/calendarFeed.ts) and nothing else. requireUser refuses it as a
+ * bearer token. A new one replaces the old link; the personal token is not
+ * touched, and the other way round.
+ */
+integrations.post('/feed-token', async (c) => {
+  const user = c.get('user');
+  const token = newFeedToken();
+  await db.user.update({ where: { id: user.id }, data: { calendarFeedTokenHash: hashFeedToken(token) } });
+  return c.json({ success: true, data: { token } });
+});
+
+integrations.delete('/feed-token', async (c) => {
+  const user = c.get('user');
+  await db.user.update({ where: { id: user.id }, data: { calendarFeedTokenHash: null } });
   return c.json({ success: true, data: { revoked: true } });
 });

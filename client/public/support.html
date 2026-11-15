@@ -19,7 +19,7 @@
 
   <main id="main" class="wrap">
     <h1>Support</h1>
-    <p class="updated">Last updated 13 November 2026</p>
+    <p class="updated">Last updated 14 November 2026</p>
 
     <h2 id="contact">Get help</h2>
     <p>Email <a href="mailto:{{CONTACT_EMAIL}}">{{CONTACT_EMAIL}}</a>. Focus Guild is made by one person, {{OPERATOR_NAME}}, so replies come from the developer, usually within a few days.</p>
@@ -30,7 +30,7 @@
       <li>a screenshot, if you can take one;</li>
       <li>if the question is about your account, write from the email address you sign in with.</li>
     </ul>
-    <p>Please never send us your password, an AI provider’s API key, your inbox token or a calendar link. We will never ask for them.</p>
+    <p>Please never send us your password, an AI provider’s API key, your personal token, your plan feed link or a calendar link. We will never ask for them.</p>
 
     <nav class="toc" aria-labelledby="toc-title">
       <h2 id="toc-title">Common questions</h2>
@@ -40,6 +40,7 @@
         <li><a href="#delete">Deleting your account</a></li>
         <li><a href="#notifications">Why the app asks for notifications</a></li>
         <li><a href="#calendar">Connecting a calendar</a></li>
+        <li><a href="#plan-feed">Your plan in your own calendar</a></li>
         <li><a href="#ai">AI features and your key</a></li>
         <li><a href="#export">Getting your data out</a></li>
         <li><a href="#offline">“Can’t reach the Guild”</a></li>
@@ -57,7 +58,7 @@
 
     <h2 id="sign-out">Signing out, and a lost phone</h2>
     <p>In the app, go to <strong>Settings, Account, Sign out</strong>, and tap again to confirm. This signs that iPhone out on our server too. Your quests stay in your account.</p>
-    <p>If you lose a phone that is signed in, or cannot reach it, sign in on the website and go to <strong>Settings, Account</strong>. Under Signed-in iPhones, press <strong>Sign out</strong> next to that phone and tap again to confirm. The same list is in the app. Turning off the inbox token does not sign out phones.</p>
+    <p>If you lose a phone that is signed in, or cannot reach it, sign in on the website and go to <strong>Settings, Account</strong>. Under Signed-in iPhones, press <strong>Sign out</strong> next to that phone and tap again to confirm. The same list is in the app. Turning off the personal token or the plan feed link does not sign out phones.</p>
     <p>An iPhone that goes unused for 180 days is signed out by itself.</p>
 
     <h2 id="delete">Deleting your account</h2>
@@ -76,6 +77,15 @@
     </ol>
     <p>Timed events then appear on your Route as fixed stops. All-day events and events marked as free are ignored. Calendars refresh about every 15 minutes, and you can refresh one at any time. Remove a calendar with its delete button in Connections.</p>
     <p>Treat the link like a password: anyone who has it can read that calendar. Some school and work accounts switch these links off.</p>
+
+    <h2 id="plan-feed">Your plan in your own calendar</h2>
+    <p>Focus Guild can show your plan as a calendar inside Google Calendar, Outlook or your phone’s calendar. It is one-way: changing an event there changes nothing in Focus Guild.</p>
+    <ol>
+      <li>Go to <strong>Settings, Advanced, Connections</strong> and, under Plan feed, press <strong>Make the link</strong>. Copy the link straight away; it is shown once. For Google Calendar, <strong>Settings, Advanced, Quickstart</strong> has a button that adds it for you.</li>
+      <li>In your calendar app, subscribe to the link. In Google Calendar: Other calendars, then From URL. In Outlook: Add calendar, then Subscribe from web. On iPhone: Settings, Calendar, Accounts, Add Subscribed Calendar.</li>
+    </ol>
+    <p>The link can only read your plan: when each block is, your quest titles and the names of your calendar events. It cannot change anything, and it is separate from your personal token, which the inbox uses and which can change your whole account. If the link gets out, press <strong>Make a new link</strong>; the old one stops at once. Calendar apps look for changes slowly, Google often only every few hours.</p>
+    <p><strong>If your plan stopped appearing in your calendar.</strong> Plan links made before November 2026 contained your personal token, so they were switched off. Make a new link as above and add it to your calendar, remove the old Focus Guild calendar there, then press <strong>Make a new token</strong> under Inbox in Connections and give the new token to anything that used the old one.</p>
 
     <h2 id="ai">AI features and your key</h2>
     <p>Focus Guild can use an AI to break a quest into steps (<strong>Break down</strong> on a quest), to answer questions about your recent days (<strong>Ask the Guild</strong>, in Settings, Advanced, Records and AI), and to turn your notes into a quest list (<strong>Quests, Import</strong>). Everything else works without an AI.</p>

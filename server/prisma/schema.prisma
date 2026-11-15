@@ -31,6 +31,15 @@ model User {
   /// SHA-256 of the personal access token (shown once). Authenticates the
   /// inbox endpoint, the REST API and the MCP connector.
   personalTokenHash    String?  @unique
+  /// SHA-256 of the calendar feed token (shown once): the secret part of the
+  /// published plan link, /calendar/<token>.ics. It opens that feed only.
+  calendarFeedTokenHash String? @unique
+  /// When a calendar last asked for the plan with a link from before the feed
+  /// had its own token (the link held the personal access token). Those links
+  /// no longer work; this is how Connections knows to say so. Cleared when the
+  /// personal token is replaced or turned off, which is what makes the old
+  /// link worthless.
+  oldFeedLinkSeenAt    DateTime?
 
   quests         Quest[]
   checkIns       DailyCheckIn[]

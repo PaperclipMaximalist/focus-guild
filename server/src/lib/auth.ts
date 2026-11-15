@@ -18,7 +18,7 @@
  */
 
 import type { Context, MiddlewareHandler } from 'hono';
-import { PAT_PREFIX, hashPersonalToken } from './tokens.js';
+import { FEED_PREFIX, PAT_PREFIX, hashPersonalToken } from './tokens.js';
 import { DEVICE_PREFIX, findLiveDeviceSession, lastUsedIsStale, touchDeviceSession } from './deviceSessions.js';
 import { verifyToken } from '@clerk/backend';
 import { db } from '../db/client.js';
@@ -96,8 +96,9 @@ async function resolveClerkId(c: Context): Promise<string | null> {
  * Middleware: resolve the user (creating them on first sight) and attach to
  * the context. Route handlers use `c.get('user')`.
  *
- * Skips routes that carry their own token (`/health`, `/inbox`, `/calendar/<token>.ics`),
- * and `POST /devices/token`, where the app has no token yet: the one-time code
+ * Skips `/health` and the routes that check a token of their own (`/inbox`
+ * takes the personal token, `/calendar/<token>.ics` only the feed token), and
+ * `POST /devices/token`, where the app has no token yet: the one-time code
  * and its PKCE verifier are its credentials.
  * `POST /users` used to be skipped too, which let anyone create a row for any
  * clerkId and read that member's whole record back; it now needs auth like
@@ -105,7 +106,7 @@ async function resolveClerkId(c: Context): Promise<string | null> {
  */
 export const requireUser: MiddlewareHandler = async (c, next) => {
   const path = c.req.path;
-  // /inbox and /calendar/<token>.ics carry their own personal token.
+  // /inbox and /calendar/<token>.ics check their own token.
   if (path === '/health' || path === '/inbox' || path.startsWith('/calendar/')) {
     return next();
   }
@@ -114,6 +115,17 @@ export const requireUser: MiddlewareHandler = async (c, next) => {
   }
 
   const auth = c.req.header('Authorization');
+
+  // A calendar feed token (fgcal_…) opens the published plan and nothing else:
+  // it lives in a link inside other companies' calendar apps. Refused here by
+  // its prefix, before anything is looked up, and in dev mode too, where an
+  // unrecognised bearer would otherwise fall back to the dev member.
+  if (auth?.startsWith(`Bearer ${FEED_PREFIX}`)) {
+    return c.json(
+      { success: false, error: { code: 'UNAUTHORIZED', message: 'A calendar feed link cannot sign in. Use a personal access token.' } },
+      401,
+    );
+  }
 
   // A device token from the iOS app. Checked before Clerk in both modes: it is
   // not a JWT, and in dev mode an unknown one must 401, not fall back to the

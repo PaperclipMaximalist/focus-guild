@@ -650,7 +650,13 @@ export const api = {
       }),
   },
 
-  /** Calendar feeds and the personal inbox token. */
+  /**
+   * Calendars the planner reads, and the two tokens a member can make. They
+   * are separate on purpose: the personal token opens the whole account (the
+   * inbox, the API, the connector); the feed token only shows the plan as a
+   * calendar. Each is returned once, when made, and replacing one leaves the
+   * other alone.
+   */
   integrations: {
     get: () => request<IntegrationsState>('/integrations'),
     addCalendar: (name: string, url: string) =>
@@ -658,8 +664,12 @@ export const api = {
     syncCalendar: (id: string) =>
       request<CalendarSyncResult>(`/integrations/calendars/${id}/sync`, { method: 'POST', body: '{}' }),
     removeCalendar: (id: string) => request<{ id: string }>(`/integrations/calendars/${id}`, { method: 'DELETE' }),
+    /** The personal access token (`fgpat_…`): create or replace. */
     createToken: () => request<{ token: string }>('/integrations/token', { method: 'POST', body: '{}' }),
     revokeToken: () => request<{ revoked: boolean }>('/integrations/token', { method: 'DELETE' }),
+    /** The plan feed's token (`fgcal_…`): create or replace. Build the link with `planFeedUrl`. */
+    createFeedToken: () => request<{ token: string }>('/integrations/feed-token', { method: 'POST', body: '{}' }),
+    revokeFeedToken: () => request<{ revoked: boolean }>('/integrations/feed-token', { method: 'DELETE' }),
   },
 
   /** Activity log, permafile and AI bundle. `tz` is getTimezoneOffset(). */
@@ -725,8 +735,16 @@ export interface CalendarSourceInfo {
 
 export interface IntegrationsState {
   calendars: CalendarSourceInfo[];
-  /** One personal access token powers the inbox, the API and the connector. */
+  /** A personal access token exists. It powers the inbox, the API and the connector, and can change the whole account. */
   tokenEnabled: boolean;
+  /** A plan feed link exists. Its token can read the plan as a calendar and nothing else. */
+  feedEnabled: boolean;
+  /**
+   * When a calendar last asked for the plan with a link from before the feed
+   * had its own token. Those links held the personal token and no longer
+   * work. Null once the personal token has been replaced or turned off.
+   */
+  oldFeedLinkSeenAt: string | null;
 }
 
 export type CalendarSyncResult = { calendar: CalendarSourceInfo; count?: number; error?: string };
