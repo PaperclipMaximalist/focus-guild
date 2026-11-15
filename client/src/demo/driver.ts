@@ -11,6 +11,7 @@
  */
 
 import { chooseLine } from '../lines/current';
+import { isSceneEnabled, setSceneEnabled } from '../lib/scene';
 import { demoNow, realFetch } from './install';
 
 interface RouteAsk {
@@ -112,6 +113,75 @@ function writeTimer(on: boolean): void {
   }
 }
 
+// ─── A probe, for looking into the iPhone's WebView from outside ──────────────
+//
+// On the simulator the two cards at the top of Today (Now boarding, Time
+// available) came out without their drawn frames, in every look, while the
+// same Time available card on the Route kept its frame. Nobody can open a web
+// inspector on the Mac runner, so the build says what it sees: one console
+// line, "[demo] frames <n> …", with what the WebView computed for the frame on
+// the first panels of Today and the Route; and a path with ?demoprobe=<name>
+// changes one thing before the picture is taken, so one run shows which change
+// brings the frames back. Diagnosis only; take it out once the cause is fixed.
+
+const nextFrames = async (count: number): Promise<void> => {
+  for (let i = 0; i < count; i += 1) await new Promise<void>((r) => requestAnimationFrame(() => r()));
+};
+
+function describeFrames(): string {
+  const short = (v: string, n = 28) => (v.length > n ? `${v.slice(0, n)}~${v.length}` : v);
+  const panels = [...document.querySelectorAll<HTMLElement>('.panel')].slice(0, 4).map((el) => {
+    const cs = getComputedStyle(el);
+    const a = getComputedStyle(el, '::after');
+    const r = el.getBoundingClientRect();
+    return {
+      cls: el.className.slice(0, 36),
+      box: [r.x, r.y, r.width, r.height].map(Math.round).join(','),
+      el: [cs.position, cs.display, cs.overflow, cs.opacity, short(cs.transform, 12), cs.isolation, cs.contain, cs.willChange].join('|'),
+      after: [a.content, a.position, a.display, a.width, a.height, a.top, a.left, a.borderTopWidth, a.borderImageSlice, a.alignSelf, a.justifySelf, a.opacity, a.visibility].join('|'),
+      src: short(a.borderImageSource),
+    };
+  });
+  const root = document.documentElement;
+  const rs = getComputedStyle(root);
+  return JSON.stringify({
+    ornate: root.dataset.ornate ?? '',
+    moving: root.dataset.moving ?? '',
+    vars: ['--frame-panel', '--frame-card'].map((v) => rs.getPropertyValue(v).length).join(','),
+    panels,
+  });
+}
+
+async function applyProbe(name: string): Promise<void> {
+  const root = document.documentElement;
+  const cards = [...document.querySelectorAll<HTMLElement>('.panel')].slice(0, 2);
+  if (name === 'wait') {
+    // Only time: were the frames merely late?
+    await sleep(6000);
+  } else if (name === 'reattr') {
+    // Take the attribute the frame rules hang on away and put it back: stale style?
+    const kept = root.dataset.ornate;
+    delete root.dataset.ornate;
+    await nextFrames(3);
+    if (kept) root.dataset.ornate = kept;
+    await sleep(1500);
+  } else if (name === 'noscene') {
+    // Scenery off (the animated window above the cards stops): compositing under animation?
+    setSceneEnabled(false);
+    await sleep(2500);
+  } else if (name === 'repaint') {
+    // Take the two cards out of the layout and put them back: a missed repaint?
+    for (const c of cards) c.style.display = 'none';
+    await nextFrames(3);
+    for (const c of cards) c.style.display = '';
+    await sleep(1500);
+  } else if (name === 'layer') {
+    // Give each card a layer of its own.
+    for (const c of cards) c.style.transform = 'translateZ(0)';
+    await sleep(1500);
+  }
+}
+
 /** The screen this load was asked for: wait for it, then say so on the console. */
 async function finishPending(ask: RouteAsk): Promise<void> {
   let settled = await settle();
@@ -119,11 +189,18 @@ async function finishPending(ask: RouteAsk): Promise<void> {
     const opened = await openTimer();
     settled = (await settle()) && settled && opened;
   }
+  const probe = new URLSearchParams(window.location.search).get('demoprobe');
+  if (probe) await applyProbe(probe);
+  if (!ask.timer && (window.location.pathname === '/' || window.location.pathname === '/feed')) {
+    console.log(`[demo] frames ${ask.n} ${probe ?? 'plain'} ${describeFrames()}`);
+  }
   console.log(`[demo] shown ${ask.n} ${ask.line} ${ask.path}${settled ? '' : ' (still loading)'}`);
 }
 
 async function go(ask: RouteAsk): Promise<void> {
   await chooseLine(ask.line);
+  // The noscene probe turns Scenery off; every other screen is taken with it on.
+  if (!isSceneEnabled()) setSceneEnabled(true);
   writeTimer(!!ask.timer);
   writeSession(PENDING_KEY, JSON.stringify(ask));
   window.location.replace(ask.path);

@@ -198,6 +198,9 @@ try {
       shownWaiters.get(n)?.(text);
     } else if (text === '[demo] ready') {
       ready = true;
+    } else if (text.startsWith('[demo] frames ')) {
+      // The frame probe's line (src/demo/driver.ts): printed, so this browser's answer can be set beside the iPhone's.
+      console.log(text);
     } else if (text.startsWith('[demo] unanswered ')) {
       unanswered.add(text.slice('[demo] unanswered '.length));
     }
