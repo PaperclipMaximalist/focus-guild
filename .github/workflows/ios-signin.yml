@@ -57,10 +57,9 @@ jobs:
     defaults:
       run:
         shell: bash
-    env:
-      WORK: ${{ runner.temp }}/signin
-      EVIDENCE: ${{ runner.temp }}/signin/evidence
-      WEB_DIST: ${{ runner.temp }}/signin/website
+    # Where run.sh works is not set here: the runner's temp folder cannot be
+    # named at job level (GitHub refuses the whole file), and run.sh already
+    # uses $RUNNER_TEMP/signin, with evidence/ and website/ inside it.
     steps:
       - name: Check out the repository
         uses: actions/checkout@v5
