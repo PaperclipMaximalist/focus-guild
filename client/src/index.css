@@ -4,6 +4,12 @@
 /* `native:` utilities apply only inside the iOS app, where native/shell.ts puts
    `native` on <html>. The website never has the class, so it never sees them. */
 @custom-variant native (&:where(.native, .native *));
+/* `edge:` is for layout that keeps clear of the status bar and the home
+   indicator; it applies whenever the page is drawn edge to edge, which is the
+   iPhone app (`html.native`) and the website opened from a home screen
+   (`html.standalone`, set in index.html). `native:` stays, for anything that is
+   the app's alone. */
+@custom-variant edge (&:where(.native, .native *, .standalone, .standalone *));
 
 /* ── Departures ──────────────────────────────────────────────────────────────
  * The day as a station board on a wet night, a little way into the future and
@@ -114,8 +120,9 @@ html { background: var(--color-bg); }
    it a fixed height and overflow-x: hidden, so its overflow-y becomes auto. */
 #root { scroll-padding-top: 4rem; scroll-padding-bottom: calc(4.75rem + var(--safe-bottom)); }
 @media (min-width: 64rem) { #root { scroll-padding-top: 0.5rem; scroll-padding-bottom: 0.5rem; } }
-/* In the app the top bar also covers the status bar. */
-@media not (min-width: 64rem) { .native #root { scroll-padding-top: calc(4rem + var(--safe-top)); } }
+/* In the app, and on the website opened from a home screen, the top bar also
+   covers the status bar. */
+@media not (min-width: 64rem) { .native #root, .standalone #root { scroll-padding-top: calc(4rem + var(--safe-top)); } }
 
 html, body, #root {
   height: 100%;
@@ -386,8 +393,9 @@ code { font-family: var(--font-mono); font-size: 0.92em; }
 
 /* Shown below the status bar when a keyboard reaches it. While hidden it stays
    where the website puts it: moved down by the inset it would no longer be
-   pushed fully off the top of the screen. */
-.native .skip-link:focus-visible { top: calc(0.75rem + var(--safe-top)); }
+   pushed fully off the top of the screen. The same in the app, and on the
+   website opened from a home screen. */
+.native .skip-link:focus-visible, .standalone .skip-link:focus-visible { top: calc(0.75rem + var(--safe-top)); }
 
 /* A back link drawn as a small line of text, tapped as 44px or more. */
 .native .back-link { position: relative; }

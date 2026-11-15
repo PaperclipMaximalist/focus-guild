@@ -11,6 +11,19 @@
     <meta name="apple-mobile-web-app-title" content="Guild" />
     <meta name="description" content="A gamified quest tracker and energy-aware day planner." />
     <meta name="theme-color" content="#06081A" />
+    <script>
+      // Opened from a home screen the page is drawn under the status bar
+      // (viewport-fit=cover, black-translucent above), so it has to keep clear
+      // of the notch itself: index.css's `edge:` rules key off this class.
+      // In a browser tab the insets are zero and nothing changes.
+      (function () {
+        var root = document.documentElement;
+        var mode = window.matchMedia ? window.matchMedia('(display-mode: standalone)') : null;
+        function set() { root.classList.toggle('standalone', !!((mode && mode.matches) || window.navigator.standalone)); }
+        set();
+        if (mode && mode.addEventListener) mode.addEventListener('change', set);
+      })();
+    </script>
     <title>Focus Guild</title>
   </head>
   <body>

@@ -2,7 +2,7 @@
  * What makes the iOS app behave like an app rather than a page in a frame.
  * main.tsx calls startShell() once, before the first render, in the app only.
  *
- *   - `native` on <html>, which index.css and the `native:` variant key off
+ *   - `native` on <html>, which index.css and the `native:` variant (the app's own) key off
  *     (safe-area padding, no page bounce, no selecting the chrome)
  *   - status bar: light text, on the app's dark ground in every line
  *   - launch screen: stays up until the first real screen has painted, then

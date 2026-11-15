@@ -36,7 +36,7 @@ export function Header() {
 
   return (
     // In the app its background runs up under the status bar; the row sits below it.
-    <header className="app-topbar sticky top-0 z-30 border-b border-(--color-border) bg-(--color-bg) lg:hidden native:pt-(--safe-top)">
+    <header className="app-topbar sticky top-0 z-30 border-b border-(--color-border) bg-(--color-bg) lg:hidden edge:pt-(--safe-top)">
       <div className="flex h-13 items-center gap-2.5 pl-4 pr-2">
         {/* Left slot: the duck floats here; without it, the rank's own icon. */}
         {duck ? (

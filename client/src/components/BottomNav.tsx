@@ -79,7 +79,7 @@ export function BottomNav() {
       <nav
         aria-label="Main"
         // In the app the bar grows by the home indicator, so its tabs keep their full height above it.
-        className="app-tabbar fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-(--color-border) bg-(--color-surface) px-1 pb-(--safe-bottom) lg:hidden native:h-[calc(4rem+var(--safe-bottom))]"
+        className="app-tabbar fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t border-(--color-border) bg-(--color-surface) px-1 pb-(--safe-bottom) lg:hidden edge:h-[calc(4rem+var(--safe-bottom))]"
       >
         {PRIMARY.map((item) => {
           const active = isActive(pathname, item.to);

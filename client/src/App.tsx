@@ -230,7 +230,7 @@ function AuthenticatedApp() {
     return (
       // The shape of the page that is about to appear, so nothing jumps when it does.
       // No top bar yet, so in the app it keeps clear of the status bar itself.
-      <div className="page native:pt-[calc(1.25rem+var(--safe-top))]" aria-busy="true" aria-label="Loading">
+      <div className="page edge:pt-[calc(1.25rem+var(--safe-top))]" aria-busy="true" aria-label="Loading">
         <div className="skeleton h-4 w-32" />
         <div className="skeleton mt-2 h-9 w-48" />
         <div className="skeleton mt-6 h-24" />
@@ -361,8 +361,8 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div
       className={
         nav
-          ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60 native:max-lg:pb-[calc(4rem+var(--safe-bottom))]'
-          : 'min-h-screen native:pt-(--safe-top) native:pb-(--safe-bottom)'
+          ? 'min-h-screen pb-16 lg:pb-0 lg:pl-60 edge:max-lg:pb-[calc(4rem+var(--safe-bottom))]'
+          : 'min-h-screen edge:pt-(--safe-top) edge:pb-(--safe-bottom)'
       }
     >
       <a

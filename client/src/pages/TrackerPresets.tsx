@@ -582,7 +582,7 @@ export default function TrackerPresets() {
         className={`flex items-center gap-2 rounded-xl border p-2 ${
           // Only float over the content when there's something to save; a
           // sticky "All saved" bar just covers the fields beneath it.
-          dirty ? 'sticky bottom-20 native:max-lg:bottom-[calc(5rem+var(--safe-bottom))]' : ''
+          dirty ? 'sticky bottom-20 edge:max-lg:bottom-[calc(5rem+var(--safe-bottom))]' : ''
         }`}
         style={{
           borderColor: dirty ? 'color-mix(in srgb, var(--color-primary) 55%, transparent)' : 'var(--color-border)',

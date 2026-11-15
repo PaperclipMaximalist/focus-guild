@@ -365,7 +365,7 @@ export default function Settings() {
       <AccountSection />
 
       {/* Action bar. In the app the tab bar is taller by the home indicator. */}
-      <div className="sticky bottom-20 native:max-lg:bottom-[calc(5rem+var(--safe-bottom))] z-40 flex items-center justify-between gap-2 rounded-md border px-4 py-2.5 shadow-xl"
+      <div className="sticky bottom-20 edge:max-lg:bottom-[calc(5rem+var(--safe-bottom))] z-40 flex items-center justify-between gap-2 rounded-md border px-4 py-2.5 shadow-xl"
         style={{
           background: 'var(--color-surface)',
           borderColor: hasChanges ? 'color-mix(in srgb, var(--color-gold) 50%, transparent)' : 'var(--color-border)',
