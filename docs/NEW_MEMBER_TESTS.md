@@ -120,16 +120,23 @@ The local server normally talks to the production Neon database. For these
 cases use an in-memory Postgres instead, so a fresh member exists and nothing
 real is written:
 
-1. In any scratch folder: `npm i @electric-sql/pglite @electric-sql/pglite-socket @prisma/adapter-pg@7.8.0 pg`.
-2. Start PGlite on a port with the migrations in `server/prisma/migrations`
-   applied in order (a 25-line script: `PGlite.create()`, `db.exec()` each
-   `migration.sql`, then `new PGLiteSocketServer({ db, port }).start()`).
-3. Start the server from a checkout with no `server/.env` and a preload that
-   sets `globalThis.prisma` to a `PrismaClient` on `PrismaPg` (pool `max: 1`)
-   before `src/db/client.ts` runs; it then never builds its Neon client:
-   `LOCAL_PG_URL=postgresql://postgres@127.0.0.1:54329/postgres PORT=3091 CLIENT_URL=http://127.0.0.1:5191 npx tsx --import ./preload.mjs src/index.ts`.
+Since 2026-11-14 the scripts are in the repository: `ci/throwaway/` (its
+`README.md` has the commands). In short:
+
+1. Once: `cd ci/throwaway && npm ci`.
+2. Start the database and leave it running:
+   `node db.mjs ../../server/prisma/migrations 54329` (PGlite in memory, every
+   migration applied in order, served on that port).
+3. Start the server from a checkout with no `server/.env`, with the kit's
+   preload, which hands the server a Prisma client on that database before
+   `src/db/client.ts` runs, so it never builds its Neon client (and refuses to
+   start unless the address is on 127.0.0.1):
+   `LOCAL_PG_URL=postgresql://postgres@127.0.0.1:54329/postgres PORT=3091 CLIENT_URL=http://127.0.0.1:5191 npx tsx --import <file URL of ci/throwaway/preload.mjs> src/index.ts`.
 4. Start the client with no `.env`: `VITE_API_URL=http://127.0.0.1:3091 npx vite --port 5191 --strictPort`.
-5. Restarting PGlite gives a brand-new member again.
+5. Restarting the database gives a brand-new member again.
+
+The iOS sign-in check on CI (`client/ios/ci/signin/run.sh`) starts the same
+kit on the Mac runner.
 
 ## Results
 

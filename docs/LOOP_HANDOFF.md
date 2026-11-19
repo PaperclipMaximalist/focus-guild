@@ -1,108 +1,96 @@
 # Hand-off: the next loop starts here
 
-Written 2026-11-14, at the end of the loop that turned the web app into an
-iPhone app. A new loop reads this page first; it should not need the old chat.
-**The last act of every loop is to rewrite this page.**
+Rewritten 2026-11-19, at the end of the second iPhone loop (run 2026-11-14,
+results read 2026-11-19). A new loop reads this page and `docs/LOOP_GRAPH.md`
+first; it should not need the old chat. **The last act of every loop is to
+rewrite this page** (and redraw graph 4 in `LOOP_GRAPH.md`).
 
 ## How the owner wants a loop run
 
 The owner's words (2026-11-14): "a single in chat loop that keeps repeating
 until meaningful goals are achieved and then afterwards it can save all
-necessary info to start a new loop."
+necessary info to start a new loop." And (2026-11-19): think about how good
+programmers use AI with self-improving loops and graphs. The answer to that is
+`docs/LOOP_GRAPH.md`: the loop as a state machine, the oracle ladder, how a
+lesson climbs from incident to automation, and the next goals as a graph.
 
-What that means in practice (the director's reading; correct it here if the
-owner says otherwise):
+In practice (the director's reading; correct it here if the owner says otherwise):
 
-- **One loop, in one chat.** The director session keeps the work. Coders are
-  subagents it briefs and checks (Sonnet for simple code, Opus for hard or
-  risky code); nothing is handed to a separate session or left as a task card
-  that the loop could have done itself.
-- **It keeps going round.** Each round: see where things stand, choose the
-  next goals, brief the coders, read every diff, rerun the suites, look at the
-  result in a browser, fix small things, commit by path. Then the next round.
-- **"Waiting on the owner" parks one item, not the loop.** The loop moves to
-  the next goal it can reach. It ends when the goals set at the start are met,
-  or when nothing meaningful is left that it can reach without the owner.
-- **Then it saves.** This page, the gates page, the worklog, the plan and the
-  memory notes are brought up to date, so the next loop starts cold.
-
-Where the last loop fell short of this: it stopped once the iPhone gates were
-either checked or waiting on the owner, although the goals under "A new loop
-can reach these" below were still reachable; and it put one follow-up (the
-calendar feed token) on a task card, which then ran as a separate session.
+- **One loop, in one chat.** The director decides and checks; coders are
+  subagents (Opus for hard or risky code, Sonnet for simple code). Nothing goes
+  to a separate session or a task card.
+- **It keeps going round** (graph 1): plan from the goal graph, brief, read
+  every diff, run the oracles fast to slow, commit by path, learn, repeat.
+- **"Needs the owner" parks one item, not the loop.**
+- **It ends by saving**: this page, the gates, the worklog, the plan, the
+  memory notes, and the lessons table and goal graph in `LOOP_GRAPH.md`.
 
 ## Where everything is
 
-| What | Where | State on 2026-11-14 |
+| What | Where | State on 2026-11-19 |
 | --- | --- | --- |
-| Production | branch `main` @ `9f8b769` | Deployed 2026-11-13 by another session (all of `improve-loop`). Railway server, Vercel website. |
-| The iPhone app | branch `ios-app` @ `f56992d`, worktree `.claude/worktrees/ios-app` | `main` plus 17 commits. Pushed to GitHub. Not merged, not deployed. A merge to `main` is a fast-forward. |
-| Calendar feed token | branch `calendar-feed-token` @ `47fe6b1`, worktree `.claude/worktrees/calendar-feed-token` | `ios-app` plus 3 commits, 26 files, one more migration. Built by a separate session. **Not reviewed by the director, not merged, not pushed.** Its own report: 637 server and 223 client tests pass, tried with curl on a throwaway database, old feed links stop working when it deploys. |
-| Simulator screenshots | branch `ci-shots` on GitHub | Overwritten by each Mac build. |
+| Production | `main` @ `9f8b769` | Deployed 2026-11-13 (all of `improve-loop`). Nothing since. |
+| The iPhone app and everything after | `ios-app`, worktree `.claude/worktrees/ios-app` | `main` + the first loop + this loop's 9 commits (`ff3926a` to `eb38659`) + the docs commit of 2026-11-19. Pushed. Not merged, not deployed. A merge to `main` is a fast-forward. **Two migrations** wait for the deploy: `20261113000000_device_sessions`, `20261113120000_calendar_feed_token`. |
+| `calendar-feed-token` | merged into `ios-app` | Its worktree and branch can be removed (owner's call). |
+| Screen walk evidence | branch `ci-shots` | Overwritten by each push that touches `client/`. Last: 154 of 154 screens confirmed (`13e2319`). |
+| Sign-in evidence | branch `ci-signin` | Overwritten by each push that touches `client/`, `server/` or `ci/`. Last (`eb38659`): the hand-off worked, the relaunch failed. |
 
-Pages to read, in this order:
+Pages to read, in this order: `docs/LOOP_GRAPH.md`; `docs/IOS_APP_STORE.md`
+(the gates, the phone checklist, the owner's steps); `docs/IOS_RELEASE.md`
+(shipping from Windows, the walk, the sign-in check, the evidence branches);
+`WORKLOG.md` "Sat 2026-11-14".
 
-1. `docs/IOS_APP_STORE.md`: the twenty gates and how each was checked, the list of things only a real iPhone can show, the answers for App Store Connect, the owner's eight steps, the known limits.
-2. `docs/IOS_RELEASE.md`: shipping from Windows through GitHub's Mac runners.
-3. `docs/PRIVACY_DATA_MAP.md`: what the code stores and sends, with file and line, and the questions only the owner can answer.
-4. `WORKLOG.md`, "Fri 2026-11-13": what was built, commit by commit, and what review caught.
+## What this loop reached
 
-How to look at things:
+- **Goal 1, feed token:** reviewed, tried on a throwaway database, merged (`ff3926a`).
+- **Goal 2, every screen in the iPhone WebView:** a demo build (`npm run build:demo`: sample data, signed in, no network, steered by `/demo-route.json`; absent from the website and the real app) and a CI walk (`client/ios/ci/walk-screens.sh`, list in `screens.tsv`). First run 119 of 119 screens confirmed in seven looks; second run 154 of 154 (with the probes). Pictures on `ci-shots`.
+- **Goal 3, a real sign-in on the Mac:** `.github/workflows/ios-signin.yml` with Maestro 2.12.1 and the throwaway kit `ci/throwaway`. **The hand-off works in the simulator**: Sign in, the browser sheet, Connect this iPhone, `focusguild://` back into the app, the token traded (server log: `POST /devices/link 201`, `POST /devices/token 200`, one device listed), the signed-in Today. **The relaunch fails**: after stopping and starting the app it is on the sign-in screen (`ci-signin/screens/step-019-…jpg`).
+- **Goal 4, lint:** 40 problems to none (`8769de7`).
+- **Goal 5, website on a home screen:** the `edge:` variant (`48bea1a`). Checked in a browser, not on a phone.
+- **Goal 6, Universal Links:** built and off (`7729d97`, `docs/UNIVERSAL_LINKS.md`); needs the owner's Apple team ID, then a real phone.
+- **Also:** Mileage's bars fixed; a stray `focusguild://` link can no longer end a sign-in; tests 231 client, 654 server; lint 0.
 
-- **The app's screens in a desktop browser:** dev server with `?native=1&inset=59,34`. Sign-in there is described in `docs/IOS_APP_STORE.md`, "How to build".
-- **A real server without the production database:** the throwaway PGlite recipe in `docs/NEW_MEMBER_TESTS.md`, "Running against a throwaway database". Local dev otherwise writes to production.
-- **A Mac build's result without a GitHub login:** `curl https://api.github.com/repos/PaperclipMaximalist/focus-guild/actions/runs?branch=ios-app`, then `/actions/runs/<id>/jobs` for each step's name and result. Screenshots: `git fetch origin ci-shots`, then `git show FETCH_HEAD:after-20s.png > file`.
-- **A build starts** on any push to `ios-app` that touches `client/`.
+## Open, and what is known about each
 
-## What the last loop reached
-
-- The app exists, compiles with Xcode 26.6 and launches in an iPhone simulator (two Mac builds, both passed).
-- Checked in a browser in app mode against the real server code: sign-in, a phone signed out from the website, a forged link, Sign out, Delete account, the question before an AI request, the focus timer, safe areas on six pages.
-- 612 server tests and 219 client tests pass. Lint: the same forty problems as before the work, none in a file it touched.
-
-Not reached: nothing has run on a real iPhone; the TestFlight job has never run; nothing is uploaded to Apple; `/app-link` and account deletion have not been tried with Clerk switched on; the sign-in hand-off (`focusguild://`) has only been simulated.
+1. **Today's first two cards lose their drawn frames in WebKit** (Now boarding, Time available), in every look; the same card keeps its frame on the Route; Chrome draws them all. The probe (`client/src/demo/driver.ts`, rows `18-…` to `22-…` in `screens.tsv`) showed: WebKit computes the frame exactly as Chrome does (same `::after` size, border width, image); **with Scenery off every panel has its frame**; giving the two cards a layer of their own (`translateZ(0)`) brings their frames back but **takes the frames off the panels below**; more time, re-setting the attribute and re-inserting the cards change nothing. So the moving scene window (an animated canvas above the cards) upsets WebKit's painting of `border-image` on nearby pseudo-elements: a compositing bug, not a CSS mistake. Candidates for the fix, to try as probes in one Mac run: a layer on every frame (`.panel::after { transform: translateZ(0) }` or `will-change: transform`), `contain: paint` or `isolation: isolate` on the scene window, or drawing the frame as a background layer instead of `border-image`.
+2. **The session does not survive a relaunch in the simulator.** Two candidates: (a) the Keychain write fails silently in an unsigned simulator build (`CODE_SIGNING_ALLOWED=NO` gives no keychain entitlement, error -34018; `writeSession` in `native/auth.ts` swallows it), which is the likelier; (b) the first-install marker in localStorage was not yet on disk when the app was stopped, so `forgetSessionOnFirstLaunch` wiped the session. Next: log both paths to the console, and sign the simulator build ad hoc in `ios-signin.yml`; then the flow should pass. On a real, signed phone (a) cannot happen; (b) could.
+3. **The slider thumb** is a plain white pill in WebKit instead of the themed one (style `::-webkit-slider-thumb`).
+4. **Store screenshots**: the walk now writes seven at 1320 x 2868 with a real status bar to `ci-shots/store/`; they should replace `client/ios/App/fastlane/screenshots/en-US` once 1 and 3 are fixed.
+5. Small: the header says Lv 3 while the sample member's record says level 7 (the client derives it from XP; the fixture disagrees with itself).
 
 ## Waiting on the owner
 
-A loop cannot do these. They are also in `docs/IOS_APP_STORE.md`, "Only the owner can do these".
-
-1. The operator's name, a public contact email and the province, for `client/public/privacy.html`, `terms.html`, `support.html` (placeholders `{{OPERATOR_NAME}}`, `{{CONTACT_EMAIL}}`, `{{PROVINCE}}`), and a read of those pages. Settings links to them, so this comes before a deploy.
-2. Clerk: which sign-in methods are on (Sign in with Apple is required if any social one is), and the move off development keys.
-3. The word to deploy `ios-app`.
-4. The Apple Developer Program, the app record, an Admin API key and the four repository secrets.
+1. The operator's name, a public contact email and the province for `client/public/privacy.html`, `terms.html`, `support.html` (placeholders `{{OPERATOR_NAME}}`, `{{CONTACT_EMAIL}}`, `{{PROVINCE}}`), and a read of those pages.
+2. Clerk: which sign-in methods are on (Sign in with Apple if any social one is), and the move off development keys.
+3. The word to deploy `ios-app` (two migrations; old plan feed links stop at once: `DEPLOY.md`).
+4. The Apple Developer Program, the app record, an Admin API key and the four repository secrets; later the team ID for Universal Links.
 5. A real iPhone for the phone checklist.
-6. Whether `ANTHROPIC_API_KEY` is set on Railway.
+6. Whether `ANTHROPIC_API_KEY` is set on Railway; how long Railway keeps its HTTP log.
+7. Whether to remove merged worktrees and branches (`calendar-feed-token`, `improve-loop`, `improve-loop-a`, `scheduler-coverage`).
 
 ## A new loop can reach these without the owner
 
-In the order the director would take them:
+Graph 4 in `docs/LOOP_GRAPH.md` draws these with their dependencies.
 
-1. **Review and merge `calendar-feed-token`.** Read its three commits, rerun both suites, try it on a throwaway database, then merge into `ios-app`. It closes a real hole: the feed link carried the token that opens the whole account.
-2. **Every screen in the real iPhone WebView.** A build mode in which the simulator app answers from the sample data (`design/lines/fixtures/`) and opens signed in, and a CI step that walks the pages in each of the seven looks and saves a screenshot of each to `ci-shots`. That turns gate C1 from "checked in a desktop browser" into "seen in WKWebView", and gives store screenshots with a real status bar and the train in the window.
-3. **The sign-in hand-off in the simulator.** Run the server and the website on the Mac runner, point a CI-only build at them, and drive one real sign-in (the browser sheet, Connect, `focusguild://` back into the app). This is the riskiest piece nobody has seen work.
-4. **The forty lint problems**, so gate H1 loses its exception.
-5. **The website on a home screen** has the same notch problem the app had; the fix exists behind the app's own switch.
-6. **Universal Links groundwork**, so that closing the copycat-app limit is one file and one setting once the owner has a domain.
-7. **When the owner answers item 1 above:** fill the three pages, recheck the review notes, retake the screenshots.
+1. **G1, the frames on Today in WebKit**: add the candidate fixes as probes, read one Mac run, apply the winner in `index.css`, confirm in the walk, then remove the probe and its rows (G5).
+2. **G2, the session after a relaunch**: console lines for the Keychain write and the install marker; ad-hoc signing of the simulator build in `ios-signin.yml`; the flow passes, gate B2 verified in the simulator.
+3. **G6, the slider thumb in WebKit.**
+4. **G3, the store screenshots from the simulator** into fastlane (after G1 and G6); gate G2 verified.
+5. **Raise the lessons in `LOOP_GRAPH.md` graph 3 by one rung** where it is cheap: a YAML check script for workflows, a test on Mileage's bar heights.
+6. **When the owner answers item 1 above:** fill the three pages, recheck the review notes, retake the screenshots.
 
-A fair end condition for that loop: goals 1 to 4 done and checked, 5 and 6 done or consciously dropped with a reason, the gates page updated, and this page rewritten.
+A fair end condition: G1, G2, G6 and G3 done and checked on the Mac; lessons table updated; this page rewritten.
 
 ## The prompt that starts it
 
-Paste this into a chat opened on this repository (a new chat is better: the old one is long).
+Paste this into a new chat on this repository (or after condensing this one):
 
 ```text
-Run a single in-chat loop on Focus Guild, as director: you decide and check, Sonnet coders do the simpler code, Opus coders the harder code. Start by reading docs/LOOP_HANDOFF.md on branch ios-app (worktree .claude/worktrees/ios-app) and the project memory. Take the goals under "A new loop can reach these without the owner", in that order, and keep going round (brief coders, read every diff, rerun the suites, look at the result in a browser or in the Mac build's screenshots, commit by path) until they are done and checked or nothing meaningful is left that you can reach. Anything that needs me: park it, list it, and carry on with the next goal. Do the work in this chat; do not hand pieces to separate sessions or task cards. Do not deploy or merge to main; pushing ios-app for Mac builds is fine. When the loop ends, rewrite docs/LOOP_HANDOFF.md, the gates in docs/IOS_APP_STORE.md, WORKLOG.md, PLAN.md and the memory notes so the next loop can start from them.
+Run a single in-chat loop on Focus Guild, as director: you decide and check, Sonnet coders do the simpler code, Opus coders the harder code. Start by reading docs/LOOP_HANDOFF.md and docs/LOOP_GRAPH.md on branch ios-app (worktree .claude/worktrees/ios-app) and the project memory. Take the goals under "A new loop can reach these without the owner" in the order graph 4 allows, and keep going round graph 1 (brief coders, read every diff, run the oracle ladder fast to slow, look at the result in a browser or in the Mac build's screenshots, commit by path, promote each lesson one rung) until they are done and checked or nothing meaningful is left that you can reach. Anything that needs me: park it, list it, and carry on with the next goal. Do the work in this chat; do not hand pieces to separate sessions or task cards. Do not deploy or merge to main; pushing ios-app for Mac builds is fine. When the loop ends, rewrite docs/LOOP_HANDOFF.md, graph 4 and the lessons table in docs/LOOP_GRAPH.md, the gates in docs/IOS_APP_STORE.md, WORKLOG.md, PLAN.md and the memory notes so the next loop can start from them.
 ```
 
-## What worked, and the traps
+## How to read the Mac's results without a GitHub login
 
-The memory notes hold the long version ("Focus Guild project state"). The short one:
-
-- Two or three coders at a time, one shared worktree, each brief naming the only files that coder may edit and "no git"; decisions already made in the brief; the director commits by explicit path.
-- A coder's "done" is a claim. Each round the browser or the Mac build showed something the tests had not: look every time.
-- A coder that stalls or is cut off resumes well when told to "write the files now and save each as you go".
-- A Capacitor plugin object must never be awaited or returned from an async function: it answers every property, `then` included, and the promise never settles.
-- In the worktree, one plain git command per call; `(cd client && ...)` for npm so the working directory does not move.
-- Start Vite with a background shell command and open the browser pane by address; the pane's own launcher reads its settings from the folder the chat started in.
-- Never kill processes by name on this machine; stop a server by the process id listening on its port.
+- Evidence: `git fetch origin ci-shots ci-signin`, then `git show origin/ci-signin:signin-summary.txt`, `git show origin/ci-shots:walk-summary.txt`, or `git archive origin/ci-shots | tar -x -C <folder>` for the pictures.
+- Waiting for a run: poll `git ls-remote origin refs/heads/ci-shots` (it changes when the run publishes). The anonymous GitHub API allows 60 calls an hour; use it only for step names: `https://api.github.com/repos/PaperclipMaximalist/focus-guild/actions/runs?branch=ios-app`, then `/actions/runs/<id>/jobs`.
+- A workflow GitHub refuses shows as a run named by its file path with zero jobs: parse workflow files before pushing (a `yaml` parser in a scratch folder works).

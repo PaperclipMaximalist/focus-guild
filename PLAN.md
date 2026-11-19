@@ -15,12 +15,16 @@ table below), with one migration (`20261019000000_one_sitting_and_repeat`,
 additive). The only thing built and not yet out is the iPhone app (next
 paragraph); one other piece of work waits on a decision (see "Parked branches").
 
-**Status 2026-11-13, the iPhone app:** branch `ios-app` (worktree `.claude/worktrees/ios-app`,
-on top of today's `main`, pushed, not merged) turns the client into an iPhone app. Built and
-checked as far as a Windows machine and a Mac runner allow; what is left is the
-owner's (Apple account, deploy, the public pages' placeholders, Clerk). The gates and
-the steps: `docs/IOS_APP_STORE.md`. It adds one more migration
-(`20261113000000_device_sessions`).
+**Status 2026-11-19, the iPhone app:** branch `ios-app` (worktree `.claude/worktrees/ios-app`,
+on top of `main`, pushed, not merged) turns the client into an iPhone app, and since the
+second loop (2026-11-14) also holds the calendar feed token, the website's home-screen
+notch fix, clean lint, and an off-by-default Universal Link sign-in. Every screen has been
+seen in the iPhone simulator in all seven looks and one real sign-in ran there; open:
+the session is lost after a relaunch in the simulator, and two cards on Today lose their
+frames in WebKit. What is left beyond that is the owner's (Apple account, deploy, the
+public pages' placeholders, Clerk). The gates and the steps: `docs/IOS_APP_STORE.md`;
+the next loop: `docs/LOOP_HANDOFF.md` and `docs/LOOP_GRAPH.md`. Two migrations wait for
+the deploy (`20261113000000_device_sessions`, `20261113120000_calendar_feed_token`).
 
 ---
 
@@ -101,7 +105,7 @@ the steps: `docs/IOS_APP_STORE.md`. It adds one more migration
 ### Parked branches (local worktrees under `.claude/worktrees/`, not pushed)
 | Branch | What is there | State |
 |---|---|---|
-| `calendar-feed-token` (worktree `.claude/worktrees/calendar-feed-token`) | 2026-11-14, cut from `ios-app`. The plan feed has its own read-only token (`fgcal_…`, `users.calendarFeedTokenHash`); `/calendar/<token>.ics` takes only that; `requireUser` refuses it as a bearer token; the request log hides the feed token and the inbox's `?token=` (`lib/requestLog.ts`); Connections and Quickstart make, show and replace the feed link apart from the personal token; privacy, support, terms and the data map say so. The app is built in `server/src/app.ts` now and `index.ts` only listens, so `server/src/app.test.ts` can walk every route. | Tested (server 637, client 223, and by curl on a throwaway database). **Not deployed; it has a migration.** Old feed links stop the moment it is live: see `DEPLOY.md` → "The calendar feed token". |
+| `calendar-feed-token` (worktree `.claude/worktrees/calendar-feed-token`) | 2026-11-14, cut from `ios-app`. The plan feed has its own read-only token (`fgcal_…`, `users.calendarFeedTokenHash`); `/calendar/<token>.ics` takes only that; `requireUser` refuses it as a bearer token; the request log hides the feed token and the inbox's `?token=` (`lib/requestLog.ts`); Connections and Quickstart make, show and replace the feed link apart from the personal token; privacy, support, terms and the data map say so. The app is built in `server/src/app.ts` now and `index.ts` only listens, so `server/src/app.test.ts` can walk every route. | **Merged into `ios-app` on 2026-11-14** after the director read its three commits, reran both suites and tried it with curl on a throwaway database; it ships when `ios-app` is deployed (one migration, `20261113120000_calendar_feed_token`). Old feed links stop the moment it is live: see `DEPLOY.md` → "The calendar feed token". The worktree and branch can be removed. |
 | `scheduler-coverage` (worktree `.claude/worktrees/scheduler-coverage`) | Everything the scheduler gained since 2026-10-11, never deployed: fill the time, the gap, long breaks, the slider, dragging (`ui-refresh`), the crowded-week fixes (2026-10-15), and rotation, quests in one go and routines that repeat weekly or every few days (2026-10-19). Merged with `main` @ `08d40fb`. Has a migration. | Merged into `improve-loop` on 2026-11-11 and deployed with it on 2026-11-13; the worktree and branch can be removed. |
 | `improve-loop` (worktree `.claude/worktrees/improve-loop`) | The release candidate of 2026-11-11: the launch prep of 2026-11-07/08, all of `scheduler-coverage`, and the director-and-coders loop. | **Deployed 2026-11-13: it is `main` now.** Branch new work from `main`; this worktree and branch can be removed. |
 | `improve-loop-a` (worktree `.claude/worktrees/improve-loop-a`) | Three coder rounds made while the merge was running. | Merged into `improve-loop`; the worktree and branch can be removed. |
@@ -116,7 +120,7 @@ All other agent worktrees are merged and can be removed (`git worktree remove <p
 - Switch Clerk to production keys (the sign-in shows "Development mode").
 - On a phone: install the PWA, share into it, connect a school calendar, subscribe to the plan feed.
 - **The iPhone app** (the eight steps in `docs/IOS_APP_STORE.md`): join the Apple Developer Program and add the four secrets; fill in the operator name, contact address and province on the three public pages and read them; check Clerk's sign-in methods (Sign in with Apple if any social sign-in is on); deploy `ios-app`; run the TestFlight job; go through the phone checklist; submit.
-- **The calendar feed token** (branch `calendar-feed-token`, built 2026-11-14): deploy it, then on the live site make a new plan link (Connections or Quickstart), add it to your calendar, remove the old Focus Guild calendar there, and make a new personal token (Connections, Inbox), giving it to the inbox automations and the Claude connector. The old link held the personal token and has been written to the host's logs on every fetch, so the old token should not stay valid. Steps in `DEPLOY.md` → "The calendar feed token".
+- **The calendar feed token** (built 2026-11-14, merged into `ios-app`, so it goes live with that deploy): afterwards, on the live site, make a new plan link (Connections or Quickstart), add it to your calendar, remove the old Focus Guild calendar there, and make a new personal token (Connections, Inbox), giving it to the inbox automations and the Claude connector. The old link held the personal token and has been written to the host's logs on every fetch, so the old token should not stay valid. Steps in `DEPLOY.md` → "The calendar feed token".
 
 ---
 

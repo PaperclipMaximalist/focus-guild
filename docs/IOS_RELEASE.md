@@ -1,9 +1,10 @@
 # Releasing the iPhone app from Windows
 
 This is the owner's guide to building and shipping the iPhone app without a Mac.
-Everything that needs a Mac runs on GitHub's Mac machines, in the workflow
-`.github/workflows/ios.yml`. You start it, read its result, and fix secrets in
-your browser.
+Everything that needs a Mac runs on GitHub's Mac machines, in the workflows
+`.github/workflows/ios.yml` (build, screen walk, TestFlight, listing text) and
+`.github/workflows/ios-signin.yml` (one real sign-in in the simulator). You
+start them, read their results, and fix secrets in your browser.
 
 ## What has and has not been tested
 
@@ -19,8 +20,8 @@ The workflow is called **iOS** in the repository's **Actions** tab. It has four 
 
 | Job | When it runs | What it does | Needs secrets |
 | --- | --- | --- | --- |
-| Simulator build and launch | Every push to `ios-app`, pull requests that change `client/`, and every manual run | Builds the web app, builds the iPhone app for the simulator, starts it, checks it is still running after 20 seconds, takes two screenshots | No |
-| Publish screenshots to the ci-shots branch | Pushes to `ios-app` only | Copies the two screenshots to the branch `ci-shots` | No |
+| Simulator build and launch | Every push to `ios-app`, pull requests that change `client/`, and every manual run | Builds the web app, builds the iPhone app for the simulator, starts it, checks it is still running after 20 seconds, takes two screenshots. Then swaps in the demo build (sample data, signed in, no network) and photographs every screen in each of the seven looks | No |
+| Publish screenshots to the ci-shots branch | Pushes to `ios-app` only | Copies the pictures and the walk's summary to the branch `ci-shots` | No |
 | Archive, sign and upload to TestFlight | Only when you start it by hand with **run = testflight** | Builds the release version, signs it, sends it to App Store Connect | Yes, four |
 | Upload the store listing text | Only when you start it by hand with **run = store-listing-text** | Sends the name, subtitle, description, keywords, URLs and review notes from `client/ios/App/fastlane/metadata/` to App Store Connect | Yes, three |
 
@@ -192,15 +193,61 @@ Common messages and what to do:
 | An agreement or "contract" message | An agreement is waiting | Step 2 |
 | `App did not stay running` (simulator job) | The app crashed within 20 seconds of start | Read `simulator-app.log` and any `App*.ips` crash report in `ios-build-logs` |
 
+## The screen walk
+
+After the 20-second launch check, the same job builds the **demo build**
+(`npm run build:demo`): the app with sample data, already signed in, needing
+no network. It copies that into the app it has just compiled (no second
+compile) and walks it through the screens listed in
+`client/ios/ci/screens.tsv`, once in each of the seven looks, taking a picture
+of each in the iPhone simulator. That is the only place every page is seen in
+the iPhone's own web view rather than a desktop browser.
+
+- The walk never fails the build. A screen that did not confirm in time is
+  still photographed and marked `unconfirmed` in the summary.
+- The demo build is not in the website or in the app that goes to Apple.
+- To see the same walk on any machine, in a desktop browser:
+  `cd client && npm run build:demo && npm run demo:shots` (pictures land in
+  `client/demo-shots/`).
+- To add or drop a screen, edit `client/ios/ci/screens.tsv`.
+
 ## The `ci-shots` branch
 
 People who review the runs cannot download artifacts without a GitHub login.
-So after each push to `ios-app`, the workflow puts the two simulator
-screenshots (`after-10s.png`, `after-20s.png`) and a `README.md` (the commit
-they came from, the Xcode version, the build job's result) on a branch called
-`ci-shots`. It replaces the branch each time, with one commit and no history.
-Nothing else uses it. You can delete it whenever you like; the next push makes
-it again. It is never written by pull requests.
+So after each push to `ios-app`, the workflow puts these on a branch called
+`ci-shots`:
+
+- `after-10s.png`, `after-20s.png`: the plain build, seconds after launch;
+- `screens/<look>/<screen>.jpg`: every screen of the walk, as small JPEGs;
+- `store/`: seven full-size pictures at the size App Store Connect asks for
+  (1320 x 2868), for the listing;
+- `walk-summary.txt`: one line per screen, and `demo-console.log`, the app's
+  console during the walk;
+- `README.md`: the commit they came from, the Xcode version, the build job's
+  result.
+
+It replaces the branch each time, with one commit and no history. Nothing
+else uses it. You can delete it whenever you like; the next push makes it
+again. It is never written by pull requests. To read it without a GitHub
+login: `git fetch origin ci-shots`, then `git show FETCH_HEAD:walk-summary.txt`
+or `git archive FETCH_HEAD | tar -x -C <a folder>`.
+
+## The sign-in check (workflow "iOS sign-in")
+
+A second workflow, `.github/workflows/ios-signin.yml`, runs on pushes to
+`ios-app` that change `client/`, `server/` or `ci/`. On one Mac runner it
+starts a throwaway database (`ci/throwaway`), the server and the website, all
+on that machine and in development sign-in (no Clerk, no secrets), builds the
+app pointed at them (`npm run build:ios:ci`), and has Maestro 2.12.1 press
+**Sign in**, then **Connect this iPhone** in the browser sheet, and check that
+the app comes back signed in and is still signed in after a relaunch. It then
+asks the server: one device listed, and the code and token requests in its
+log.
+
+Its evidence goes to the branch `ci-signin` the same way: screenshots of each
+stage, `signin-summary.txt` with a verdict, the server's log, Maestro's
+output. This check uses development sign-in, so it proves the hand-off between
+the browser sheet and the app, not Clerk.
 
 ## What is most likely to fail the first time
 

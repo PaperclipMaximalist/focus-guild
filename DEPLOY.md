@@ -36,6 +36,7 @@ Total time: ~20 minutes if all accounts are created.
    | `CLERK_SECRET_KEY`   | *(optional)* from Clerk dashboard → API Keys → "Secret keys". Leave empty to use dev-mode auth. |
    | `ANTHROPIC_API_KEY`  | *(optional)* from console.anthropic.com. The AI features run on whatever each person connects under Advanced → Your AI; this is the fallback for people who connect nothing. |
    | `AI_KEYS_SECRET`     | *(optional, recommended)* any long random string. Seals the API keys people save under Your AI. Without it `CLERK_SECRET_KEY` is used, and saved keys must be pasted again if that ever changes. |
+   | `APPLE_TEAM_ID`, `APP_LINK_RETURN` | *(optional, later)* switch the iPhone app's sign-in hand-off to a Universal Link. Leave both unset until the steps in `docs/UNIVERSAL_LINKS.md` say otherwise; unset, nothing changes. |
 
    `PORT` is set by Railway automatically — do **not** set it yourself.
 
@@ -134,7 +135,7 @@ Each push to `main` triggers both Railway and Vercel to redeploy. Railway's `/he
 
 **What's live and needs no setup:** the PWA (`client/public/manifest.webmanifest`, `sw.js`), token-authed `/inbox` (personal token) and `/calendar/<token>.ics` (the feed's own token), both skipped by `requireUser`, and the 15-minute calendar sync loop in the server process.
 
-**The calendar feed token** (branch `calendar-feed-token`, built 2026-11-14; delete this note once done). Until this ships, a plan feed link carries the member's personal access token, which opens the whole API. What changes on deploy, and what to do:
+**The calendar feed token** (built 2026-11-14, merged into `ios-app` the same day, so it ships when `ios-app` is deployed; delete this note once done). Until this ships, a plan feed link carries the member's personal access token, which opens the whole API. What changes on deploy, and what to do:
 
 - Migration `20261113120000_calendar_feed_token` adds two nullable columns to `users` (`calendarFeedTokenHash`, unique; `oldFeedLinkSeenAt`). Additive and idempotent. As with any schema change, a local server on this branch errors against the shared database until the deploy has applied it.
 - **Every existing plan feed link stops working the moment the server restarts** (404, no grace period: each fetch of an old link sends a full key to the account through a calendar company and the host). Calendars that subscribed to one go quiet. A member whose calendar still asks sees a notice in Connections and Quickstart saying what to do.
