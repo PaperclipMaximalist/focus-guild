@@ -693,6 +693,14 @@ input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(
 /* The words on the cabin wall keep clear of both. */
 :root .scene-window .section-label::before,
 :root .scene-window .page-title::after { content: none; }
+/* The scene window keeps its painting to its own box. Without this, WebKit
+   (the iPhone's web view) dropped the drawn frames of the panels below the
+   window while its canvas moved: it put them in a shared layer with the
+   window and lost their border-image there. Found by the simulator walk;
+   settled by a probe on 2026-11-19, which tried this against a layer per
+   frame (worse: every frame on the page went). Chrome never showed it. The
+   window already clips with overflow: hidden, so nothing looks different. */
+.scene-window { contain: paint; }
 
 /* The badge beside the app's name, and the picture in an empty state. */
 .line-emblem, .line-spot { display: none; }

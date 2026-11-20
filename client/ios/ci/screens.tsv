@@ -21,11 +21,3 @@
 15-records	/advanced/records
 16-import	/quests/import
 17-timer	/	timer
-# Diagnosis (src/demo/driver.ts, "A probe"): Today again, each row with one
-# candidate fix for the frames WebKit drops on its first two cards. Round 2,
-# 2026-11-19. Take these rows out once the fix is in index.css.
-18-probe-noscene	/?demoprobe=noscene
-19-probe-afterlayer	/?demoprobe=afterlayer
-20-probe-afterwill	/?demoprobe=afterwill
-21-probe-scenecontain	/?demoprobe=scenecontain
-22-probe-canvashide	/?demoprobe=canvashide

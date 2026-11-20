@@ -269,6 +269,11 @@ jobs:
               printf '%s\n' '```'
             } >> "$work/README.md"
           fi
+          # Vercel watches every branch of the repository and tried to build this
+          # one (pictures only, so it failed). A vercel.json that turns off
+          # deployments, where Vercel looks for one (the root and client/), stops it.
+          mkdir -p "$work/client"
+          printf '%s\n' '{ "git": { "deploymentEnabled": false } }' | tee "$work/vercel.json" > "$work/client/vercel.json"
           cd "$work"
           git init -q -b ci-shots
           git config user.name "github-actions[bot]"

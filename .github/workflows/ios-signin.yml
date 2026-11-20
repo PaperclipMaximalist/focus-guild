@@ -231,6 +231,10 @@ jobs:
           fi
           # The job's overall result, next to run.sh's own README.
           echo "Sign-in job result: ${SIGNIN_RESULT}" >> evidence/signin-summary.txt
+          # Vercel watches every branch and tried to build this one (evidence only,
+          # so it failed): a vercel.json that turns off deployments stops it.
+          mkdir -p evidence/client
+          printf '%s\n' '{ "git": { "deploymentEnabled": false } }' | tee evidence/vercel.json > evidence/client/vercel.json
           cd evidence
           git init -q -b ci-signin
           git config user.name "github-actions[bot]"

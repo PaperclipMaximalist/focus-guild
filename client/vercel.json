@@ -3,6 +3,9 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
+  "git": {
+    "deploymentEnabled": { "ios-app": false, "ci-shots": false, "ci-signin": false }
+  },
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],
