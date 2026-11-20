@@ -116,10 +116,12 @@ Lessons from the two iPhone loops and the rung each has reached:
 | --- | --- | --- |
 | A Capacitor plugin object never settles when awaited | browser (rung D) | test with a Proxy stand-in (`native/notify.test.ts`) |
 | Mileage's bars were all 4 px | demo pictures (rung C) | fixed; no visual check yet (candidate: a test on the bar heights) |
-| Today's two cards lose their frames in WebKit | Mac walk (rung E) | probe in the demo build; cause narrowed to compositing; fix open |
-| The session is lost on relaunch in the simulator | Mac sign-in (rung E) | open; next: log the Keychain write, sign the simulator build |
+| Today's two cards lose their frames in WebKit | Mac walk (rung E) | fixed with `contain: paint` on the scene window, chosen by two probe rounds (one Mac run each); the walk checks it on every push |
+| The session is lost on relaunch in the simulator | Mac sign-in (rung E) | fixed: the sign-in job signs the simulator build to run locally (an unsigned build gets no Keychain); the flow checks the relaunch on every push |
+| The native slider thumb was a white pill in WebKit | Mac walk (rung E) | fixed: every slider drawn by one style (`index.css`, `lib/rangeFill.ts`, tested) |
+| Vercel built every pushed branch; the evidence branches failed | the owner, in Vercel | config: `client/vercel.json` and a `vercel.json` on each evidence branch turn those deployments off |
 | A coder's "done" was wrong | director review | rule: read every diff, look every time |
-| The workflow file was refused, zero jobs ran | GitHub, after a push | rule: parse workflows before pushing (`yaml` check); candidate: a CI-free YAML lint script in the repo |
+| The workflow file was refused, zero jobs ran | GitHub, after a push | automation: `ci/workflow-check` (`npm ci && npm run check`) parses every workflow and flags the runner context in a job's env; it reports the refused file of 2026-11-14 |
 | Polling the GitHub API ran down the 60-an-hour limit | the API | rule: wait on `git ls-remote` of the evidence branch |
 | The computer slept mid-run | a stalled test | rule: ask the app to keep the machine awake for long waits |
 | Coders' half-done edits in the shared folder broke a build | the suite | rule: verify the exact commit in a clean checkout before pushing |

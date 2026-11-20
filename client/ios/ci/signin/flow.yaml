@@ -41,13 +41,14 @@ name: iOS sign-in hand-off
 - tapOn:
     label: Press Connect this iPhone (the website asks the server for a one-time code)
     text: "(?i)Connect this iPhone"
-# Shows whatever came next: iOS asking to open the app, the page's own
-# "Opening Focus Guild" step, or the app already signed in.
+# Shows whatever came next: the page's own "Opening Focus Guild" step, or the
+# app already signed in.
 - takeScreenshot: 03-after-connect
-- tapOn:
-    label: If iOS asks to open the link in Focus Guild, press Open
-    text: "(?i)Open"
-    optional: true
+# There was a step here that pressed "Open" if iOS asked whether to open the
+# link in Focus Guild. iOS never asked in any run (the sheet hands the link
+# straight to the app), and on 2026-11-20 Maestro's driver died while that
+# optional step was still looking, during the switch from the sheet back to
+# the app, although the sign-in itself had worked. Removed.
 # If the page could not hand the link over by itself, it shows a button that does.
 - runFlow:
     label: If the page still offers Open Focus Guild, press it (and Open, if iOS asks)

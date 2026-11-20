@@ -144,6 +144,29 @@ Each push to `main` triggers both Railway and Vercel to redeploy. Railway's `/he
 - Railway keeps its own HTTP log of every request's path, apart from the server's (masked) log. Check how long it is kept, and whether it shows the query string (the inbox's `?token=`). The feed token in it can only read the plan.
 - Check: `GET /calendar/<your old link's token>.ics` answers 404; the new link answers a calendar; `curl -H "Authorization: Bearer <feed token>" <api>/quests` answers 401; the Railway log shows `/calendar/[redacted].ics`.
 
+### What else ships with ios-app (not about the iPhone)
+
+Deploying `ios-app` (a fast-forward of `main`) puts these live too. They are
+website and server changes that share the branch; the iPhone changes, and
+the iPhone-driven changes that also show on the website (Delete account,
+signed-in iPhones, the question before an AI request, the public legal
+pages, bundled fonts, the `/app-link` page), are in `docs/IOS_CHANGELOG.md`.
+
+| Commit | What | Watch on deploy |
+| --- | --- | --- |
+| `d37d69e`, `a821191`, `47fe6b1` (merged as `ff3926a`) | The plan feed gets its own read-only token; Connections and Quickstart make it apart from the personal token; the request log hides both tokens; privacy, terms and support say so | **Old plan feed links stop at once**: the steps above. One migration, `20261113120000_calendar_feed_token`. |
+| `2538766` | The Guild Master's AI instructions no longer tell the AI provider the member has ADHD | Nothing |
+| `48bea1a` | The website opened from a phone's home screen keeps clear of the notch (shared with the app as the `edge:` variant) | Nothing in a browser tab |
+| `8769de7` | Lint clean (40 problems to none, no behaviour change meant); Mileage's "Last 7 days" bars have real heights | Quest editor, quest sheet, Stragglers, Expeditions were driven by hand after it |
+| `1b7d9fc` | Sliders drawn in each look's colours | Looks different from before, on purpose |
+| `921a7fa` | Sample data only (the sample member's level) | Nothing |
+| `7729d97` (server half) | `GET /.well-known/apple-app-site-association` and `GET /app-link/return` exist; 404 and a fixed page until `APPLE_TEAM_ID` is set | Nothing while the two variables are unset |
+| `eecd9d0` | `client/vercel.json` turns off automatic Vercel deployments for `ios-app`, `ci-shots`, `ci-signin` | Production still deploys from `main` |
+
+Two migrations in total run on that deploy: `20261113000000_device_sessions`
+(the iPhone sign-in) and `20261113120000_calendar_feed_token`. Both are
+additive and safe to run twice.
+
 ---
 
 ## Troubleshooting

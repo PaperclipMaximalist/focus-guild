@@ -368,6 +368,16 @@ Rebuilt from file timestamps; the phase log lists Phases 2–6 as done this day.
 - At the owner's request ("think about how good programmers use AI using self improving loops and graphs"), `docs/LOOP_GRAPH.md`: the habits behind loops that improve themselves, the loop as a state machine, the oracle ladder from unit tests to a real phone, how a lesson climbs from incident to rule to automation (with this project's lessons and their rung), and the next loop's goals as a dependency graph. The hand-off, the gates, the plan and the memory notes were brought up to date for a cold start.
 - Tests at the end: 654 server, 231 client, lint 0. `ios-app` pushed; nothing merged to `main`, nothing deployed.
 
+### Thu 2026-11-19: The third iPhone loop: the last code goals (one session; hours not measured)
+- Started from `docs/LOOP_HANDOFF.md` and `docs/LOOP_GRAPH.md` after the owner condensed the chat; the owner asked how far from finished (answer: one loop on the code; the rest is the owner's Apple and account steps and Apple's waits), then "finish everything you can, save the ios focused changes on a separate file from the other stuff".
+- Done, each its own commit on `ios-app`:
+  - `b768bc5` **The session survives a relaunch**: the sign-in job signs the simulator build to run locally. Next run (`1b7d9fc`): the whole flow passed, relaunch included. So the cause was the unsigned build's Keychain, not the app. Also: round 2 of the frame probe, and `ci/workflow-check` (parses every workflow before a push; it reports the file GitHub refused on 2026-11-14).
+  - `1b7d9fc` **Sliders** drawn in each look's colours by one style (WebKit had shown a white pill); `lib/rangeFill.ts` with tests. Review caught a selector list mixing `-webkit-` and `-moz-` pseudo-elements, which every browser drops whole.
+  - `eecd9d0` **Today's frames in WebKit**: `contain: paint` on the scene window. The probe tried four fixes in one Mac run: a layer per frame took every frame on the page away; containing the scene window brought all of them back with the scene still moving. Probe and rows removed. **Vercel** had been building every pushed branch (the evidence branches failed): `client/vercel.json` and a `vercel.json` on each evidence branch turn that off; the next pushes showed no Vercel status at all. Production was never touched.
+  - `921a7fa` Sample data: the stored level matches the XP.
+  - **Separate iPhone record**: `docs/IOS_CHANGELOG.md` lists only the iPhone work (and which of it also shows on the website); `DEPLOY.md` "What else ships with ios-app" lists the website and server changes that share the branch.
+- What looking caught: the sign-in run for `eecd9d0` failed although the app had signed in (the end screen is the signed-in Today and the server traded the token): Maestro's driver died while an optional step looked for an "Open" prompt that iOS never shows. The step was removed.
+
 
 ## Phases, as named in the project's own log
 

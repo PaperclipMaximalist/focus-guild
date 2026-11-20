@@ -1184,8 +1184,8 @@
       "unlockedAt": "2026-08-30T01:00:00.000Z"
      },
      {
-      "slug": "flow-state",
-      "title": "Flow State",
+      "slug": "chaos-agent",
+      "title": "Chaos Agent",
       "icon": "",
       "description": "",
       "xpReward": 75,
