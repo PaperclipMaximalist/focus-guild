@@ -40,6 +40,7 @@ import { SignedInIPhones } from '../components/SignedInIPhones';
 import { DeleteAccountDialog } from '../components/DeleteAccountDialog';
 import { deleteAccountFromWebsite } from '../lib/accountDeletion';
 import { LEGAL_PAGES, legalHref } from '../lib/legalLinks';
+import { rangeFill } from '../lib/rangeFill';
 
 // Clerk is mounted only on the website, and only with a key (main.tsx). Its
 // hooks throw without it, so they run only in a component used when this is true.
@@ -653,7 +654,7 @@ function SliderRow({
         aria-label={label}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full"
-        style={{ accentColor: 'var(--color-primary)' }}
+        style={{ accentColor: 'var(--color-primary)', ...rangeFill(value, min, max) }}
       />
     </div>
   );

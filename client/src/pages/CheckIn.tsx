@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCheckInStore } from '../store/useCheckInStore';
 import { useToastStore } from '../components/toastStore';
+import { rangeFill } from '../lib/rangeFill';
 import { BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, ChevronLeft, TriangleAlert, Zap } from 'lucide-react';
 
 // A battery that fills with the level: readable without colour or faces.
@@ -99,7 +100,7 @@ export default function CheckIn() {
           aria-valuetext={`${hours} hours`}
           onChange={(e) => setHours(Number(e.target.value))}
           className="w-full"
-          style={{ accentColor: 'var(--color-primary)' }}
+          style={{ accentColor: 'var(--color-primary)', ...rangeFill(hours, 1, 16) }}
         />
       </section>
 

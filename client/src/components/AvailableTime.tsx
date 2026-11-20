@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Hourglass, RotateCcw } from 'lucide-react';
 import { useScheduleStore } from '../store/useScheduleStore';
+import { rangeFill } from '../lib/rangeFill';
 
 const STEP_MIN = 15;
 /** Any amount up to a whole day. */
@@ -82,6 +83,7 @@ export function AvailableTime({ className = '' }: { className?: string }) {
         max={MAX_MIN}
         step={STEP_MIN}
         value={shown}
+        style={rangeFill(shown, 0, MAX_MIN)}
         // Not `disabled` while saving: that would throw keyboard focus off the slider mid-use.
         aria-busy={saving}
         onChange={(e) => {

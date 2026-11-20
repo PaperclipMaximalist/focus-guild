@@ -26,6 +26,7 @@ import {
 } from '../lib/api';
 import { isNativeApp } from '../native/platform';
 import { trackerErrorToast } from '../lib/tracker';
+import { rangeFill } from '../lib/rangeFill';
 import { PRESET_PACKS, type PresetPack } from '../lib/trackerPacks';
 import { sfxClick } from '../lib/sfx';
 import { useTrackerStore } from '../store/useTrackerStore';
@@ -345,6 +346,7 @@ export default function TrackerPresets() {
             min={1}
             max={20}
             value={draft.activeCap}
+            style={rangeFill(draft.activeCap, 1, 20)}
             onChange={(e) => patch({ activeCap: Number(e.target.value) })}
             aria-label="Active cap"
             className="flex-1 accent-(--color-primary)"
@@ -472,6 +474,7 @@ export default function TrackerPresets() {
             min={1}
             max={60}
             value={draft.reviewCadenceDays}
+            style={rangeFill(draft.reviewCadenceDays, 1, 60)}
             onChange={(e) => patch({ reviewCadenceDays: Number(e.target.value) })}
             aria-label="Review cadence in days"
             className="mt-3 w-full accent-(--color-gold)"

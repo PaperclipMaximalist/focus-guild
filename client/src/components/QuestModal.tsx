@@ -6,6 +6,7 @@ import { useQuestStore } from '../store/useQuestStore';
 import { api, isHourLog, type ParentChoice, type Quest, type PriorityTier } from '../lib/api';
 import { MiniCalendar } from './MiniCalendar';
 import { formatHour } from '../lib/formatters';
+import { rangeFill } from '../lib/rangeFill';
 import { InfoTip } from './InfoTip';
 import { WEEK, todayKey, type RepeatRule } from '../lib/repeat';
 import { BookOpen, Brush, ChevronDown, ChevronRight, Dumbbell, Inbox, Phone, CalendarDays, Target, X } from 'lucide-react';
@@ -1024,6 +1025,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                             max={3}
                             step={0.1}
                             value={urgencyMult}
+                            style={rangeFill(urgencyMult, 0.5, 3)}
                             aria-label="Urgency multiplier"
                             onChange={(e) => setUrgencyMult(Number(e.target.value))}
                             className="flex-1"
@@ -1060,6 +1062,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         max={1}
                         step={0.05}
                         value={tediousness}
+                        style={rangeFill(tediousness, 0, 1)}
                         aria-label="Tediousness"
                         onChange={(e) => setTediousness(Number(e.target.value))}
                         className="w-full"
@@ -1090,6 +1093,7 @@ export function QuestModal({ open, onClose, editing }: Props) {
                         max={1}
                         step={0.05}
                         value={setupCost}
+                        style={rangeFill(setupCost, 0, 1)}
                         aria-label="Setup cost"
                         onChange={(e) => setSetupCost(Number(e.target.value))}
                         className="w-full"

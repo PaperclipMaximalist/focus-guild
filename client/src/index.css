@@ -408,6 +408,79 @@ code { font-family: var(--font-mono); font-size: 0.92em; }
 
 input, select, textarea { accent-color: var(--color-primary); }
 
+/* ── Sliders ───────────────────────────────────────────────────────────────
+   Every range input is drawn here, not left to the browser: WebKit (the
+   iPhone's web view) paints the native thumb as a plain white pill that
+   belongs to no look. Each input sets --fill (see lib/rangeFill.ts) to the
+   percentage left of its thumb. The rules sit in the base layer so a height
+   utility on one input (h-8 pointer-coarse:h-11) still outranks the height
+   here; the focus rules below are not layered, because they have to beat the
+   global :focus-visible outline, which is not either. */
+@layer base {
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: transparent;
+    height: 1.75rem;
+    margin: 0;
+    cursor: pointer;
+  }
+  input[type="range"]:disabled { cursor: not-allowed; }
+
+  input[type="range"]::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: linear-gradient(to right, var(--color-primary) var(--fill, 0%), var(--color-border) var(--fill, 0%));
+  }
+  input[type="range"]::-moz-range-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-border);
+  }
+  input[type="range"]::-moz-range-progress {
+    height: 6px;
+    border-radius: 9999px;
+    background: var(--color-primary);
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    box-sizing: border-box;
+    width: 22px;
+    height: 22px;
+    /* WebKit does not centre the thumb on the track by itself. */
+    margin-top: calc((6px - 22px) / 2);
+    border: 3px solid var(--color-bg);
+    border-radius: 9999px;
+    background: var(--color-primary);
+  }
+  input[type="range"]::-moz-range-thumb {
+    box-sizing: border-box;
+    width: 22px;
+    height: 22px;
+    border: 3px solid var(--color-bg);
+    border-radius: 9999px;
+    background: var(--color-primary);
+  }
+
+  input[type="range"]:disabled::-webkit-slider-runnable-track {
+    background: linear-gradient(to right, var(--color-muted) var(--fill, 0%), var(--color-border) var(--fill, 0%));
+  }
+  input[type="range"]:disabled::-moz-range-progress { background: var(--color-muted); }
+  /* One rule per engine: a selector list holding a pseudo-element a browser
+     does not know is dropped whole, by every browser. */
+  input[type="range"]:disabled::-webkit-slider-thumb { background: var(--color-muted); }
+  input[type="range"]:disabled::-moz-range-thumb { background: var(--color-muted); }
+}
+
+/* The ring goes on the thumb, not around the whole input box. A spread ring
+   (no blur) outside the thumb's own border, because WebKit does not reliably
+   draw an outline on its slider thumb. */
+input[type="range"]:focus-visible { outline: none; }
+input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 2px var(--color-text); }
+input[type="range"]:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 2px var(--color-text); }
+
 /* ── Keyframes ─────────────────────────────────────────────────────────── */
 /* Overdue pulse: an outline that breathes, no glow. */
 @keyframes pulse-red {
