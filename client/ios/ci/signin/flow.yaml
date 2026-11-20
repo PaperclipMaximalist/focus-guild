@@ -60,27 +60,8 @@ name: iOS sign-in hand-off
           text: "(?i)Open"
           optional: true
 
-# Only a signed-in member sees these: the welcome guide on Today (a brand-new
-# member has no XP, so it shows) and the tab bar.
-- extendedWaitUntil:
-    label: The signed-in app is showing (Today's welcome guide)
-    visible: "(?i)Welcome to the Guild"
-    timeout: 120000
-- assertVisible:
-    label: The tab bar is showing
-    text: "(?i)Route"
-- takeScreenshot: 04-signed-in
-
-# The session must survive a restart: the token is read back from the Keychain.
-- stopApp
-- launchApp:
-    label: Relaunch the app without clearing anything
-    clearState: false
-- extendedWaitUntil:
-    label: Still signed in after the relaunch
-    visible: "(?i)Welcome to the Guild"
-    timeout: 120000
-- assertVisible:
-    label: The tab bar is showing after the relaunch
-    text: "(?i)Route"
-- takeScreenshot: 05-relaunched
+# The rest (the signed-in app, then a restart) is its own flow, so that
+# run.sh can start it again by itself if Maestro stops during the switch
+# from the browser sheet back to the app (it has, twice, after the sign-in
+# had worked: the server had traded the code and the app showed Today).
+- runFlow: flow-signed-in.yaml

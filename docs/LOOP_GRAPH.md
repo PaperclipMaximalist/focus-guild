@@ -121,6 +121,7 @@ Lessons from the two iPhone loops and the rung each has reached:
 | The native slider thumb was a white pill in WebKit | Mac walk (rung E) | fixed: every slider drawn by one style (`index.css`, `lib/rangeFill.ts`, tested) |
 | Vercel built every pushed branch; the evidence branches failed | the owner, in Vercel | config: `client/vercel.json` and a `vercel.json` on each evidence branch turn those deployments off |
 | A coder's "done" was wrong | director review | rule: read every diff, look every time |
+| Maestro's driver died during the sheet-to-app switch after the sign-in had worked (twice) | Mac sign-in (rung E) | automation: the check is two flows; `run.sh` goes on from the signed-in app when the server shows the code was traded, and says so in the summary |
 | The workflow file was refused, zero jobs ran | GitHub, after a push | automation: `ci/workflow-check` (`npm ci && npm run check`) parses every workflow and flags the runner context in a job's env; it reports the refused file of 2026-11-14 |
 | Polling the GitHub API ran down the 60-an-hour limit | the API | rule: wait on `git ls-remote` of the evidence branch |
 | The computer slept mid-run | a stalled test | rule: ask the app to keep the machine awake for long waits |
@@ -128,25 +129,30 @@ Lessons from the two iPhone loops and the rung each has reached:
 
 ## Graph 4: the next loop's goals
 
-Arrows mean "needs". Grey goals wait on the owner and are parked, not blocking.
+Redrawn 2026-11-20, after the third loop. Arrows mean "needs". Everything the
+loops could reach without the owner for the App Store is done (G1, G2, G3, G6
+of the previous graph); what is left is mostly the owner's (grey), and what
+the loop can still add is more of the phone checklist proven in the simulator.
 
 ```mermaid
 flowchart TD
-    G1["G1 Fix the frames on Today in WebKit<br/>probe a layer on every frame, or isolate the scene"] --> G3
-    G2["G2 Keep the session after a relaunch<br/>log the Keychain write; sign the simulator build"] --> G2b["Gate B2 verified in the simulator"]
-    G3["G3 Store screenshots from the simulator<br/>ci-shots/store into fastlane, 1320 x 2868"] --> G4
-    G1 --> G5["G5 Remove the probe and its screen rows"]
-    G6["G6 Slider thumb styled for WebKit"] --> G3
-    G4["Gate G2 verified"]
-    O1["Owner: operator name, email, province"]:::owner --> G7["Fill the three public pages, retake shots"]
-    O2["Owner: Apple account and secrets"]:::owner --> G8["TestFlight job, then the phone checklist"]
-    O3["Owner: deploy ios-app"]:::owner --> G8
+    O1["Owner: Apple Developer account,<br/>app record, API key, 4 secrets"]:::owner --> T["TestFlight job runs"]
+    O2["Owner: name, email, province<br/>for the three public pages"]:::owner --> P["Loop: fill the pages,<br/>recheck review notes"]
+    O3["Owner: Clerk sign-in methods<br/>(Sign in with Apple?), production keys"]:::owner --> D
+    O4["Owner: the word to deploy ios-app"]:::owner --> D["Deploy: main = ios-app<br/>two migrations"]
+    P --> D
+    D --> T
+    T --> F["Owner: the phone checklist<br/>on a real iPhone"]:::owner
+    F --> S["Owner: submit in App Store Connect"]:::owner
+    S --> R["App Review"]
+    L1["Loop: more of the phone checklist in the simulator<br/>Sign out, Delete account, keyboard, outside links"] --> F
+    L2["Loop: a local notification from the timer<br/>seen in the simulator"] --> F
     classDef owner fill:#eee,stroke:#999,color:#333
 ```
 
-G1, G2 and G6 touch different files and can run at the same time. G3 waits for
-G1 and G6, because the store pictures should show the frames and the themed
-slider.
+L1 and L2 touch different files (the Maestro flow and a new flow or step) and
+can run at the same time. The loop's part of P starts the moment the owner
+sends the three details.
 
 ## How to start a loop from this page
 

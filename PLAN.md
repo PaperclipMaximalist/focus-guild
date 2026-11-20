@@ -15,16 +15,17 @@ table below), with one migration (`20261019000000_one_sitting_and_repeat`,
 additive). The only thing built and not yet out is the iPhone app (next
 paragraph); one other piece of work waits on a decision (see "Parked branches").
 
-**Status 2026-11-19, the iPhone app:** branch `ios-app` (worktree `.claude/worktrees/ios-app`,
-on top of `main`, pushed, not merged) turns the client into an iPhone app, and since the
-second loop (2026-11-14) also holds the calendar feed token, the website's home-screen
-notch fix, clean lint, and an off-by-default Universal Link sign-in. Every screen has been
-seen in the iPhone simulator in all seven looks and one real sign-in ran there; open:
-the session is lost after a relaunch in the simulator, and two cards on Today lose their
-frames in WebKit. What is left beyond that is the owner's (Apple account, deploy, the
-public pages' placeholders, Clerk). The gates and the steps: `docs/IOS_APP_STORE.md`;
-the next loop: `docs/LOOP_HANDOFF.md` and `docs/LOOP_GRAPH.md`. Two migrations wait for
-the deploy (`20261113000000_device_sessions`, `20261113120000_calendar_feed_token`).
+**Status 2026-11-20, the iPhone app:** branch `ios-app` (worktree `.claude/worktrees/ios-app`,
+on top of `main`, pushed, not merged) turns the client into an iPhone app. Everything that
+can be built and checked without the owner is done: every screen seen in the iPhone
+simulator in all seven looks on every push, a real sign-in end to end there (restart
+included), clean lint, store pictures from the simulator. What is left is the owner's:
+the Apple Developer account and secrets, the public pages' three details, Clerk, the word
+to deploy, a real iPhone, the submission. The iPhone changes alone: `docs/IOS_CHANGELOG.md`;
+the website and server changes that share the branch: `DEPLOY.md`, "What else ships with
+ios-app". The gates and the steps: `docs/IOS_APP_STORE.md`; the next loop:
+`docs/LOOP_HANDOFF.md` and `docs/LOOP_GRAPH.md`. Two migrations wait for the deploy
+(`20261113000000_device_sessions`, `20261113120000_calendar_feed_token`).
 
 ---
 

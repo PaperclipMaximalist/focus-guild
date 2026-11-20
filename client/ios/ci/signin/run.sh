@@ -187,6 +187,22 @@ cmd_run_flow() {
     --no-ansi \
     "$here/flow.yaml" 2>&1 | tee "$WORK/maestro-console.log"
   status=${PIPESTATUS[0]}
+  rm -f "$WORK/flow-note"
+  # Maestro's driver has stopped by itself during the switch from the browser
+  # sheet back to the app, twice, after the sign-in had worked. When the server
+  # shows the app traded its code, go on from the signed-in app: the second
+  # flow still proves the app is signed in and stays so after a restart. The
+  # summary says when this happened.
+  if [ "$status" -ne 0 ] && grep -qE '^--> POST /devices/token(\?[^ ]*)? 2[0-9]{2} ' "$EVIDENCE/server.log" 2>/dev/null; then
+    echo "The hand-off flow stopped after the app had traded its code; going on from the signed-in app (flow-signed-in.yaml)."
+    maestro --device="$udid" test \
+      --test-output-dir="$MAESTRO_OUT/second" \
+      --debug-output="$MAESTRO_OUT/second-debug" \
+      --no-ansi \
+      "$here/flow-signed-in.yaml" 2>&1 | tee -a "$WORK/maestro-console.log"
+    status=${PIPESTATUS[0]}
+    echo "Maestro stopped during the hand-off after the app had traded its code; the signed-in half ran on its own" > "$WORK/flow-note"
+  fi
   echo "$status" > "$WORK/flow-exit-code"
   if [ "$status" -eq 0 ]; then
     note "Maestro flow passed" "Sign in, Connect, signed in, and still signed in after a relaunch."
@@ -201,6 +217,7 @@ cmd_check_server() {
   if [ -f "$WORK/flow-exit-code" ]; then
     flow="$(cat "$WORK/flow-exit-code")"
     [ "$flow" = "0" ] && flow="passed" || { flow="failed (maestro exit ${flow})"; ok=0; }
+    [ -f "$WORK/flow-note" ] && flow="${flow} ($(cat "$WORK/flow-note"))"
   else
     flow="did not run"
     ok=0

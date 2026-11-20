@@ -232,6 +232,23 @@ again. It is never written by pull requests. To read it without a GitHub
 login: `git fetch origin ci-shots`, then `git show FETCH_HEAD:walk-summary.txt`
 or `git archive FETCH_HEAD | tar -x -C <a folder>`.
 
+## Refreshing the App Store screenshots
+
+The listing's seven pictures (`client/ios/App/fastlane/screenshots/en-US`)
+come from the simulator walk. After a change anyone would see in them, push,
+wait for the walk to publish `ci-shots`, then:
+
+```bash
+git fetch origin ci-shots
+mkdir -p ../walk-store && git archive origin/ci-shots store | tar -x -C ../walk-store
+cd client && node scripts/store-from-walk.mjs ../../walk-store/store
+```
+
+The script checks each picture is 1320 x 2868, refuses one with see-through
+pixels, and writes it as RGB (App Store Connect can refuse an alpha channel).
+Look at them before committing. The `store-listing-text` job uploads them
+with the listing.
+
 ## The sign-in check (workflow "iOS sign-in")
 
 A second workflow, `.github/workflows/ios-signin.yml`, runs on pushes to
@@ -248,6 +265,22 @@ Its evidence goes to the branch `ci-signin` the same way: screenshots of each
 stage, `signin-summary.txt` with a verdict, the server's log, Maestro's
 output. This check uses development sign-in, so it proves the hand-off between
 the browser sheet and the app, not Clerk.
+
+Two things learned running it: the app it tests is signed "to run locally"
+(no Apple account needed), because an unsigned simulator build cannot use
+the Keychain and so forgets the sign-in on a restart; and Maestro can stop
+by itself while the screen switches from the browser sheet back to the app.
+For the second, the check is in two flows (`flow.yaml` for the hand-off,
+`flow-signed-in.yaml` for the signed-in app and the restart): when Maestro
+stops during the hand-off and the server shows the app traded its code,
+`run.sh` runs the second flow on its own, and `signin-summary.txt` says so on
+its Flow line. When a run still fails, read `signin-summary.txt` first: if the
+server traded the token and lists one device, and `screens/simulator-end.jpg`
+shows the signed-in Today, the app worked and the test tool did not.
+
+Neither evidence branch is built by Vercel: each carries a `vercel.json`
+that turns automatic deployments off, and `client/vercel.json` does the same
+for `ios-app`. Production deploys from `main` only.
 
 ## What is most likely to fail the first time
 

@@ -60,6 +60,7 @@ these").
 | `60e1e37` | The demo build (`npm run build:demo`: sample data, signed in, no network; absent from the real builds) and a walk of every screen in every look in the simulator (`client/ios/ci/walk-screens.sh`), pictures on branch `ci-shots` |
 | `0e2d656` | `.github/workflows/ios-signin.yml`: one real sign-in in the simulator with Maestro, against a throwaway server and website on the same Mac (`ci/throwaway`); evidence on branch `ci-signin` |
 | `eb38659`, `b768bc5` | Fixes to that workflow; the simulator build for it is signed to run locally, so the Keychain keeps the session; `ci/workflow-check` checks workflow files before a push |
+| this loop | The sign-in check in two flows (`flow.yaml`, `flow-signed-in.yaml`), so a stop of Maestro's own driver during the hand-off does not hide a sign-in that worked; the summary says when that happened |
 | `13e2319`, `b768bc5`, `eecd9d0` | A two-round probe that found why WebKit dropped Today's frames; removed once fixed |
 | `eecd9d0` | Vercel no longer builds `ios-app` or the two evidence branches |
 
