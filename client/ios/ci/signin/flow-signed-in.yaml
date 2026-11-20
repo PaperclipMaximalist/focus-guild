@@ -30,3 +30,6 @@ name: iOS sign-in, from the signed-in app
     label: The tab bar is showing after the relaunch
     text: "(?i)Route"
 - takeScreenshot: 05-relaunched
+
+# Then Delete account from inside the app (its own file, so it can be read alone).
+- runFlow: flow-delete.yaml

@@ -1,0 +1,41 @@
+# The last part of the sign-in check: Delete account, from inside the app, as
+# App Review will try it (guideline 5.1.1(v)). flow-signed-in.yaml runs it
+# once the app is signed in and has survived a restart. run.sh then checks the
+# server saw DELETE /users/me and that the member now has no devices.
+#
+# Texts are regexes matched against the whole label, case-insensitive. The
+# buttons' accessible names come from their aria-label (Settings.tsx,
+# DeleteAccountDialog.tsx).
+appId: com.focusguild.app
+name: iOS Delete account
+---
+- tapOn:
+    label: Open Settings (the gear in the top bar)
+    text: "Settings"
+- scrollUntilVisible:
+    label: Scroll to Delete account at the foot of Settings
+    element:
+      text: "(?i)Delete your Focus Guild account"
+    direction: DOWN
+    timeout: 60000
+- takeScreenshot: 06-settings-account
+- tapOn:
+    label: Press Delete account
+    text: "(?i)Delete your Focus Guild account"
+- extendedWaitUntil:
+    label: The Delete your account sheet is showing
+    visible: "(?i)Type DELETE to confirm"
+    timeout: 30000
+- tapOn:
+    label: Put the cursor in the confirm field (its label focuses it)
+    text: "(?i)Type DELETE to confirm"
+- inputText: "DELETE"
+- takeScreenshot: 07-delete-confirm
+# Enter in the field runs the deletion, as the button does; the keyboard may
+# be covering the button.
+- pressKey: Enter
+- extendedWaitUntil:
+    label: Back on the sign-in screen, saying the account was deleted
+    visible: "(?i)Your account and everything in it was deleted.*"
+    timeout: 60000
+- takeScreenshot: 08-account-deleted

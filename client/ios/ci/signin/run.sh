@@ -176,36 +176,51 @@ cmd_boot_and_install() {
   echo "Installed ${BUNDLE_ID} on ${udid}"
 }
 
+# One Maestro run of a flow file; appends to maestro-console.log; returns its exit code.
+run_maestro() { # <udid> <flow file> <output folder name>
+  maestro --device="$1" test     --test-output-dir="$MAESTRO_OUT/$3"     --debug-output="$MAESTRO_OUT/$3-debug"     --no-ansi     "$here/$2" 2>&1 | tee -a "$WORK/maestro-console.log"
+  return "${PIPESTATUS[0]}"
+}
+
+server_saw() { # <extended regex for a request log line>
+  grep -qE "$1" "$EVIDENCE/server.log" 2>/dev/null
+}
+
 cmd_run_flow() {
-  local udid="$1" status
+  local udid="$1" status=0
   mkdir -p "$MAESTRO_OUT"
+  : > "$WORK/maestro-console.log"
+  rm -f "$WORK/flow-note"
   export MAESTRO_CLI_NO_ANALYTICS=1 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
   # No timeout(1) on macOS: the workflow step's timeout-minutes is the ceiling for a hang.
-  maestro --device="$udid" test \
-    --test-output-dir="$MAESTRO_OUT" \
-    --debug-output="$MAESTRO_OUT/debug" \
-    --no-ansi \
-    "$here/flow.yaml" 2>&1 | tee "$WORK/maestro-console.log"
-  status=${PIPESTATUS[0]}
-  rm -f "$WORK/flow-note"
-  # Maestro's driver has stopped by itself during the switch from the browser
-  # sheet back to the app, twice, after the sign-in had worked. When the server
-  # shows the app traded its code, go on from the signed-in app: the second
-  # flow still proves the app is signed in and stays so after a restart. The
-  # summary says when this happened.
-  if [ "$status" -ne 0 ] && grep -qE '^--> POST /devices/token(\?[^ ]*)? 2[0-9]{2} ' "$EVIDENCE/server.log" 2>/dev/null; then
-    echo "The hand-off flow stopped after the app had traded its code; going on from the signed-in app (flow-signed-in.yaml)."
-    maestro --device="$udid" test \
-      --test-output-dir="$MAESTRO_OUT/second" \
-      --debug-output="$MAESTRO_OUT/second-debug" \
-      --no-ansi \
-      "$here/flow-signed-in.yaml" 2>&1 | tee -a "$WORK/maestro-console.log"
-    status=${PIPESTATUS[0]}
-    echo "Maestro stopped during the hand-off after the app had traded its code; the signed-in half ran on its own" > "$WORK/flow-note"
+  run_maestro "$udid" flow.yaml first || status=$?
+
+  # The simulator's WebKit has once failed to start its graphics process, so
+  # the first page never drew and the sign-in never began (nothing reached the
+  # server). Then, and only then, the whole flow runs once more from a clean
+  # launch.
+  if [ "$status" -ne 0 ] && ! server_saw '^--> POST /devices/link(\?[^ ]*)? 2[0-9]{2} '; then
+    echo "The sign-in never began (nothing reached the server); running the whole flow once more from a clean launch."
+    echo "the first attempt never began the sign-in (the page did not draw); the flow ran again from a clean launch" > "$WORK/flow-note"
+    status=0
+    run_maestro "$udid" flow.yaml again || status=$?
   fi
+
+  # Maestro's driver has stopped by itself during the switch from the browser
+  # sheet back to the app, after the sign-in had worked. When the server shows
+  # the app traded its code, go on from the signed-in app: the second flow
+  # still proves the app is signed in, stays so after a restart, and can
+  # delete the account. The summary says when this happened.
+  if [ "$status" -ne 0 ] && server_saw '^--> POST /devices/token(\?[^ ]*)? 2[0-9]{2} ' && ! server_saw '^--> DELETE /users/me(\?[^ ]*)? 2[0-9]{2} '; then
+    echo "The hand-off flow stopped after the app had traded its code; going on from the signed-in app (flow-signed-in.yaml)."
+    echo "Maestro stopped during the hand-off after the app had traded its code; the signed-in half ran on its own" >> "$WORK/flow-note"
+    status=0
+    run_maestro "$udid" flow-signed-in.yaml second || status=$?
+  fi
+
   echo "$status" > "$WORK/flow-exit-code"
   if [ "$status" -eq 0 ]; then
-    note "Maestro flow passed" "Sign in, Connect, signed in, and still signed in after a relaunch."
+    note "Maestro flow passed" "Sign in, Connect, signed in, still signed in after a relaunch, and Delete account."
   else
     err "Maestro flow failed" "maestro exited ${status}. Screenshots and maestro-console.log are on the ci-signin branch; the last screenshot shows where it stopped."
   fi
@@ -213,11 +228,11 @@ cmd_run_flow() {
 }
 
 cmd_check_server() {
-  local summary="$EVIDENCE/signin-summary.txt" flow devices_json count link token ok=1
+  local summary="$EVIDENCE/signin-summary.txt" flow devices_json count link token removed ok=1
   if [ -f "$WORK/flow-exit-code" ]; then
     flow="$(cat "$WORK/flow-exit-code")"
     [ "$flow" = "0" ] && flow="passed" || { flow="failed (maestro exit ${flow})"; ok=0; }
-    [ -f "$WORK/flow-note" ] && flow="${flow} ($(cat "$WORK/flow-note"))"
+    [ -f "$WORK/flow-note" ] && flow="${flow} ($(paste -sd';' "$WORK/flow-note"))"
   else
     flow="did not run"
     ok=0
@@ -231,20 +246,25 @@ cmd_check_server() {
       try { const j = JSON.parse(s); console.log(j.success && Array.isArray(j.data) ? j.data.length : "unreadable"); }
       catch { console.log("unreadable"); }
     });')"
-  [ "$count" = "1" ] || ok=0
+  # The flow ends by deleting the account, so the member the server finds now
+  # is a fresh one (development sign-in creates it on sight) with no devices.
+  [ "$count" = "0" ] || ok=0
 
   # requestLog.ts: "--> POST /devices/link?tz=-480 201 12ms" (the client adds ?tz= to every call).
   link="$(grep -E -m 1 '^--> POST /devices/link(\?[^ ]*)? 2[0-9]{2} ' "$EVIDENCE/server.log" 2>/dev/null)"
   token="$(grep -E -m 1 '^--> POST /devices/token(\?[^ ]*)? 2[0-9]{2} ' "$EVIDENCE/server.log" 2>/dev/null)"
   [ -n "$link" ] || ok=0
   [ -n "$token" ] || ok=0
+  removed="$(grep -E -m 1 '^--> DELETE /users/me(\?[^ ]*)? 2[0-9]{2} ' "$EVIDENCE/server.log" 2>/dev/null)"
+  [ -n "$removed" ] || ok=0
 
   {
     echo "iOS sign-in check, source commit ${GITHUB_SHA:-local}"
     echo "Flow (Maestro, client/ios/ci/signin/flow.yaml): ${flow}"
-    echo "Devices listed for dev-member-001 by GET /devices: ${count} (expected 1; response in devices.json)"
+    echo "Devices listed for dev-member-001 by GET /devices after the flow: ${count} (expected 0: the flow deleted the account; response in devices.json)"
     echo "Server log, POST /devices/link with 2xx (the website asked for a one-time code): ${link:-NOT FOUND}"
     echo "Server log, POST /devices/token with 2xx (the app traded the code for a token): ${token:-NOT FOUND}"
+    echo "Server log, DELETE /users/me with 2xx (Delete account in the app): ${removed:-NOT FOUND}"
     echo "All /devices lines in the server log:"
     grep -E '^--> [A-Z]+ /devices' "$EVIDENCE/server.log" 2>/dev/null | sed 's/^/  /' || true
     # Tells "the app or the sheet never reached the API" (0) apart from "it did, and the sign-in went wrong".
@@ -255,7 +275,7 @@ cmd_check_server() {
   } > "$summary"
   cat "$summary"
 
-  local one_line="flow ${flow}; devices listed ${count}; link $([ -n "$link" ] && echo found || echo missing); token $([ -n "$token" ] && echo found || echo missing)"
+  local one_line="flow ${flow}; devices listed ${count}; link $([ -n "$link" ] && echo found || echo missing); token $([ -n "$token" ] && echo found || echo missing); delete $([ -n "$removed" ] && echo found || echo missing)"
   if [ "$ok" = 1 ]; then
     note "Sign-in verified" "$one_line"
   else
@@ -324,9 +344,10 @@ Files
 - screens/03-after-connect.jpg: just after pressing Connect this iPhone (and Open, if iOS asked).
 - screens/04-signed-in.jpg: the signed-in app (Today, welcome guide, tab bar).
 - screens/05-relaunched.jpg: after stopping and relaunching without clearing state (the Keychain kept the session).
+- screens/06-settings-account.jpg, 07-delete-confirm.jpg, 08-account-deleted.jpg: Delete account from inside the app, ending on the sign-in screen that says so.
 - screens/simulator-end.jpg: the simulator's screen when the job finished, whatever happened.
 - screens/ (any other file): Maestro's own screenshot of a failing step.
-- devices.json: GET /devices as the dev member after the flow (one device expected).
+- devices.json: GET /devices as the dev member after the flow (none expected: the account was deleted).
 - server.log: the API's output, including its request log (lines starting --> are answers).
 - website.log: the vite preview server's output.
 - database.log: the throwaway database's output (migrations applied).

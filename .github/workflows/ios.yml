@@ -283,6 +283,97 @@ jobs:
           git push -q --force "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" ci-shots:ci-shots
           echo "Published to the ci-shots branch."
 
+  # The TestFlight job archives a Release build for real iPhones and signs it
+  # at export; it needs the Apple account, so it has never run. This job does
+  # the same archive on every push, unsigned and without secrets, and checks
+  # what App Store Connect checks on upload (bundle id, version, icon,
+  # privacy manifest, launch screen, encryption answer, device-only code), so
+  # the first real upload is not the first time the Release build is made.
+  archive-rehearsal:
+    name: Release archive for a real iPhone (unsigned rehearsal, no Apple account)
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: macos-26
+    timeout-minutes: 45
+    concurrency:
+      group: ios-archive-${{ github.ref }}
+      cancel-in-progress: true
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v5
+
+      - name: Select Xcode 26 or later
+        run: bash client/ios/ci/select-xcode.sh
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install client dependencies (npm ci)
+        working-directory: client
+        run: npm ci
+
+      - name: Build the web bundle and sync it into the iOS project (npm run build:ios)
+        working-directory: client
+        run: npm run build:ios
+
+      - name: Archive the Release build for iOS devices, unsigned, as the TestFlight job does
+        working-directory: client/ios/App
+        run: >-
+          bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/xcodebuild-archive.log"
+          archive
+          -project App.xcodeproj -scheme App -configuration Release
+          -destination "generic/platform=iOS"
+          -archivePath "$RUNNER_TEMP/App.xcarchive"
+          -derivedDataPath "$RUNNER_TEMP/DerivedData"
+          -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
+          MARKETING_VERSION=1.0.0
+          CURRENT_PROJECT_VERSION=1
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          CODE_SIGN_IDENTITY=""
+
+      - name: Check the archive as App Store Connect would (id, version, icon, privacy manifest, launch screen, device code)
+        run: |
+          set -euo pipefail
+          app="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+          plist="$app/Info.plist"
+          pb() { /usr/libexec/PlistBuddy -c "Print :$1" "$plist" 2>/dev/null || true; }
+          problems=()
+          [ "$(pb CFBundleIdentifier)" = "$BUNDLE_ID" ] || problems+=("bundle id is '$(pb CFBundleIdentifier)', expected $BUNDLE_ID")
+          [ "$(pb CFBundleShortVersionString)" = "1.0.0" ] || problems+=("version is '$(pb CFBundleShortVersionString)'")
+          [ "$(pb CFBundleVersion)" = "1" ] || problems+=("build number is '$(pb CFBundleVersion)'")
+          [ -n "$(pb CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName)" ] || problems+=("no app icon in Info.plist (CFBundleIcons)")
+          [ -f "$app/Assets.car" ] || problems+=("no compiled asset catalog (Assets.car)")
+          [ -f "$app/PrivacyInfo.xcprivacy" ] || problems+=("no privacy manifest (PrivacyInfo.xcprivacy)")
+          [ -n "$(pb UILaunchStoryboardName)" ] || problems+=("no launch screen (UILaunchStoryboardName)")
+          [ "$(pb ITSAppUsesNonExemptEncryption)" = "false" ] || problems+=("ITSAppUsesNonExemptEncryption is not NO")
+          [ -f "$app/public/index.html" ] || problems+=("the web bundle is missing (public/index.html)")
+          if grep -rqs "demo-route" "$app/public"; then problems+=("the demo build is inside the real app"); fi
+          archs="$(lipo -archs "$app/App" 2>/dev/null || true)"
+          [ "$archs" = "arm64" ] || problems+=("executable architectures are '$archs', expected arm64 only")
+          size="$(du -sh "$app" | cut -f1)"
+          echo "Archive: $(pb CFBundleIdentifier) $(pb CFBundleShortVersionString) ($(pb CFBundleVersion)), $archs, $size"
+          if [ ${#problems[@]} -gt 0 ]; then
+            for p in "${problems[@]}"; do echo "::error title=Archive check::$p"; done
+            exit 1
+          fi
+          echo "::notice title=Release archive::$(pb CFBundleIdentifier) $(pb CFBundleShortVersionString) ($(pb CFBundleVersion)), $archs, $size: everything App Store Connect checks on upload is in place (signing is the TestFlight job's)."
+
+      - name: Upload the archive logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: ios-archive-rehearsal-logs
+          path: ${{ runner.temp }}/logs/
+          if-no-files-found: ignore
+          retention-days: 30
+
   testflight:
     name: Archive, sign and upload to TestFlight
     if: >-

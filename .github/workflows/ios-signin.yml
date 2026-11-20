@@ -152,12 +152,12 @@ jobs:
           bash client/ios/ci/signin/run.sh boot-and-install "$SIM_UDID"
           "$RUNNER_TEMP/DerivedData/Build/Products/Debug-iphonesimulator/App.app"
 
-      - name: Drive one real sign-in with Maestro (Sign in, Connect, signed in, relaunch)
+      - name: Drive one real sign-in with Maestro (Sign in, Connect, signed in, relaunch, Delete account)
         id: flow
-        timeout-minutes: 25
+        timeout-minutes: 35
         run: bash client/ios/ci/signin/run.sh run-flow "$SIM_UDID"
 
-      - name: Check the server saw the sign-in (one device, code and token requests)
+      - name: Check the server saw it (code and token requests, Delete account, no devices left)
         if: ${{ !cancelled() }}
         run: bash client/ios/ci/signin/run.sh check-server
 
