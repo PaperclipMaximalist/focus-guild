@@ -1,0 +1,46 @@
+Running on iPhone 17 Pro Max - iOS 26.5 - 5277349A-B219-4ED4-853A-8AE666B9F5B1
+ > Flow iOS sign-in hand-off
+Launch the app with no saved state and an empty Keychain... COMPLETED
+The sign-in screen is showing... COMPLETED
+Take screenshot 01-sign-in... COMPLETED
+Press Sign in (opens the website in the browser sheet)... COMPLETED
+The website's Connect page is showing in the sheet... COMPLETED
+The Connect this iPhone button is showing... COMPLETED
+Take screenshot 02-browser-sheet... COMPLETED
+Press Connect this iPhone (the website asks the server for a one-time code)... COMPLETED
+Take screenshot 03-after-connect... COMPLETED
+If the page still offers Open Focus Guild, press it (and Open, if iOS asks)...
+  Tap on "(?i)Open Focus Guild"...
+==== Debug output (logs & screenshots) ====
+
+/Users/runner/work/_temp/signin/maestro/first/2026-11-20_055055
+Running on iPhone 17 Pro Max - iOS 26.5 - 5277349A-B219-4ED4-853A-8AE666B9F5B1
+ > Flow iOS sign-in, from the signed-in app
+The signed-in app is showing (Today's welcome guide)... COMPLETED
+The tab bar is showing... COMPLETED
+Take screenshot 04-signed-in... COMPLETED
+Stop com.focusguild.app... COMPLETED
+Relaunch the app without clearing anything... COMPLETED
+Still signed in after the relaunch... COMPLETED
+The tab bar is showing after the relaunch... COMPLETED
+Take screenshot 05-relaunched... COMPLETED
+Run flow-delete.yaml...
+  Open Settings (the gear in the top bar)... COMPLETED
+  Scroll to Delete account at the foot of Settings... COMPLETED
+  Take screenshot 06-settings-account... COMPLETED
+  Press Delete account... COMPLETED
+  The Delete your account sheet is showing... FAILED
+Run flow-delete.yaml... FAILED
+
+Assertion is false: "(?i)Type DELETE to confirm" is visible
+
+Assertion '"(?i)Type DELETE to confirm" is visible' failed. Check the UI hierarchy in debug artifacts to verify the element state and properties.
+
+Possible causes:
+- Element selector may be incorrect - check if there are similar elements with slightly different names/properties.
+- Element may be temporarily unavailable due to loading state
+- This could be a real regression that needs to be addressed
+
+==== Debug output (logs & screenshots) ====
+
+/Users/runner/work/_temp/signin/maestro/second/2026-11-20_055555

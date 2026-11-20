@@ -1,0 +1,110 @@
+[preload] Prisma is on the throwaway database at postgresql://postgres@127.0.0.1:54329/postgres
+◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+◇ injected env (0) from .env.local // tip: ◈ secrets for agents [www.dotenvx.com]
+[auth] CLERK_SECRET_KEY not set — falling back to dev auth. Routes will accept X-Dev-Clerk-Id header or ?clerkId= query param (default: dev-member-001).
+[ai] ANTHROPIC_API_KEY not set: AI features run only for people who connect their own AI.
+Focus Guild API running on http://localhost:3000
+<-- GET /health
+--> GET /health 200 6ms
+<-- GET /health
+--> GET /health 200 1ms
+<-- POST /devices/link?tz=0
+--> POST /devices/link?tz=0 201 5s
+<-- OPTIONS /devices/token?tz=0
+--> OPTIONS /devices/token?tz=0 204 38ms
+<-- POST /devices/token?tz=0
+--> POST /devices/token?tz=0 200 277ms
+<-- OPTIONS /users?tz=0
+--> OPTIONS /users?tz=0 204 3ms
+<-- POST /users?tz=0
+--> POST /users?tz=0 201 17ms
+<-- OPTIONS /schedule/dev-member-001?tz=0
+--> OPTIONS /schedule/dev-member-001?tz=0 204 195ms
+<-- OPTIONS /checkin/today/dev-member-001?tz=0
+--> OPTIONS /checkin/today/dev-member-001?tz=0 204 1ms
+<-- GET /schedule/dev-member-001?tz=0
+<-- OPTIONS /users/dev-member-001/achievements?tz=0
+--> OPTIONS /users/dev-member-001/achievements?tz=0 204 0ms
+<-- OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 1ms
+<-- OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 6ms
+<-- OPTIONS /quests?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests?clerkId=dev-member-001&tz=0 204 0ms
+<-- OPTIONS /quests/completed?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/completed?clerkId=dev-member-001&tz=0 204 1ms
+<-- OPTIONS /quests/recurring?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/recurring?clerkId=dev-member-001&tz=0 204 0ms
+<-- GET /checkin/today/dev-member-001?tz=0
+<-- GET /users/dev-member-001/achievements?tz=0
+--> GET /schedule/dev-member-001?tz=0 200 1s
+<-- GET /quests/rescue?clerkId=dev-member-001&tz=0
+<-- GET /quests/completed?clerkId=dev-member-001&tz=0
+<-- GET /quests/rescue?clerkId=dev-member-001&tz=0
+<-- GET /quests?clerkId=dev-member-001&tz=0
+--> GET /checkin/today/dev-member-001?tz=0 200 991ms
+<-- GET /quests/recurring?clerkId=dev-member-001&tz=0
+--> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 906ms
+--> GET /quests/completed?clerkId=dev-member-001&tz=0 200 941ms
+--> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 1s
+--> GET /users/dev-member-001/achievements?tz=0 200 2s
+--> GET /quests/recurring?clerkId=dev-member-001&tz=0 200 1s
+--> GET /quests?clerkId=dev-member-001&tz=0 200 2s
+<-- OPTIONS /users?tz=0
+--> OPTIONS /users?tz=0 204 9ms
+<-- POST /users?tz=0
+--> POST /users?tz=0 201 149ms
+<-- OPTIONS /schedule/dev-member-001?tz=0
+--> OPTIONS /schedule/dev-member-001?tz=0 204 78ms
+<-- OPTIONS /checkin/today/dev-member-001?tz=0
+--> OPTIONS /checkin/today/dev-member-001?tz=0 204 1ms
+<-- GET /schedule/dev-member-001?tz=0
+<-- OPTIONS /users/dev-member-001/achievements?tz=0
+--> OPTIONS /users/dev-member-001/achievements?tz=0 204 0ms
+<-- OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 0ms
+<-- OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 599ms
+<-- OPTIONS /quests?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests?clerkId=dev-member-001&tz=0 204 533ms
+<-- OPTIONS /quests/completed?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/completed?clerkId=dev-member-001&tz=0 204 1ms
+<-- OPTIONS /quests/recurring?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/recurring?clerkId=dev-member-001&tz=0 204 0ms
+<-- GET /checkin/today/dev-member-001?tz=0
+<-- GET /users/dev-member-001/achievements?tz=0
+<-- GET /quests/rescue?clerkId=dev-member-001&tz=0
+<-- GET /quests/rescue?clerkId=dev-member-001&tz=0
+<-- GET /quests?clerkId=dev-member-001&tz=0
+--> GET /schedule/dev-member-001?tz=0 200 3s
+<-- GET /quests/completed?clerkId=dev-member-001&tz=0
+--> GET /checkin/today/dev-member-001?tz=0 200 1s
+<-- GET /quests/recurring?clerkId=dev-member-001&tz=0
+--> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 1s
+--> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 1s
+--> GET /users/dev-member-001/achievements?tz=0 200 2s
+--> GET /quests/completed?clerkId=dev-member-001&tz=0 200 1s
+--> GET /quests?clerkId=dev-member-001&tz=0 200 1s
+--> GET /quests/recurring?clerkId=dev-member-001&tz=0 200 656ms
+<-- OPTIONS /settings?tz=0
+--> OPTIONS /settings?tz=0 204 315ms
+<-- OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 1ms
+<-- GET /settings?tz=0
+<-- GET /quests/rescue?clerkId=dev-member-001&tz=0
+--> GET /settings?tz=0 200 3s
+<-- OPTIONS /devices?tz=0
+--> OPTIONS /devices?tz=0 204 9ms
+--> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 3s
+<-- GET /devices?tz=0
+--> GET /devices?tz=0 200 974ms
+<-- OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0
+--> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 229ms
+<-- OPTIONS /tracker?tz=0
+--> OPTIONS /tracker?tz=0 204 2s
+<-- GET /quests/rescue?clerkId=dev-member-001&tz=0
+<-- GET /tracker?tz=0
+--> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 5s
+--> GET /tracker?tz=0 200 19s
+<-- GET /devices
+--> GET /devices 200 112ms

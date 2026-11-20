@@ -1,0 +1,32 @@
+iOS sign-in check, source commit 4c265c7e288a1996bd33ab9eeb867f1a6b846c03
+Flow (Maestro, client/ios/ci/signin/flow.yaml): failed (maestro exit 1) (Maestro stopped during the hand-off after the app had traded its code; the signed-in half ran on its own)
+Devices listed for dev-member-001 by GET /devices after the flow: 1 (expected 0: the flow deleted the account; response in devices.json)
+Server log, POST /devices/link with 2xx (the website asked for a one-time code): --> POST /devices/link?tz=0 201 5s
+Server log, POST /devices/token with 2xx (the app traded the code for a token): --> POST /devices/token?tz=0 200 277ms
+Server log, DELETE /users/me with 2xx (Delete account in the app): NOT FOUND
+All /devices lines in the server log:
+  --> POST /devices/link?tz=0 201 5s
+  --> OPTIONS /devices/token?tz=0 204 38ms
+  --> POST /devices/token?tz=0 200 277ms
+  --> OPTIONS /devices?tz=0 204 9ms
+  --> GET /devices?tz=0 200 974ms
+  --> GET /devices 200 112ms
+Requests answered other than /health and this check's GET /devices: 49
+The last 15 answered requests (not /health):
+  --> GET /users/dev-member-001/achievements?tz=0 200 2s
+  --> GET /quests/completed?clerkId=dev-member-001&tz=0 200 1s
+  --> GET /quests?clerkId=dev-member-001&tz=0 200 1s
+  --> GET /quests/recurring?clerkId=dev-member-001&tz=0 200 656ms
+  --> OPTIONS /settings?tz=0 204 315ms
+  --> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 1ms
+  --> GET /settings?tz=0 200 3s
+  --> OPTIONS /devices?tz=0 204 9ms
+  --> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 3s
+  --> GET /devices?tz=0 200 974ms
+  --> OPTIONS /quests/rescue?clerkId=dev-member-001&tz=0 204 229ms
+  --> OPTIONS /tracker?tz=0 204 2s
+  --> GET /quests/rescue?clerkId=dev-member-001&tz=0 200 5s
+  --> GET /tracker?tz=0 200 19s
+  --> GET /devices 200 112ms
+Verdict: FAIL
+Sign-in job result: failure
