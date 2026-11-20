@@ -21,11 +21,11 @@
 15-records	/advanced/records
 16-import	/quests/import
 17-timer	/	timer
-# Diagnosis, 2026-11-14 (src/demo/driver.ts, "A probe"): Today again, with one
-# thing changed each time, to find why its first two cards lose their frames
-# in the iPhone's WebView. Take these rows out once that is fixed.
-18-probe-wait	/?demoprobe=wait
-19-probe-reattr	/?demoprobe=reattr
-20-probe-noscene	/?demoprobe=noscene
-21-probe-repaint	/?demoprobe=repaint
-22-probe-layer	/?demoprobe=layer
+# Diagnosis (src/demo/driver.ts, "A probe"): Today again, each row with one
+# candidate fix for the frames WebKit drops on its first two cards. Round 2,
+# 2026-11-19. Take these rows out once the fix is in index.css.
+18-probe-noscene	/?demoprobe=noscene
+19-probe-afterlayer	/?demoprobe=afterlayer
+20-probe-afterwill	/?demoprobe=afterwill
+21-probe-scenecontain	/?demoprobe=scenecontain
+22-probe-canvashide	/?demoprobe=canvashide

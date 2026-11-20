@@ -152,34 +152,41 @@ function describeFrames(): string {
   });
 }
 
+// Round 1 (2026-11-14) found: WebKit computes the frames exactly as Chrome
+// does; with Scenery off every panel keeps its frame; a layer on the two cards
+// brings theirs back but takes the frames off the panels below. So the moving
+// scene window disturbs how WebKit paints border-image on panels that it has
+// had to put into a shared layer. Round 2 tries the candidate fixes, each as a
+// stylesheet added just before the picture.
+const FRAME_AFTERS =
+  '.panel::after, .next-card::after, .board-sign::after, [class~="rounded-(--radius-card)"][class~="border"]::after';
+
+const CANDIDATES: Record<string, string> = {
+  // Every frame on a layer of its own, so none is painted into a shared one.
+  afterlayer: `${FRAME_AFTERS} { transform: translateZ(0); }`,
+  // The same, asked for as a hint instead of a transform.
+  afterwill: `${FRAME_AFTERS} { will-change: transform; }`,
+  // The scene window kept to its own box, so it cannot force the panels after it into shared layers.
+  scenecontain: '.scene-window { contain: paint; }',
+  // Only the moving canvas hidden (the window and its words stay): is the canvas itself the trigger?
+  canvashide: '.scene-window canvas { visibility: hidden; }',
+};
+
 async function applyProbe(name: string): Promise<void> {
-  const root = document.documentElement;
-  const cards = [...document.querySelectorAll<HTMLElement>('.panel')].slice(0, 2);
-  if (name === 'wait') {
-    // Only time: were the frames merely late?
-    await sleep(6000);
-  } else if (name === 'reattr') {
-    // Take the attribute the frame rules hang on away and put it back: stale style?
-    const kept = root.dataset.ornate;
-    delete root.dataset.ornate;
-    await nextFrames(3);
-    if (kept) root.dataset.ornate = kept;
-    await sleep(1500);
-  } else if (name === 'noscene') {
-    // Scenery off (the animated window above the cards stops): compositing under animation?
+  if (name === 'noscene') {
+    // Control: Scenery off brought every frame back in round 1.
     setSceneEnabled(false);
     await sleep(2500);
-  } else if (name === 'repaint') {
-    // Take the two cards out of the layout and put them back: a missed repaint?
-    for (const c of cards) c.style.display = 'none';
-    await nextFrames(3);
-    for (const c of cards) c.style.display = '';
-    await sleep(1500);
-  } else if (name === 'layer') {
-    // Give each card a layer of its own.
-    for (const c of cards) c.style.transform = 'translateZ(0)';
-    await sleep(1500);
+    return;
   }
+  const css = CANDIDATES[name];
+  if (!css) return;
+  const style = document.createElement('style');
+  style.dataset.demoProbe = name;
+  style.textContent = css;
+  document.head.append(style);
+  await nextFrames(3);
+  await sleep(1500);
 }
 
 /** The screen this load was asked for: wait for it, then say so on the console. */

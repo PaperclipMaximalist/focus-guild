@@ -127,7 +127,12 @@ jobs:
       - name: Pick an iPhone simulator
         run: bash client/ios/ci/pick-simulator.sh
 
-      - name: Compile the app for the simulator (unsigned)
+      # Signed "to run locally" (ad hoc, identity "-", no team), not unsigned:
+      # an unsigned simulator build has no entitlements, so the Keychain refuses
+      # it (errSecMissingEntitlement) and the app cannot keep its sign-in across
+      # a relaunch, which the flow checks. The first run (2026-11-14), unsigned,
+      # lost the session on relaunch. Ad hoc signing needs no Apple account.
+      - name: Compile the app for the simulator (signed to run locally, for the Keychain)
         working-directory: client/ios/App
         run: >-
           bash ../ci/run-xcodebuild.sh "$RUNNER_TEMP/logs/xcodebuild-simulator.log"
@@ -136,7 +141,11 @@ jobs:
           -destination "id=$SIM_UDID"
           -derivedDataPath "$RUNNER_TEMP/DerivedData"
           -clonedSourcePackagesDirPath "$RUNNER_TEMP/spm"
-          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_ALLOWED=YES
+          CODE_SIGN_STYLE=Manual
+          CODE_SIGN_IDENTITY=-
+          DEVELOPMENT_TEAM=
+          PROVISIONING_PROFILE_SPECIFIER=
 
       - name: Boot the simulator and install the app
         run: >-

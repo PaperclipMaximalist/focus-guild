@@ -1,0 +1,13 @@
+{
+  "name": "focus-guild-workflow-check",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Parses the GitHub workflow files before a push and flags mistakes GitHub would refuse the whole file for.",
+  "type": "module",
+  "scripts": {
+    "check": "node check.mjs"
+  },
+  "dependencies": {
+    "yaml": "2.8.1"
+  }
+}
