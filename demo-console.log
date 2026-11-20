@@ -1,0 +1,1819 @@
+2026-11-19 22:50:23.182 App[20967:64386] DiskCookieStorage changing policy from 2 to 0, cookie file: file:///Users/runner/Library/Developer/CoreSimulator/Devices/F90353E4-F95D-488C-9F4E-B43F74E385F2/data/Containers/Data/Application/25B902D3-1E6D-4725-832C-8ADF4026D3B9/Library/Cookies/com.focusguild.app.binarycookies
+2026-11-19 22:50:23.441 App[20967:64386] KeyboardPlugin: resize mode - native
+⚡️  Loading app at capacitor://localhost...
+SplashScreen.hideSplash: SplashScreen was automatically hidden after default timeout. You should call `SplashScreen.hide()` as soon as your web app is loaded (or increase the timeout). Read more at https://capacitorjs.com/docs/apis/splash-screen#hiding-the-splash-screen
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 108246299
+⚡️  To Native ->  Keyboard addListener 108246300
+⚡️  To Native ->  Keyboard addListener 108246301
+⚡️  To Native ->  Keyboard addListener 108246302
+⚡️  To Native ->  App addListener 108246303
+⚡️  To Native ->  App addListener 108246304
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 108246305
+⚡️  To Native ->  LocalNotifications addListener 108246306
+⚡️  To Native ->  LocalNotifications checkPermissions 108246307
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 108246308
+⚡️  TO JS undefined
+⚡️  [log] - [demo] ready
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 101012188
+⚡️  To Native ->  Keyboard addListener 101012189
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 101012190
+⚡️  To Native ->  Keyboard addListener 101012191
+⚡️  To Native ->  App addListener 101012192
+⚡️  To Native ->  App addListener 101012193
+⚡️  To Native ->  App addListener 101012194
+⚡️  To Native ->  LocalNotifications addListener 101012195
+⚡️  To Native ->  LocalNotifications checkPermissions 101012196
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 101012197
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 1 night /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 24953293
+⚡️  To Native ->  Keyboard addListener 24953294
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 24953295
+⚡️  To Native ->  Keyboard addListener 24953296
+⚡️  To Native ->  App addListener 24953297
+⚡️  To Native ->  App addListener 24953298
+⚡️  To Native ->  App addListener 24953299
+⚡️  To Native ->  LocalNotifications addListener 24953300
+⚡️  To Native ->  LocalNotifications checkPermissions 24953301
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 24953302
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 2 night /feed
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 67294588
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 67294589
+⚡️  To Native ->  Keyboard addListener 67294590
+⚡️  To Native ->  Keyboard addListener 67294591
+⚡️  To Native ->  App addListener 67294592
+⚡️  To Native ->  App addListener 67294593
+⚡️  To Native ->  App addListener 67294594
+⚡️  To Native ->  LocalNotifications addListener 67294595
+⚡️  To Native ->  LocalNotifications checkPermissions 67294596
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 67294597
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 3 night /quests
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 72621766
+⚡️  To Native ->  Keyboard addListener 72621767
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 72621768
+⚡️  To Native ->  Keyboard addListener 72621769
+⚡️  To Native ->  App addListener 72621770
+⚡️  To Native ->  App addListener 72621771
+⚡️  To Native ->  App addListener 72621772
+⚡️  To Native ->  LocalNotifications addListener 72621773
+⚡️  To Native ->  LocalNotifications checkPermissions 72621774
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 72621775
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 4 night /rescue
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 121702977
+⚡️  To Native ->  Keyboard addListener 121702978
+⚡️  To Native ->  Keyboard addListener 121702979
+⚡️  To Native ->  Keyboard addListener 121702980
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 121702981
+⚡️  To Native ->  App addListener 121702982
+⚡️  To Native ->  App addListener 121702983
+⚡️  To Native ->  LocalNotifications addListener 121702984
+⚡️  To Native ->  LocalNotifications checkPermissions 121702985
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 121702986
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 5 night /checkin
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 50881031
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 50881032
+⚡️  To Native ->  Keyboard addListener 50881033
+⚡️  To Native ->  Keyboard addListener 50881034
+⚡️  To Native ->  App addListener 50881035
+⚡️  To Native ->  App addListener 50881036
+⚡️  To Native ->  App addListener 50881037
+⚡️  To Native ->  LocalNotifications addListener 50881038
+⚡️  To Native ->  LocalNotifications checkPermissions 50881039
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 50881040
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 6 night /stats
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 50686406
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 50686407
+⚡️  To Native ->  Keyboard addListener 50686408
+⚡️  To Native ->  Keyboard addListener 50686409
+⚡️  To Native ->  App addListener 50686410
+⚡️  To Native ->  App addListener 50686411
+⚡️  To Native ->  App addListener 50686412
+⚡️  To Native ->  LocalNotifications addListener 50686413
+⚡️  To Native ->  LocalNotifications checkPermissions 50686414
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 50686415
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 7 night /trophies
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 128559767
+⚡️  To Native ->  Keyboard addListener 128559768
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 128559769
+⚡️  To Native ->  Keyboard addListener 128559770
+⚡️  To Native ->  App addListener 128559771
+⚡️  To Native ->  App addListener 128559772
+⚡️  To Native ->  App addListener 128559773
+⚡️  To Native ->  LocalNotifications addListener 128559774
+⚡️  To Native ->  LocalNotifications checkPermissions 128559775
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 128559776
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 8 night /tracker
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 13832168
+⚡️  To Native ->  Keyboard addListener 13832169
+⚡️  To Native ->  Keyboard addListener 13832170
+⚡️  To Native ->  Keyboard addListener 13832171
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 13832172
+⚡️  To Native ->  App addListener 13832173
+⚡️  To Native ->  App addListener 13832174
+⚡️  To Native ->  LocalNotifications addListener 13832175
+⚡️  To Native ->  LocalNotifications checkPermissions 13832176
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 13832177
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 9 night /chronicle
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 82779687
+⚡️  To Native ->  Keyboard addListener 82779688
+⚡️  To Native ->  Keyboard addListener 82779689
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 82779690
+⚡️  To Native ->  App addListener 82779691
+⚡️  To Native ->  App addListener 82779692
+⚡️  To Native ->  App addListener 82779693
+⚡️  To Native ->  LocalNotifications addListener 82779694
+⚡️  To Native ->  LocalNotifications checkPermissions 82779695
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 82779696
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 10 night /settings
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 33025411
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 33025412
+⚡️  To Native ->  Keyboard addListener 33025413
+⚡️  To Native ->  Keyboard addListener 33025414
+⚡️  To Native ->  App addListener 33025415
+⚡️  To Native ->  App addListener 33025416
+⚡️  To Native ->  App addListener 33025417
+⚡️  To Native ->  LocalNotifications addListener 33025418
+⚡️  To Native ->  LocalNotifications checkPermissions 33025419
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 33025420
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 11 night /advanced
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 103471542
+⚡️  To Native ->  Keyboard addListener 103471543
+⚡️  To Native ->  Keyboard addListener 103471544
+⚡️  To Native ->  Keyboard addListener 103471545
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 103471546
+⚡️  To Native ->  App addListener 103471547
+⚡️  To Native ->  App addListener 103471548
+⚡️  To Native ->  LocalNotifications addListener 103471549
+⚡️  To Native ->  LocalNotifications checkPermissions 103471550
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 103471551
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 12 night /connections
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 20605905
+⚡️  To Native ->  Keyboard addListener 20605906
+⚡️  To Native ->  Keyboard addListener 20605907
+⚡️  To Native ->  Keyboard addListener 20605908
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 20605909
+⚡️  To Native ->  App addListener 20605910
+⚡️  To Native ->  App addListener 20605911
+⚡️  To Native ->  LocalNotifications addListener 20605912
+⚡️  To Native ->  LocalNotifications checkPermissions 20605913
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 20605914
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 13 night /advanced/quickstart
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 107035062
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 107035063
+⚡️  To Native ->  Keyboard addListener 107035064
+⚡️  To Native ->  Keyboard addListener 107035065
+⚡️  To Native ->  App addListener 107035066
+⚡️  To Native ->  App addListener 107035067
+⚡️  To Native ->  App addListener 107035068
+⚡️  To Native ->  LocalNotifications addListener 107035069
+⚡️  To Native ->  LocalNotifications checkPermissions 107035070
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 107035071
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 14 night /advanced/ai
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 88232551
+⚡️  To Native ->  Keyboard addListener 88232552
+⚡️  To Native ->  Keyboard addListener 88232553
+⚡️  To Native ->  Keyboard addListener 88232554
+⚡️  To Native ->  App addListener 88232555
+⚡️  To Native ->  App addListener 88232556
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 88232557
+⚡️  To Native ->  LocalNotifications addListener 88232558
+⚡️  To Native ->  LocalNotifications checkPermissions 88232559
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 88232560
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 15 night /advanced/records
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 33343957
+⚡️  To Native ->  Keyboard addListener 33343958
+⚡️  To Native ->  Keyboard addListener 33343959
+⚡️  To Native ->  Keyboard addListener 33343960
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 33343961
+⚡️  To Native ->  App addListener 33343962
+⚡️  To Native ->  App addListener 33343963
+⚡️  To Native ->  LocalNotifications addListener 33343964
+⚡️  To Native ->  LocalNotifications checkPermissions 33343965
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 33343966
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 16 night /quests/import
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 38037199
+⚡️  To Native ->  Keyboard addListener 38037200
+⚡️  To Native ->  Keyboard addListener 38037201
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 38037202
+⚡️  To Native ->  App addListener 38037203
+⚡️  To Native ->  App addListener 38037204
+⚡️  To Native ->  LocalNotifications checkPermissions 38037205
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  App addListener 38037206
+⚡️  To Native ->  LocalNotifications addListener 38037207
+⚡️  To Native ->  LocalNotifications checkPermissions 38037208
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 38037209
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 17 night /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 88851149
+⚡️  To Native ->  Keyboard addListener 88851150
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 88851151
+⚡️  To Native ->  Keyboard addListener 88851152
+⚡️  To Native ->  App addListener 88851153
+⚡️  To Native ->  App addListener 88851154
+⚡️  To Native ->  App addListener 88851155
+⚡️  To Native ->  LocalNotifications addListener 88851156
+⚡️  To Native ->  LocalNotifications checkPermissions 88851157
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 88851158
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 18 deep /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 31360322
+⚡️  To Native ->  Keyboard addListener 31360323
+⚡️  To Native ->  Keyboard addListener 31360324
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 31360325
+⚡️  To Native ->  App addListener 31360326
+⚡️  To Native ->  App addListener 31360327
+⚡️  To Native ->  App addListener 31360328
+⚡️  To Native ->  LocalNotifications addListener 31360329
+⚡️  To Native ->  LocalNotifications checkPermissions 31360330
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 31360331
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 19 deep /feed
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 76171266
+⚡️  To Native ->  Keyboard addListener 76171267
+⚡️  To Native ->  Keyboard addListener 76171268
+⚡️  To Native ->  Keyboard addListener 76171269
+⚡️  To Native ->  App addListener 76171270
+⚡️  To Native ->  App addListener 76171271
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 76171272
+⚡️  To Native ->  LocalNotifications addListener 76171273
+⚡️  To Native ->  LocalNotifications checkPermissions 76171274
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 76171275
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 20 deep /quests
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 115106940
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 115106941
+⚡️  To Native ->  Keyboard addListener 115106942
+⚡️  To Native ->  Keyboard addListener 115106943
+⚡️  To Native ->  App addListener 115106944
+⚡️  To Native ->  App addListener 115106945
+⚡️  To Native ->  App addListener 115106946
+⚡️  To Native ->  LocalNotifications addListener 115106947
+⚡️  To Native ->  LocalNotifications checkPermissions 115106948
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 115106949
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 21 deep /rescue
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 7508791
+⚡️  To Native ->  Keyboard addListener 7508792
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 7508793
+⚡️  To Native ->  Keyboard addListener 7508794
+⚡️  To Native ->  App addListener 7508795
+⚡️  To Native ->  App addListener 7508796
+⚡️  To Native ->  App addListener 7508797
+⚡️  To Native ->  LocalNotifications addListener 7508798
+⚡️  To Native ->  LocalNotifications checkPermissions 7508799
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 7508800
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 22 deep /checkin
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 104800782
+⚡️  To Native ->  Keyboard addListener 104800783
+⚡️  To Native ->  Keyboard addListener 104800784
+⚡️  To Native ->  Keyboard addListener 104800785
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 104800786
+⚡️  To Native ->  App addListener 104800787
+⚡️  To Native ->  App addListener 104800788
+⚡️  To Native ->  LocalNotifications addListener 104800789
+⚡️  To Native ->  LocalNotifications checkPermissions 104800790
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 104800791
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 23 deep /stats
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 111125982
+⚡️  To Native ->  Keyboard addListener 111125983
+⚡️  To Native ->  Keyboard addListener 111125984
+⚡️  To Native ->  Keyboard addListener 111125985
+⚡️  To Native ->  App addListener 111125986
+⚡️  To Native ->  App addListener 111125987
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 111125988
+⚡️  To Native ->  LocalNotifications addListener 111125989
+⚡️  To Native ->  LocalNotifications checkPermissions 111125990
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 111125991
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 24 deep /trophies
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 49410231
+⚡️  To Native ->  Keyboard addListener 49410232
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 49410233
+⚡️  To Native ->  Keyboard addListener 49410234
+⚡️  To Native ->  App addListener 49410235
+⚡️  To Native ->  App addListener 49410236
+⚡️  To Native ->  App addListener 49410237
+⚡️  To Native ->  LocalNotifications addListener 49410238
+⚡️  To Native ->  LocalNotifications checkPermissions 49410239
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 49410240
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 25 deep /tracker
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 80712481
+⚡️  To Native ->  Keyboard addListener 80712482
+⚡️  To Native ->  Keyboard addListener 80712483
+⚡️  To Native ->  Keyboard addListener 80712484
+⚡️  To Native ->  App addListener 80712485
+⚡️  To Native ->  App addListener 80712486
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 80712487
+⚡️  To Native ->  LocalNotifications addListener 80712488
+⚡️  To Native ->  LocalNotifications checkPermissions 80712489
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 80712490
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 26 deep /chronicle
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 123504125
+⚡️  To Native ->  Keyboard addListener 123504126
+⚡️  To Native ->  Keyboard addListener 123504127
+⚡️  To Native ->  Keyboard addListener 123504128
+⚡️  To Native ->  App addListener 123504129
+⚡️  To Native ->  App addListener 123504130
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 123504131
+⚡️  To Native ->  LocalNotifications addListener 123504132
+⚡️  To Native ->  LocalNotifications checkPermissions 123504133
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 123504134
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 27 deep /settings
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 103328116
+⚡️  To Native ->  Keyboard addListener 103328117
+⚡️  To Native ->  Keyboard addListener 103328118
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 103328119
+⚡️  To Native ->  App addListener 103328120
+⚡️  To Native ->  App addListener 103328121
+⚡️  To Native ->  App addListener 103328122
+⚡️  To Native ->  LocalNotifications addListener 103328123
+⚡️  To Native ->  LocalNotifications checkPermissions 103328124
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 103328125
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 28 deep /advanced
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 92904605
+⚡️  To Native ->  Keyboard addListener 92904606
+⚡️  To Native ->  Keyboard addListener 92904607
+⚡️  To Native ->  Keyboard addListener 92904608
+⚡️  To Native ->  App addListener 92904609
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 92904610
+⚡️  To Native ->  App addListener 92904611
+⚡️  To Native ->  LocalNotifications addListener 92904612
+⚡️  To Native ->  LocalNotifications checkPermissions 92904613
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 92904614
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 29 deep /connections
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 67820692
+⚡️  To Native ->  Keyboard addListener 67820693
+⚡️  To Native ->  Keyboard addListener 67820694
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 67820695
+⚡️  To Native ->  App addListener 67820696
+⚡️  To Native ->  App addListener 67820697
+⚡️  To Native ->  App addListener 67820698
+⚡️  To Native ->  LocalNotifications addListener 67820699
+⚡️  To Native ->  LocalNotifications checkPermissions 67820700
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 67820701
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 30 deep /advanced/quickstart
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 106952587
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 106952588
+⚡️  To Native ->  Keyboard addListener 106952589
+⚡️  To Native ->  Keyboard addListener 106952590
+⚡️  To Native ->  App addListener 106952591
+⚡️  To Native ->  App addListener 106952592
+⚡️  To Native ->  App addListener 106952593
+⚡️  To Native ->  LocalNotifications addListener 106952594
+⚡️  To Native ->  LocalNotifications checkPermissions 106952595
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 106952596
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 31 deep /advanced/ai
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 113093752
+⚡️  To Native ->  Keyboard addListener 113093753
+⚡️  To Native ->  Keyboard addListener 113093754
+⚡️  To Native ->  Keyboard addListener 113093755
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 113093756
+⚡️  To Native ->  App addListener 113093757
+⚡️  To Native ->  App addListener 113093758
+⚡️  To Native ->  LocalNotifications addListener 113093759
+⚡️  To Native ->  LocalNotifications checkPermissions 113093760
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 113093761
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 32 deep /advanced/records
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 107578649
+⚡️  To Native ->  Keyboard addListener 107578650
+⚡️  To Native ->  Keyboard addListener 107578651
+⚡️  To Native ->  Keyboard addListener 107578652
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 107578653
+⚡️  To Native ->  App addListener 107578654
+⚡️  To Native ->  App addListener 107578655
+⚡️  To Native ->  LocalNotifications addListener 107578656
+⚡️  To Native ->  LocalNotifications checkPermissions 107578657
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 107578658
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 33 deep /quests/import
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 70118615
+⚡️  To Native ->  Keyboard addListener 70118616
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 70118617
+⚡️  To Native ->  Keyboard addListener 70118618
+⚡️  To Native ->  App addListener 70118619
+⚡️  To Native ->  App addListener 70118620
+⚡️  To Native ->  LocalNotifications checkPermissions 70118621
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  App addListener 70118622
+⚡️  To Native ->  LocalNotifications addListener 70118623
+⚡️  To Native ->  LocalNotifications checkPermissions 70118624
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 70118625
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 34 deep /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 100571371
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 100571372
+⚡️  To Native ->  Keyboard addListener 100571373
+⚡️  To Native ->  Keyboard addListener 100571374
+⚡️  To Native ->  App addListener 100571375
+⚡️  To Native ->  App addListener 100571376
+⚡️  To Native ->  App addListener 100571377
+⚡️  To Native ->  LocalNotifications addListener 100571378
+⚡️  To Native ->  LocalNotifications checkPermissions 100571379
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 100571380
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 35 dispatch /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 59110786
+⚡️  To Native ->  Keyboard addListener 59110787
+⚡️  To Native ->  Keyboard addListener 59110788
+⚡️  To Native ->  Keyboard addListener 59110789
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 59110790
+⚡️  To Native ->  App addListener 59110791
+⚡️  To Native ->  App addListener 59110792
+⚡️  To Native ->  LocalNotifications addListener 59110793
+⚡️  To Native ->  LocalNotifications checkPermissions 59110794
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 59110795
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 36 dispatch /feed
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 116354620
+⚡️  To Native ->  Keyboard addListener 116354621
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 116354622
+⚡️  To Native ->  Keyboard addListener 116354623
+⚡️  To Native ->  App addListener 116354624
+⚡️  To Native ->  App addListener 116354625
+⚡️  To Native ->  App addListener 116354626
+⚡️  To Native ->  LocalNotifications addListener 116354627
+⚡️  To Native ->  LocalNotifications checkPermissions 116354628
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 116354629
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 37 dispatch /quests
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 66326084
+⚡️  To Native ->  Keyboard addListener 66326085
+⚡️  To Native ->  Keyboard ⚡️  TO JS addListener {}
+66326086
+⚡️  To Native ->  Keyboard addListener 66326087
+⚡️  To Native ->  App addListener 66326088
+⚡️  To Native ->  App addListener 66326089
+⚡️  To Native ->  App addListener 66326090
+⚡️  To Native ->  LocalNotifications addListener 66326091
+⚡️  To Native ->  LocalNotifications checkPermissions 66326092
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 66326093
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 38 dispatch /rescue
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 92640110
+⚡️  To Native ->  Keyboard addListener 92640111
+⚡️  To Native ->  Keyboard addListener 92640112
+⚡️  To Native ->  Keyboard addListener 92640113
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 92640114
+⚡️  To Native ->  App addListener 92640115
+⚡️  To Native ->  App addListener 92640116
+⚡️  To Native ->  LocalNotifications addListener 92640117
+⚡️  To Native ->  LocalNotifications checkPermissions 92640118
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 92640119
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 39 dispatch /checkin
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 101426296
+⚡️  To Native ->  Keyboard addListener 101426297
+⚡️  To Native ->  Keyboard addListener 101426298
+⚡️  To Native ->  Keyboard addListener 101426299
+⚡️  To Native ->  App addListener 101426300
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 101426301
+⚡️  To Native ->  App addListener 101426302
+⚡️  To Native ->  LocalNotifications addListener 101426303
+⚡️  To Native ->  LocalNotifications checkPermissions 101426304
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 101426305
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 40 dispatch /stats
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 35729889
+⚡️  To Native ->  Keyboard addListener 35729890
+⚡️  To Native ->  Keyboard addListener 35729891
+⚡️  To Native ->  Keyboard addListener 35729892
+⚡️  To Native ->  App addListener 35729893
+⚡️  To Native ->  App addListener 35729894
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 35729895
+⚡️  To Native ->  LocalNotifications addListener 35729896
+⚡️  To Native ->  LocalNotifications checkPermissions 35729897
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 35729898
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 41 dispatch /trophies
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 5738314
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 5738315
+⚡️  To Native ->  Keyboard addListener 5738316
+⚡️  To Native ->  Keyboard addListener 5738317
+⚡️  To Native ->  App addListener 5738318
+⚡️  To Native ->  App addListener 5738319
+⚡️  To Native ->  App addListener 5738320
+⚡️  To Native ->  LocalNotifications addListener 5738321
+⚡️  To Native ->  LocalNotifications checkPermissions 5738322
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 5738323
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 42 dispatch /tracker
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 125840624
+⚡️  To Native ->  Keyboard addListener 125840625
+⚡️  To Native ->  Keyboard addListener 125840626
+⚡️  To Native ->  Keyboard addListener 125840627
+⚡️  To Native ->  App addListener 125840628
+⚡️  To Native ->  App addListener 125840629
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 125840630
+⚡️  To Native ->  LocalNotifications addListener 125840631
+⚡️  To Native ->  LocalNotifications checkPermissions 125840632
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 125840633
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 43 dispatch /chronicle
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 133689031
+⚡️  To Native ->  Keyboard addListener 133689032
+⚡️  To Native ->  Keyboard addListener 133689033
+⚡️  To Native ->  Keyboard addListener 133689034
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 133689035
+⚡️  To Native ->  App addListener 133689036
+⚡️  To Native ->  App addListener 133689037
+⚡️  To Native ->  LocalNotifications addListener 133689038
+⚡️  To Native ->  LocalNotifications checkPermissions 133689039
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 133689040
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 44 dispatch /settings
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 70557522
+⚡️  To Native ->  Keyboard addListener 70557523
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 70557524
+⚡️  To Native ->  Keyboard addListener 70557525
+⚡️  To Native ->  App addListener 70557526
+⚡️  To Native ->  App addListener 70557527
+⚡️  To Native ->  App addListener 70557528
+⚡️  To Native ->  LocalNotifications addListener 70557529
+⚡️  To Native ->  LocalNotifications checkPermissions 70557530
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 70557531
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 45 dispatch /advanced
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 131428893
+⚡️  To Native ->  Keyboard addListener 131428894
+⚡️  To Native ->  Keyboard addListener 131428895
+⚡️  To Native ->  Keyboard addListener 131428896
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 131428897
+⚡️  To Native ->  App addListener 131428898
+⚡️  To Native ->  App addListener 131428899
+⚡️  To Native ->  LocalNotifications addListener 131428900
+⚡️  To Native ->  LocalNotifications checkPermissions 131428901
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 131428902
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 46 dispatch /connections
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 26054166
+⚡️  To Native ->  Keyboard addListener 26054167
+⚡️  To Native ->  Keyboard addListener 26054168
+⚡️  To Native ->  Keyboard addListener 26054169
+⚡️  To Native ->  App addListener 26054170
+⚡️  To Native ->  App addListener 26054171
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 26054172
+⚡️  To Native ->  LocalNotifications addListener 26054173
+⚡️  To Native ->  LocalNotifications checkPermissions 26054174
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 26054175
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 47 dispatch /advanced/quickstart
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 111247732
+⚡️  To Native ->  Keyboard addListener 111247733
+⚡️  To Native ->  Keyboard addListener 111247734
+⚡️  To Native ->  Keyboard addListener 111247735
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 111247736
+⚡️  To Native ->  App addListener 111247737
+⚡️  To Native ->  App addListener 111247738
+⚡️  To Native ->  LocalNotifications addListener 111247739
+⚡️  To Native ->  LocalNotifications checkPermissions 111247740
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 111247741
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 48 dispatch /advanced/ai
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 53027475
+⚡️  To Native ->  Keyboard addListener 53027476
+⚡️  To Native ->  Keyboard addListener 53027477
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 53027478
+⚡️  To Native ->  App addListener 53027479
+⚡️  To Native ->  App addListener 53027480
+⚡️  To Native ->  App addListener 53027481
+⚡️  To Native ->  LocalNotifications addListener 53027482
+⚡️  To Native ->  LocalNotifications checkPermissions 53027483
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 53027484
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 49 dispatch /advanced/records
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 126980725
+⚡️  To Native ->  Keyboard addListener 126980726
+⚡️  To Native ->  Keyboard addListener 126980727
+⚡️  To Native ->  Keyboard addListener 126980728
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 126980729
+⚡️  To Native ->  App addListener 126980730
+⚡️  To Native ->  App addListener 126980731
+⚡️  To Native ->  LocalNotifications addListener 126980732
+⚡️  To Native ->  LocalNotifications checkPermissions 126980733
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 126980734
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 50 dispatch /quests/import
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 92726637
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 92726638
+⚡️  To Native ->  Keyboard addListener 92726639
+⚡️  To Native ->  Keyboard addListener 92726640
+⚡️  To Native ->  App addListener 92726641
+⚡️  To Native ->  App addListener 92726642
+⚡️  To Native ->  LocalNotifications checkPermissions 92726643
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  App addListener 92726644
+⚡️  To Native ->  LocalNotifications addListener 92726645
+⚡️  To Native ->  LocalNotifications checkPermissions 92726646
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 92726647
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 51 dispatch /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 98873855
+⚡️  To Native ->  Keyboard addListener 98873856
+⚡️  To Native ->  Keyboard addListener 98873857
+⚡️  To Native ->  Keyboard addListener 98873858
+⚡️  To Native ->  App addListener 98873859
+⚡️  To Native ->  App addListener 98873860
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 98873861
+⚡️  To Native ->  LocalNotifications addListener 98873862
+⚡️  To Native ->  LocalNotifications checkPermissions 98873863
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 98873864
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 52 orbital /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 2682827
+⚡️  To Native ->  Keyboard addListener 2682828
+⚡️  To Native ->  Keyboard addListener 2682829
+⚡️  To Native ->  Keyboard addListener 2682830
+⚡️  To Native ->  App addListener 2682831
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 2682832
+⚡️  To Native ->  App addListener 2682833
+⚡️  To Native ->  LocalNotifications addListener 2682834
+⚡️  To Native ->  LocalNotifications checkPermissions 2682835
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 2682836
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 53 orbital /feed
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 127583263
+⚡️  To Native ->  Keyboard addListener 127583264
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 127583265
+⚡️  To Native ->  Keyboard addListener 127583266
+⚡️  To Native ->  App addListener 127583267
+⚡️  To Native ->  App addListener 127583268
+⚡️  To Native ->  App addListener 127583269
+⚡️  To Native ->  LocalNotifications addListener 127583270
+⚡️  To Native ->  LocalNotifications checkPermissions 127583271
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 127583272
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 54 orbital /quests
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 93727234
+⚡️  To Native ->  Keyboard addListener 93727235
+⚡️  To Native ->  Keyboard addListener 93727236
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 93727237
+⚡️  To Native ->  App addListener 93727238
+⚡️  To Native ->  App addListener 93727239
+⚡️  To Native ->  App addListener 93727240
+⚡️  To Native ->  LocalNotifications addListener 93727241
+⚡️  To Native ->  LocalNotifications checkPermissions 93727242
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 93727243
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 55 orbital /rescue
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 118472671
+⚡️  To Native ->  Keyboard addListener 118472672
+⚡️  To Native ->  Keyboard addListener 118472673
+⚡️  To Native ->  Keyboard addListener 118472674
+⚡️  To Native ->  App addListener 118472675
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 118472676
+⚡️  To Native ->  App addListener 118472677
+⚡️  To Native ->  LocalNotifications addListener 118472678
+⚡️  To Native ->  LocalNotifications checkPermissions 118472679
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 118472680
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 56 orbital /checkin
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 70807204
+⚡️  To Native ->  Keyboard addListener 70807205
+⚡️  To Native ->  Keyboard addListener 70807206
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 70807207
+⚡️  To Native ->  App addListener 70807208
+⚡️  To Native ->  App addListener 70807209
+⚡️  To Native ->  App addListener 70807210
+⚡️  To Native ->  LocalNotifications addListener 70807211
+⚡️  To Native ->  LocalNotifications checkPermissions 70807212
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 70807213
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 57 orbital /stats
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 124410088
+⚡️  To Native ->  Keyboard addListener 124410089
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 124410090
+⚡️  To Native ->  Keyboard addListener 124410091
+⚡️  To Native ->  App addListener 124410092
+⚡️  To Native ->  App addListener 124410093
+⚡️  To Native ->  App addListener 124410094
+⚡️  To Native ->  LocalNotifications addListener 124410095
+⚡️  To Native ->  LocalNotifications checkPermissions 124410096
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 124410097
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 58 orbital /trophies
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 57930608
+⚡️  To Native ->  Keyboard addListener 57930609
+⚡️  To Native ->  Keyboard addListener 57930610
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 57930611
+⚡️  To Native ->  App addListener 57930612
+⚡️  To Native ->  App addListener 57930613
+⚡️  To Native ->  App addListener 57930614
+⚡️  To Native ->  LocalNotifications addListener 57930615
+⚡️  To Native ->  LocalNotifications checkPermissions 57930616
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 57930617
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 59 orbital /tracker
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 132928517
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 132928518
+⚡️  To Native ->  Keyboard addListener 132928519
+⚡️  To Native ->  Keyboard addListener 132928520
+⚡️  To Native ->  App addListener 132928521
+⚡️  To Native ->  App addListener 132928522
+⚡️  To Native ->  App addListener 132928523
+⚡️  To Native ->  LocalNotifications addListener 132928524
+⚡️  To Native ->  LocalNotifications checkPermissions 132928525
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 132928526
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 60 orbital /chronicle
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 14581706
+⚡️  To Native ->  Keyboard addListener 14581707
+⚡️  To Native ->  Keyboard addListener 14581708
+⚡️  To Native ->  Keyboard addListener 14581709
+⚡️  To Native ->  App addListener 14581710
+⚡️  To Native ->  App addListener 14581711
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 14581712
+⚡️  To Native ->  LocalNotifications addListener 14581713
+⚡️  To Native ->  LocalNotifications checkPermissions 14581714
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 14581715
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 61 orbital /settings
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 46871856
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 46871857
+⚡️  To Native ->  Keyboard addListener 46871858
+⚡️  To Native ->  Keyboard addListener 46871859
+⚡️  To Native ->  App addListener 46871860
+⚡️  To Native ->  App addListener 46871861
+⚡️  To Native ->  App addListener 46871862
+⚡️  To Native ->  LocalNotifications addListener 46871863
+⚡️  To Native ->  LocalNotifications checkPermissions 46871864
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 46871865
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 62 orbital /advanced
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 109782375
+⚡️  To Native ->  Keyboard addListener 109782376
+⚡️  To Native ->  Keyboard addListener 109782377
+⚡️  To Native ->  Keyboard addListener 109782378
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 109782379
+⚡️  To Native ->  App addListener 109782380
+⚡️  To Native ->  App addListener 109782381
+⚡️  To Native ->  LocalNotifications addListener 109782382
+⚡️  To Native ->  LocalNotifications checkPermissions 109782383
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 109782384
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 63 orbital /connections
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 372998
+⚡️  To Native ->  Keyboard addListener 372999
+⚡️  To Native ->  Keyboard addListener 373000
+⚡️  To Native ->  Keyboard addListener 373001
+⚡️  To Native ->  App addListener 373002
+⚡️  To Native ->  App addListener 373003
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 373004
+⚡️  To Native ->  LocalNotifications addListener 373005
+⚡️  To Native ->  LocalNotifications checkPermissions 373006
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 373007
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 64 orbital /advanced/quickstart
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 77385182
+⚡️  To Native ->  Keyboard addListener 77385183
+⚡️  To Native ->  Keyboard addListener 77385184
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 77385185
+⚡️  To Native ->  App addListener 77385186
+⚡️  To Native ->  App addListener 77385187
+⚡️  To Native ->  App addListener 77385188
+⚡️  To Native ->  LocalNotifications addListener 77385189
+⚡️  To Native ->  LocalNotifications checkPermissions 77385190
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 77385191
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 65 orbital /advanced/ai
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 73293379
+⚡️  To Native ->  Keyboard addListener 73293380
+⚡️  To Native ->  Keyboard addListener 73293381
+⚡️  To Native ->  Keyboard addListener 73293382
+⚡️  To Native ->  App addListener 73293383
+⚡️  To Native ->  App addListener 73293384
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 73293385
+⚡️  To Native ->  LocalNotifications addListener 73293386
+⚡️  To Native ->  LocalNotifications checkPermissions 73293387
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 73293388
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 66 orbital /advanced/records
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 66190958
+⚡️  To Native ->  Keyboard addListener 66190959
+⚡️  To Native ->  Keyboard addListener 66190960
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 66190961
+⚡️  To Native ->  App addListener 66190962
+⚡️  To Native ->  App addListener 66190963
+⚡️  To Native ->  App addListener 66190964
+⚡️  To Native ->  LocalNotifications addListener 66190965
+⚡️  To Native ->  LocalNotifications checkPermissions 66190966
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 66190967
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 67 orbital /quests/import
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 110371864
+⚡️  To Native ->  Keyboard addListener 110371865
+⚡️  To Native ->  Keyboard addListener 110371866
+⚡️  To Native ->  Keyboard addListener 110371867
+⚡️  To Native ->  App addListener 110371868
+⚡️  To Native ->  App addListener 110371869
+⚡️  TO JS {}
+⚡️  To Native ->  LocalNotifications checkPermissions 110371870
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  App addListener 110371871
+⚡️  To Native ->  LocalNotifications addListener 110371872
+⚡️  To Native ->  LocalNotifications checkPermissions 110371873
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 110371874
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 68 orbital /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 88385790
+⚡️  To Native ->  Keyboard addListener 88385791
+⚡️  To Native ->  Keyboard addListener 88385792
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 88385793
+⚡️  To Native ->  App addListener 88385794
+⚡️  To Native ->  App addListener 88385795
+⚡️  To Native ->  App addListener 88385796
+⚡️  To Native ->  LocalNotifications addListener 88385797
+⚡️  To Native ->  LocalNotifications checkPermissions 88385798
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 88385799
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 69 sleeper /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 117163362
+⚡️  To Native ->  Keyboard addListener 117163363
+⚡️  To Native ->  Keyboard addListener 117163364
+⚡️  To Native ->  Keyboard addListener 117163365
+⚡️  To Native ->  App addListener 117163366
+⚡️  To Native ->  App addListener 117163367
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 117163368
+⚡️  To Native ->  LocalNotifications addListener 117163369
+⚡️  To Native ->  LocalNotifications checkPermissions 117163370
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 117163371
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 70 sleeper /feed
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 53672142
+⚡️  To Native ->  Keyboard addListener 53672143
+⚡️  To Native ->  Keyboard addListener 53672144
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 53672145
+⚡️  To Native ->  App addListener 53672146
+⚡️  To Native ->  App addListener 53672147
+⚡️  To Native ->  App addListener 53672148
+⚡️  To Native ->  LocalNotifications addListener 53672149
+⚡️  To Native ->  LocalNotifications checkPermissions 53672150
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 53672151
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 71 sleeper /quests
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 82310309
+⚡️  To Native ->  Keyboard addListener 82310310
+⚡️  To Native ->  Keyboard addListener 82310311
+⚡️  To Native ->  Keyboard addListener 82310312
+⚡️  To Native ->  App addListener 82310313
+⚡️  To Native ->  App addListener 82310314
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 82310315
+⚡️  To Native ->  LocalNotifications addListener 82310316
+⚡️  To Native ->  LocalNotifications checkPermissions 82310317
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 82310318
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 72 sleeper /rescue
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 1057859
+⚡️  To Native ->  Keyboard addListener 1057860
+⚡️  To Native ->  Keyboard addListener 1057861
+⚡️  To Native ->  Keyboard addListener 1057862
+⚡️  To Native ->  App addListener 1057863
+⚡️  To Native ->  App addListener 1057864
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 1057865
+⚡️  To Native ->  LocalNotifications addListener 1057866
+⚡️  To Native ->  LocalNotifications checkPermissions 1057867
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 1057868
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 73 sleeper /checkin
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 127147381
+⚡️  To Native ->  Keyboard addListener 127147382
+⚡️  To Native ->  Keyboard addListener 127147383
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 127147384
+⚡️  To Native ->  App addListener 127147385
+⚡️  To Native ->  App addListener 127147386
+⚡️  To Native ->  App addListener 127147387
+⚡️  To Native ->  LocalNotifications addListener 127147388
+⚡️  To Native ->  LocalNotifications checkPermissions 127147389
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 127147390
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 74 sleeper /stats
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 8453734
+⚡️  To Native ->  Keyboard addListener 8453735
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 8453736
+⚡️  To Native ->  Keyboard addListener 8453737
+⚡️  To Native ->  App addListener 8453738
+⚡️  To Native ->  App addListener 8453739
+⚡️  To Native ->  App addListener 8453740
+⚡️  To Native ->  LocalNotifications addListener 8453741
+⚡️  To Native ->  LocalNotifications checkPermissions 8453742
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 8453743
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 75 sleeper /trophies
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 20941990
+⚡️  To Native ->  Keyboard addListener 20941991
+⚡️  To Native ->  Keyboard addListener 20941992
+⚡️  To Native ->  Keyboard addListener 20941993
+⚡️  To Native ->  App addListener 20941994
+⚡️  To Native ->  App addListener 20941995
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 20941996
+⚡️  To Native ->  LocalNotifications addListener 20941997
+⚡️  To Native ->  LocalNotifications checkPermissions 20941998
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 20941999
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 76 sleeper /tracker
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 96333310
+⚡️  To Native ->  Keyboard addListener 96333311
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 96333312
+⚡️  To Native ->  Keyboard addListener 96333313
+⚡️  To Native ->  App addListener 96333314
+⚡️  To Native ->  App addListener 96333315
+⚡️  To Native ->  App addListener 96333316
+⚡️  To Native ->  LocalNotifications addListener 96333317
+⚡️  To Native ->  LocalNotifications checkPermissions 96333318
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 96333319
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 77 sleeper /chronicle
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 94287011
+⚡️  To Native ->  Keyboard addListener 94287012
+⚡️  To Native ->  Keyboard addListener 94287013
+⚡️  To Native ->  Keyboard addListener 94287014
+⚡️  To Native ->  App addListener 94287015
+⚡️  To Native ->  App addListener 94287016
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 94287017
+⚡️  To Native ->  LocalNotifications addListener 94287018
+⚡️  To Native ->  LocalNotifications checkPermissions 94287019
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 94287020
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 78 sleeper /settings
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 40894545
+⚡️  To Native ->  Keyboard addListener 40894546
+⚡️  To Native ->  Keyboard addListener 40894547
+⚡️  To Native ->  Keyboard addListener 40894548
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 40894549
+⚡️  To Native ->  App addListener 40894550
+⚡️  To Native ->  App addListener 40894551
+⚡️  To Native ->  LocalNotifications addListener 40894552
+⚡️  To Native ->  LocalNotifications checkPermissions 40894553
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 40894554
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 79 sleeper /advanced
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 34558427
+⚡️  To Native ->  Keyboard addListener 34558428
+⚡️  To Native ->  Keyboard addListener 34558429
+⚡️  To Native ->  Keyboard ⚡️  TO JS addListener {}
+34558430
+⚡️  To Native ->  App addListener 34558431
+⚡️  To Native ->  App addListener 34558432
+⚡️  To Native ->  App addListener 34558433
+⚡️  To Native ->  LocalNotifications addListener 34558434
+⚡️  To Native ->  LocalNotifications checkPermissions 34558435
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 34558436
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 80 sleeper /connections
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 31005683
+⚡️  To Native ->  Keyboard ⚡️  TO JS addListener 31005684
+{}
+⚡️  To Native ->  Keyboard addListener 31005685
+⚡️  To Native ->  Keyboard addListener 31005686
+⚡️  To Native ->  App addListener 31005687
+⚡️  To Native ->  App addListener 31005688
+⚡️  To Native ->  App addListener 31005689
+⚡️  To Native ->  LocalNotifications addListener 31005690
+⚡️  To Native ->  LocalNotifications checkPermissions 31005691
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 31005692
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 81 sleeper /advanced/quickstart
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 100417442
+⚡️  To Native ->  Keyboard addListener 100417443
+⚡️  To Native ->  Keyboard addListener 100417444
+⚡️  To Native ->  Keyboard addListener 100417445
+⚡️  To Native ->  App addListener 100417446
+⚡️  To Native ->  App addListener 100417447
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 100417448
+⚡️  To Native ->  LocalNotifications addListener 100417449
+⚡️  To Native ->  LocalNotifications checkPermissions 100417450
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 100417451
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 82 sleeper /advanced/ai
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 133235477
+⚡️  To Native ->  Keyboard addListener 133235478
+⚡️  To Native ->  Keyboard addListener 133235479
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 133235480
+⚡️  To Native ->  App addListener 133235481
+⚡️  To Native ->  App addListener 133235482
+⚡️  To Native ->  App addListener 133235483
+⚡️  To Native ->  LocalNotifications addListener 133235484
+⚡️  To Native ->  LocalNotifications checkPermissions 133235485
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 133235486
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 83 sleeper /advanced/records
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 32339068
+⚡️  To Native ->  Keyboard addListener 32339069
+⚡️  To Native ->  Keyboard addListener 32339070
+⚡️  To Native ->  Keyboard addListener 32339071
+⚡️  To Native ->  App addListener 32339072
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 32339073
+⚡️  To Native ->  App addListener 32339074
+⚡️  To Native ->  LocalNotifications addListener 32339075
+⚡️  To Native ->  LocalNotifications checkPermissions 32339076
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 32339077
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 84 sleeper /quests/import
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 87943297
+⚡️  To Native ->  Keyboard addListener 87943298
+⚡️  To Native ->  Keyboard addListener 87943299
+⚡️  To Native ->  Keyboard addListener 87943300
+⚡️  To Native ->  App addListener 87943301
+⚡️  To Native ->  App ⚡️  TO JS addListener {}
+87943302
+⚡️  To Native ->  LocalNotifications checkPermissions 87943303
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  App addListener 87943304
+⚡️  To Native ->  LocalNotifications addListener 87943305
+⚡️  To Native ->  LocalNotifications checkPermissions 87943306
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 87943307
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 85 sleeper /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 23816514
+⚡️  To Native ->  Keyboard addListener 23816515
+⚡️  To Native ->  Keyboard addListener 23816516
+⚡️  To Native ->  Keyboard ⚡️  TO JS {}
+addListener 23816517
+⚡️  To Native ->  App addListener 23816518
+⚡️  To Native ->  App addListener 23816519
+⚡️  To Native ->  App addListener 23816520
+⚡️  To Native ->  LocalNotifications addListener 23816521
+⚡️  To Native ->  LocalNotifications checkPermissions 23816522
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 23816523
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 86 spire /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 34411957
+⚡️  To Native ->  Keyboard addListener 34411958
+⚡️  To Native ->  Keyboard ⚡️  TO JS addListener {}
+34411959
+⚡️  To Native ->  Keyboard addListener 34411960
+⚡️  To Native ->  App addListener 34411961
+⚡️  To Native ->  App addListener 34411962
+⚡️  To Native ->  App addListener 34411963
+⚡️  To Native ->  LocalNotifications addListener 34411964
+⚡️  To Native ->  LocalNotifications checkPermissions 34411965
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 34411966
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 87 spire /feed
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 54296991
+⚡️  To Native ->  Keyboard addListener 54296992
+⚡️  To Native ->  Keyboard addListener 54296993
+⚡️  To Native ->  Keyboard addListener 54296994
+⚡️  To Native ->  App addListener 54296995
+⚡️  To Native ->  App addListener 54296996
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 54296997
+⚡️  To Native ->  LocalNotifications addListener 54296998
+⚡️  To Native ->  LocalNotifications checkPermissions 54296999
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 54297000
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 88 spire /quests
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 83502336
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 83502337
+⚡️  To Native ->  Keyboard addListener 83502338
+⚡️  To Native ->  Keyboard addListener 83502339
+⚡️  To Native ->  App addListener 83502340
+⚡️  To Native ->  App addListener 83502341
+⚡️  To Native ->  App addListener 83502342
+⚡️  To Native ->  LocalNotifications addListener 83502343
+⚡️  To Native ->  LocalNotifications checkPermissions 83502344
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 83502345
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 89 spire /rescue
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 2952357
+⚡️  To Native ->  Keyboard addListener 2952358
+⚡️  To Native ->  Keyboard addListener 2952359
+⚡️  To Native ->  Keyboard addListener 2952360
+⚡️  To Native ->  App addListener ⚡️  TO JS 2952361
+{}
+⚡️  To Native ->  App addListener 2952362
+⚡️  To Native ->  App addListener 2952363
+⚡️  To Native ->  LocalNotifications addListener 2952364
+⚡️  To Native ->  LocalNotifications checkPermissions 2952365
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 2952366
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 90 spire /checkin
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 48469048
+⚡️  To Native ->  Keyboard addListener 48469049
+⚡️  To Native ->  Keyboard addListener 48469050
+⚡️  To Native ->  Keyboard addListener 48469051
+⚡️  To Native ->  App addListener 48469052
+⚡️  To Native ->  App addListener 48469053
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 48469054
+⚡️  To Native ->  LocalNotifications addListener 48469055
+⚡️  To Native ->  LocalNotifications checkPermissions 48469056
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 48469057
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 91 spire /stats
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 59141145
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 59141146
+⚡️  To Native ->  Keyboard addListener 59141147
+⚡️  To Native ->  Keyboard addListener 59141148
+⚡️  To Native ->  App addListener 59141149
+⚡️  To Native ->  App addListener 59141150
+⚡️  To Native ->  App addListener 59141151
+⚡️  To Native ->  LocalNotifications addListener 59141152
+⚡️  To Native ->  LocalNotifications checkPermissions 59141153
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 59141154
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 92 spire /trophies
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 23077491
+⚡️  To Native ->  Keyboard addListener 23077492
+⚡️  To Native ->  Keyboard addListener 23077493
+⚡️  To Native ->  Keyboard addListener 23077494
+⚡️  To Native ->  App addListener 23077495
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 23077496
+⚡️  To Native ->  App addListener 23077497
+⚡️  To Native ->  LocalNotifications addListener 23077498
+⚡️  To Native ->  LocalNotifications checkPermissions 23077499
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 23077500
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 93 spire /tracker
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 105072870
+⚡️  To Native ->  Keyboard addListener 105072871
+⚡️  To Native ->  Keyboard addListener 105072872
+⚡️  To Native ->  Keyboard addListener 105072873
+⚡️  To Native ->  App addListener 105072874
+⚡️  To Native ->  App addListener 105072875
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 105072876
+⚡️  To Native ->  LocalNotifications addListener 105072877
+⚡️  To Native ->  LocalNotifications checkPermissions 105072878
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 105072879
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 94 spire /chronicle
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 28370354
+⚡️  To Native ->  Keyboard addListener 28370355
+⚡️  To Native ->  Keyboard addListener 28370356
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 28370357
+⚡️  To Native ->  App addListener 28370358
+⚡️  To Native ->  App addListener 28370359
+⚡️  To Native ->  App addListener 28370360
+⚡️  To Native ->  LocalNotifications addListener 28370361
+⚡️  To Native ->  LocalNotifications checkPermissions 28370362
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 28370363
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 95 spire /settings
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 9713396
+⚡️  To Native ->  Keyboard addListener 9713397
+⚡️  To Native ->  Keyboard addListener 9713398
+⚡️  To Native ->  Keyboard addListener 9713399
+⚡️  To Native ->  App addListener 9713400
+⚡️  To Native ->  ⚡️  TO JS App {}
+addListener 9713401
+⚡️  To Native ->  App addListener 9713402
+⚡️  To Native ->  LocalNotifications addListener 9713403
+⚡️  To Native ->  LocalNotifications checkPermissions 9713404
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 9713405
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 96 spire /advanced
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 2992275
+⚡️  To Native ->  Keyboard addListener 2992276
+⚡️  To Native ->  Keyboard addListener 2992277
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 2992278
+⚡️  To Native ->  App addListener 2992279
+⚡️  To Native ->  App addListener 2992280
+⚡️  To Native ->  App addListener 2992281
+⚡️  To Native ->  LocalNotifications addListener 2992282
+⚡️  To Native ->  LocalNotifications checkPermissions 2992283
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 2992284
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 97 spire /connections
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 1806942
+⚡️  To Native ->  Keyboard addListener 1806943
+⚡️  To Native ->  Keyboard addListener 1806944
+⚡️  To Native ->  Keyboard addListener 1806945
+⚡️  To Native ->  App addListener 1806946
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 1806947
+⚡️  To Native ->  App addListener 1806948
+⚡️  To Native ->  LocalNotifications addListener 1806949
+⚡️  To Native ->  LocalNotifications checkPermissions 1806950
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 1806951
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 98 spire /advanced/quickstart
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 27762909
+⚡️  To Native ->  Keyboard addListener 27762910
+⚡️  To Native ->  Keyboard addListener 27762911
+⚡️  To Native ->  Keyboard addListener 27762912
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 27762913
+⚡️  To Native ->  App addListener 27762914
+⚡️  To Native ->  App addListener 27762915
+⚡️  To Native ->  LocalNotifications addListener 27762916
+⚡️  To Native ->  LocalNotifications checkPermissions 27762917
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 27762918
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 99 spire /advanced/ai
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 20991291
+⚡️  To Native ->  Keyboard addListener 20991292
+⚡️  To Native ->  Keyboard addListener 20991293
+⚡️  To Native ->  Keyboard addListener 20991294
+⚡️  To Native ->  App addListener 20991295
+⚡️  To Native ->  App addListener 20991296
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 20991297
+⚡️  To Native ->  LocalNotifications addListener 20991298
+⚡️  To Native ->  LocalNotifications checkPermissions 20991299
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 20991300
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 100 spire /advanced/records
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 112877363
+⚡️  To Native ->  Keyboard addListener 112877364
+⚡️  To Native ->  Keyboard addListener 112877365
+⚡️  To Native ->  Keyboard addListener 112877366
+⚡️  To Native ->  App addListener 112877367
+⚡️  To Native ->  App addListener 112877368
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 112877369
+⚡️  To Native ->  LocalNotifications addListener 112877370
+⚡️  To Native ->  LocalNotifications checkPermissions 112877371
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 112877372
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 101 spire /quests/import
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 48170977
+⚡️  To Native ->  Keyboard addListener 48170978
+⚡️  To Native ->  Keyboard addListener 48170979
+⚡️  To Native ->  Keyboard addListener 48170980
+⚡️  To Native ->  App addListener 48170981
+⚡️  To Native ->  App addListener 48170982
+⚡️  TO JS {}
+⚡️  To Native ->  LocalNotifications checkPermissions 48170983
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  App addListener 48170984
+⚡️  To Native ->  LocalNotifications addListener 48170985
+⚡️  To Native ->  LocalNotifications checkPermissions 48170986
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 48170987
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 102 spire /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 92052917
+⚡️  To Native ->  Keyboard addListener 92052918
+⚡️  To Native ->  Keyboard addListener 92052919
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 92052920
+⚡️  To Native ->  App addListener 92052921
+⚡️  To Native ->  App addListener 92052922
+⚡️  To Native ->  App addListener 92052923
+⚡️  To Native ->  LocalNotifications addListener 92052924
+⚡️  To Native ->  LocalNotifications checkPermissions 92052925
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 92052926
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 103 star /
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 116935157
+⚡️  To Native ->  Keyboard addListener 116935158
+⚡️  To Native ->  Keyboard addListener 116935159
+⚡️  To Native ->  Keyboard addListener 116935160
+⚡️  To Native ->  App addListener 116935161
+⚡️  To Native ->  App addListener 116935162
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 116935163
+⚡️  To Native ->  LocalNotifications addListener 116935164
+⚡️  To Native ->  LocalNotifications checkPermissions 116935165
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 116935166
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 104 star /feed
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 96272149
+⚡️  To Native ->  Keyboard addListener 96272150
+⚡️  To Native ->  Keyboard addListener 96272151
+⚡️  To Native ->  Keyboard addListener 96272152
+⚡️  To Native ->  App addListener 96272153
+⚡️  To Native ->  App addListener 96272154
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 96272155
+⚡️  To Native ->  LocalNotifications addListener 96272156
+⚡️  To Native ->  LocalNotifications checkPermissions 96272157
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 96272158
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 105 star /quests
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 1664312
+⚡️  To Native ->  Keyboard addListener 1664313
+⚡️  To Native ->  Keyboard addListener 1664314
+⚡️  To Native ->  Keyboard addListener 1664315
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 1664316
+⚡️  To Native ->  App addListener 1664317
+⚡️  To Native ->  App addListener 1664318
+⚡️  To Native ->  LocalNotifications addListener 1664319
+⚡️  To Native ->  LocalNotifications checkPermissions 1664320
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 1664321
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 106 star /rescue
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 19928835
+⚡️  To Native ->  Keyboard addListener 19928836
+⚡️  To Native ->  Keyboard addListener 19928837
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 19928838
+⚡️  To Native ->  App addListener 19928839
+⚡️  To Native ->  App addListener 19928840
+⚡️  To Native ->  App addListener 19928841
+⚡️  To Native ->  LocalNotifications addListener 19928842
+⚡️  To Native ->  LocalNotifications checkPermissions 19928843
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 19928844
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 107 star /checkin
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 36178765
+⚡️  To Native ->  Keyboard addListener 36178766
+⚡️  To Native ->  Keyboard addListener 36178767
+⚡️  To Native ->  Keyboard addListener 36178768
+⚡️  To Native ->  App addListener 36178769
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 36178770
+⚡️  To Native ->  App addListener 36178771
+⚡️  To Native ->  LocalNotifications addListener 36178772
+⚡️  To Native ->  LocalNotifications checkPermissions 36178773
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 36178774
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 108 star /stats
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 120539308
+⚡️  To Native ->  Keyboard addListener 120539309
+⚡️  To Native ->  Keyboard addListener 120539310
+⚡️  To Native ->  Keyboard addListener 120539311
+⚡️  To Native ->  App addListener 120539312
+⚡️  To Native ->  App addListener 120539313
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 120539314
+⚡️  To Native ->  LocalNotifications addListener 120539315
+⚡️  To Native ->  LocalNotifications checkPermissions 120539316
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 120539317
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 109 star /trophies
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 5452003
+⚡️  To Native ->  Keyboard addListener 5452004
+⚡️  To Native ->  Keyboard addListener 5452005
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 5452006
+⚡️  To Native ->  App addListener 5452007
+⚡️  To Native ->  App addListener 5452008
+⚡️  To Native ->  App addListener 5452009
+⚡️  To Native ->  LocalNotifications addListener 5452010
+⚡️  To Native ->  LocalNotifications checkPermissions 5452011
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 5452012
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 110 star /tracker
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 53475680
+⚡️  To Native ->  Keyboard addListener 53475681
+⚡️  To Native ->  Keyboard addListener 53475682
+⚡️  To Native ->  Keyboard addListener 53475683
+⚡️  To Native ->  App addListener 53475684
+⚡️  To Native ->  App addListener 53475685
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 53475686
+⚡️  To Native ->  LocalNotifications addListener 53475687
+⚡️  To Native ->  LocalNotifications checkPermissions 53475688
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 53475689
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 111 star /chronicle
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 94609967
+⚡️  To Native ->  Keyboard addListener 94609968
+⚡️  To Native ->  Keyboard addListener 94609969
+⚡️  To Native ->  Keyboard addListener 94609970
+⚡️  To Native ->  App addListener 94609971
+⚡️  To Native ->  App addListener 94609972
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 94609973
+⚡️  To Native ->  LocalNotifications addListener 94609974
+⚡️  To Native ->  LocalNotifications checkPermissions 94609975
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 94609976
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 112 star /settings
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 130252702
+⚡️  To Native ->  Keyboard addListener 130252703
+⚡️  To Native ->  Keyboard addListener 130252704
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 130252705
+⚡️  To Native ->  App addListener 130252706
+⚡️  To Native ->  App addListener 130252707
+⚡️  To Native ->  App addListener 130252708
+⚡️  To Native ->  LocalNotifications addListener 130252709
+⚡️  To Native ->  LocalNotifications checkPermissions 130252710
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 130252711
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 113 star /advanced
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 85798411
+⚡️  To Native ->  Keyboard addListener 85798412
+⚡️  To Native ->  Keyboard addListener 85798413
+⚡️  To Native ->  Keyboard addListener 85798414
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 85798415
+⚡️  To Native ->  App addListener 85798416
+⚡️  To Native ->  App addListener 85798417
+⚡️  To Native ->  LocalNotifications addListener 85798418
+⚡️  To Native ->  LocalNotifications checkPermissions 85798419
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 85798420
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 114 star /connections
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 58287708
+⚡️  To Native ->  Keyboard addListener 58287709
+⚡️  To Native ->  Keyboard addListener 58287710
+⚡️  To Native ->  Keyboard addListener 58287711
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 58287712
+⚡️  To Native ->  App addListener 58287713
+⚡️  To Native ->  App addListener 58287714
+⚡️  To Native ->  LocalNotifications addListener 58287715
+⚡️  To Native ->  LocalNotifications checkPermissions 58287716
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 58287717
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 115 star /advanced/quickstart
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 120876635
+⚡️  To Native ->  Keyboard addListener 120876636
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 120876637
+⚡️  To Native ->  Keyboard addListener 120876638
+⚡️  To Native ->  App addListener 120876639
+⚡️  To Native ->  App addListener 120876640
+⚡️  To Native ->  App addListener 120876641
+⚡️  To Native ->  LocalNotifications addListener 120876642
+⚡️  To Native ->  LocalNotifications checkPermissions 120876643
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 120876644
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 116 star /advanced/ai
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 56737961
+⚡️  To Native ->  Keyboard addListener 56737962
+⚡️  To Native ->  Keyboard addListener 56737963
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 56737964
+⚡️  To Native ->  App addListener 56737965
+⚡️  To Native ->  App addListener 56737966
+⚡️  To Native ->  App addListener 56737967
+⚡️  To Native ->  LocalNotifications addListener 56737968
+⚡️  To Native ->  LocalNotifications checkPermissions 56737969
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 56737970
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 117 star /advanced/records
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 22669860
+⚡️  To Native ->  Keyboard addListener 22669861
+⚡️  To Native ->  Keyboard addListener 22669862
+⚡️  To Native ->  Keyboard addListener 22669863
+⚡️  TO JS {}
+⚡️  To Native ->  App addListener 22669864
+⚡️  To Native ->  App addListener 22669865
+⚡️  To Native ->  App addListener 22669866
+⚡️  To Native ->  LocalNotifications addListener 22669867
+⚡️  To Native ->  LocalNotifications checkPermissions 22669868
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 22669869
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 118 star /quests/import
+⚡️  WebView loaded
+⚡️  To Native ->  StatusBar setStyle 88481971
+⚡️  To Native ->  Keyboard addListener 88481972
+⚡️  To Native ->  Keyboard addListener 88481973
+⚡️  TO JS {}
+⚡️  To Native ->  Keyboard addListener 88481974
+⚡️  To Native ->  App addListener 88481975
+⚡️  To Native ->  App addListener 88481976
+⚡️  To Native ->  LocalNotifications checkPermissions 88481977
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  App addListener 88481978
+⚡️  To Native ->  LocalNotifications addListener 88481979
+⚡️  To Native ->  LocalNotifications checkPermissions 88481980
+⚡️  TO JS {"display":"prompt"}
+⚡️  To Native ->  SplashScreen hide 88481981
+⚡️  TO JS undefined
+⚡️  [log] - [demo] shown 119 star /
+com.focusguild.app: 20967
