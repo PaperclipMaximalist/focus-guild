@@ -9,7 +9,7 @@
     "data": {
      "id": "sample-user",
      "clerkId": "dev-member-001",
-     "level": 7,
+     "level": 3,
      "totalXP": 2310,
      "currentStreak": 12,
      "multiplier": 1.4,
