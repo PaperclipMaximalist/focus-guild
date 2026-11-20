@@ -192,16 +192,24 @@ cmd_run_flow() {
   : > "$WORK/maestro-console.log"
   rm -f "$WORK/flow-note"
   export MAESTRO_CLI_NO_ANALYTICS=1 MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED=true
+  # Maestro's own XCTest driver has failed to start in its default time on a
+  # busy runner ("iOS driver not ready in time"), while the app had drawn its
+  # sign-in screen. Five minutes, in milliseconds.
+  export MAESTRO_DRIVER_STARTUP_TIMEOUT=300000
   # No timeout(1) on macOS: the workflow step's timeout-minutes is the ceiling for a hang.
   run_maestro "$udid" flow.yaml first || status=$?
 
-  # The simulator's WebKit has once failed to start its graphics process, so
-  # the first page never drew and the sign-in never began (nothing reached the
-  # server). Then, and only then, the whole flow runs once more from a clean
-  # launch.
+  # When the sign-in never began (nothing reached the server), the cause has
+  # been the runner, not the app: once the simulator's WebKit did not start
+  # its graphics process (nothing drew), once Maestro's driver did not start.
+  # Then, and only then, restart the simulator and run the whole flow again
+  # from a clean launch.
   if [ "$status" -ne 0 ] && ! server_saw '^--> POST /devices/link(\?[^ ]*)? 2[0-9]{2} '; then
-    echo "The sign-in never began (nothing reached the server); running the whole flow once more from a clean launch."
-    echo "the first attempt never began the sign-in (the page did not draw); the flow ran again from a clean launch" > "$WORK/flow-note"
+    echo "The sign-in never began (nothing reached the server); restarting the simulator and running the whole flow once more."
+    echo "the first attempt never began the sign-in (nothing reached the server); the simulator was restarted and the flow ran again" > "$WORK/flow-note"
+    xcrun simctl shutdown "$udid" 2>/dev/null || true
+    xcrun simctl boot "$udid" 2>/dev/null || true
+    xcrun simctl bootstatus "$udid" -b || true
     status=0
     run_maestro "$udid" flow.yaml again || status=$?
   fi

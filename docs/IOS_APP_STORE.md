@@ -100,6 +100,13 @@ Nothing else: no location, contacts, photos, health data, purchases, browsing or
 
 ## Only the owner can do these
 
+**The short version is `docs/IOS_SUBMIT.md`: register, then send, with every
+answer ready.** The list below is the longer record. Checked on 2026-11-20
+from Clerk's public configuration: Sign in with Apple is already on, beside
+Google and GitHub, and email with password is on, so step 4's questions are
+answered (only the move to a production instance, which needs a domain, is
+left, and it is optional for submitting).
+
 In order. Steps 1 to 4 can start today; nothing in the app works until 5.
 
 1. ~~Say yes or no to pushing `ios-app`.~~ Done on 2026-11-13; the Mac builds run on every push.
